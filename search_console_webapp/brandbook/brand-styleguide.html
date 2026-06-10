@@ -1,0 +1,4326 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Clicandseo — Brand Style Guide & Brandbook. Comprehensive design system for the Spanish SaaS SEO tool.">
+  <meta name="theme-color" content="#0F172A">
+  <title>Clicandseo — Brand Style Guide</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    /* ========================================================================
+       0. DESIGN TOKENS — CSS Custom Properties
+       ======================================================================== */
+    :root {
+      /* Colors — Accent */
+      --color-accent: #d9f9b8;
+      --color-accent-subtle: rgba(217, 249, 184, 0.2);
+
+      /* Colors — Text */
+      --color-text-primary: #0F172A;
+      --color-text-secondary: #64748B;
+      --color-text-tertiary: #94A3B8;
+      --color-text-inverse: #F8FAFC;
+
+      /* Colors — Backgrounds */
+      --color-bg-paper: #FFFFFF;
+      --color-bg-subtle: #F1F5F9;
+      --color-bg-dark: #0A0A0B;
+
+      /* Colors — Borders */
+      --color-border: #E2E8F0;
+      --color-border-subtle: #EEF2F7;
+
+      /* Colors — Utility */
+      --color-success: #3CB371;
+      --color-error: #E05252;
+
+      /* Typography */
+      --font-sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-serif: 'Libre Baskerville', 'Georgia', serif;
+
+      /* Font weights */
+      --weight-light: 300;
+      --weight-regular: 400;
+      --weight-medium: 500;
+      --weight-semibold: 600;
+      --weight-bold: 700;
+      --weight-extrabold: 800;
+
+      /* Font sizes — fluid scale */
+      --text-xs: clamp(0.7rem, 0.65rem + 0.25vw, 0.75rem);
+      --text-sm: clamp(0.8rem, 0.75rem + 0.25vw, 0.875rem);
+      --text-base: clamp(0.9rem, 0.85rem + 0.3vw, 1rem);
+      --text-lg: clamp(1.05rem, 0.95rem + 0.5vw, 1.25rem);
+      --text-xl: clamp(1.2rem, 1rem + 1vw, 1.5rem);
+      --text-2xl: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
+      --text-3xl: clamp(1.8rem, 1.4rem + 2vw, 2.5rem);
+      --text-4xl: clamp(2.2rem, 1.6rem + 3vw, 3.5rem);
+      --text-5xl: clamp(2.8rem, 2rem + 4vw, 5rem);
+      --text-6xl: clamp(3.5rem, 2.5rem + 5vw, 7rem);
+      --text-hero: clamp(4rem, 3rem + 7vw, 10rem);
+
+      /* Line heights */
+      --leading-none: 1;
+      --leading-tight: 1.15;
+      --leading-snug: 1.3;
+      --leading-normal: 1.6;
+      --leading-relaxed: 1.75;
+
+      /* Letter spacing */
+      --tracking-tight: -0.03em;
+      --tracking-normal: 0em;
+      --tracking-wide: 0.05em;
+      --tracking-wider: 0.1em;
+      --tracking-widest: 0.2em;
+
+      /* Spacing */
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 2rem;
+      --space-xl: 4rem;
+      --space-2xl: 8rem;
+
+      /* Border radius */
+      --radius-sm: 8px;
+      --radius-md: 20px;
+      --radius-lg: 30px;
+      --radius-xl: 60px;
+      --radius-full: 9999px;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+      --shadow-md: 0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+      --shadow-lg: 0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+      --shadow-float: 0 8px 16px rgba(15,23,42,0.08), 0 30px 60px rgba(15,23,42,0.16);
+
+      /* Transitions */
+      --ease-brand: cubic-bezier(0.2, 0.8, 0.2, 1);
+      --duration: 0.3s;
+      --transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+      /* Layout */
+      --sidebar-width: 260px;
+      --content-max: 1200px;
+      --section-padding-y: clamp(4rem, 6vw, 8rem);
+      --section-padding-x: clamp(1.5rem, 4vw, 4rem);
+
+      /* Z-index scale */
+      --z-noise: 1;
+      --z-content: 10;
+      --z-nav: 100;
+      --z-overlay: 200;
+    }
+
+
+    /* ========================================================================
+       1. GLOBAL RESET & BASE STYLES
+       ======================================================================== */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      font-size: 16px;
+      hanging-punctuation: first last;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-regular);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      color: var(--color-text-primary);
+      background-color: var(--color-bg-paper);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    img,
+    picture,
+    video,
+    canvas,
+    svg {
+      display: block;
+      max-width: 100%;
+    }
+
+    input,
+    button,
+    textarea,
+    select {
+      font: inherit;
+      color: inherit;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    ul, ol {
+      list-style: none;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      text-wrap: balance;
+      overflow-wrap: break-word;
+    }
+
+    p {
+      text-wrap: pretty;
+      overflow-wrap: break-word;
+      max-width: 70ch;
+    }
+
+    /* Selection */
+    ::selection {
+      background-color: var(--color-accent);
+      color: var(--color-text-primary);
+    }
+
+    ::-moz-selection {
+      background-color: var(--color-accent);
+      color: var(--color-text-primary);
+    }
+
+    /* Focus visible */
+    :focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 3px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--color-bg-subtle);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--color-border);
+      border-radius: var(--radius-full);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--color-text-tertiary);
+    }
+
+
+    /* ========================================================================
+       2. NOISE OVERLAY
+       ======================================================================== */
+    .noise-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: var(--z-noise);
+      opacity: 0.05;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+    }
+
+
+    /* ========================================================================
+       3. SIDEBAR NAVIGATION
+       ======================================================================== */
+    .sidebar-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: var(--color-bg-paper);
+      border-right: 1px solid var(--color-border-subtle);
+      z-index: var(--z-nav);
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-lg) 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      transition: transform var(--transition);
+    }
+
+    .sidebar-nav::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .sidebar-nav::-webkit-scrollbar-thumb {
+      background: var(--color-border);
+      border-radius: var(--radius-full);
+    }
+
+    .sidebar-logo {
+      padding: 0 var(--space-lg);
+      margin-bottom: var(--space-xl);
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo__brand {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-lg);
+      letter-spacing: var(--tracking-tight);
+      color: var(--color-text-primary);
+    }
+
+    .sidebar-logo__sub {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-regular);
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      margin-top: var(--space-xs);
+    }
+
+    .sidebar-nav__list {
+      flex: 1;
+      padding: 0 var(--space-md);
+    }
+
+    .sidebar-nav__item {
+      margin-bottom: 2px;
+    }
+
+    .sidebar-nav__link {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: 0.6rem var(--space-md);
+      border-radius: var(--radius-full);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-secondary);
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .sidebar-nav__link:hover {
+      color: var(--color-text-primary);
+      background: var(--color-bg-subtle);
+    }
+
+    .sidebar-nav__link.is-active {
+      color: var(--color-text-primary);
+      background: var(--color-accent);
+      font-weight: var(--weight-semibold);
+    }
+
+    .sidebar-nav__link.is-active:hover {
+      background: var(--color-accent);
+    }
+
+    .sidebar-nav__number {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-regular);
+      color: var(--color-text-tertiary);
+      min-width: 1.4rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sidebar-nav__link.is-active .sidebar-nav__number {
+      color: var(--color-text-primary);
+      opacity: 0.6;
+    }
+
+    .sidebar-nav__footer {
+      padding: var(--space-md) var(--space-lg);
+      border-top: 1px solid var(--color-border-subtle);
+      margin-top: var(--space-md);
+      flex-shrink: 0;
+    }
+
+    .sidebar-nav__footer-text {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* Mobile nav toggle */
+    .mobile-nav-toggle {
+      display: none;
+      position: fixed;
+      top: var(--space-md);
+      left: var(--space-md);
+      z-index: calc(var(--z-nav) + 10);
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-full);
+      background: var(--color-bg-paper);
+      border: 1px solid var(--color-border);
+      box-shadow: var(--shadow-md);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+    }
+
+    .mobile-nav-toggle:hover {
+      background: var(--color-bg-subtle);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .mobile-nav-toggle__bar {
+      display: block;
+      width: 18px;
+      height: 2px;
+      background: var(--color-text-primary);
+      border-radius: var(--radius-full);
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .mobile-nav-toggle__bar::before,
+    .mobile-nav-toggle__bar::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 2px;
+      background: var(--color-text-primary);
+      border-radius: var(--radius-full);
+      transition: all var(--transition);
+      left: 0;
+    }
+
+    .mobile-nav-toggle__bar::before {
+      top: -6px;
+    }
+
+    .mobile-nav-toggle__bar::after {
+      top: 6px;
+    }
+
+    .mobile-nav-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: calc(var(--z-nav) - 1);
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    /* Main content offset */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      position: relative;
+      z-index: var(--z-content);
+    }
+
+
+    /* ========================================================================
+       4. COVER / HERO SECTION
+       ======================================================================== */
+    .cover {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: var(--color-bg-dark);
+      overflow: hidden;
+      padding: var(--space-xl) var(--space-lg);
+    }
+
+    /* Cover decorative line */
+    .cover__deco-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--color-accent);
+    }
+
+    .cover__content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .cover__eyebrow {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      letter-spacing: var(--tracking-widest);
+      text-transform: uppercase;
+      color: var(--color-accent);
+      margin-bottom: var(--space-lg);
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-brand) 0.2s forwards;
+    }
+
+    .cover__title {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-hero);
+      line-height: var(--leading-none);
+      letter-spacing: -0.05em;
+      color: var(--color-text-inverse);
+      margin-bottom: var(--space-lg);
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-brand) 0.4s forwards;
+    }
+
+    .cover__title-accent {
+      color: var(--color-accent);
+    }
+
+    .cover__tagline {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: var(--text-xl);
+      color: var(--color-text-tertiary);
+      max-width: 500px;
+      margin: 0 auto var(--space-xl);
+      line-height: var(--leading-snug);
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-brand) 0.6s forwards;
+    }
+
+    .cover__version {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-xs) var(--space-md);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-tertiary);
+      letter-spacing: var(--tracking-wide);
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-brand) 0.8s forwards;
+    }
+
+    .cover__version-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    .cover__scroll-indicator {
+      position: absolute;
+      bottom: var(--space-lg);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+      color: var(--color-text-tertiary);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-wide);
+      text-transform: uppercase;
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-brand) 1.2s forwards;
+    }
+
+    .cover__scroll-line {
+      width: 1px;
+      height: 40px;
+      background: var(--color-text-tertiary);
+    }
+
+
+    /* ========================================================================
+       5. SECTION LAYOUT
+       ======================================================================== */
+    .guide-section {
+      padding: var(--section-padding-y) var(--section-padding-x);
+      position: relative;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .guide-section__inner {
+      max-width: var(--content-max);
+      margin: 0 auto;
+    }
+
+    /* Alternating backgrounds */
+    .guide-section--white {
+      background: var(--color-bg-paper);
+    }
+
+    .guide-section--subtle {
+      background: var(--color-bg-subtle);
+    }
+
+    .guide-section--dark {
+      background: var(--color-bg-dark);
+      border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .guide-section--dark .section-header__eyebrow {
+      color: var(--color-accent);
+    }
+
+    .guide-section--dark .section-header__title {
+      color: var(--color-text-inverse);
+    }
+
+    .guide-section--dark .section-header__description {
+      color: var(--color-text-tertiary);
+    }
+
+    /* Section header */
+    .section-header {
+      margin-bottom: var(--space-xl);
+    }
+
+    .section-header__eyebrow {
+      display: inline-block;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-widest);
+      text-transform: uppercase;
+      color: var(--color-text-tertiary);
+      margin-bottom: var(--space-md);
+    }
+
+    .section-header__title {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-4xl);
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-tight);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-md);
+    }
+
+    .section-header__description {
+      font-family: var(--font-sans);
+      font-size: var(--text-lg);
+      font-weight: var(--weight-regular);
+      color: var(--color-text-secondary);
+      line-height: var(--leading-normal);
+      max-width: 60ch;
+    }
+
+    /* Subsection */
+    .subsection {
+      margin-top: var(--space-xl);
+    }
+
+    .subsection__title {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-bold);
+      font-size: var(--text-2xl);
+      color: var(--color-text-primary);
+      letter-spacing: var(--tracking-tight);
+      margin-bottom: var(--space-lg);
+    }
+
+    .guide-section--dark .subsection__title {
+      color: var(--color-text-inverse);
+    }
+
+    .subsection__text {
+      font-size: var(--text-base);
+      color: var(--color-text-secondary);
+      line-height: var(--leading-normal);
+      margin-bottom: var(--space-lg);
+      max-width: 60ch;
+    }
+
+    .guide-section--dark .subsection__text {
+      color: var(--color-text-tertiary);
+    }
+
+
+    /* ========================================================================
+       6. COLOR SWATCH CARDS
+       ======================================================================== */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .color-grid--primary {
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+
+    .color-swatch {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--color-bg-paper);
+      border: 1px solid var(--color-border-subtle);
+      transition: all var(--transition);
+    }
+
+    .color-swatch:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .color-swatch__fill {
+      height: 140px;
+      position: relative;
+      transition: all var(--transition);
+    }
+
+    .color-grid--primary .color-swatch__fill {
+      height: 180px;
+    }
+
+
+    .color-swatch__info {
+      padding: var(--space-md);
+    }
+
+    .color-swatch__name {
+      font-weight: var(--weight-semibold);
+      font-size: var(--text-sm);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-xs);
+    }
+
+    .color-swatch__hex {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-secondary);
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 2px;
+    }
+
+    .color-swatch__rgb {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .color-swatch__variable {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      margin-top: var(--space-xs);
+      padding-top: var(--space-xs);
+      border-top: 1px solid var(--color-border-subtle);
+    }
+
+    /* Dark section swatch overrides */
+    .guide-section--dark .color-swatch {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .guide-section--dark .color-swatch__name {
+      color: var(--color-text-inverse);
+    }
+
+    .guide-section--dark .color-swatch__hex {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .guide-section--dark .color-swatch__rgb,
+    .guide-section--dark .color-swatch__variable {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .guide-section--dark .color-swatch__variable {
+      border-top-color: rgba(255, 255, 255, 0.08);
+    }
+
+
+    /* ========================================================================
+       7. TYPOGRAPHY SPECIMEN
+       ======================================================================== */
+    .type-specimen {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xl);
+    }
+
+    .type-specimen__family {
+      padding: var(--space-lg);
+      border-radius: var(--radius-md);
+      background: var(--color-bg-paper);
+      border: 1px solid var(--color-border-subtle);
+    }
+
+    .guide-section--dark .type-specimen__family {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .type-specimen__family-name {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-widest);
+      text-transform: uppercase;
+      color: var(--color-text-primary);
+      background: var(--color-accent);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-full);
+      display: inline-block;
+      margin-bottom: var(--space-lg);
+    }
+
+    .type-specimen__sample {
+      margin-bottom: var(--space-lg);
+      padding-bottom: var(--space-lg);
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .type-specimen__sample:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .guide-section--dark .type-specimen__sample {
+      border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .type-specimen__meta {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-md);
+      margin-bottom: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .type-specimen__weight-label {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-wide);
+      min-width: 100px;
+    }
+
+    .type-specimen__size-label {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .type-specimen__text {
+      color: var(--color-text-primary);
+      transition: color var(--transition);
+    }
+
+    .guide-section--dark .type-specimen__text {
+      color: var(--color-text-inverse);
+    }
+
+    .type-specimen__alphabet {
+      font-size: var(--text-xl);
+      line-height: var(--leading-relaxed);
+      color: var(--color-text-secondary);
+      word-break: break-all;
+      margin-top: var(--space-md);
+    }
+
+    .guide-section--dark .type-specimen__alphabet {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+
+    /* ========================================================================
+       8. SPACING SCALE VISUALIZATION
+       ======================================================================== */
+    .spacing-scale {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+
+    .spacing-scale__item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+    }
+
+    .spacing-scale__label {
+      min-width: 80px;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-secondary);
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .spacing-scale__bar-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .spacing-scale__bar {
+      height: 32px;
+      background: var(--color-accent);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .spacing-scale__bar:hover {
+      filter: brightness(0.95);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .spacing-scale__value {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-variant-numeric: tabular-nums;
+      font-weight: var(--weight-medium);
+      white-space: nowrap;
+    }
+
+    .guide-section--dark .spacing-scale__label {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .guide-section--dark .spacing-scale__value {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+
+    /* ========================================================================
+       9. RADIUS VISUALIZATION
+       ======================================================================== */
+    .radius-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .radius-demo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-md);
+      text-align: center;
+    }
+
+    .radius-demo__box {
+      width: 120px;
+      height: 120px;
+      background: var(--color-bg-subtle);
+      border: 2px solid var(--color-border);
+      transition: all var(--transition);
+    }
+
+    .radius-demo__box:hover {
+      border-color: var(--color-text-primary);
+      transform: scale(1.05);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .radius-demo__label {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-primary);
+    }
+
+    .radius-demo__value {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .guide-section--dark .radius-demo__label {
+      color: var(--color-text-inverse);
+    }
+
+    .guide-section--dark .radius-demo__value {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+
+    /* ========================================================================
+       10. SHADOW CARDS
+       ======================================================================== */
+    .shadow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--space-xl);
+    }
+
+    .shadow-card {
+      padding: var(--space-xl);
+      border-radius: var(--radius-md);
+      background: var(--color-bg-paper);
+      text-align: center;
+      transition: all var(--transition);
+    }
+
+    .shadow-card:hover {
+      transform: translateY(-6px);
+    }
+
+    .shadow-card--sm {
+      box-shadow: var(--shadow-sm);
+    }
+
+    .shadow-card--sm:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .shadow-card--md {
+      box-shadow: var(--shadow-md);
+    }
+
+    .shadow-card--md:hover {
+      box-shadow: var(--shadow-lg);
+    }
+
+    .shadow-card--lg {
+      box-shadow: var(--shadow-lg);
+    }
+
+    .shadow-card--lg:hover {
+      box-shadow: var(--shadow-float);
+    }
+
+    .shadow-card--float {
+      box-shadow: var(--shadow-float);
+    }
+
+    .shadow-card--float:hover {
+      box-shadow: 0 35px 70px -12px rgba(15, 23, 42, 0.2);
+    }
+
+    .shadow-card__label {
+      font-weight: var(--weight-semibold);
+      font-size: var(--text-base);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-xs);
+    }
+
+    .shadow-card__value {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      word-break: break-all;
+    }
+
+
+    /* ========================================================================
+       11. BUTTON COMPONENTS
+       ======================================================================== */
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      padding: 0.8rem 1.8rem;
+      border-radius: var(--radius-full);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--tracking-normal);
+      cursor: pointer;
+      border: none;
+      outline: none;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    /* Primary button */
+    .btn--primary {
+      background: var(--color-bg-dark);
+      color: var(--color-text-inverse);
+    }
+
+    .btn--primary:hover {
+      background: #1a1a1a;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn--primary:active {
+      transform: translateY(0);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Secondary button */
+    .btn--secondary {
+      background: transparent;
+      color: var(--color-text-primary);
+      border: 1.5px solid var(--color-border);
+    }
+
+    .btn--secondary:hover {
+      border-color: var(--color-text-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn--secondary:active {
+      transform: translateY(0);
+    }
+
+    /* Accent button */
+    .btn--accent {
+      background: var(--color-accent);
+      color: var(--color-text-primary);
+    }
+
+    .btn--accent:hover {
+      background: var(--color-accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn--accent:active {
+      transform: translateY(0);
+    }
+
+    /* Ghost button */
+    .btn--ghost {
+      background: transparent;
+      color: var(--color-text-secondary);
+      padding-left: var(--space-sm);
+      padding-right: var(--space-sm);
+    }
+
+    .btn--ghost:hover {
+      color: var(--color-text-primary);
+      background: var(--color-bg-subtle);
+    }
+
+    /* Dark variant buttons */
+    .guide-section--dark .btn--secondary {
+      color: var(--color-text-inverse);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .guide-section--dark .btn--secondary:hover {
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .guide-section--dark .btn--ghost {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .guide-section--dark .btn--ghost:hover {
+      color: var(--color-text-inverse);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Button sizes */
+    .btn--sm {
+      padding: 0.5rem 1.2rem;
+      font-size: var(--text-xs);
+    }
+
+    .btn--lg {
+      padding: 1rem 2.4rem;
+      font-size: var(--text-base);
+    }
+
+    /* Button with icon */
+    .btn__icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .btn--lg .btn__icon {
+      width: 20px;
+      height: 20px;
+    }
+
+
+    /* ========================================================================
+       12. CARD COMPONENTS
+       ======================================================================== */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .card {
+      background: var(--color-bg-paper);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .card__eyebrow {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-wider);
+      color: var(--color-text-tertiary);
+      margin-bottom: var(--space-sm);
+    }
+
+    .card__title {
+      font-weight: var(--weight-bold);
+      font-size: var(--text-xl);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-sm);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .card__text {
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+      line-height: var(--leading-normal);
+    }
+
+    .card__footer {
+      margin-top: var(--space-lg);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--color-border-subtle);
+    }
+
+    /* Dark cards */
+    .guide-section--dark .card {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .guide-section--dark .card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(217, 249, 184, 0.2);
+    }
+
+    .guide-section--dark .card__title {
+      color: var(--color-text-inverse);
+    }
+
+    .guide-section--dark .card__text {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .guide-section--dark .card__footer {
+      border-top-color: rgba(255, 255, 255, 0.06);
+    }
+
+
+    /* ========================================================================
+       13. LOGO DISPLAY AREAS
+       ======================================================================== */
+    .logo-display-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .logo-display {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--color-border-subtle);
+    }
+
+    .logo-display__area {
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .logo-display__area--light {
+      background: var(--color-bg-paper);
+    }
+
+    .logo-display__area--dark {
+      background: var(--color-bg-dark);
+    }
+
+
+    .logo-display__logo-text {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-3xl);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .logo-display__area--light .logo-display__logo-text {
+      color: var(--color-text-primary);
+    }
+
+    .logo-display__area--dark .logo-display__logo-text {
+      color: var(--color-text-inverse);
+    }
+
+
+    /* Clear space guides */
+    .logo-display__clearspace {
+      position: absolute;
+      border: 1px dashed var(--color-text-tertiary);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .logo-display__clearspace--x {
+      top: 50%;
+      transform: translateY(-50%);
+      height: 50%;
+      left: 15%;
+      right: 15%;
+    }
+
+    .logo-display__info {
+      padding: var(--space-md);
+      background: var(--color-bg-paper);
+    }
+
+    .logo-display__info-label {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-primary);
+    }
+
+    .logo-display__info-desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      margin-top: 2px;
+    }
+
+    .guide-section--dark .logo-display {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .guide-section--dark .logo-display__info {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .guide-section--dark .logo-display__info-label {
+      color: var(--color-text-inverse);
+    }
+
+    .guide-section--dark .logo-display__info-desc {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+
+    /* ========================================================================
+       14. DO / DON'T GRID
+       ======================================================================== */
+    .do-dont-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .do-dont-card {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--color-border-subtle);
+    }
+
+    .do-dont-card__preview {
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-bg-subtle);
+      position: relative;
+    }
+
+    .guide-section--dark .do-dont-card__preview {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .do-dont-card__indicator {
+      position: absolute;
+      top: var(--space-md);
+      left: var(--space-md);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: var(--weight-bold);
+    }
+
+    .do-dont-card--do .do-dont-card__indicator {
+      background: var(--color-success);
+      color: white;
+    }
+
+    .do-dont-card--dont .do-dont-card__indicator {
+      background: var(--color-error);
+      color: white;
+    }
+
+    .do-dont-card__label-bar {
+      padding: var(--space-xs) var(--space-md);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      letter-spacing: var(--tracking-wider);
+      text-transform: uppercase;
+    }
+
+    .do-dont-card--do .do-dont-card__label-bar {
+      background: var(--color-success);
+      color: white;
+    }
+
+    .do-dont-card--dont .do-dont-card__label-bar {
+      background: var(--color-error);
+      color: white;
+    }
+
+    .do-dont-card__body {
+      padding: var(--space-md);
+      background: var(--color-bg-paper);
+    }
+
+    .guide-section--dark .do-dont-card__body {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .do-dont-card__text {
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+      line-height: var(--leading-normal);
+    }
+
+    .guide-section--dark .do-dont-card {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .guide-section--dark .do-dont-card__text {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+
+    /* ========================================================================
+       15. BRAND APPLICATION MOCKUPS
+       ======================================================================== */
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-xl);
+    }
+
+    /* Business card mockup */
+    .mockup-business-card {
+      width: 100%;
+      max-width: 380px;
+      aspect-ratio: 1.75 / 1;
+      border-radius: var(--radius-md);
+      background: var(--color-bg-dark);
+      padding: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-lg);
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mockup-business-card:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .mockup-business-card__brand {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-xl);
+      color: var(--color-text-inverse);
+      letter-spacing: var(--tracking-tight);
+      position: relative;
+      z-index: 1;
+    }
+
+    .mockup-business-card__details {
+      position: relative;
+      z-index: 1;
+    }
+
+    .mockup-business-card__name {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-inverse);
+      margin-bottom: 2px;
+    }
+
+    .mockup-business-card__role {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      margin-bottom: var(--space-sm);
+    }
+
+    .mockup-business-card__contact {
+      font-size: var(--text-xs);
+      color: var(--color-accent);
+    }
+
+    /* Letterhead mockup */
+    .mockup-letterhead {
+      width: 100%;
+      max-width: 380px;
+      aspect-ratio: 0.72 / 1;
+      border-radius: var(--radius-sm);
+      background: var(--color-bg-paper);
+      padding: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--color-border-subtle);
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mockup-letterhead:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .mockup-letterhead__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-xl);
+      padding-bottom: var(--space-md);
+      border-bottom: 2px solid var(--color-accent);
+    }
+
+    .mockup-letterhead__brand {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-lg);
+      color: var(--color-text-primary);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .mockup-letterhead__date {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+    }
+
+    .mockup-letterhead__body {
+      flex: 1;
+    }
+
+    .mockup-letterhead__line {
+      height: 6px;
+      border-radius: var(--radius-full);
+      background: var(--color-bg-subtle);
+      margin-bottom: var(--space-sm);
+    }
+
+    .mockup-letterhead__line:nth-child(even) {
+      width: 85%;
+    }
+
+    .mockup-letterhead__line:nth-child(3n) {
+      width: 70%;
+    }
+
+    .mockup-letterhead__line:nth-child(5) {
+      width: 45%;
+      margin-bottom: var(--space-lg);
+    }
+
+    .mockup-letterhead__footer {
+      margin-top: auto;
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--color-border-subtle);
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+    }
+
+    /* Social media post mockup */
+    .mockup-social {
+      width: 100%;
+      max-width: 380px;
+      aspect-ratio: 1 / 1;
+      border-radius: var(--radius-md);
+      background: var(--color-bg-dark);
+      padding: var(--space-xl);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mockup-social:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .mockup-social__brand {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-3xl);
+      color: var(--color-text-inverse);
+      letter-spacing: var(--tracking-tight);
+      position: relative;
+      z-index: 1;
+      margin-bottom: var(--space-md);
+    }
+
+    .mockup-social__tagline {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: var(--text-base);
+      color: var(--color-accent);
+      position: relative;
+      z-index: 1;
+      line-height: var(--leading-snug);
+    }
+
+    .mockup-social__cta {
+      margin-top: var(--space-lg);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Mockup label */
+    .mockup-label {
+      text-align: center;
+      margin-top: var(--space-md);
+    }
+
+    .mockup-label__title {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-primary);
+    }
+
+    .mockup-label__desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      margin-top: 2px;
+    }
+
+    .guide-section--dark .mockup-label__title {
+      color: var(--color-text-inverse);
+    }
+
+    .guide-section--dark .mockup-label__desc {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+
+    /* ========================================================================
+       16. UTILITY CLASSES
+       ======================================================================== */
+    .text-serif {
+      font-family: var(--font-serif);
+    }
+
+    .text-sans {
+      font-family: var(--font-sans);
+    }
+
+    .text-accent {
+      color: var(--color-accent);
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-mono {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    .mt-sm { margin-top: var(--space-sm); }
+    .mt-md { margin-top: var(--space-md); }
+    .mt-lg { margin-top: var(--space-lg); }
+    .mt-xl { margin-top: var(--space-xl); }
+
+    .mb-sm { margin-bottom: var(--space-sm); }
+    .mb-md { margin-bottom: var(--space-md); }
+    .mb-lg { margin-bottom: var(--space-lg); }
+    .mb-xl { margin-bottom: var(--space-xl); }
+
+    .inline-code {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.875em;
+      background: var(--color-bg-subtle);
+      padding: 0.15em 0.45em;
+      border-radius: var(--radius-sm);
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border-subtle);
+    }
+
+    .guide-section--dark .inline-code {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--color-accent);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: var(--color-border-subtle);
+      border: none;
+      margin: var(--space-xl) 0;
+    }
+
+    .guide-section--dark .divider {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Token display table */
+    .token-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+
+    .token-table th,
+    .token-table td {
+      text-align: left;
+      padding: var(--space-sm) var(--space-md);
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .token-table th {
+      font-weight: var(--weight-semibold);
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-wide);
+      color: var(--color-text-tertiary);
+    }
+
+    .token-table td {
+      color: var(--color-text-secondary);
+    }
+
+    .token-table td:first-child {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: var(--text-xs);
+      color: var(--color-text-primary);
+    }
+
+    .guide-section--dark .token-table th {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .guide-section--dark .token-table td {
+      color: rgba(255, 255, 255, 0.5);
+      border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .guide-section--dark .token-table td:first-child {
+      color: var(--color-accent);
+    }
+
+
+    /* ========================================================================
+       18. RESPONSIVE DESIGN
+       ======================================================================== */
+
+    /* Tablet */
+    @media (max-width: 1024px) {
+      :root {
+        --sidebar-width: 220px;
+      }
+
+      .color-grid--primary {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      }
+
+      .mockup-grid {
+        grid-template-columns: 1fr;
+        justify-items: center;
+      }
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      /* Show mobile nav toggle */
+      .mobile-nav-toggle {
+        display: flex;
+      }
+
+      /* Collapse sidebar */
+      .sidebar-nav {
+        transform: translateX(-100%);
+        width: 280px;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .sidebar-nav.is-open {
+        transform: translateX(0);
+      }
+
+      .mobile-nav-backdrop.is-visible {
+        display: block;
+        opacity: 1;
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+
+      /* Section padding adjustments */
+      .guide-section {
+        padding: var(--space-xl) var(--space-md);
+      }
+
+      .section-header__title {
+        font-size: var(--text-3xl);
+      }
+
+      /* Grids */
+      .color-grid,
+      .color-grid--primary {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: var(--space-md);
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .do-dont-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .logo-display-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .shadow-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .radius-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--space-md);
+      }
+
+      .animation-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-md);
+      }
+
+      .mockup-grid {
+        grid-template-columns: 1fr;
+      }
+
+      /* Buttons */
+      .button-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      /* Spacing scale */
+      .spacing-scale__item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-sm);
+      }
+
+      .spacing-scale__label {
+        min-width: auto;
+        text-align: left;
+      }
+
+      .spacing-scale__bar-wrapper {
+        width: 100%;
+      }
+
+      /* Cover */
+      .cover {
+        padding: var(--space-lg) var(--space-md);
+      }
+
+      .cover__orb--1 { width: 250px; height: 250px; }
+      .cover__orb--2 { width: 180px; height: 180px; }
+      .cover__orb--3 { width: 120px; height: 120px; }
+    }
+
+    /* Small mobile */
+    @media (max-width: 480px) {
+      .color-grid,
+      .color-grid--primary {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .radius-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .animation-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cover__title {
+        font-size: var(--text-5xl);
+      }
+
+      .type-specimen__meta {
+        flex-direction: column;
+        gap: var(--space-xs);
+      }
+    }
+
+
+    /* ========================================================================
+       18b. DECORATIVE PATTERNS — Elementos Decorativos
+       ======================================================================== */
+
+    /* Deco demos grid */
+    .deco-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    /* Individual demo box */
+    .deco-demo {
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--color-bg-paper);
+    }
+
+    .deco-demo__preview {
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      padding: var(--space-lg);
+    }
+
+    .deco-demo__preview--dark {
+      background: var(--color-bg-dark);
+    }
+
+    .deco-demo__preview--subtle {
+      background: var(--color-bg-subtle);
+    }
+
+    .deco-demo__info {
+      padding: var(--space-md);
+      border-top: 1px solid var(--color-border-subtle);
+    }
+
+    .deco-demo__name {
+      font-weight: var(--weight-bold);
+      font-size: var(--text-sm);
+      color: var(--color-text-primary);
+      margin-bottom: 4px;
+    }
+
+    .deco-demo__spec {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-family: var(--font-sans);
+    }
+
+    .deco-demo__desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-secondary);
+      margin-top: 6px;
+      line-height: var(--leading-normal);
+    }
+
+    /* — Highlight text demo — */
+    .deco-highlight-text {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      position: relative;
+      display: inline-block;
+      color: var(--color-text-primary);
+    }
+
+    .deco-highlight-text::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: -6px;
+      right: -6px;
+      height: 0.4em;
+      background: var(--color-accent);
+      z-index: -1;
+      transform: rotate(-1.5deg);
+      border-radius: 4px;
+      opacity: 0.85;
+    }
+
+    .deco-demo__preview--dark .deco-highlight-text {
+      color: var(--color-text-inverse);
+    }
+
+    /* — Headline Serif Underline demo — */
+    .deco-headline-combo {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-3xl);
+      letter-spacing: -0.03em;
+      line-height: var(--leading-tight);
+      color: var(--color-text-primary);
+    }
+
+    .deco-headline-combo__accent {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 400;
+      position: relative;
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .deco-headline-combo__accent::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: -6px;
+      right: -6px;
+      height: 0.4em;
+      background: var(--color-accent);
+      z-index: -1;
+      transform: rotate(-1.5deg);
+      border-radius: 4px;
+      opacity: 0.85;
+    }
+
+    .deco-demo__preview--dark .deco-headline-combo {
+      color: var(--color-text-inverse);
+    }
+
+    .deco-headline-combo--h2 {
+      font-size: var(--text-2xl);
+    }
+
+    /* — Underline effect demo — */
+    .deco-underline-text {
+      font-family: var(--font-sans);
+      font-weight: var(--weight-extrabold);
+      font-size: var(--text-2xl);
+      letter-spacing: -0.03em;
+      position: relative;
+      display: inline-block;
+      color: var(--color-text-primary);
+    }
+
+    .deco-underline-text::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: var(--color-accent);
+      border-radius: 2px;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+
+    .deco-underline-text:hover::after {
+      transform: scaleX(1);
+    }
+
+    /* — Left border accent demo — */
+    .deco-left-border {
+      padding-left: 1.5rem;
+      border-left: 3px solid var(--color-accent);
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+      line-height: var(--leading-normal);
+      max-width: 280px;
+    }
+
+    .deco-left-border strong {
+      color: var(--color-text-primary);
+      font-weight: var(--weight-bold);
+    }
+
+    /* — Tag demo — */
+    .deco-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-primary);
+      background: var(--color-accent-subtle);
+      border: 1px solid rgba(197, 244, 103, 0.3);
+      padding: 6px 16px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.03em;
+    }
+
+    /* — Dot grid demo — */
+    .deco-dot-grid {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, var(--color-border) 1px, transparent 0);
+      background-size: 32px 32px;
+      opacity: 0.4;
+    }
+
+    .deco-dot-grid--small {
+      background-size: 24px 24px;
+      opacity: 0.5;
+    }
+
+    .deco-dot-grid-label {
+      position: relative;
+      z-index: 2;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-wider);
+    }
+
+    /* — Deco line demo — */
+    .deco-line-demo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .deco-line-bar {
+      display: block;
+      width: 50px;
+      height: 1px;
+      background: var(--color-accent);
+      opacity: 0.6;
+    }
+
+    .deco-line-diamond {
+      font-size: 0.55rem;
+      color: var(--color-accent);
+      opacity: 0.5;
+    }
+
+    /* — Vertical connector demo — */
+    .deco-connector-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      height: 140px;
+    }
+
+    .deco-connector-node {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      flex-shrink: 0;
+    }
+
+    .deco-connector-line {
+      width: 1px;
+      flex: 1;
+      background: var(--color-accent);
+      opacity: 0.15;
+    }
+
+    /* — Accent line on hover demo — */
+    .deco-accent-card {
+      background: var(--color-bg-paper);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s var(--ease-brand);
+      cursor: pointer;
+      width: 100%;
+      max-width: 240px;
+    }
+
+    .deco-accent-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .deco-accent-line-bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--color-accent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .deco-accent-card:hover .deco-accent-line-bottom {
+      opacity: 1;
+    }
+
+    .deco-accent-line-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--color-accent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .deco-accent-card:hover .deco-accent-line-top {
+      opacity: 1;
+    }
+
+
+    /* — Divider dots demo — */
+    .deco-divider-dots {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .deco-divider-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--color-accent);
+      border-radius: 50%;
+      opacity: 0.5;
+      animation: decoSectionPulse 2s ease-in-out infinite;
+    }
+
+    .deco-divider-dot:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+
+    .deco-divider-dot:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+
+    @keyframes decoSectionPulse {
+      0%, 100% { transform: scale(1); opacity: 0.3; }
+      50% { transform: scale(1.5); opacity: 0.8; }
+    }
+
+    /* — Browser chrome dots demo — */
+    .deco-browser-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      padding: 10px 14px;
+      width: 100%;
+      max-width: 260px;
+    }
+
+    .deco-browser-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .deco-browser-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .deco-browser-dots span:nth-child(1) { background: #FF5F57; }
+    .deco-browser-dots span:nth-child(2) { background: #FEBC2E; }
+    .deco-browser-dots span:nth-child(3) { background: #28C840; }
+
+    .deco-browser-url {
+      flex: 1;
+      background: white;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: 5px 12px;
+      font-size: 0.75rem;
+      color: var(--color-text-tertiary);
+    }
+
+    .deco-browser-body {
+      border: 1px solid var(--color-border);
+      border-top: none;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      padding: var(--space-md);
+      background: white;
+      width: 100%;
+      max-width: 260px;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+    }
+
+    /* — Toggle switch demo — */
+    .deco-toggle-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--color-bg-subtle);
+      padding: 8px 18px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border);
+    }
+
+    .deco-toggle-label {
+      font-size: 0.85rem;
+      font-weight: var(--weight-medium);
+      color: var(--color-text-tertiary);
+    }
+
+    .deco-toggle-label.active {
+      color: var(--color-text-primary);
+      font-weight: var(--weight-semibold);
+    }
+
+    .deco-toggle-switch {
+      width: 48px;
+      height: 26px;
+      background: var(--color-text-primary);
+      border: none;
+      border-radius: var(--radius-full);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .deco-toggle-thumb {
+      width: 22px;
+      height: 22px;
+      background: white;
+      position: absolute;
+      top: 2px;
+      left: 24px;
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.15);
+      transition: transform 0.3s var(--ease-brand);
+    }
+
+    .deco-save-badge {
+      font-size: 0.68rem;
+      font-weight: var(--weight-bold);
+      background: var(--color-bg-subtle);
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    /* — Badge/Metric demo — */
+    .deco-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      font-weight: var(--weight-bold);
+      border-radius: var(--radius-full);
+    }
+
+    .deco-badge--accent {
+      background: var(--color-bg-subtle);
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+    }
+
+    .deco-badge--dark {
+      background: var(--color-text-primary);
+      color: white;
+    }
+
+    .deco-badge--category {
+      font-size: 0.72rem;
+      padding: 3px 10px;
+      background: var(--color-bg-subtle);
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+    }
+
+    /* — Read more arrow demo — */
+    .deco-read-more {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-primary);
+      transition: gap 0.3s, color 0.3s;
+      cursor: pointer;
+    }
+
+    .deco-read-more:hover {
+      gap: 12px;
+    }
+
+    /* — Deco full-width spec table — */
+    .deco-spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+      margin-top: var(--space-md);
+    }
+
+    .deco-spec-table th,
+    .deco-spec-table td {
+      text-align: left;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--color-border-subtle);
+    }
+
+    .deco-spec-table th {
+      font-weight: var(--weight-semibold);
+      color: var(--color-text-primary);
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-wide);
+    }
+
+    .deco-spec-table td {
+      color: var(--color-text-secondary);
+    }
+
+    .deco-spec-table td code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: var(--text-xs);
+      background: var(--color-bg-subtle);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--color-text-primary);
+    }
+
+
+    /* ========================================================================
+       18c. CAROUSEL — Aplicaciones de Marca
+       ======================================================================== */
+
+    .carousel-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .carousel-viewport {
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border-subtle);
+      background: var(--color-bg-paper);
+    }
+
+    .carousel-track {
+      display: flex;
+      transition: transform 0.5s var(--ease-brand);
+    }
+
+    .carousel-slide {
+      min-width: 100%;
+      flex-shrink: 0;
+    }
+
+    .carousel-slide img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .carousel-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+      margin-top: var(--space-md);
+    }
+
+    .carousel-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--color-border);
+      background: var(--color-bg-paper);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s var(--ease-brand);
+      color: var(--color-text-primary);
+      font-size: 1.1rem;
+    }
+
+    .carousel-btn:hover {
+      border-color: var(--color-accent);
+      background: var(--color-accent-subtle);
+    }
+
+    .carousel-dots {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .carousel-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-border);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: all 0.3s;
+    }
+
+    .carousel-dot.is-active {
+      background: var(--color-accent);
+      transform: scale(1.25);
+    }
+
+    .carousel-counter {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      font-weight: var(--weight-medium);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .carousel-caption {
+      text-align: center;
+      margin-top: var(--space-sm);
+    }
+
+    .carousel-caption__title {
+      font-weight: var(--weight-bold);
+      font-size: var(--text-sm);
+      color: var(--color-text-primary);
+    }
+
+    .carousel-caption__desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-tertiary);
+      margin-top: 2px;
+    }
+
+    /* — Placeholder card for future content — */
+    .placeholder-card {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-2xl) var(--space-xl);
+      text-align: center;
+      color: var(--color-text-tertiary);
+    }
+
+    .placeholder-card__icon {
+      margin-bottom: var(--space-sm);
+      opacity: 0.35;
+    }
+
+    .placeholder-card__title {
+      font-weight: var(--weight-semibold);
+      font-size: var(--text-base);
+      color: var(--color-text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .placeholder-card__text {
+      font-size: var(--text-sm);
+      line-height: var(--leading-normal);
+    }
+
+    /* ========================================================================
+       19. PRINT STYLES
+       ======================================================================== */
+    @media print {
+      *,
+      *::before,
+      *::after {
+        background: transparent !important;
+        color: #0F172A !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+
+      html {
+        font-size: 11pt;
+      }
+
+      body {
+        line-height: 1.5;
+      }
+
+      .sidebar-nav,
+      .mobile-nav-toggle,
+      .mobile-nav-backdrop,
+      .noise-overlay,
+      .cover__scroll-indicator,
+      .cover__orb {
+        display: none !important;
+      }
+
+      .main-content {
+        margin-left: 0 !important;
+      }
+
+      .cover {
+        min-height: auto;
+        padding: 2cm 0;
+        page-break-after: always;
+        background: #fff !important;
+      }
+
+      .cover__title {
+        font-size: 36pt;
+        color: #0F172A !important;
+      }
+
+      .cover__tagline {
+        color: #64748B !important;
+      }
+
+      .guide-section {
+        page-break-inside: avoid;
+        padding: 1cm 0;
+        border-bottom: 1px solid #E2E8F0;
+      }
+
+      .guide-section--dark {
+        background: #fff !important;
+      }
+
+      .guide-section--dark .section-header__title,
+      .guide-section--dark .section-header__eyebrow,
+      .guide-section--dark .section-header__description,
+      .guide-section--dark .subsection__title {
+        color: #0F172A !important;
+      }
+
+      .color-swatch__fill {
+        border: 1px solid #E2E8F0;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      .card,
+      .shadow-card,
+      .animation-demo,
+      .type-specimen__family {
+        border: 1px solid #E2E8F0;
+        page-break-inside: avoid;
+      }
+
+      .btn {
+        border: 1px solid #0F172A;
+      }
+
+      .animation-demo__element {
+        animation: none !important;
+      }
+
+      a[href]::after {
+        content: " (" attr(href) ")";
+        font-size: 0.8em;
+        color: #64748B;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      @page {
+        margin: 2cm;
+        size: A4;
+      }
+    }
+
+
+    /* ========================================================================
+       20. ACCESSIBILITY: REDUCED MOTION
+       ======================================================================== */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+
+      .cover__orb {
+        animation: none !important;
+      }
+
+      .animation-demo__element {
+        animation: none !important;
+      }
+
+      .cover__scroll-line {
+        animation: none !important;
+      }
+    }
+
+
+    /* ========================================================================
+       21. HIGH CONTRAST MODE
+       ======================================================================== */
+    @media (prefers-contrast: high) {
+      :root {
+        --color-border: #94A3B8;
+        --color-border-subtle: #94A3B8;
+        --color-text-secondary: #0F172A;
+        --color-text-tertiary: #64748B;
+      }
+
+      .btn--secondary {
+        border-width: 2px;
+      }
+
+      .card {
+        border-width: 2px;
+      }
+    }
+
+    /* ================================================================
+       11.7 — LAYERED OFFSET CARDS — demo
+    ================================================================ */
+    .deco-stacked-wrap {
+      position: relative;
+      padding: 18px 18px 18px 0;
+      isolation: isolate;
+      width: 260px;
+      height: 170px;
+    }
+    .deco-stacked-lime {
+      position: absolute;
+      top: 30px; left: -14px; right: 14px; bottom: -14px;
+      background: var(--color-accent);
+      border-radius: 30px;
+      transform: rotate(-2.5deg);
+      z-index: 1;
+      pointer-events: none;
+    }
+    .deco-stacked-wrap::before {
+      content: '';
+      position: absolute;
+      top: 18px; left: 18px; right: 0; bottom: 0;
+      background: var(--color-bg-subtle);
+      border-radius: 30px;
+      transform: rotate(2.5deg);
+      z-index: 2;
+    }
+    .deco-stacked-content {
+      position: relative;
+      z-index: 3;
+      background: var(--color-bg-paper);
+      border-radius: 30px;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--color-border-subtle);
+      font-size: 0.7rem;
+      color: var(--color-text-tertiary);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Noise texture overlay -->
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <!-- Mobile Nav Toggle -->
+  <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar-nav').classList.toggle('is-open');document.querySelector('.mobile-nav-backdrop').classList.toggle('is-visible')" aria-label="Abrir navegacion">
+    <span class="mobile-nav-toggle__bar"></span>
+  </button>
+  <div class="mobile-nav-backdrop" onclick="document.querySelector('.sidebar-nav').classList.remove('is-open');this.classList.remove('is-visible')"></div>
+
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar-nav" aria-label="Navegacion del brandbook">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo__brand">
+        <span style="font-weight:800">Clic</span><span style="font-weight:400;opacity:0.5">and</span><span style="font-weight:700">seo</span><span style="color:var(--color-accent);font-weight:800">.</span>
+      </div>
+      <div class="sidebar-logo__sub">Brand Style Guide</div>
+    </div>
+    <ul class="sidebar-nav__list">
+      <li class="sidebar-nav__item"><a href="#cover" class="sidebar-nav__link is-active"><span class="sidebar-nav__number">00</span> Portada</a></li>
+      <li class="sidebar-nav__item"><a href="#brand-story" class="sidebar-nav__link"><span class="sidebar-nav__number">01</span> Marca y Mision</a></li>
+      <li class="sidebar-nav__item"><a href="#logo" class="sidebar-nav__link"><span class="sidebar-nav__number">02</span> Sistema de Logo</a></li>
+      <li class="sidebar-nav__item"><a href="#colors" class="sidebar-nav__link"><span class="sidebar-nav__number">03</span> Paleta de Color</a></li>
+      <li class="sidebar-nav__item"><a href="#typography" class="sidebar-nav__link"><span class="sidebar-nav__number">04</span> Tipografia</a></li>
+      <li class="sidebar-nav__item"><a href="#spacing" class="sidebar-nav__link"><span class="sidebar-nav__number">05</span> Espaciado y Grid</a></li>
+      <li class="sidebar-nav__item"><a href="#radius" class="sidebar-nav__link"><span class="sidebar-nav__number">06</span> Bordes y Formas</a></li>
+      <li class="sidebar-nav__item"><a href="#shadows" class="sidebar-nav__link"><span class="sidebar-nav__number">07</span> Sombras y Profundidad</a></li>
+      <li class="sidebar-nav__item"><a href="#icons" class="sidebar-nav__link"><span class="sidebar-nav__number">08</span> Iconografia</a></li>
+      <li class="sidebar-nav__item"><a href="#buttons" class="sidebar-nav__link"><span class="sidebar-nav__number">09</span> Sistema de Botones</a></li>
+      <li class="sidebar-nav__item"><a href="#cards" class="sidebar-nav__link"><span class="sidebar-nav__number">10</span> Tarjetas</a></li>
+      <li class="sidebar-nav__item"><a href="#decorative" class="sidebar-nav__link"><span class="sidebar-nav__number">11</span> Elem. Decorativos</a></li>
+      <li class="sidebar-nav__item"><a href="#photography" class="sidebar-nav__link"><span class="sidebar-nav__number">12</span> Fotografia</a></li>
+      <li class="sidebar-nav__item"><a href="#dark-mode" class="sidebar-nav__link"><span class="sidebar-nav__number">13</span> Modo Oscuro</a></li>
+      <li class="sidebar-nav__item"><a href="#voice" class="sidebar-nav__link"><span class="sidebar-nav__number">14</span> Voz y Tono</a></li>
+      <li class="sidebar-nav__item"><a href="#dos-donts" class="sidebar-nav__link"><span class="sidebar-nav__number">15</span> Uso Correcto</a></li>
+    </ul>
+    <div class="sidebar-nav__footer">
+      <div class="sidebar-nav__footer-text">Version 1.0<br>Febrero 2026</div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- ============================================================
+         SECTION 00 — COVER
+         ============================================================ -->
+    <section id="cover" class="cover">
+      <div class="cover__deco-line" aria-hidden="true"></div>
+      <div class="cover__content">
+        <p class="cover__eyebrow">Brand Style Guide</p>
+        <h1 class="cover__title">
+          <span style="font-weight:800">Clic</span><span style="font-weight:400;opacity:0.5">and</span><span style="font-weight:700">seo</span><span class="cover__title-accent" style="font-weight:800">.</span>
+        </h1>
+        <p class="cover__tagline">Inteligencia artificial al servicio de tu visibilidad en buscadores</p>
+        <div class="cover__version">
+          <span class="cover__version-dot"></span>
+          Version 1.0 &mdash; Febrero 2026
+        </div>
+      </div>
+      <div class="cover__scroll-indicator">
+        <span>Explorar</span>
+        <div class="cover__scroll-line"></div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 01 — BRAND STORY & MISSION
+         ============================================================ -->
+    <section id="brand-story" class="guide-section guide-section--white">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">01 &mdash; Marca y Mision</span>
+          <h2 class="section-header__title">Nuestra Esencia</h2>
+          <p class="section-header__description">Clicandseo nace de la conviccion de que la visibilidad organica es el activo digital mas valioso de cualquier negocio. Combinamos tecnologia avanzada con estrategia SEO para ofrecer resultados medibles.</p>
+        </div>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card__eyebrow">Mision</div>
+            <h3 class="card__title">Democratizar el SEO profesional</h3>
+            <p class="card__text">Hacemos accesible la optimizacion para buscadores a empresas de todos los tamanos, con herramientas inteligentes que simplifican lo complejo sin sacrificar profundidad.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Vision</div>
+            <h3 class="card__title">El estandar en SEO inteligente</h3>
+            <p class="card__text">Aspiramos a ser la referencia en el sector, combinando IA de vanguardia con una experiencia de usuario excepcional que transforme la forma de entender el posicionamiento web.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Valores</div>
+            <h3 class="card__title">Transparencia, datos, resultados</h3>
+            <p class="card__text">Creemos en la transparencia radical de los datos, en los resultados medibles sobre las promesas vacias, y en la innovacion constante como motor de crecimiento.</p>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Personalidad de Marca</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-md)">
+            <div style="padding:var(--space-lg) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-subtle);border:1px solid var(--color-border);text-align:center">
+              <div style="margin-bottom:var(--space-sm);display:flex;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-text-primary)"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg></div>
+              <div style="font-weight:600;font-size:var(--text-sm)">Organica</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Natural y autentica</div>
+            </div>
+            <div style="padding:var(--space-lg) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-subtle);border:1px solid var(--color-border);text-align:center">
+              <div style="margin-bottom:var(--space-sm);display:flex;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-text-primary)"><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg></div>
+              <div style="font-weight:600;font-size:var(--text-sm)">Premium</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Sofisticada y refinada</div>
+            </div>
+            <div style="padding:var(--space-lg) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-subtle);border:1px solid var(--color-border);text-align:center">
+              <div style="margin-bottom:var(--space-sm);display:flex;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-text-primary)"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+              <div style="font-weight:600;font-size:var(--text-sm)">Data-Driven</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Profesional y precisa</div>
+            </div>
+            <div style="padding:var(--space-lg) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-subtle);border:1px solid var(--color-border);text-align:center">
+              <div style="margin-bottom:var(--space-sm);display:flex;justify-content:center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-text-primary)"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+              <div style="font-weight:600;font-size:var(--text-sm)">Moderna</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Limpia y actual</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 02 — LOGO SYSTEM
+         ============================================================ -->
+    <section id="logo" class="guide-section guide-section--subtle">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">02 &mdash; Sistema de Logo</span>
+          <h2 class="section-header__title">Identidad Visual</h2>
+          <p class="section-header__description">El logotipo de Clicandseo es un wordmark tipografico con tratamiento diferenciado por cada componente del nombre. No se utiliza icono independiente; la marca vive en su tipografia.</p>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Construccion del Wordmark</h3>
+          <p class="subsection__text">El logotipo se compone de cuatro elementos tipograficos con pesos y estilos distintos que crean ritmo visual y jerarquia dentro de la propia marca.</p>
+          <div style="background:var(--color-bg-paper);border-radius:var(--radius-lg);padding:var(--space-xl);border:1px solid var(--color-border-subtle);text-align:center;margin-bottom:var(--space-xl)">
+            <div style="font-family:var(--font-sans);font-size:clamp(3rem,6vw,5rem);letter-spacing:-0.04em;margin-bottom:var(--space-xl)">
+              <span style="font-weight:800;color:var(--color-text-primary)">Clic</span><span style="font-weight:400;opacity:0.5;color:var(--color-text-primary)">and</span><span style="font-weight:700;color:var(--color-text-primary)">seo</span><span style="color:var(--color-accent);font-weight:800">.</span>
+            </div>
+            <div style="display:flex;justify-content:center;gap:var(--space-xl);flex-wrap:wrap">
+              <div style="text-align:center">
+                <div style="font-family:var(--font-sans);font-size:var(--text-2xl);font-weight:800;margin-bottom:var(--space-xs)">Clic</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">ExtraBold (800)</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Opacidad 100%</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:var(--font-sans);font-size:var(--text-2xl);font-weight:400;opacity:0.5;margin-bottom:var(--space-xs)">and</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Regular (400)</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Opacidad 50%</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:var(--font-sans);font-size:var(--text-2xl);font-weight:700;margin-bottom:var(--space-xs)">seo</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Bold (700)</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Opacidad 100%</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:var(--font-sans);font-size:var(--text-2xl);font-weight:800;color:var(--color-accent);margin-bottom:var(--space-xs)">.</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">ExtraBold (800)</div>
+                <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Bio-Lime #d9f9b8</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Aplicaciones sobre Fondo</h3>
+          <div class="logo-display-grid">
+            <div class="logo-display">
+              <div class="logo-display__area logo-display__area--light">
+                <div class="logo-display__clearspace logo-display__clearspace--x"></div>
+                <div class="logo-display__logo-text">
+                  <span style="font-weight:800">Clic</span><span style="font-weight:400;opacity:0.5">and</span><span style="font-weight:700">seo</span><span style="color:var(--color-accent);font-weight:800">.</span>
+                </div>
+              </div>
+              <div class="logo-display__info">
+                <div class="logo-display__info-label">Fondo Claro</div>
+                <div class="logo-display__info-desc">Uso principal. Texto oscuro sobre blanco.</div>
+              </div>
+            </div>
+            <div class="logo-display">
+              <div class="logo-display__area logo-display__area--dark">
+                <div class="logo-display__clearspace logo-display__clearspace--x" style="border-color:rgba(255,255,255,0.2)"></div>
+                <div class="logo-display__logo-text">
+                  <span style="font-weight:800">Clic</span><span style="font-weight:400;opacity:0.5">and</span><span style="font-weight:700">seo</span><span style="color:var(--color-accent);font-weight:800">.</span>
+                </div>
+              </div>
+              <div class="logo-display__info">
+                <div class="logo-display__info-label">Fondo Oscuro</div>
+                <div class="logo-display__info-desc">Version invertida. Texto claro sobre oscuro.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Tamano Minimo y Espacio Libre</h3>
+          <p class="subsection__text">El logotipo nunca debe aparecer a menos de 120px de ancho en pantalla o 30mm en impresion. El area de respeto es equivalente a la altura de la letra "C" del logotipo en todos sus lados.</p>
+          <table class="token-table" style="max-width:500px">
+            <thead><tr><th>Contexto</th><th>Tamano Minimo</th></tr></thead>
+            <tbody>
+              <tr><td>Pantalla (web/app)</td><td>120px de ancho</td></tr>
+              <tr><td>Impresion</td><td>30mm de ancho</td></tr>
+              <tr><td>Favicon</td><td>Usar solo "C." en 16x16</td></tr>
+              <tr><td>Espacio libre</td><td>1x altura de la "C"</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 03 — COLOR PALETTE
+         ============================================================ -->
+    <section id="colors" class="guide-section guide-section--white">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">03 &mdash; Paleta de Color</span>
+          <h2 class="section-header__title">Color System</h2>
+          <p class="section-header__description">Nuestra paleta se inspira en la bioluminiscencia natural. El Bio-Lime es el color insignia que transmite energia, crecimiento organico y tecnologia viva.</p>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Color Primario &mdash; Bio-Lime</h3>
+          <div class="color-grid color-grid--primary">
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#d9f9b8"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Bio-Lime</div>
+                <div class="color-swatch__hex">#d9f9b8</div>
+                <div class="color-swatch__rgb">RGB 217, 249, 184</div>
+                <div class="color-swatch__variable">--color-accent</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Neutros</h3>
+          <div class="color-grid">
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#0F172A"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Text Primary</div>
+                <div class="color-swatch__hex">#0F172A</div>
+                <div class="color-swatch__rgb">RGB 15, 23, 42</div>
+                <div class="color-swatch__variable">--color-text-primary</div>
+              </div>
+            </div>
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#64748B"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Text Secondary</div>
+                <div class="color-swatch__hex">#64748B</div>
+                <div class="color-swatch__rgb">RGB 100, 116, 139</div>
+                <div class="color-swatch__variable">--color-text-secondary</div>
+              </div>
+            </div>
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#94A3B8"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Text Tertiary</div>
+                <div class="color-swatch__hex">#94A3B8</div>
+                <div class="color-swatch__rgb">RGB 148, 163, 184</div>
+                <div class="color-swatch__variable">--color-text-tertiary</div>
+              </div>
+            </div>
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#F8FAFC"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Text Inverse</div>
+                <div class="color-swatch__hex">#F8FAFC</div>
+                <div class="color-swatch__rgb">RGB 248, 250, 252</div>
+                <div class="color-swatch__variable">--color-text-inverse</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Fondos</h3>
+          <div class="color-grid">
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#FFFFFF;border-bottom:1px solid var(--color-border-subtle)"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Paper (Blanco)</div>
+                <div class="color-swatch__hex">#FFFFFF</div>
+                <div class="color-swatch__rgb">RGB 255, 255, 255</div>
+                <div class="color-swatch__variable">--color-bg-paper</div>
+              </div>
+            </div>
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#F1F5F9"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Subtle (Gris Frio)</div>
+                <div class="color-swatch__hex">#F1F5F9</div>
+                <div class="color-swatch__rgb">RGB 241, 245, 249</div>
+                <div class="color-swatch__variable">--color-bg-subtle</div>
+              </div>
+            </div>
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#0A0A0B"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Dark (Casi Negro)</div>
+                <div class="color-swatch__hex">#0A0A0B</div>
+                <div class="color-swatch__rgb">RGB 10, 10, 11</div>
+                <div class="color-swatch__variable">--color-bg-dark</div>
+              </div>
+            </div>
+            <div class="color-swatch">
+              <div class="color-swatch__fill" style="background:#E2E8F0"></div>
+              <div class="color-swatch__info">
+                <div class="color-swatch__name">Border</div>
+                <div class="color-swatch__hex">#E2E8F0</div>
+                <div class="color-swatch__rgb">RGB 226, 232, 240</div>
+                <div class="color-swatch__variable">--color-border</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 04 — TYPOGRAPHY
+         ============================================================ -->
+    <section id="typography" class="guide-section guide-section--subtle">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">04 &mdash; Tipografia</span>
+          <h2 class="section-header__title">Sistema Tipografico</h2>
+          <p class="section-header__description">La tipografia de Clicandseo combina la precision geometrica de Inter Tight con la elegancia clasica de Libre Baskerville, creando un contraste sofisticado entre lo tecnico y lo editorial.</p>
+        </div>
+
+        <div class="type-specimen">
+          <!-- Inter Tight -->
+          <div class="type-specimen__family">
+            <div class="type-specimen__family-name">Inter Tight &mdash; Display &amp; Body</div>
+
+            <div class="type-specimen__sample">
+              <div class="type-specimen__meta">
+                <span class="type-specimen__weight-label">ExtraBold 800</span>
+                <span class="type-specimen__size-label">Titulares principales &middot; -0.04em</span>
+              </div>
+              <div class="type-specimen__text" style="font-family:var(--font-sans);font-weight:800;font-size:var(--text-4xl);letter-spacing:-0.04em;line-height:1.1">
+                Visibilidad organica que crece contigo
+              </div>
+            </div>
+
+            <div class="type-specimen__sample">
+              <div class="type-specimen__meta">
+                <span class="type-specimen__weight-label">Bold 700</span>
+                <span class="type-specimen__size-label">Subtitulares &middot; -0.02em</span>
+              </div>
+              <div class="type-specimen__text" style="font-family:var(--font-sans);font-weight:700;font-size:var(--text-2xl);letter-spacing:-0.02em;line-height:1.2">
+                Herramientas inteligentes para SEO profesional
+              </div>
+            </div>
+
+            <div class="type-specimen__sample">
+              <div class="type-specimen__meta">
+                <span class="type-specimen__weight-label">SemiBold 600</span>
+                <span class="type-specimen__size-label">Eyebrow &middot; 0.85rem &middot; Uppercase &middot; 0.1em</span>
+              </div>
+              <div class="type-specimen__text" style="font-family:var(--font-sans);font-weight:600;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--color-text-secondary)">
+                Funcionalidades &middot; Precios &middot; Blog
+              </div>
+            </div>
+
+            <div class="type-specimen__sample">
+              <div class="type-specimen__meta">
+                <span class="type-specimen__weight-label">Regular 400</span>
+                <span class="type-specimen__size-label">Cuerpo de texto &middot; 1rem &middot; line-height 1.6</span>
+              </div>
+              <div class="type-specimen__text" style="font-family:var(--font-sans);font-weight:400;font-size:1rem;line-height:1.6;color:var(--color-text-secondary)">
+                Analiza tu sitio web, identifica oportunidades de mejora y optimiza tu contenido con recomendaciones basadas en inteligencia artificial. Nuestras herramientas te ayudan a tomar decisiones informadas.
+              </div>
+            </div>
+
+            <div class="type-specimen__sample">
+              <div class="type-specimen__meta">
+                <span class="type-specimen__weight-label">Light 300</span>
+                <span class="type-specimen__size-label">Texto decorativo &middot; Citas grandes</span>
+              </div>
+              <div class="type-specimen__text" style="font-family:var(--font-sans);font-weight:300;font-size:var(--text-xl);line-height:1.5;color:var(--color-text-tertiary)">
+                El futuro de la busqueda ya esta aqui
+              </div>
+            </div>
+
+            <div class="type-specimen__alphabet" style="font-family:var(--font-sans)">
+              ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&amp;*()
+            </div>
+          </div>
+
+          <!-- Libre Baskerville -->
+          <div class="type-specimen__family">
+            <div class="type-specimen__family-name">Libre Baskerville &mdash; Accent</div>
+
+            <div class="type-specimen__sample">
+              <div class="type-specimen__meta">
+                <span class="type-specimen__weight-label">Italic 400</span>
+                <span class="type-specimen__size-label">Highlights, acentos visuales, citas</span>
+              </div>
+              <div class="type-specimen__text" style="font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:var(--text-3xl);line-height:1.3;color:var(--color-text-secondary)">
+                Zero-Click
+              </div>
+            </div>
+
+            <div class="type-specimen__sample">
+              <div class="type-specimen__meta">
+                <span class="type-specimen__weight-label">Bold 700</span>
+                <span class="type-specimen__size-label">Enfasis editorial</span>
+              </div>
+              <div class="type-specimen__text" style="font-family:var(--font-serif);font-weight:700;font-size:var(--text-xl);line-height:1.4">
+                La inteligencia al servicio de los datos
+              </div>
+            </div>
+
+            <div class="type-specimen__alphabet" style="font-family:var(--font-serif)">
+              ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Escala Tipografica</h3>
+          <table class="token-table">
+            <thead><tr><th>Token</th><th>Tamano</th><th>Uso</th></tr></thead>
+            <tbody>
+              <tr><td>H1</td><td>clamp(3.2rem, 7vw, 5.5rem)</td><td>Titulares hero, portadas</td></tr>
+              <tr><td>H2</td><td>clamp(2.8rem, 5vw, 4rem)</td><td>Titulares de seccion</td></tr>
+              <tr><td>H3</td><td>clamp(1.8rem, 3vw, 2.5rem)</td><td>Subsecciones</td></tr>
+              <tr><td>Body</td><td>1rem (16px)</td><td>Texto principal</td></tr>
+              <tr><td>Small</td><td>0.875rem</td><td>Texto secundario</td></tr>
+              <tr><td>Eyebrow</td><td>0.85rem uppercase</td><td>Etiquetas de seccion</td></tr>
+              <tr><td>Caption</td><td>0.75rem</td><td>Notas, metadatos</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 05 — SPACING & GRID
+         ============================================================ -->
+    <section id="spacing" class="guide-section guide-section--white">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">05 &mdash; Espaciado y Grid</span>
+          <h2 class="section-header__title">Sistema de Espaciado</h2>
+          <p class="section-header__description">Un sistema de espaciado basado en multiplos de 4px proporciona consistencia y ritmo vertical en todos los soportes, desde web hasta materiales impresos.</p>
+        </div>
+
+        <div class="spacing-scale">
+          <div class="spacing-scale__item">
+            <span class="spacing-scale__label">XS</span>
+            <div class="spacing-scale__bar-wrapper">
+              <div class="spacing-scale__bar" style="width:4px"></div>
+              <span class="spacing-scale__value">0.25rem &middot; 4px</span>
+            </div>
+          </div>
+          <div class="spacing-scale__item">
+            <span class="spacing-scale__label">SM</span>
+            <div class="spacing-scale__bar-wrapper">
+              <div class="spacing-scale__bar" style="width:8px"></div>
+              <span class="spacing-scale__value">0.5rem &middot; 8px</span>
+            </div>
+          </div>
+          <div class="spacing-scale__item">
+            <span class="spacing-scale__label">MD</span>
+            <div class="spacing-scale__bar-wrapper">
+              <div class="spacing-scale__bar" style="width:16px"></div>
+              <span class="spacing-scale__value">1rem &middot; 16px</span>
+            </div>
+          </div>
+          <div class="spacing-scale__item">
+            <span class="spacing-scale__label">LG</span>
+            <div class="spacing-scale__bar-wrapper">
+              <div class="spacing-scale__bar" style="width:32px"></div>
+              <span class="spacing-scale__value">2rem &middot; 32px</span>
+            </div>
+          </div>
+          <div class="spacing-scale__item">
+            <span class="spacing-scale__label">XL</span>
+            <div class="spacing-scale__bar-wrapper">
+              <div class="spacing-scale__bar" style="width:64px"></div>
+              <span class="spacing-scale__value">4rem &middot; 64px</span>
+            </div>
+          </div>
+          <div class="spacing-scale__item">
+            <span class="spacing-scale__label">2XL</span>
+            <div class="spacing-scale__bar-wrapper">
+              <div class="spacing-scale__bar" style="width:128px"></div>
+              <span class="spacing-scale__value">8rem &middot; 128px</span>
+            </div>
+          </div>
+          <div class="spacing-scale__item">
+            <span class="spacing-scale__label">3XL</span>
+            <div class="spacing-scale__bar-wrapper">
+              <div class="spacing-scale__bar" style="width:160px"></div>
+              <span class="spacing-scale__value">10rem &middot; 160px</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Grid y Layout</h3>
+          <table class="token-table">
+            <thead><tr><th>Propiedad</th><th>Valor</th><th>Uso</th></tr></thead>
+            <tbody>
+              <tr><td>Container Max Width</td><td>1400px</td><td>Ancho maximo de contenido</td></tr>
+              <tr><td>Header Height</td><td>80px</td><td>Altura fija del navbar</td></tr>
+              <tr><td>Content Padding</td><td>0 2rem</td><td>Padding lateral del container</td></tr>
+              <tr><td>Section Padding Y</td><td>clamp(4rem, 6vw, 8rem)</td><td>Espaciado vertical entre secciones</td></tr>
+              <tr><td>Breakpoint Mobile</td><td>768px</td><td>Tablet y movil</td></tr>
+              <tr><td>Breakpoint Desktop</td><td>1024px</td><td>Escritorio</td></tr>
+              <tr><td>Breakpoint Wide</td><td>1400px</td><td>Pantallas grandes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 06 — BORDER RADIUS & SHAPES
+         ============================================================ -->
+    <section id="radius" class="guide-section guide-section--subtle">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">06 &mdash; Bordes y Formas</span>
+          <h2 class="section-header__title">Lenguaje Ultra Soft</h2>
+          <p class="section-header__description">Nuestra marca utiliza un lenguaje de formas suaves y redondeadas que refuerzan la personalidad organica y accesible. Nunca usamos esquinas duras.</p>
+        </div>
+
+        <div class="radius-grid">
+          <div class="radius-demo">
+            <div class="radius-demo__box" style="border-radius:8px"></div>
+            <div class="radius-demo__label">Small</div>
+            <div class="radius-demo__value">8px &middot; --radius-sm</div>
+          </div>
+          <div class="radius-demo">
+            <div class="radius-demo__box" style="border-radius:20px"></div>
+            <div class="radius-demo__label">Medium</div>
+            <div class="radius-demo__value">20px &middot; --radius-md</div>
+          </div>
+          <div class="radius-demo">
+            <div class="radius-demo__box" style="border-radius:30px"></div>
+            <div class="radius-demo__label">Large</div>
+            <div class="radius-demo__value">30px &middot; --radius-lg</div>
+          </div>
+          <div class="radius-demo">
+            <div class="radius-demo__box" style="border-radius:60px"></div>
+            <div class="radius-demo__label">Extra Large</div>
+            <div class="radius-demo__value">60px &middot; --radius-xl</div>
+          </div>
+          <div class="radius-demo">
+            <div class="radius-demo__box" style="border-radius:9999px"></div>
+            <div class="radius-demo__label">Full (Pill)</div>
+            <div class="radius-demo__value">9999px &middot; --radius-full</div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Directrices de Aplicacion</h3>
+          <table class="token-table">
+            <thead><tr><th>Radius</th><th>Uso</th></tr></thead>
+            <tbody>
+              <tr><td>--radius-sm (8px)</td><td>Inputs, badges, elementos pequenos, code blocks</td></tr>
+              <tr><td>--radius-md (20px)</td><td>Tarjetas, contenedores, imagenes, modals</td></tr>
+              <tr><td>--radius-lg (30px)</td><td>Tarjetas destacadas, areas visuales grandes</td></tr>
+              <tr><td>--radius-xl (60px)</td><td>Hero cards, login cards, elementos de acento</td></tr>
+              <tr><td>--radius-full (9999px)</td><td>Botones, badges, pills, tags, nav links</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 07 — SHADOWS & DEPTH
+         ============================================================ -->
+    <section id="shadows" class="guide-section guide-section--white">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">07 &mdash; Sombras y Profundidad</span>
+          <h2 class="section-header__title">Sistema de Elevacion</h2>
+          <p class="section-header__description">Las sombras proporcionan jerarquia visual y sensacion de profundidad. Usamos sombras sutiles con un efecto especial de brillo Bio-Lime para estados interactivos.</p>
+        </div>
+
+        <div class="shadow-grid">
+          <div class="shadow-card shadow-card--sm">
+            <div class="shadow-card__label">Small</div>
+            <div class="shadow-card__value">0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06)</div>
+          </div>
+          <div class="shadow-card shadow-card--md">
+            <div class="shadow-card__label">Medium</div>
+            <div class="shadow-card__value">0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08)</div>
+          </div>
+          <div class="shadow-card shadow-card--lg">
+            <div class="shadow-card__label">Large</div>
+            <div class="shadow-card__value">0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12)</div>
+          </div>
+          <div class="shadow-card shadow-card--float">
+            <div class="shadow-card__label">Float</div>
+            <div class="shadow-card__value">0 8px 16px rgba(15,23,42,0.08), 0 30px 60px rgba(15,23,42,0.16)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 08 — ICONOGRAPHY
+         ============================================================ -->
+    <section id="icons" class="guide-section guide-section--subtle">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">08 &mdash; Iconografia</span>
+          <h2 class="section-header__title">Estilo de Iconos</h2>
+          <p class="section-header__description">Utilizamos la libreria Lucide Icons por su estetica limpia y consistente con nuestra identidad visual. Los iconos complementan, nunca compiten con el contenido.</p>
+        </div>
+
+        <!-- Icon specimens grid -->
+        <div class="subsection">
+          <h3 class="subsection__title">Muestra de Iconos</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:var(--space-md);margin-bottom:var(--space-xl)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Search</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">TrendingUp</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Edit</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Download</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Settings</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Users</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Plus</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">ChevronRight</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Check</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Link</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9m-9 9a9 9 0 0 1 9-9"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Globe</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);background:var(--color-bg-paper)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">LayoutDashboard</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Icon sizing -->
+        <div class="subsection">
+          <h3 class="subsection__title">Tamanos</h3>
+          <div style="display:flex;align-items:flex-end;gap:var(--space-xl);margin-bottom:var(--space-lg)">
+            <div style="text-align:center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-xs)">16px</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:600">Inline</div>
+            </div>
+            <div style="text-align:center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-xs)">20px</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:600">Interfaz</div>
+            </div>
+            <div style="text-align:center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-xs)">24px</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:600">Navegacion</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card__eyebrow">Libreria</div>
+            <h3 class="card__title">Lucide Icons</h3>
+            <p class="card__text">Set de iconos open-source con estilo outline, consistente y minimalista. Stroke width de 2px por defecto.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Stroke</div>
+            <h3 class="card__title">2px Consistente</h3>
+            <p class="card__text">Siempre outline, nunca filled. El grosor de trazo de 2px garantiza legibilidad y consistencia en todos los tamanos.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Alineacion</div>
+            <h3 class="card__title">Vertical Center</h3>
+            <p class="card__text">Los iconos siempre se alinean verticalmente al centro del texto adyacente. Gap de 8px (--space-sm) entre icono y texto.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 09 — BUTTON SYSTEM
+         ============================================================ -->
+    <section id="buttons" class="guide-section guide-section--white">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">09 &mdash; Sistema de Botones</span>
+          <h2 class="section-header__title">Componentes de Accion</h2>
+          <p class="section-header__description">Los botones son siempre pill-shaped (radius-full) y usan transiciones suaves con elevacion al hacer hover. El movimiento transmite respuesta inmediata.</p>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Variantes</h3>
+          <div class="button-row mb-xl">
+            <button class="btn btn--primary">Primary &rarr;</button>
+            <button class="btn btn--secondary">Secondary</button>
+            <button class="btn btn--accent">Accent</button>
+            <button class="btn btn--ghost">Ghost</button>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Tamanos</h3>
+          <div class="button-row mb-xl">
+            <button class="btn btn--primary btn--sm">Small</button>
+            <button class="btn btn--primary">Default</button>
+            <button class="btn btn--primary btn--lg">Large &rarr;</button>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Especificaciones</h3>
+          <table class="token-table">
+            <thead><tr><th>Propiedad</th><th>Primary</th><th>Secondary</th><th>Accent</th></tr></thead>
+            <tbody>
+              <tr><td>Background</td><td>#0F172A</td><td>Transparente</td><td>#d9f9b8</td></tr>
+              <tr><td>Color</td><td>#F8FAFC</td><td>#0F172A</td><td>#0F172A</td></tr>
+              <tr><td>Border</td><td>Ninguno</td><td>1.5px solid #E2E8F0</td><td>Ninguno</td></tr>
+              <tr><td>Padding</td><td>14px 32px</td><td>14px 32px</td><td>14px 32px</td></tr>
+              <tr><td>Border Radius</td><td>9999px</td><td>9999px</td><td>9999px</td></tr>
+              <tr><td>Font Weight</td><td>600</td><td>600</td><td>600</td></tr>
+              <tr><td>Hover</td><td>translateY(-3px)</td><td>translateY(-2px)</td><td>translateY(-2px) + shadow</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 10 — CARD PATTERNS
+         ============================================================ -->
+    <section id="cards" class="guide-section guide-section--subtle">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">10 &mdash; Tarjetas</span>
+          <h2 class="section-header__title">Patron de Cards</h2>
+          <p class="section-header__description">Las tarjetas son el contenedor fundamental de informacion. Responden al hover con elevacion sutil y cambio de borde accent que transmite interactividad.</p>
+        </div>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card__eyebrow">Componente</div>
+            <h3 class="card__title">Tarjeta Estandar</h3>
+            <p class="card__text">Pasa el cursor para ver el efecto de hover con elevacion y cambio de borde. Padding 2rem, radius-md, border sutil.</p>
+            <div class="card__footer">
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary)">Hover: translateY(-4px) + shadow-md</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Interactiva</div>
+            <h3 class="card__title">Tarjeta con Accion</h3>
+            <p class="card__text">Cada tarjeta puede contener eyebrow, titulo, descripcion y un footer opcional separado por borde superior.</p>
+            <div class="card__footer">
+              <button class="btn btn--primary btn--sm">Explorar &rarr;</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Informativa</div>
+            <h3 class="card__title">Tarjeta de Contenido</h3>
+            <p class="card__text">El borde cambia al color accent en hover, proporcionando un feedback visual limpio y reconocible.</p>
+            <div class="card__footer">
+              <span style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:600">Borde accent en hover</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 11 — DECORATIVE PATTERNS / ELEMENTOS DECORATIVOS
+         ============================================================ -->
+    <section id="decorative" class="guide-section guide-section--white">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">11 &mdash; Elementos Decorativos</span>
+          <h2 class="section-header__title">Patrones Visuales</h2>
+          <p class="section-header__description">La identidad de Clicandseo emplea un repertorio de elementos decorativos sutiles que aportan ritmo, jerarquia y personalidad a cada composicion. Son el lenguaje visual que conecta todas las piezas.</p>
+        </div>
+
+        <!-- 11.1 — Highlight Text -->
+        <div class="subsection">
+          <h3 class="subsection__title">11.1 &mdash; Texto Destacado (Highlight)</h3>
+          <p class="subsection__text">Patrón editorial clave de la marca: una palabra o frase en <em>Libre Baskerville italic</em> con un subrayado rotado de color Bio-Lime. Genera un acento organico y editorial dentro de titulares.</p>
+          <div class="deco-grid" style="margin-top:var(--space-lg)">
+            <div class="deco-demo">
+              <div class="deco-demo__preview">
+                <span class="deco-highlight-text">zero-click</span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Highlight — Fondo claro</div>
+                <div class="deco-demo__spec">font: Libre Baskerville italic · ::after height: 0.4em · rotate: -1.5deg · color: #d9f9b8 · opacity: 0.85</div>
+              </div>
+            </div>
+            <div class="deco-demo">
+              <div class="deco-demo__preview deco-demo__preview--dark">
+                <span class="deco-highlight-text">estrategia SEO</span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Highlight — Fondo oscuro</div>
+                <div class="deco-demo__spec">Mismo patron, contraste invertido. El verde se adapta a ambos fondos.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11.2 — Headline Serif + Underline -->
+        <div class="subsection">
+          <h3 class="subsection__title">11.2 &mdash; Headline con Serif Underline</h3>
+          <p class="subsection__text">Recurso editorial distintivo de la marca. Dentro de titulares H1 o H2 en <em>Inter Tight Extra Bold</em>, una palabra o frase clave cambia a <em>Libre Baskerville italic</em> con el subrayado rotado Bio-Lime. El contraste sans/serif genera tension visual y dirige la atencion al concepto principal. Uso reservado para encabezados de seccion protagonistas.</p>
+          <div class="deco-grid" style="margin-top:var(--space-lg)">
+            <div class="deco-demo">
+              <div class="deco-demo__preview">
+                <span class="deco-headline-combo">Sobrevive a la era <span class="deco-headline-combo__accent">Zero-Click</span>.</span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">H1 — Hero Principal</div>
+                <div class="deco-demo__spec">Base: Inter Tight 800, clamp(3.2rem–5.5rem) · Accent: Libre Baskerville italic 400 · ::after height: 0.4em · rotate: -1.5deg · bg: #d9f9b8 · opacity: 0.85</div>
+              </div>
+            </div>
+            <div class="deco-demo">
+              <div class="deco-demo__preview deco-demo__preview--dark">
+                <span class="deco-headline-combo deco-headline-combo--h2">Como <span class="deco-headline-combo__accent">funciona.</span></span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">H2 — Seccion sobre fondo oscuro</div>
+                <div class="deco-demo__spec">Mismo patron a escala H2, clamp(2.5rem–3.5rem). Funcional sobre --color-bg-dark.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:var(--space-lg)">
+            <table class="token-table">
+              <thead><tr><th>Propiedad</th><th>Texto base (sans)</th><th>Palabra accent (serif)</th><th>Underline (::after)</th></tr></thead>
+              <tbody>
+                <tr><td>Font</td><td>Inter Tight</td><td>Libre Baskerville</td><td>&mdash;</td></tr>
+                <tr><td>Weight</td><td>800</td><td>400 italic</td><td>&mdash;</td></tr>
+                <tr><td>Size H1</td><td>clamp(3.2rem, 7vw, 5.5rem)</td><td>Hereda</td><td>&mdash;</td></tr>
+                <tr><td>Size H2</td><td>clamp(2.5rem, 4vw, 3.5rem)</td><td>Hereda</td><td>&mdash;</td></tr>
+                <tr><td>Height</td><td>&mdash;</td><td>&mdash;</td><td>0.4em</td></tr>
+                <tr><td>Color</td><td>&mdash;</td><td>&mdash;</td><td>#d9f9b8</td></tr>
+                <tr><td>Rotate</td><td>&mdash;</td><td>&mdash;</td><td>-1.5deg</td></tr>
+                <tr><td>Opacity</td><td>&mdash;</td><td>&mdash;</td><td>0.85</td></tr>
+                <tr><td>Inset</td><td>&mdash;</td><td>&mdash;</td><td>left: -6px, right: -6px</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
+
+
+        <!-- 11.3 — Dot Grid Pattern -->
+        <div class="subsection">
+          <h3 class="subsection__title">11.3 &mdash; Patron de Puntos (Dot Grid)</h3>
+          <p class="subsection__text">Patron de fondo con puntos generados via <code>radial-gradient</code>. Aporta textura sin competir con el contenido. Dos escalas: 32px (hero) y 24px (visual cards).</p>
+          <div class="deco-grid" style="margin-top:var(--space-lg)">
+            <div class="deco-demo">
+              <div class="deco-demo__preview deco-demo__preview--subtle" style="position:relative">
+                <div class="deco-dot-grid"></div>
+                <span class="deco-dot-grid-label">32 × 32 px</span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Dot Grid — Hero (32px)</div>
+                <div class="deco-demo__spec">radial-gradient(circle at 1px 1px, var(--color-border) 1px, transparent 0) · size: 32px 32px · opacity: 0.3</div>
+              </div>
+            </div>
+            <div class="deco-demo">
+              <div class="deco-demo__preview deco-demo__preview--subtle" style="position:relative">
+                <div class="deco-dot-grid deco-dot-grid--small"></div>
+                <span class="deco-dot-grid-label">24 × 24 px</span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Dot Grid — Cards (24px)</div>
+                <div class="deco-demo__spec">radial-gradient(circle at 1px 1px, var(--color-border) 1px, transparent 0) · size: 24px 24px · opacity: 0.5</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11.4 — Accent Lines on Hover -->
+        <div class="subsection">
+          <h3 class="subsection__title">11.4 &mdash; Lineas Accent en Hover</h3>
+          <p class="subsection__text">Lineas horizontales que aparecen en hover sobre tarjetas: <strong>bottom accent</strong> (blogs, steps) y <strong>top accent bar</strong> (testimonios). Feedback visual limpio y reconocible. Pasa el cursor.</p>
+          <div class="deco-grid" style="margin-top:var(--space-lg)">
+            <div class="deco-demo">
+              <div class="deco-demo__preview">
+                <div class="deco-accent-card">
+                  <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Articulo</div>
+                  <div style="font-weight:var(--weight-bold);font-size:var(--text-sm)">Titulo del post</div>
+                  <div class="deco-accent-line-bottom"></div>
+                </div>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Bottom Accent Line</div>
+                <div class="deco-demo__spec">position: absolute bottom · h: 2px · bg: accent · opacity 0→1 en hover</div>
+              </div>
+            </div>
+            <div class="deco-demo">
+              <div class="deco-demo__preview">
+                <div class="deco-accent-card">
+                  <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Testimonio</div>
+                  <div style="font-weight:var(--weight-bold);font-size:var(--text-sm)">Resultado increible</div>
+                  <div class="deco-accent-line-top"></div>
+                </div>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Top Accent Bar</div>
+                <div class="deco-demo__spec">position: absolute top · h: 3px · bg: accent · opacity 0→1 en hover · testimonial pattern</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+        <!-- 11.5 — Toggle Switch -->
+        <div class="subsection">
+          <h3 class="subsection__title">11.5 &mdash; Toggle Switch</h3>
+          <p class="subsection__text">Toggle switch organico con forma pill, reutilizado en widgets interactivos como el selector de planes de pricing.</p>
+          <div class="deco-grid" style="margin-top:var(--space-lg)">
+            <div class="deco-demo">
+              <div class="deco-demo__preview" style="gap:var(--space-md);flex-direction:column">
+                <div class="deco-toggle-container">
+                  <span class="deco-toggle-label">Mensual</span>
+                  <div class="deco-toggle-switch">
+                    <div class="deco-toggle-thumb"></div>
+                  </div>
+                  <span class="deco-toggle-label active">Anual <span class="deco-save-badge">-20%</span></span>
+                </div>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Toggle Switch + Save Badge</div>
+                <div class="deco-demo__spec">switch: 48×26px · thumb: 22px · bg active: text-primary · transition: brand ease · badge: neutro (bg-subtle, border)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11.6 — Read More Arrow -->
+        <div class="subsection">
+          <h3 class="subsection__title">11.6 &mdash; Read More Arrow y Micro-interacciones</h3>
+          <p class="subsection__text">El enlace "Leer mas" expande su gap de 6px a 10px en hover, con la flecha desplazandose suavemente. Patron repetido en blog y CTAs textuales.</p>
+          <div class="deco-grid" style="margin-top:var(--space-lg)">
+            <div class="deco-demo">
+              <div class="deco-demo__preview">
+                <span class="deco-read-more">Leer articulo completo <span>&rarr;</span></span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Read More Arrow</div>
+                <div class="deco-demo__spec">gap: 6px → 10px on hover · transition: gap 0.3s</div>
+              </div>
+            </div>
+            <div class="deco-demo">
+              <div class="deco-demo__preview">
+                <span class="deco-read-more" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.08em">Explorar funcionalidad <span>&rarr;</span></span>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">CTA Arrow — Variante Small</div>
+                <div class="deco-demo__spec">Misma mecanica, aplicable en tamaños reducidos para tarjetas y widgets.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11.7 — Layered Offset Cards -->
+        <div class="subsection">
+          <h3 class="subsection__title">11.7 &mdash; Cartas Apiladas (Layered Offset Cards)</h3>
+          <p class="subsection__text">Composicion decorativa de tres capas para enmarcar elementos visuales protagonistas: videos, screenshots, mockups de producto. Dos rectangulos redondeados (<code>--radius-lg</code>) con rotaciones opuestas crean una ilusion de profundidad y anchoring espacial. La capa posterior usa <strong>Bio-Lime</strong> rotada &ndash;2.5&deg;, la capa intermedia usa <code>--color-bg-subtle</code> rotada +2.5&deg;, y el contenido principal flota en la capa frontal. Un dot grid ornamental (<code>#CBD5E1</code>) puntua una esquina opuesta. Uso reservado para el elemento visual dominante de secciones hero. No aplicar en elementos repetidos (tarjetas de blog, feature grids).</p>
+          <div class="deco-grid" style="margin-top:var(--space-lg)">
+            <div class="deco-demo">
+              <div class="deco-demo__preview">
+                <div class="deco-stacked-wrap">
+                  <span class="deco-stacked-lime" aria-hidden="true"></span>
+                  <div class="deco-stacked-content">Contenido visual</div>
+                </div>
+              </div>
+              <div class="deco-demo__info">
+                <div class="deco-demo__name">Composicion completa</div>
+                <div class="deco-demo__spec">Capa 1: #d9f9b8, rotate(&ndash;2.5deg) &middot; Capa 2: #F1F5F9, rotate(+2.5deg) &middot; Capa 3: contenido, z-index 3 &middot; Dot grid ornamental esquina opuesta</div>
+              </div>
+            </div>
+            <div class="deco-demo">
+              <div class="deco-demo__info" style="justify-content:flex-start;padding-top:0">
+                <div class="deco-demo__name">Contexto de uso</div>
+                <div class="deco-demo__spec" style="margin-bottom:8px">&#10003; Hero visual unico (video, screenshot, mockup)</div>
+                <div class="deco-demo__spec" style="margin-bottom:8px">&#10003; Secciones de presentacion de producto</div>
+                <div class="deco-demo__spec" style="margin-bottom:8px">&#10003; Cabeceras de pagina (ambient, opacidad reducida)</div>
+                <div class="deco-demo__spec" style="margin-bottom:8px">&#10007; Tarjetas de contenido repetido (blog, features)</div>
+                <div class="deco-demo__spec">&#10007; Elementos de UI funcional</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spec summary table -->
+        <div class="subsection">
+          <h3 class="subsection__title">Resumen de Especificaciones</h3>
+          <table class="deco-spec-table">
+            <thead>
+              <tr><th>Elemento</th><th>Propiedad CSS</th><th>Valor</th><th>Uso</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Highlight Text</td><td><code>::after</code></td><td>h: 0.4em · rotate(-1.5deg) · #d9f9b8 · 0.85</td><td>Titulares hero y secciones</td></tr>
+              <tr><td>Logo Underline</td><td><code>::after</code></td><td>h: 3px · scaleX(0→1) · #d9f9b8 · origin: left</td><td>Logo hover, links</td></tr>
+              <tr><td>Left Border</td><td><code>border-left</code></td><td>3px solid #d9f9b8 · padding-left: 1.5rem</td><td>Descripciones, citas</td></tr>
+              <tr><td>Dot Grid 32px</td><td><code>radial-gradient</code></td><td>circle at 1px 1px · size: 32×32 · opacity: 0.3</td><td>Hero background</td></tr>
+              <tr><td>Dot Grid 24px</td><td><code>radial-gradient</code></td><td>circle at 1px 1px · size: 24×24 · opacity: 0.5</td><td>Feature cards</td></tr>
+              <tr><td>Bottom Accent</td><td><code>opacity</code></td><td>h: 2px · accent · opacity 0→1 on hover</td><td>Blog cards, step cards</td></tr>
+              <tr><td>Top Accent Bar</td><td><code>opacity</code></td><td>h: 3px · accent · opacity 0→1 on hover</td><td>Testimonial cards</td></tr>
+              <tr><td>Toggle Switch</td><td><code>transition</code></td><td>48×26px · thumb 22px · translateX(22px) · brand ease</td><td>Pricing toggle</td></tr>
+              <tr><td>Read More Arrow</td><td><code>gap</code></td><td>6px → 10px on hover · transition: gap 0.3s</td><td>Blog, CTAs textuales</td></tr>
+              <tr><td>Layered Offset Cards</td><td><code>transform: rotate()</code></td><td>Lima &ndash;2.5&deg; / Gris +2.5&deg; · radius-lg · z-index 1&rarr;3 · dot grid ornamental</td><td>Hero visual (video, mockup)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 12 — PHOTOGRAPHY & IMAGERY
+         ============================================================ -->
+    <section id="photography" class="guide-section guide-section--subtle">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">12 &mdash; Fotografia e Imagen</span>
+          <h2 class="section-header__title">Estilo Visual</h2>
+          <p class="section-header__description">Las imagenes refuerzan la narrativa de tecnologia organica: data visualizations, abstractos con tonalidades verdes, e interfaces limpias en entornos profesionales.</p>
+        </div>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card__eyebrow">Tratamiento</div>
+            <h3 class="card__title">Fotografia con Overlay</h3>
+            <p class="card__text">Aplicar un overlay sutil de Bio-Lime (10-20% opacidad) sobre fotografias en blanco y negro para mantener coherencia con la paleta de marca.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Ilustraciones</div>
+            <h3 class="card__title">Graficos de Datos</h3>
+            <p class="card__text">Preferir visualizaciones de datos abstractas con colores planos Bio-Lime sobre fondo oscuro. Estilo de network graph y nodos conectados. Nunca usar gradientes.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Texturas</div>
+            <h3 class="card__title">Noise y Dot Grid</h3>
+            <p class="card__text">Usar texturas de ruido al 5% de opacidad y patrones de dot grid como fondos decorativos en lugar de imagenes literales. Los fondos son siempre colores planos.</p>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Reglas de Imagen</h3>
+          <table class="token-table">
+            <thead><tr><th>Regla</th><th>Especificacion</th></tr></thead>
+            <tbody>
+              <tr><td>Border radius en imagenes</td><td>Siempre radius-md (20px)</td></tr>
+              <tr><td>Proporcion recomendada</td><td>16:9, 4:3, o 1:1</td></tr>
+              <tr><td>Tratamiento de color</td><td>Desaturar parcialmente + overlay Bio-Lime</td></tr>
+              <tr><td>Fondos abstractos</td><td>Colores planos + dot grid + noise. Nunca gradientes</td></tr>
+              <tr><td>Iconos e ilustraciones</td><td>Lineal, stroke 2px, estilo Lucide</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 13 — DARK MODE
+         ============================================================ -->
+    <section id="dark-mode" class="guide-section guide-section--dark">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">13 &mdash; Modo Oscuro</span>
+          <h2 class="section-header__title">Tema Oscuro</h2>
+          <p class="section-header__description">El modo oscuro es una parte integral de la identidad de Clicandseo. Los efectos bioluminiscentes cobran vida sobre fondos oscuros, creando una experiencia inmersiva.</p>
+        </div>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card__eyebrow">Fondo</div>
+            <h3 class="card__title">#0A0A0B</h3>
+            <p class="card__text">Fondo casi negro puro. Las tarjetas usan rgba(255,255,255,0.03) con bordes y sombras sutiles.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Texto</div>
+            <h3 class="card__title">#F8FAFC</h3>
+            <p class="card__text">Blanco neutro para texto principal. Opacidades reducidas (60%, 40%) para texto secundario y terciario.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Efectos</div>
+            <h3 class="card__title">Bio-Lime Glow</h3>
+            <p class="card__text">El Bio-Lime destaca especialmente sobre fondos oscuros. Usarlo como color de acento en bordes, textos destacados y elementos interactivos.</p>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Tokens Modo Oscuro</h3>
+          <table class="token-table">
+            <thead><tr><th>Elemento</th><th>Valor</th></tr></thead>
+            <tbody>
+              <tr><td>Background</td><td>#0A0A0B</td></tr>
+              <tr><td>Text Primary</td><td>#F8FAFC</td></tr>
+              <tr><td>Text Secondary</td><td>rgba(255,255,255,0.6)</td></tr>
+              <tr><td>Text Tertiary</td><td>rgba(255,255,255,0.4)</td></tr>
+              <tr><td>Card Background</td><td>rgba(255,255,255,0.03)</td></tr>
+              <tr><td>Borders</td><td>rgba(255,255,255,0.06)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Botones en Modo Oscuro</h3>
+          <div class="button-row">
+            <button class="btn btn--primary" style="background:var(--color-accent);color:var(--color-text-primary)">Accent Primary</button>
+            <button class="btn btn--secondary">Secondary</button>
+            <button class="btn btn--ghost">Ghost</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ============================================================
+         SECTION 14 — VOICE & TONE
+         ============================================================ -->
+    <section id="voice" class="guide-section guide-section--subtle">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">14 &mdash; Voz y Tono</span>
+          <h2 class="section-header__title">Como Hablamos</h2>
+          <p class="section-header__description">La voz de Clicandseo es profesional pero accesible, tecnica pero comprensible. Hablamos con autoridad sobre SEO sin ser condescendientes.</p>
+        </div>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card__eyebrow">Principio</div>
+            <h3 class="card__title">Clara y Directa</h3>
+            <p class="card__text">Frases cortas. Sin jerga innecesaria. Si un termino tecnico es imprescindible, lo explicamos brevemente. Respetamos el tiempo del lector.</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Principio</div>
+            <h3 class="card__title">Data-Driven</h3>
+            <p class="card__text">Respaldamos afirmaciones con datos. Preferimos numeros concretos sobre adjetivos vagos. "Incrementa tu CTR un 40%" sobre "Mejora mucho tu CTR".</p>
+          </div>
+          <div class="card">
+            <div class="card__eyebrow">Principio</div>
+            <h3 class="card__title">Empoderada</h3>
+            <p class="card__text">Posicionamos al usuario como protagonista. Las herramientas son el medio; el exito del usuario es el fin. "Tu estrategia, potenciada por IA".</p>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Tono por Contexto</h3>
+          <table class="token-table">
+            <thead><tr><th>Contexto</th><th>Tono</th><th>Ejemplo</th></tr></thead>
+            <tbody>
+              <tr><td>Landing Page</td><td>Inspirador, ambicioso</td><td>"Domina la busqueda zero-click"</td></tr>
+              <tr><td>Blog / Contenido</td><td>Educativo, autoridad</td><td>"Analicemos como Google interpreta..."</td></tr>
+              <tr><td>UI / Producto</td><td>Preciso, funcional</td><td>"3 oportunidades de mejora detectadas"</td></tr>
+              <tr><td>Error / Soporte</td><td>Empatico, solucionador</td><td>"No pudimos completar el analisis. Reintentando..."</td></tr>
+              <tr><td>Redes Sociales</td><td>Cercano, actual</td><td>"Nuevas funcionalidades que te van a encantar"</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION 15 — DO'S AND DON'TS
+         ============================================================ -->
+    <section id="dos-donts" class="guide-section guide-section--white">
+      <div class="guide-section__inner">
+        <div class="section-header">
+          <span class="section-header__eyebrow">15 &mdash; Uso Correcto</span>
+          <h2 class="section-header__title">Hacer y No Hacer</h2>
+          <p class="section-header__description">Para mantener la coherencia de marca en todos los soportes, sigue estas directrices de uso correcto e incorrecto.</p>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Logo</h3>
+          <div class="do-dont-grid">
+            <div class="do-dont-card do-dont-card--do">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10003;</div>
+                <div style="font-family:var(--font-sans);font-size:var(--text-2xl);letter-spacing:-0.03em">
+                  <span style="font-weight:800">Clic</span><span style="font-weight:400;opacity:0.5">and</span><span style="font-weight:700">seo</span><span style="color:var(--color-accent);font-weight:800">.</span>
+                </div>
+              </div>
+              <div class="do-dont-card__label-bar">Correcto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Usar el logo con los pesos y colores correctos. El punto siempre en Bio-Lime.</p>
+              </div>
+            </div>
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="font-family:var(--font-sans);font-size:var(--text-2xl);letter-spacing:-0.03em;font-weight:400;color:var(--color-text-tertiary)">
+                  clicandseo.
+                </div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">No usar un peso uniforme. No escribir todo en minusculas sin diferenciacion tipografica.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Color</h3>
+          <div class="do-dont-grid">
+            <div class="do-dont-card do-dont-card--do">
+              <div class="do-dont-card__preview" style="background:var(--color-bg-dark)">
+                <div class="do-dont-card__indicator">&#10003;</div>
+                <div style="padding:var(--space-md) var(--space-lg);background:var(--color-accent);border-radius:var(--radius-full);color:var(--color-text-primary);font-weight:600;font-size:var(--text-sm)">Bio-Lime como acento</div>
+              </div>
+              <div class="do-dont-card__label-bar">Correcto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Usar Bio-Lime como color de acento sobre fondos oscuros o claros. Nunca como color dominante de fondo.</p>
+              </div>
+            </div>
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview" style="background:#d9f9b8">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="color:white;font-weight:600;font-size:var(--text-sm)">Texto blanco sobre lime</div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">No usar texto blanco sobre Bio-Lime (bajo contraste). No usar Bio-Lime como fondo completo de pagina.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="do-dont-grid" style="margin-top:var(--space-lg)">
+            <div class="do-dont-card do-dont-card--do">
+              <div class="do-dont-card__preview" style="background:var(--color-bg-dark)">
+                <div class="do-dont-card__indicator">&#10003;</div>
+                <div style="color:#d9f9b8;font-weight:700;font-size:var(--text-lg)">Lime sobre negro</div>
+              </div>
+              <div class="do-dont-card__label-bar">Correcto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Bio-Lime siempre sobre fondo negro (#0A0A0B). Es la unica combinacion valida para textos e iconos en lime.</p>
+              </div>
+            </div>
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview" style="background:#FFFFFF">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="color:#d9f9b8;font-weight:700;font-size:var(--text-lg)">Lime sobre blanco</div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">No usar Bio-Lime sobre fondo blanco. El contraste es insuficiente y el texto se vuelve ilegible.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="do-dont-grid" style="margin-top:var(--space-lg)">
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview" style="background:#F1F5F9">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="color:#d9f9b8;font-weight:700;font-size:var(--text-lg)">Lime sobre gris</div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">No usar Bio-Lime sobre fondo gris (#F1F5F9). Igual que sobre blanco, carece del contraste necesario para garantizar legibilidad.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Tipografia</h3>
+          <div class="do-dont-grid">
+            <div class="do-dont-card do-dont-card--do">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10003;</div>
+                <div style="text-align:center">
+                  <div style="font-family:var(--font-sans);font-weight:800;font-size:var(--text-xl);letter-spacing:-0.03em;margin-bottom:var(--space-xs)">Inter Tight</div>
+                  <div style="font-family:var(--font-serif);font-style:italic;color:var(--color-text-secondary)">con Libre Baskerville</div>
+                </div>
+              </div>
+              <div class="do-dont-card__label-bar">Correcto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Combinar Inter Tight para titulares con Libre Baskerville italic para acentos editoriales.</p>
+              </div>
+            </div>
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="text-align:center">
+                  <div style="font-family:Arial,sans-serif;font-weight:bold;font-size:var(--text-xl);margin-bottom:var(--space-xs)">Arial Bold</div>
+                  <div style="font-family:Arial,sans-serif;color:var(--color-text-secondary)">con mas Arial</div>
+                </div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">No sustituir las fuentes de marca por fuentes genericas como Arial, Helvetica o system fonts.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Formas y Radios</h3>
+          <div class="do-dont-grid">
+            <div class="do-dont-card do-dont-card--do">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10003;</div>
+                <div style="width:120px;height:60px;background:var(--color-bg-subtle);border:2px solid var(--color-border);border-radius:var(--radius-full)"></div>
+              </div>
+              <div class="do-dont-card__label-bar">Correcto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Botones con radius-full (pill shape). Tarjetas con radius-md (20px). Formas suaves y organicas.</p>
+              </div>
+            </div>
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="width:120px;height:60px;background:var(--color-bg-subtle);border:2px solid var(--color-border);border-radius:0"></div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">No usar esquinas rectas (border-radius: 0). Nuestra marca es "Ultra Soft" en todos los elementos.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Fondos y Efectos</h3>
+          <div class="do-dont-grid">
+            <div class="do-dont-card do-dont-card--do">
+              <div class="do-dont-card__preview" style="background:var(--color-bg-dark)">
+                <div class="do-dont-card__indicator">&#10003;</div>
+                <div style="display:flex;gap:var(--space-md);align-items:center">
+                  <div style="width:80px;height:80px;background:var(--color-bg-dark);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-md)"></div>
+                  <div style="width:80px;height:80px;background:var(--color-accent);border-radius:var(--radius-md)"></div>
+                </div>
+              </div>
+              <div class="do-dont-card__label-bar">Correcto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Fondos siempre planos y solidos: #0A0A0B, #FFFFFF, #F1F5F9, #d9f9b8. Textura solo via noise al 5% o dot grid.</p>
+              </div>
+            </div>
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview" style="background:linear-gradient(135deg, #0A0A0B 0%, #1a3a0a 50%, #d9f9b8 100%)">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="color:white;font-weight:600;font-size:var(--text-sm)">linear-gradient</div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Nunca jamas usar gradientes de ningun tipo: ni lineales, ni radiales, ni gradient meshes, ni degradados sutiles. Es una regla absoluta de la marca.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3 class="subsection__title">Efectos Prohibidos</h3>
+          <div class="do-dont-grid">
+            <div class="do-dont-card do-dont-card--do">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10003;</div>
+                <div style="text-align:center">
+                  <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:4px">Sombras sutiles</div>
+                  <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">shadow-sm, shadow-md, shadow-float</div>
+                </div>
+              </div>
+              <div class="do-dont-card__label-bar">Correcto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">Profundidad mediante sombras suaves (box-shadow). Colores solidos con opacidad controlada para capas.</p>
+              </div>
+            </div>
+            <div class="do-dont-card do-dont-card--dont">
+              <div class="do-dont-card__preview">
+                <div class="do-dont-card__indicator">&#10005;</div>
+                <div style="text-align:center">
+                  <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:4px">Glow, Glass, Orbs</div>
+                  <div style="font-size:var(--text-xs);color:var(--color-text-tertiary)">backdrop-filter, blur, glow shadows</div>
+                </div>
+              </div>
+              <div class="do-dont-card__label-bar">Incorrecto</div>
+              <div class="do-dont-card__body">
+                <p class="do-dont-card__text">No usar glow, orbes luminosos, glassmorphism, efectos translucidos ni blur decorativos. La marca es opaca, limpia y directa.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FOOTER
+         ============================================================ -->
+    <footer style="background:var(--color-bg-dark);padding:var(--space-xl) var(--section-padding-x);text-align:center">
+      <div style="max-width:var(--content-max);margin:0 auto">
+        <div style="font-family:var(--font-sans);font-weight:800;font-size:var(--text-2xl);letter-spacing:-0.03em;color:var(--color-text-inverse);margin-bottom:var(--space-md)">
+          <span style="font-weight:800">Clic</span><span style="font-weight:400;opacity:0.5">and</span><span style="font-weight:700">seo</span><span style="color:var(--color-accent);font-weight:800">.</span>
+        </div>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin-bottom:var(--space-sm);max-width:100%">Brand Style Guide &middot; Version 1.0 &middot; Febrero 2026</p>
+        <p style="font-size:var(--text-xs);color:rgba(255,255,255,0.3);max-width:100%">Documento confidencial. Todos los derechos reservados.</p>
+      </div>
+    </footer>
+
+  </main>
+
+  <!-- Active nav highlight script -->
+  <script>
+    (function() {
+      const links = document.querySelectorAll('.sidebar-nav__link');
+      const sections = document.querySelectorAll('.guide-section, .cover');
+
+      function setActive() {
+        let current = '';
+        sections.forEach(section => {
+          const top = section.offsetTop - 120;
+          if (window.scrollY >= top) {
+            current = section.getAttribute('id');
+          }
+        });
+        links.forEach(link => {
+          link.classList.remove('is-active');
+          if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('is-active');
+          }
+        });
+      }
+
+      window.addEventListener('scroll', setActive, { passive: true });
+      setActive();
+
+      // Close mobile nav on link click
+      links.forEach(link => {
+        link.addEventListener('click', () => {
+          document.querySelector('.sidebar-nav').classList.remove('is-open');
+          document.querySelector('.mobile-nav-backdrop').classList.remove('is-visible');
+        });
+      });
+    })();
+
+    // ── Carousel Logic ──
+    const carouselState = {};
+
+    const carouselCaptions = {
+      fpd: [
+        { title: 'Hook — Fondo Oscuro', desc: 'Titular provocador con highlight italic Bio-Lime. Formato 4:5 para Instagram.' },
+        { title: 'El Problema', desc: 'Datos estimados ≠ datos reales. Comparativa visual con iconografia de marca.' },
+        { title: 'First Party Data', desc: 'Explicacion del concepto con bullet points y iconografia de marca.' },
+        { title: 'Google Search Console', desc: 'GSC como fuente de datos reales. Cards con borde izquierdo accent.' },
+        { title: 'Estimaciones vs Realidad', desc: 'Comparativa lado a lado con checks/crosses y badges de marca.' },
+        { title: 'Conclusion', desc: 'Mensaje de cierre editorial con tipografia expresiva y highlight.' },
+        { title: 'CTA Suave', desc: 'Llamada a la accion con boton pill dark. Cierre del carrusel.' }
+      ]
+    };
+
+    function carouselInit(id, total) {
+      carouselState[id] = { current: 0, total: total };
+    }
+
+    function carouselGo(id, index) {
+      const s = carouselState[id];
+      if (!s) return;
+      s.current = Math.max(0, Math.min(index, s.total - 1));
+      const track = document.getElementById('carousel-' + id + '-track');
+      if (track) track.style.transform = 'translateX(-' + (s.current * 100) + '%)';
+      const dots = document.querySelectorAll('#carousel-' + id + '-dots .carousel-dot');
+      dots.forEach(function(d, i) { d.classList.toggle('is-active', i === s.current); });
+      const cap = document.getElementById('carousel-' + id + '-caption');
+      if (cap && carouselCaptions[id]) {
+        var c = carouselCaptions[id][s.current];
+        cap.querySelector('.carousel-counter').textContent = (s.current + 1) + ' / ' + s.total;
+        cap.querySelector('.carousel-caption__title').textContent = c.title;
+        cap.querySelector('.carousel-caption__desc').textContent = c.desc;
+      }
+    }
+
+    function carouselNav(id, dir) {
+      var s = carouselState[id];
+      if (!s) return;
+      carouselGo(id, s.current + dir);
+    }
+
+    carouselInit('fpd', 7);
+  </script>
+</body>
+</html>

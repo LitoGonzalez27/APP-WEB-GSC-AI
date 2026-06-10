@@ -125,3 +125,6 @@ RAILWAY_STAGING_VARIABLES.txt
 *_VARIABLES.txt
 *.env.production
 *.env.staging
+
+# Claude Code local (worktrees, settings de sesión)
+.claude/
