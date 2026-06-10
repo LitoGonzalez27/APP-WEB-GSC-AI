@@ -95,7 +95,10 @@ class CronService:
             
             if not projects:
                 logger.info("⏭️ No active projects found for daily analysis")
-                return {"success": True, "message": "No active projects", "processed": 0}
+                result = {"success": True, "message": "No active projects", "processed": 0,
+                          "job_id": job_id}
+                self._send_completion_email(result)
+                return result
             
             logger.info(json.dumps({
                 "event": "cron_projects_found",
@@ -134,7 +137,7 @@ class CronService:
                 "elapsed_sec": round(elapsed_time, 2)
             }))
             
-            return {
+            result = {
                 "success": True,
                 "job_id": job_id,
                 "successful": stats['successful'],
@@ -143,24 +146,37 @@ class CronService:
                 "total_keywords": stats['total_keywords'],
                 "elapsed_seconds": round(elapsed_time, 2)
             }
-            
+            self._send_completion_email(result)
+            return result
+
         except Exception as e:
             logger.error(f"❌ Error in daily analysis cron: {e}")
-            
+
             # Liberar lock si fue adquirido
             if lock_acquired and lock_cur:
                 try:
-                    lock_cur.execute("SELECT pg_advisory_unlock(%s, %s)", 
+                    lock_cur.execute("SELECT pg_advisory_unlock(%s, %s)",
                                    (lock_class_id, lock_object_id))
                 except:
                     pass
-            
+
             if lock_cur:
                 lock_cur.close()
             if lock_conn:
                 lock_conn.close()
-            
-            return {"success": False, "error": str(e)}
+
+            result = {"success": False, "error": str(e), "job_id": job_id}
+            self._send_completion_email(result)
+            return result
+
+    @staticmethod
+    def _send_completion_email(stats):
+        """Email de resumen del run (OK/WARNING/CRITICAL). Nunca afecta al run."""
+        try:
+            from cron_alerts import send_simple_run_completion_email
+            send_simple_run_completion_email('Manual AI (AI Overview)', stats)
+        except Exception as e:
+            logger.warning(f"Completion email failed (non-fatal): {e}")
     
     def _get_active_projects(self):
         """Obtener proyectos activos para análisis diario.

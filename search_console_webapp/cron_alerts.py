@@ -723,6 +723,96 @@ def _build_completion_email_html(run: Dict, alerts: List[Dict], run_cost: Option
     """
 
 
+def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
+    """
+    Email de resumen para crons SIN tabla de runs (Manual AI, AI Mode).
+
+    A diferencia de send_run_completion_email (que lee llm_monitoring_analysis_runs),
+    esta función trabaja directamente con el dict de stats que devuelven los
+    CronService de Manual AI / AI Mode:
+
+        {success, successful, failed, skipped, total_keywords, elapsed_seconds,
+         error (opcional), job_id (opcional)}
+
+    Severidad del asunto:
+      - 🚨 CRITICAL → success=False o error presente (el run reventó entero)
+      - ⚠️ WARNING  → algún proyecto falló, o duración > CRON_ALERT_DURATION_MIN
+      - ✅ OK       → todo bien
+
+    Respeta el kill switch CRON_ALERTS_ENABLED. Nunca lanza excepción — está
+    pensada para llamarse desde el final del cron sin riesgo para el run.
+    """
+    try:
+        cfg = _get_config()
+        if not cfg['enabled']:
+            return {'email_sent': False, 'reason': 'disabled'}
+
+        successful = int(stats.get('successful') or 0)
+        failed = int(stats.get('failed') or 0)
+        skipped = int(stats.get('skipped') or 0)
+        total = successful + failed + skipped
+        keywords = int(stats.get('total_keywords') or 0)
+        elapsed_min = float(stats.get('elapsed_seconds') or 0) / 60.0
+        run_ok = bool(stats.get('success', True))
+        error_msg = str(stats.get('error') or '')
+        job_id = stats.get('job_id') or '-'
+
+        if not run_ok or error_msg:
+            severity = 'critical'
+        elif failed > 0 or elapsed_min > cfg['duration_min_threshold']:
+            severity = 'warning'
+        else:
+            severity = 'ok'
+
+        icon = {'ok': '✅', 'warning': '⚠️', 'critical': '🚨'}[severity]
+        color = {'ok': '#16a34a', 'warning': '#f59e0b', 'critical': '#dc2626'}[severity]
+        env_name = cfg['environment']
+
+        err_block = ''
+        if error_msg:
+            err_block = f"""
+            <p style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px;margin:16px 0;">
+                <strong>Error global del run:</strong><br>
+                <code style="font-size:12px;color:#7f1d1d;">{error_msg[:1000]}</code>
+            </p>
+            """
+
+        html = f"""
+        <!DOCTYPE html>
+        <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+                           max-width:700px;margin:0 auto;padding:24px;color:#111827;">
+            <h2 style="color:{color};margin-top:0;">{icon} {module_label} — Cron {severity.upper()}</h2>
+            <p>Entorno: <strong>{env_name}</strong> · Job: <strong>{job_id}</strong></p>
+            {err_block}
+            <table style="width:100%;border-collapse:collapse;font-size:14px;background:#f9fafb;border-radius:8px;">
+                <tr><td style="padding:8px 12px;color:#6b7280;">Proyectos OK</td><td style="padding:8px 12px;font-family:monospace;">{successful}/{total}</td></tr>
+                <tr><td style="padding:8px 12px;color:#6b7280;">Fallidos</td><td style="padding:8px 12px;font-family:monospace;">{failed}</td></tr>
+                <tr><td style="padding:8px 12px;color:#6b7280;">Saltados (ya analizados / sin cuota)</td><td style="padding:8px 12px;font-family:monospace;">{skipped}</td></tr>
+                <tr><td style="padding:8px 12px;color:#6b7280;">Keywords procesadas</td><td style="padding:8px 12px;font-family:monospace;">{keywords}</td></tr>
+                <tr><td style="padding:8px 12px;color:#6b7280;">Duración</td><td style="padding:8px 12px;font-family:monospace;">{elapsed_min:.1f} min</td></tr>
+            </table>
+            <p style="color:#6b7280;font-size:12px;margin-top:32px;">
+                Email automático del sistema de monitorización de crons ({module_label}).
+                Kill switch: <code>CRON_ALERTS_ENABLED=false</code>.
+            </p>
+        </body></html>
+        """
+
+        subject = (
+            f"{icon} [{env_name.upper()}] {module_label} Cron {severity.upper()} · "
+            f"{successful}/{total} OK · {keywords} keywords"
+        )
+
+        from email_service import send_email
+        sent = send_email(cfg['email'], subject, html)
+        logger.info(f"[cron_alerts] {module_label} completion email severity={severity} sent={bool(sent)}")
+        return {'email_sent': bool(sent), 'severity': severity}
+
+    except Exception as e:
+        logger.warning(f"[cron_alerts] {module_label} completion email failed: {e}")
+        return {'email_sent': False, 'reason': f'send_exception: {e}'}
+
+
 def send_run_completion_email(run_id: int, get_db_connection_fn=None) -> Dict:
     """
     SIEMPRE envía un email al terminar un run (a menos que el kill switch
