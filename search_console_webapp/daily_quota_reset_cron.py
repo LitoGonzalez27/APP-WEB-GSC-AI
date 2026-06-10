@@ -129,6 +129,29 @@ def main():
                         f"⏭️ User {user_id}: Stripe period still active live "
                         f"(period_end={live_period_end.isoformat()}); skipping reset"
                     )
+                    # Backfill (añadido 2026-06-10): cachear el period_end vivo y
+                    # alinear quota_reset_date con él. Sin esto, el usuario queda
+                    # con quota_reset_date en el pasado para siempre (el webhook no
+                    # llega hasta la próxima factura) y el health-check lo marca
+                    # como "stuck" cada día — alertas de ruido por un no-problema.
+                    try:
+                        bf_conn = get_db_connection()
+                        if bf_conn:
+                            try:
+                                bf_cur = bf_conn.cursor()
+                                bf_cur.execute("""
+                                    UPDATE users
+                                    SET current_period_end = %s,
+                                        quota_reset_date = %s,
+                                        updated_at = NOW()
+                                    WHERE id = %s
+                                """, (live_period_end, live_period_end, user_id))
+                                bf_conn.commit()
+                                logger.info(f"📌 User {user_id}: backfilled period_end/quota_reset_date = {live_period_end.isoformat()}")
+                            finally:
+                                bf_conn.close()
+                    except Exception as bf_err:
+                        logger.warning(f"⚠️ User {user_id}: backfill failed (non-fatal): {bf_err}")
                     skipped_stripe_active += 1
                     continue
                 if live_period_end is not None:
