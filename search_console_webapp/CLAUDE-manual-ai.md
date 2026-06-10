@@ -516,7 +516,7 @@ WHERE p.is_active = TRUE
 - **Paralelismo**: ninguno. Procesa proyectos secuencialmente con `for project in projects`.
 - **Timeout**: ninguno por proyecto. Un proyecto con red colgada puede arrastrar al cron entero hasta el `idle_in_transaction_session_timeout`.
 - **Registro del run**: **no escribe en `cron_runs`**. Loguea JSON estructurado (`event: cron_start, cron_projects_found, cron_end, cron_skipped_lock`) con `job_id=cron-{epoch}` y crea evento `daily_analysis` en `manual_ai_events` por cada proyecto exitoso.
-- **Alertas**: **no hay alertas por email** para Manual AI. `cron_alerts.py` solo cubre LLM Monitoring.
+- **Alertas** (NUEVO 2026-06-10): email de resumen OK/WARNING/CRITICAL por run (`cron_alerts.send_simple_run_completion_email`, hook en `CronService._send_completion_email`) + detección diaria de "cron parado" (`cron_routes._run_module_staleness_check`, umbral `CRON_STALENESS_MAX_DAYS=4`).
 
 ---
 
@@ -568,7 +568,7 @@ Auto-refresh con `refreshInterval` (en core). Cachebusting con `?_t=${Date.now()
 | Deuda | Impacto | Riesgo |
 |---|---|---|
 | **Cron sin paralelismo ni timeout por proyecto** | 40-60 proyectos pueden tardar >15 min, un proyecto colgado arrastra todo. | Medio-alto. |
-| **Sin alertas de cron por email** | Si el cron se cuelga / falla masivamente, no se notifica a Carlos. | Alto. |
+| ~~Sin alertas de cron por email~~ **RESUELTO 2026-06-10** | Email por run + detección de cron parado. | — |
 | **Sin tests unitarios reales** | Cobertura 0%. Cualquier cambio requiere test manual extensivo. | Alto. |
 | **Doble entrada del cron** (Procfile + railway.json + endpoint) | No claro cuál se ejecuta en producción. La advisory lock lo mitiga. | Medio. |
 | **`audit_manual_ai_system.py` con credenciales hardcodeadas** | Riesgo si el repo se hace público. | Alto. |

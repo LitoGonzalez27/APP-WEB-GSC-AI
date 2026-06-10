@@ -239,6 +239,21 @@ Para crons largos (LLM Monitoring puede tardar 15-20 min) se usa async para que 
 
 Tras el reset de cuotas, `/api/cron/quota-reset` también ejecuta un **health-check** que detecta usuarios "atascados" (con `quota_reset_date` en el pasado pero todavía pausados, etc.). Si encuentra alguno, envía un email de alerta a Carlos.
 
+### Alertas de cron (Manual AI / AI Mode) — NUEVO 2026-06-10
+
+- `cron_alerts.send_simple_run_completion_email(module_label, stats)`: email de resumen
+  (✅ OK / ⚠️ WARNING / 🚨 CRITICAL) al terminar cada run de Manual AI y AI Mode. Lo llaman
+  los `CronService` de ambos módulos en éxito, "0 proyectos" y excepción global (nunca en
+  skip por advisory lock). Mismo kill-switch `CRON_ALERTS_ENABLED`.
+- `cron_routes._run_module_staleness_check()`: corre a diario tras el quota-reset. Alerta
+  por email si Manual AI o AI Mode llevan > `CRON_STALENESS_MAX_DAYS` (default 4) sin
+  producir resultados teniendo proyectos elegibles de frecuencia estándar (ignora los de
+  `analysis_frequency_days > 1`, cuyos huecos son intencionados).
+- Backfill en quota-reset (2026-06-10): cuando el live-check Stripe encuentra periodo
+  activo para un usuario con `current_period_end` NULL, ahora cachea ese period_end y
+  alinea `quota_reset_date` — antes el usuario quedaba marcado "stuck" por el health-check
+  cada día indefinidamente.
+
 ### Alertas de cron (LLM Monitoring)
 
 `cron_alerts.py` envía un email único cuando un run detecta:
