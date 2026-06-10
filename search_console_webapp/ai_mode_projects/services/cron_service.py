@@ -243,12 +243,29 @@ class CronService:
                         skipped_analyses += 1
                         continue  # inner finally closes conn before continuing the outer for
 
-                    # Verificar si ya hay resultados hoy
+                    # Frecuencia de análisis del proyecto (1 = cada tick del cron,
+                    # 7 = semanal). Fallback a 1 si la migración no ha corrido.
+                    frequency_days = 1
+                    try:
+                        cur.execute("""
+                            SELECT COALESCE(analysis_frequency_days, 1) AS freq
+                            FROM ai_mode_projects
+                            WHERE id = %s
+                        """, (project_dict['id'],))
+                        freq_row = cur.fetchone()
+                        if freq_row:
+                            freq_value = freq_row['freq'] if isinstance(freq_row, dict) else freq_row[0]
+                            frequency_days = max(int(freq_value or 1), 1)
+                    except Exception:
+                        conn.rollback()
+                        frequency_days = 1
+
+                    # Verificar si ya hay resultados dentro de la ventana de frecuencia
                     cur.execute("""
                         SELECT COUNT(*) as count
                         FROM ai_mode_results
-                        WHERE project_id = %s AND analysis_date = %s
-                    """, (project_dict['id'], today))
+                        WHERE project_id = %s AND analysis_date > %s - %s::integer
+                    """, (project_dict['id'], today, frequency_days))
 
                     result_row = cur.fetchone()
                     existing_results = result_row['count'] if result_row else 0
@@ -269,7 +286,8 @@ class CronService:
 
                 if existing_results > 0:
                     logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) "
-                              f"already analyzed today with {existing_results} results, skipping")
+                              f"already analyzed within last {frequency_days} day(s) "
+                              f"with {existing_results} results, skipping")
                     skipped_analyses += 1
                     continue
                 
