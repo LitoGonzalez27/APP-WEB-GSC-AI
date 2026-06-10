@@ -102,7 +102,7 @@ def download_manual_ai_excel(project_id):
         return jsonify({'success': False, 'error': 'Missing required dependencies for Excel generation'}), 500
     except Exception as e:
         logger.error(f"Error generating AI Mode Excel for project {project_id}: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': f'Failed to generate Excel file: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])

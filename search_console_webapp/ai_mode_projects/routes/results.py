@@ -145,7 +145,7 @@ def get_ai_overview_table_data(project_id):
         })
     except Exception as e:
         logger.error(f"Error getting AI Overview table data for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/ai-overview-table-latest', methods=['GET'])
@@ -170,7 +170,7 @@ def get_ai_overview_table_latest(project_id):
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"Error getting latest AI Overview table for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/top-domains', methods=['GET'])
@@ -199,7 +199,7 @@ def get_top_domains(project_id):
         })
     except Exception as e:
         logger.error(f"Error getting top domains for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/global-domains-ranking', methods=['GET'])
@@ -233,7 +233,7 @@ def get_global_domains_ranking(project_id):
         })
     except Exception as e:
         logger.error(f"Error getting global domains ranking for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/urls-ranking', methods=['GET'])
@@ -270,4 +270,4 @@ def get_urls_ranking(project_id):
         })
     except Exception as e:
         logger.error(f"Error getting URLs ranking for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500

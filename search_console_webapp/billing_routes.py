@@ -161,7 +161,7 @@ def setup_billing_routes(app):
             logger.error(f"Price ID inválido o no existe en esta cuenta/entorno: {price_id} ({_e})")
             app_env = os.getenv('APP_ENV', 'staging')
             if app_env != 'production':
-                return jsonify({'error': 'Invalid price configuration', 'details': str(_e)}), 500
+                return jsonify({'error': 'Invalid price configuration', 'details': 'Internal server error'}), 500
             return jsonify({'error': 'Plan not available'}), 500
         
         customer_id = get_or_create_stripe_customer(user)
@@ -351,7 +351,7 @@ def setup_billing_routes(app):
             # Exponer detalles solo fuera de producción para diagnóstico rápido
             app_env = os.getenv('APP_ENV', 'staging')
             if app_env != 'production' or (request.args.get('debug') == '1' and is_user_admin()):
-                return jsonify({'error': 'Could not create checkout session', 'details': str(e), 'ctx': debug_ctx}), 500
+                return jsonify({'error': 'Could not create checkout session', 'details': 'Internal server error', 'ctx': debug_ctx}), 500
             return jsonify({'error': 'Could not create checkout session'}), 500
     
     @app.route('/billing/portal')

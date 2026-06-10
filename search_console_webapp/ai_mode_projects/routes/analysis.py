@@ -188,7 +188,7 @@ def trigger_daily_analysis():
         logger.error(f"Error in daily analysis cron trigger: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
 
 

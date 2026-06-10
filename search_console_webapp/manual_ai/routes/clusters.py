@@ -46,7 +46,7 @@ def get_project_clusters(project_id):
         
     except Exception as e:
         logger.error(f"Error getting clusters for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/clusters', methods=['PUT'])
@@ -111,7 +111,7 @@ def update_project_clusters(project_id):
         logger.error(f"Error updating clusters for project {project_id}: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/clusters/statistics', methods=['GET'])
@@ -153,7 +153,7 @@ def get_clusters_statistics(project_id):
         logger.error(f"❌ Error getting cluster statistics for project {project_id}: {e}")
         import traceback
         logger.error(f"🔍 Traceback: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/clusters/validate', methods=['POST'])
@@ -193,7 +193,7 @@ def validate_clusters_config(project_id):
         
     except Exception as e:
         logger.error(f"Error validating clusters config for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/clusters/test', methods=['POST'])
@@ -238,5 +238,5 @@ def test_cluster_classification(project_id):
         
     except Exception as e:
         logger.error(f"Error testing cluster classification for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 

@@ -105,7 +105,7 @@ def add_keywords_to_project(project_id):
         
     except Exception as e:
         logger.error(f"Error adding keywords: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords/<int:keyword_id>', methods=['DELETE'])
@@ -158,7 +158,7 @@ def delete_project_keyword(project_id, keyword_id):
         
     except Exception as e:
         logger.error(f"Error deleting keyword {keyword_id} from project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords/<int:keyword_id>', methods=['PUT'])
@@ -213,4 +213,4 @@ def update_project_keyword(project_id, keyword_id):
         
     except Exception as e:
         logger.error(f"Error updating keyword: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500

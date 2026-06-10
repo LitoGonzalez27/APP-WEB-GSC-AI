@@ -101,7 +101,7 @@ def trigger_quota_reset():
         }), 200
     except Exception as e:
         logger.error(f"❌ quota-reset sync error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'internal_error'}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ def _run_health_check_and_alert():
 
     except Exception as e:
         logger.error(f"Quota health check failed: {e}", exc_info=True)
-        return {'ok': False, 'reason': str(e)}
+        return {'ok': False, 'reason': 'internal_error'}
     finally:
         if conn:
             try:
@@ -267,7 +267,7 @@ def _run_module_staleness_check():
 
     except Exception as e:
         logger.error(f"Cron staleness check failed: {e}", exc_info=True)
-        return {'ok': None, 'reason': str(e)}
+        return {'ok': None, 'reason': 'internal_error'}
     finally:
         if conn:
             try:

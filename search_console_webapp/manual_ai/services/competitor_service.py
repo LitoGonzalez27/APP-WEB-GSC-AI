@@ -316,7 +316,7 @@ class CompetitorService:
 
         except Exception as e:
             logger.error(f"Error getting competitors charts data: {e}")
-            return {'error': str(e)}
+            return {'error': 'Internal server error'}
         finally:
             try:
                 conn.close()

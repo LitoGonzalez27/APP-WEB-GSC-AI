@@ -51,7 +51,7 @@ def get_project_competitors(project_id):
         
     except Exception as e:
         logger.error(f"Error getting competitors for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/competitors', methods=['PUT'])
@@ -151,7 +151,7 @@ def update_project_competitors(project_id):
         
     except Exception as e:
         logger.error(f"Error updating competitors for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/competitors-charts', methods=['GET'])
@@ -185,7 +185,7 @@ def get_competitors_charts_data(project_id):
         })
     except Exception as e:
         logger.error(f"Error getting competitors charts data for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @ai_mode_bp.route('/api/projects/<int:project_id>/comparative-charts', methods=['GET'])
@@ -223,5 +223,5 @@ def get_comparative_charts_data(project_id):
         logger.error(f"❌ Error getting comparative charts data for project {project_id}: {e}")
         import traceback
         logger.error(f"🔍 Traceback: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 

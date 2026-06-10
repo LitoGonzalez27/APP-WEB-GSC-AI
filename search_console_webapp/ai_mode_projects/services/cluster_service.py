@@ -423,7 +423,7 @@ class ClusterService:
                 'chart_data': {'labels': [], 'total_keywords': [], 'mentions': []},
                 'table_data': [],
                 'data_freshness': None,
-                'error': str(e)
+                'error': 'Internal server error'
             }
         finally:
             try:

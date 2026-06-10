@@ -513,7 +513,7 @@ class ProjectRepository:
 
         except Exception as e:
             logger.error(f"Error deleting project {project_id}: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Internal server error'}
         finally:
             try:
                 conn.close()

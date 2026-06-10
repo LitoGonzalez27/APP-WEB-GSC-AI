@@ -1894,7 +1894,8 @@ def setup_auth_routes(app):
             })
 
         except Exception as e:
-            return jsonify({'error': f'Error: {str(e)}'})
+            logger.error(f"Error actualizando fechas de usuarios: {e}", exc_info=True)
+            return jsonify({'error': 'Internal server error'})
         finally:
             if conn is not None:
                 try:

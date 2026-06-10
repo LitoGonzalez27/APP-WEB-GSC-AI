@@ -220,7 +220,7 @@ def __list_routes():
         return jsonify({'count': len(routes_sorted), 'routes': routes_sorted})
     except Exception as e:
         logger.error(f"Error listando rutas: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
 def get_top_country_for_site(site_url):
@@ -1392,7 +1392,7 @@ def get_data():
 
     except Exception as e:
         logger.error(f"Error general en get_data: {e}", exc_info=True)
-        return jsonify({'error': f'Error procesando solicitud: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/download-excel', methods=['POST'])
 @auth_required  # NUEVO: Requiere autenticación
@@ -1435,11 +1435,11 @@ def download_excel():
             
         except Exception as e:
             logger.error(f"Error generando Excel: {e}", exc_info=True)
-            return jsonify({'error': f'Error generando Excel: {str(e)}'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
     
     except Exception as e:
         logger.error(f"Error general en download_excel: {e}", exc_info=True)
-        return jsonify({'error': f'Error procesando solicitud: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 # --- Las rutas de SERP no requieren autenticación (son públicas) ---
 @app.route('/api/serp')
@@ -1485,7 +1485,7 @@ def get_serp_raw_json():
         })
     except Exception as e:
         logger.error(f"Error en /api/serp para keyword '{keyword_query}': {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/serp/position')
 def get_serp_position():
@@ -1576,7 +1576,7 @@ def get_serp_position():
     except Exception as e:
         logger.error(f"[SERP POSITION] Error para keyword '{keyword_val}': {e}", exc_info=True)
         return jsonify({
-            'error': str(e),
+            'error': 'Internal server error',
             'keyword': keyword_val,
             'domain': normalize_search_console_url(site_url_val),
             'found': False,
@@ -1609,7 +1609,7 @@ def get_serp_screenshot_route():
         return get_page_screenshot(keyword=keyword_param, site_url_to_highlight=site_url_param, api_key=api_key_env, country=country_to_use, site_url=site_url_param)
     except Exception as e:
         logger.error(f"[SCREENSHOT ROUTE] Error para keyword '{keyword_param}': {e}", exc_info=True)
-        return jsonify({'error': f'Error general al generar screenshot: {e}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 # ✅ FASE 4: Nueva ruta para verificar estado de quota
 @app.route('/api/quota/status')
@@ -1780,7 +1780,7 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
         # ✅ NUEVO: Para errores, también cachear brevemente para evitar re-intentos inmediatos
         error_result = {
             'keyword': keyword_arg,
-            'ai_analysis': {'has_ai_overview': False, 'error': str(e_single_keyword)},
+            'ai_analysis': {'has_ai_overview': False, 'error': 'Analysis error'},
             'site_position': 'Error',
             'serp_features': [],
             'timestamp': time.time(),
@@ -2227,7 +2227,7 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
                 
                 error_result = {
                     **kw_data_item,
-                    'error': str(e),
+                    'error': 'Analysis error',
                     'ai_analysis': {},
                     'analysis_successful': False,
                     'country_analyzed': country_req
@@ -2601,7 +2601,7 @@ def analyze_ai_overview_route():
     except Exception as e_overview_critical:
         logger.error(f"Error crítico en analyze_ai_overview_route: {str(e_overview_critical)}", exc_info=True)
         return jsonify({
-            'error': str(e_overview_critical),
+            'error': 'Internal server error',
             'results': [],
             'summary': {}
         }), 500
@@ -2632,7 +2632,7 @@ def test_url_matching_route():
 
     except Exception as e_match_test_route:
         logger.error(f"Error en test_url_matching_route: {e_match_test_route}", exc_info=True)
-        return jsonify({'error': str(e_match_test_route)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/get-available-countries', methods=['POST'])
 @auth_required  # NUEVO: Requiere autenticación
@@ -2719,7 +2719,7 @@ def get_available_countries():
         
     except Exception as e:
         logger.error(f"Error obteniendo países: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     
 @app.route('/debug-serp-params')
 def debug_serp_params():
@@ -3122,7 +3122,7 @@ def get_url_keywords():
         # Error genérico
         else:
             return jsonify({
-                'error': f'Error obteniendo keywords de URL: {str(e)}',
+                'error': 'Error obteniendo keywords de URL',
                 'error_type': 'server_error',
                 'details': 'An unexpected error occurred while fetching keywords.'
             }), 500
@@ -3200,7 +3200,7 @@ def ai_recommendations_route():
         logger.error(f"❌ Error in ai_recommendations_route: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': f'Server error: {str(e)}',
+            'error': 'Internal server error',
             'recommendations': [],
             'summary': ''
         }), 500
@@ -3235,7 +3235,7 @@ def get_ai_overview_stats_route():
         logger.error(f"Error obteniendo estadísticas AI Overview: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
 
 @app.route('/api/ai-overview-typology', methods=['GET'])
@@ -3286,7 +3286,7 @@ def get_ai_overview_typology_route():
         logger.error(f"Error obteniendo datos de tipología: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
 
 @app.route('/api/ai-overview-history', methods=['GET'])
@@ -3324,7 +3324,7 @@ def get_ai_overview_history_route():
         logger.error(f"Error obteniendo historial AI Overview: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
 
 @app.route('/api/cache-management', methods=['POST'])
@@ -3375,7 +3375,7 @@ def cache_management_route():
         logger.error(f"Error en gestión de caché: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
 
 @app.route('/debug-ai-detection', methods=['POST'])
@@ -3505,7 +3505,7 @@ def debug_ai_detection():
     except Exception as e:
         logger.error(f"[DEBUG] Error en debug_ai_detection: {e}", exc_info=True)
         return jsonify({
-            'error': f'Error interno: {str(e)}',
+            'error': 'Internal server error',
             'success': False
         }), 500
 

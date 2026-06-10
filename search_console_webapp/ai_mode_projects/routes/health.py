@@ -68,5 +68,5 @@ def manual_ai_health():
         
     except Exception as e:
         logger.error(json.dumps({"event": "health_error", "error": str(e)}))
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": 'Internal server error'}), 500
 

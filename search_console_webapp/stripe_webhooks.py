@@ -114,7 +114,7 @@ class StripeWebhookHandler:
         except Exception as e:
             logger.error(f"❌ Error processing webhook: {e}", exc_info=True)
             # No marcamos el evento como procesado para que Stripe reintente
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'internal_error'}
 
     def _handle_checkout_completed(self, session: dict) -> dict:
         """Maneja checkout.session.completed"""
@@ -160,7 +160,7 @@ class StripeWebhookHandler:
             
         except Exception as e:
             logger.error(f"❌ Error handling checkout completion: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'internal_error'}
     
     def _handle_subscription_created(self, subscription: dict) -> dict:
         """Maneja customer.subscription.created"""
@@ -446,7 +446,7 @@ class StripeWebhookHandler:
             
         except Exception as e:
             logger.error(f"❌ Error handling subscription {action}: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'internal_error'}
     
     def _handle_payment_succeeded(self, invoice: dict) -> dict:
         """Maneja invoice.payment.succeeded"""
@@ -543,7 +543,7 @@ class StripeWebhookHandler:
             
         except Exception as e:
             logger.error(f"❌ Error handling payment succeeded: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'internal_error'}
     
     def _handle_payment_failed(self, invoice: dict) -> dict:
         """Maneja invoice.payment.failed"""
@@ -575,7 +575,7 @@ class StripeWebhookHandler:
             
         except Exception as e:
             logger.error(f"❌ Error handling payment failed: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'internal_error'}
     
     def _get_plan_from_price_id(self, price_id: str, product_id: str) -> str:
         """Determina el plan basado en price_id o product_id"""

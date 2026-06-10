@@ -167,7 +167,7 @@ def validate_project_ownership(f):
             
         except Exception as e:
             logger.error(f"Error validando ownership: {e}", exc_info=True)
-            return jsonify({'error': f'Error validando permisos: {str(e)}'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
         finally:
             cur.close()
             conn.close()
@@ -780,7 +780,7 @@ def create_project():
     except Exception as e:
         conn.rollback()
         logger.error(f"Error creando proyecto: {e}", exc_info=True)
-        return jsonify({'error': f'Error creando proyecto: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -1595,7 +1595,7 @@ def update_project(project_id):
     except Exception as e:
         conn.rollback()
         logger.error(f"Error actualizando proyecto: {e}", exc_info=True)
-        return jsonify({'error': f'Error actualizando proyecto: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -1643,7 +1643,7 @@ def deactivate_project(project_id):
     except Exception as e:
         conn.rollback()
         logger.error(f"Error desactivando proyecto: {e}", exc_info=True)
-        return jsonify({'error': f'Error desactivando proyecto: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -1706,7 +1706,7 @@ def activate_project(project_id):
     except Exception as e:
         conn.rollback()
         logger.error(f"Error reactivando proyecto: {e}", exc_info=True)
-        return jsonify({'error': f'Error reactivando proyecto: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -1793,7 +1793,7 @@ def delete_project(project_id):
     except Exception as e:
         conn.rollback()
         logger.error(f"Error eliminando proyecto: {e}", exc_info=True)
-        return jsonify({'error': f'Error eliminando proyecto: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -2003,7 +2003,7 @@ def delete_query(project_id, query_id):
     except Exception as e:
         conn.rollback()
         logger.error(f"Error eliminando query: {e}", exc_info=True)
-        return jsonify({'error': f'Error eliminando query: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -2896,7 +2896,7 @@ def suggest_queries(project_id):
     except Exception as e:
         logger.error(f"Error generando sugerencias: {e}", exc_info=True)
         return jsonify({
-            'error': f'Error generando sugerencias: {str(e)}',
+            'error': 'Internal server error',
             'hint': 'Verifica que GOOGLE_API_KEY esté configurada'
         }), 500
     finally:
@@ -3107,7 +3107,7 @@ def suggest_query_variations(project_id):
         
     except Exception as e:
         logger.error(f"Error generating variations: {e}", exc_info=True)
-        return jsonify({'error': str(e), 'success': False}), 500
+        return jsonify({'error': 'Internal server error', 'success': False}), 500
     finally:
         pass  # Connection already closed
 
@@ -5076,7 +5076,7 @@ def update_model(model_id):
     except Exception as e:
         conn.rollback()
         logger.error(f"Error actualizando modelo: {e}", exc_info=True)
-        return jsonify({'error': f'Error actualizando modelo: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -5242,7 +5242,7 @@ def trigger_daily_analysis():
         logger.error(f"Error in daily analysis cron trigger: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
 
 
@@ -5400,7 +5400,7 @@ def cron_watchdog():
 
     except Exception as e:
         logger.error(f"Error in cron watchdog: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 # ============================================================================
@@ -5450,7 +5450,7 @@ def health_check():
         logger.error(f"Health check failed: {e}", exc_info=True)
         return jsonify({
             'status': 'error',
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
     finally:
         try:
@@ -6749,7 +6749,7 @@ def export_project_excel(project_id):
 
     except Exception as e:
         logger.error(f"❌ Error exportando Excel para proyecto {project_id}: {e}", exc_info=True)
-        return jsonify({'error': f'Error exportando Excel: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         try:
             cur.close()
@@ -7976,7 +7976,7 @@ def export_project_pdf(project_id):
 
     except Exception as e:
         logger.error(f"Error exporting PDF for project {project_id}: {e}", exc_info=True)
-        return jsonify({'error': f'Error exportando PDF: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         try:
             cur.close()
@@ -8601,7 +8601,7 @@ def cron_model_discovery():
 
     except Exception as e:
         logger.error(f"❌ Error en model discovery: {e}", exc_info=True)
-        return jsonify({'error': f'Error en model discovery: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -8739,7 +8739,7 @@ def approve_model_by_token():
     except Exception as e:
         conn.rollback()
         logger.error(f"Error aprobando modelo: {e}", exc_info=True)
-        return _render_approval_result('error', f'Internal error: {str(e)[:200]}')
+        return _render_approval_result('error', 'Internal error — revisa los logs del servidor')
     finally:
         cur.close()
         conn.close()
@@ -8802,7 +8802,7 @@ def reject_model_by_token():
     except Exception as e:
         conn.rollback()
         logger.error(f"Error rechazando modelo: {e}", exc_info=True)
-        return _render_approval_result('error', f'Internal error: {str(e)[:200]}')
+        return _render_approval_result('error', 'Internal error — revisa los logs del servidor')
     finally:
         cur.close()
         conn.close()
@@ -8918,7 +8918,7 @@ def get_model_changelog():
 
     except Exception as e:
         logger.error(f"Error obteniendo changelog: {e}", exc_info=True)
-        return jsonify({'error': f'Error: {str(e)}'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()

@@ -384,7 +384,7 @@ class CompetitorService:
             logger.error(f"Error getting competitors charts data: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return {'error': str(e)}
+            return {'error': 'Internal server error'}
         finally:
             if cur:
                 cur.close()

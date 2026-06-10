@@ -170,7 +170,7 @@ class KeywordRepository:
 
             except Exception as e:
                 logger.error(f"Error deleting AI Mode keyword {keyword_id}: {e}")
-                return {'success': False, 'error': str(e)}
+                return {'success': False, 'error': 'Internal server error'}
         finally:
             try:
                 conn.close()

@@ -174,6 +174,6 @@ def fix_llm_models_endpoint():
         logger.error(f"❌ Error corrigiendo modelos LLM: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Internal server error'
         }), 500
 

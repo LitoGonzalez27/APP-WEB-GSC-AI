@@ -101,7 +101,7 @@ class ProjectService:
             
         except Exception as e:
             logger.error(f"Error creating AI Mode project: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Internal server error'}
     
     def update_project(self, project_id: int, user_id: int, name: str, description: str) -> Dict:
         """
@@ -135,7 +135,7 @@ class ProjectService:
             
         except Exception as e:
             logger.error(f"Error updating project {project_id}: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Internal server error'}
     
     def delete_project(self, project_id: int, user_id: int) -> Dict:
         """Permanently delete an AI Mode project and all its data.
