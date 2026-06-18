@@ -58,6 +58,7 @@ from services.project_access_service import (
 from database import get_db_connection, acquire_analysis_lock, release_analysis_lock, get_latest_analysis_run
 from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
 from services.llm_monitoring_stats import LLMMonitoringStatsService
+from services.country_config import get_default_language_for_country
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -634,8 +635,12 @@ def create_project():
     brand_domain = data.get('brand_domain')
     brand_keywords = data.get('brand_keywords', [])
     selected_competitors = data.get('selected_competitors', [])  # ✨ NEW
-    language = str(data.get('language', 'es') or 'es').strip().lower() or 'es'
     country_code = str(data.get('country_code', 'ES') or 'ES').strip().upper()
+    # Idioma de contenido: si el cliente NO lo envía, derivarlo del país
+    # (FR->fr, IT->it, PT->pt...) en vez de asumir 'es'. Si lo envía
+    # explícitamente, se respeta tal cual (sin cambio de comportamiento).
+    _language_in = str(data.get('language') or '').strip().lower()
+    language = _language_in or get_default_language_for_country(country_code)
     enabled_llms = data.get('enabled_llms', ['openai', 'anthropic', 'google', 'perplexity'])
     
     # Validaciones

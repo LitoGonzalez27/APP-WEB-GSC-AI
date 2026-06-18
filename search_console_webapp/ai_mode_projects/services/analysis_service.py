@@ -22,6 +22,12 @@ from ai_mode_projects.services.domains_service import DomainsService
 
 logger = logging.getLogger(__name__)
 
+# Frescura de datos: forzar a SerpAPI a ignorar su caché de servidor para
+# obtener un resultado de AI Mode actual en cada análisis (objetividad por
+# mercado). Configurable por env para poder revertir sin redeploy si el
+# coste en RU lo requiere. Por defecto: activado.
+SERP_NO_CACHE = os.getenv('SERP_NO_CACHE', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
+
 # Lazy imports para evitar problemas de orden
 try:
     from services.ai_cache import ai_cache
@@ -339,15 +345,21 @@ class AnalysisService:
         # Fix #7: Unified location map — use country_config.py (70+ countries) via ISO-2 conversion
         # instead of hardcoded 32-country map
         internal_code = convert_iso_to_internal_country(country_code)
+        serp_gl = None
+        serp_hl = None
         try:
             from services.country_config import get_country_config
             country_cfg = get_country_config(internal_code)
             if country_cfg:
                 location = country_cfg['serp_location']
+                serp_gl = country_cfg.get('serp_gl')
+                serp_hl = country_cfg.get('serp_hl')
             else:
                 location = 'Madrid, Spain'  # Fallback seguro
+                serp_gl, serp_hl = 'es', 'es'
         except Exception:
             location = 'Madrid, Spain'
+            serp_gl, serp_hl = 'es', 'es'
         
         try:
             # Parámetros para Google AI Mode (google.com/ai)
@@ -357,8 +369,18 @@ class AnalysisService:
                 "location": location,  # Nombre de país/ciudad que SerpApi acepta
                 "api_key": api_key
             }
+            # Geo unificado con AI Overview: gl (país) + hl (idioma) para
+            # resultados consistentes y localizados por mercado.
+            # El engine google_ai_mode admite gl/hl/location/no_cache
+            # (NO google_domain, por eso no se incluye aquí).
+            if serp_gl:
+                params["gl"] = serp_gl
+            if serp_hl:
+                params["hl"] = serp_hl
+            if SERP_NO_CACHE:
+                params["no_cache"] = True
             
-            logger.info(f"🔍 Calling SerpApi Google AI Mode for keyword: '{keyword}' (location: {location})")
+            logger.info(f"🔍 Calling SerpApi Google AI Mode for keyword: '{keyword}' (location: {location}, gl: {serp_gl}, hl: {serp_hl})")
             
             # Hacer la llamada a SerpApi
             search = GoogleSearch(params)
