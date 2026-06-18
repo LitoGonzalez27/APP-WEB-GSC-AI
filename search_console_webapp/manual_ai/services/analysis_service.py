@@ -22,6 +22,12 @@ from manual_ai.services.domains_service import DomainsService
 
 logger = logging.getLogger(__name__)
 
+# Frescura de datos: forzar a SerpAPI a ignorar su caché de servidor para
+# obtener un SERP/AI Overview actual en cada análisis (objetividad por
+# mercado). Configurable por env para poder revertir sin redeploy si el
+# coste en RU lo requiere. Por defecto: activado.
+SERP_NO_CACHE = os.getenv('SERP_NO_CACHE', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
+
 # Lazy imports para evitar problemas de orden
 try:
     from services.ai_cache import ai_cache
@@ -430,7 +436,9 @@ class AnalysisService:
             'api_key': api_key,
             'num': 20
         }
-        
+        if SERP_NO_CACHE:
+            serp_params_base['no_cache'] = True
+
         country_config = get_country_config(internal_country)
         if country_config:
             serp_params_base.update({
@@ -517,6 +525,8 @@ class AnalysisService:
             'num': 20,
             'page_token': page_token,  # ← única diferencia vs _fetch_serp_data
         }
+        if SERP_NO_CACHE:
+            expanded_params['no_cache'] = True
 
         country_config = get_country_config(internal_country)
         if country_config:

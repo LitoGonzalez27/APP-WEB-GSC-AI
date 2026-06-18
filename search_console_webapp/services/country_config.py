@@ -600,3 +600,51 @@ def get_country_flag(gsc_country_code):
     """Obtiene bandera del país"""
     config = get_country_config(gsc_country_code)
     return config['flag'] if config else '🌍'  # Bandera mundial por defecto
+
+
+# ============================================================
+# País (ISO-2) -> idioma de contenido por defecto (ISO 639-1)
+# ============================================================
+# Se usa para auto-rellenar el idioma de un proyecto cuando el cliente no
+# lo especifica (p.ej. creación de proyectos LLM Monitoring), de forma que
+# un proyecto de Francia use 'fr' en vez de asumir 'es'. El idioma elegido
+# es coherente con el 'serp_hl' que cada país usa en COUNTRY_MAPPING, para
+# que LLMs y SERP (AI Overview / AI Mode) hablen el mismo idioma por mercado.
+COUNTRY_TO_LANGUAGE = {
+    # Español
+    'ES': 'es', 'MX': 'es', 'AR': 'es', 'CO': 'es', 'CL': 'es', 'PE': 'es',
+    'VE': 'es', 'EC': 'es', 'UY': 'es', 'PY': 'es', 'BO': 'es', 'GT': 'es',
+    'CR': 'es', 'CU': 'es', 'HN': 'es', 'SV': 'es', 'PA': 'es', 'NI': 'es',
+    'PR': 'es', 'DO': 'es',
+    # Portugués
+    'PT': 'pt', 'BR': 'pt',
+    # Francés (coherente con serp_hl: BE y LU usan 'fr')
+    'FR': 'fr', 'BE': 'fr', 'LU': 'fr', 'MC': 'fr',
+    # Italiano
+    'IT': 'it',
+    # Alemán (coherente con serp_hl: CH y LI usan 'de')
+    'DE': 'de', 'AT': 'de', 'CH': 'de', 'LI': 'de',
+    # Neerlandés
+    'NL': 'nl',
+    # Nórdicos
+    'SE': 'sv', 'DK': 'da', 'NO': 'no', 'FI': 'fi',
+    # Otros europeos
+    'PL': 'pl', 'RO': 'ro', 'GR': 'el',
+    # Inglés
+    'US': 'en', 'GB': 'en', 'IE': 'en', 'CA': 'en', 'AU': 'en', 'NZ': 'en',
+    'IN': 'en', 'SG': 'en', 'ZA': 'en', 'AE': 'en',
+    # Otros mercados
+    'TR': 'tr', 'IL': 'he', 'SA': 'ar', 'JP': 'ja', 'CN': 'zh', 'KR': 'ko',
+    'ID': 'id', 'TH': 'th', 'RU': 'ru',
+}
+
+
+def get_default_language_for_country(country_code, fallback='es'):
+    """Idioma de contenido por defecto (ISO 639-1) para un país ISO-2.
+
+    Devuelve `fallback` ('es' por compatibilidad histórica con el
+    comportamiento previo) si el país no está mapeado o no se proporciona.
+    """
+    if not country_code:
+        return fallback
+    return COUNTRY_TO_LANGUAGE.get(str(country_code).strip().upper(), fallback)
