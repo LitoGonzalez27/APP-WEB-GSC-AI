@@ -32,7 +32,7 @@ EVENT_TYPES = {
 # Configuración de cron (diferente del manual_ai para evitar conflictos)
 CRON_LOCK_CLASS_ID = 4243
 
-# Configuración de SerpApi AI Mode
-SERPAPI_AI_MODE_ENGINE = 'google'
-SERPAPI_AI_MODE_TYPE = 'ai_mode'
+# NOTA: el engine real de SerpApi se pasa como literal "google_ai_mode" en
+# analysis_service.py. Las antiguas constantes SERPAPI_AI_MODE_ENGINE/TYPE estaban
+# sin uso (código muerto) y se eliminaron en la limpieza de 2026-06-19.
 
