@@ -10,6 +10,9 @@
 # How to run a one-off DB migration on Railway:
 #   railway run --service <service> python3 <migration_script>.py
 # or from the Railway shell.
+# NOTA: en Railway el arranque lo gobierna nixpacks.toml ([phases.start] = "python3 app.py"),
+# por lo que este Procfile no se ejecuta en producción. Se mantiene como referencia / fallback.
 web:     python3 app.py
-# Daily cron job for Manual AI analysis (schedule configured in Railway dashboard)
-cron:    python3 daily_analysis_cron.py
+# (Eliminada la línea `cron:` — no existía ningún servicio "cron" que la ejecutara.
+#  El cron real de Manual AI es el servicio Bun `function-bun-AI-Overview` en Railway,
+#  que llama al endpoint HTTP /manual-ai/api/cron/daily-analysis. Ver CLAUDE-manual-ai.md §10.)

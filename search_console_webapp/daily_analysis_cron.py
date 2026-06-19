@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
-Script para el cron job diario del Manual AI Analysis System
-Este script debe ejecutarse diariamente para analizar todos los proyectos activos.
+Entrypoint CLI del análisis diario de Manual AI (analiza todos los proyectos activos).
 
-CONFIGURACIÓN CRON:
-# Ejecutar todos los días a las 2:00 AM
-0 2 * * * cd /path/to/your/app && python3 daily_analysis_cron.py >> /var/log/manual_ai_cron.log 2>&1
+⚠️ DISPARADOR REAL EN PRODUCCIÓN (verificado vía Railway API, 2026-06-19):
+El cron NO se ejecuta desde este script ni desde Procfile/railway.json. El disparador
+real es el servicio Bun de Railway **`function-bun-AI-Overview`**, configurado en el
+dashboard con `cronSchedule`:
+    - production: `0 04 * * 1,4,6`  (lun/jue/sáb 04:00 UTC)
+    - staging:    `0 05 * * 6`      (sáb 05:00 UTC)
+Ese Bun service hace POST a `/manual-ai/api/cron/daily-analysis?async=1` con Bearer CRON_TOKEN.
+Ver CLAUDE-manual-ai.md §10.
 
-RAILWAY SETUP:
-Agregar este comando al Procfile como job separado o usar Railway Cron addon.
+USO DE ESTE SCRIPT: invocación MANUAL puntual (no programado), p.ej. para forzar un run:
+    railway run --service "Clicandseo" python3 daily_analysis_cron.py
+Llama directamente a run_daily_analysis_for_all_projects() (mismo motor que el endpoint).
 """
 
 import sys

@@ -487,7 +487,16 @@ Default country: `'US'` (puede sobreescribirse por proyecto).
 
 ### Schedule y disparador real en producción (verificado 2026-06-10)
 
-El disparador real es el servicio Bun **`function-bun-AI-Overview`** en Railway, con schedule **`0 4 * * 1,4,6`** (lunes, jueves y sábado a las 04:00 UTC — NO es diario). Llama a `https://app.clicandseo.com/manual-ai/api/cron/daily-analysis?async=1` con Bearer `CRON_TOKEN`. El `0 2 * * *` de `railway.json` y el Procfile NO se ejecutan (el array `crons` de railway.json no se aplica en este proyecto). El source del Bun service no está en el repo; vive en Railway.
+El disparador real es el servicio Bun **`function-bun-AI-Overview`** en Railway (verificado vía Railway GraphQL API el 2026-06-19), con `cronSchedule`:
+- **production**: `0 04 * * 1,4,6` (lun/jue/sáb 04:00 UTC — NO es diario).
+- **staging**: `0 05 * * 6` (sáb 05:00 UTC).
+
+Llama a `/manual-ai/api/cron/daily-analysis?async=1` con Bearer `CRON_TOKEN`. El source del Bun service no está en el repo; vive en Railway (dashboard).
+
+**Por qué NO se ejecutan ni Procfile ni railway.json** (confirmado por API: el servicio web `Clicandseo` no tiene `cronSchedule`):
+- El arranque lo gobierna `nixpacks.toml` (`[phases.start] = "python3 app.py"`), así que el `Procfile` es inerte en Railway. La línea `cron:` del Procfile se eliminó el 2026-06-19 (no había servicio que la corriera).
+- El array `crons` de `railway.json` no es parte del esquema de Railway (solo honra `deploy.cronSchedule`), así que se ignora. **Se mantiene a propósito** como manifiesto documental porque `test_llm_cron_jobs.py` lo valida; NO refleja los horarios reales (que son los de arriba).
+- `daily_analysis_cron.py` queda como entrypoint de invocación **manual** (`railway run ... python3 daily_analysis_cron.py`), no programado.
 
 ### Frecuencia por proyecto (NUEVO 2026-06-10)
 
