@@ -186,6 +186,9 @@ class _ChartsMixin:
                     domain_colors[competitor] = competitor_colors[i]
             
             # Obtener información temporal de competidores
+            # Import diferido: la clase compuesta vive en el módulo público; importarla
+            # aquí (no a nivel de módulo) evita el ciclo de imports con los mixins.
+            from manual_ai.services.competitor_service import CompetitorService
             temporal_competitors = CompetitorService.get_competitors_for_date_range(project_id, start_date, end_date)
             logger.info(f"🕒 Temporal competitors data for comparative charts: {len(temporal_competitors)} dates")
             
