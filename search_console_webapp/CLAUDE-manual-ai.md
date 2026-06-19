@@ -500,7 +500,7 @@ Llama a `/manual-ai/api/cron/daily-analysis?async=1` con Bearer `CRON_TOKEN`. El
 
 ### Frecuencia por proyecto (NUEVO 2026-06-10)
 
-`manual_ai_projects.analysis_frequency_days` (default 1) controla cada cuántos días analiza el cron cada proyecto: en `_process_projects` se salta el proyecto si ya tiene resultados con `analysis_date > hoy - N`. Con 1 el comportamiento es el histórico (máx. 1 vez/día); con 7 es semanal. Mismo campo y lógica en `ai_mode_projects`. Caso de uso original: cliente Fly me to the moon (user 665719, Mireia) con frecuencia semanal para ahorrar cuota — proyecto manual_ai id 29. ⚠️ Los proyectos nuevos nacen con default 1; si ese cliente crea más proyectos hay que ponerles el 7 a mano (UPDATE en BD). El botón "Analizar" on-demand NO respeta esta frecuencia (solo gobierna el cron).
+`manual_ai_projects.analysis_frequency_days` (default 1) controla cada cuántos días analiza el cron cada proyecto: en `_process_projects` se salta el proyecto si ya tiene resultados con `analysis_date > hoy - N`. Con 1 el comportamiento es el histórico (máx. 1 vez/día); con 7 es semanal. Mismo campo y lógica en `ai_mode_projects`. Caso de uso: cliente **Fly me to the moon** (`produccion@flymetothemoon.es`, user 665719, Mireia) con frecuencia **semanal (7)** para ahorrar cuota. Estado actual (2026-06-19): sus proyectos semanales son **PIN&TRAVEL ES/DE/UK (ids 30, 31, 32)** — el antiguo id 29 ya no existe. ⚠️ Los proyectos nuevos nacen con default 1; si ese cliente crea más proyectos hay que ponerles el 7 a mano (`UPDATE manual_ai_projects SET analysis_frequency_days=7 WHERE id IN (...) AND user_id=665719`). El botón "Analizar" on-demand NO respeta esta frecuencia (solo gobierna el cron).
 
 ### Idempotencia / concurrencia
 
