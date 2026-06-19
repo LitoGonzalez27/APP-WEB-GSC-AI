@@ -60,13 +60,14 @@ def check_imports():
     except Exception as e:
         results['imports']['ai_cache'] = {'status': 'FAILED', 'error': str(e), 'traceback': traceback.format_exc()}
     
-    # Test 6: manual_ai_system module state
+    # Test 6: Manual AI system state (paquete modular vía bridge)
     try:
-        import manual_ai_system
+        from manual_ai_system_bridge import manual_ai_bp, USING_NEW_SYSTEM
         results['imports']['manual_ai_system'] = {
             'status': 'OK',
-            'get_serp_json_available': manual_ai_system.get_serp_json is not None,
-            'get_serp_json_value': str(manual_ai_system.get_serp_json)
+            'using_new_system': USING_NEW_SYSTEM,
+            'blueprint': manual_ai_bp.name,
+            'url_prefix': manual_ai_bp.url_prefix
         }
     except Exception as e:
         results['imports']['manual_ai_system'] = {'status': 'FAILED', 'error': str(e), 'traceback': traceback.format_exc()}

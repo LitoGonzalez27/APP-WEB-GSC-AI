@@ -128,8 +128,8 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 |---|---|
 | `templates/manual_ai_dashboard.html` | Plantilla principal (1973 líneas). |
 | `templates/paywall_manual_ai.html` | Paywall para usuarios free. |
-| `static/js/manual-ai-system-modular.js` | Entry point ES modules. |
-| `static/js/manual-ai-system.js` | Versión monolítica heredada (5449 líneas, código muerto). |
+| `static/js/manual-ai-system-modular.js` | Entry point ES modules (único que carga el template). |
+| ~~`static/js/manual-ai-system.js`~~ | Monolito JS eliminado (ya no existe en el repo). |
 | `static/js/manual-ai/*.js` | 11 submódulos: `manual-ai-core.js`, `-projects.js`, `-keywords.js`, `-analysis.js`, `-charts.js`, `-competitors.js`, `-clusters.js`, `-modals.js`, `-analytics.js` (1660 líneas, el más grande), `-exports.js`, `-utils.js`. |
 
 ### Migraciones
@@ -145,7 +145,7 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 
 ### Tests / diagnóstico
 
-`audit_manual_ai_system.py`, `check_manual_ai_system.py`, `verify_manual_ai_refactoring.py`, `verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`, `diagnose_cron_skip.py`. **No hay test suites unitarias formales** (`test_manual_ai_*.py`). Cobertura de tests = 0%.
+`audit_manual_ai_system.py`, `check_manual_ai_system.py`, `diagnose_cron_skip.py`. Los scripts de verificación de la migración (`verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`) se eliminaron el 2026-06-19. **Test de caracterización** (2026-06-19): `tests/test_manual_ai_contract.py` congela el contrato de rutas del blueprint (36 endpoints) + exports del bridge + imports del cron. Cobertura de **lógica de negocio** sigue ~0% (ver §14).
 
 ---
 
@@ -571,10 +571,12 @@ Auto-refresh con `refreshInterval` (en core). Cachebusting con `?_t=${Date.now()
 | ~~Sin alertas de cron por email~~ **RESUELTO 2026-06-10** | Email por run + detección de cron parado. | — |
 | **Sin tests unitarios reales** | Cobertura 0%. Cualquier cambio requiere test manual extensivo. | Alto. |
 | **Doble entrada del cron** (Procfile + railway.json + endpoint) | No claro cuál se ejecuta en producción. La advisory lock lo mitiga. | Medio. |
-| **`audit_manual_ai_system.py` con credenciales hardcodeadas** | Riesgo si el repo se hace público. | Alto. |
+| **`audit_manual_ai_system.py` con credenciales hardcodeadas** | Riesgo si el repo se hace público. | Alto. (No trackeado en repo principal, solo en worktrees.) |
 | **`manual_ai_results.updated_at`** usado en código pero sin migración explícita | Posible fallo silencioso si la columna no existe en producción. | Bajo (ya verificado en runtime). |
-| **Bridge `manual_ai_system_bridge.py`** con fallback a monolítico que ya no existe | Código muerto. | Trivial. |
-| **Versión monolítica del JS** (5449 líneas) sigue presente | Confusión. | Trivial. |
+| ~~Bridge con fallback a monolítico que ya no existe~~ **RESUELTO 2026-06-19** | El bridge se simplificó: ya no tiene rama de fallback muerta, solo reexporta del paquete modular. | — |
+| ~~Versión monolítica del JS sigue presente~~ **RESUELTO** | El monolito JS ya estaba eliminado. | — |
+| ~~`import manual_ai_system` muerto en `diagnostic_endpoint.py`~~ **RESUELTO 2026-06-19** | Test 6 repuntado al paquete modular vía bridge. | — |
+| ~~Artefactos `.md` de migración + scripts de verificación de refactor~~ **RESUELTO 2026-06-19** | Eliminados 11 archivos de proceso; se conservan los `README.md` de arquitectura. | — |
 
 ### Archivos `.md` sueltos del repo
 
