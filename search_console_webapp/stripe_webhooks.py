@@ -253,15 +253,19 @@ class StripeWebhookHandler:
                     WHERE stripe_customer_id = %s
                 ''', (customer_id,))
 
-                # Opcional: desactivar proyectos del usuario para evitar cron
-                try:
-                    cur.execute('''
-                        UPDATE manual_ai_projects
-                        SET is_active = false, updated_at = NOW()
-                        WHERE user_id = (SELECT id FROM users WHERE stripe_customer_id = %s)
-                    ''', (customer_id,))
-                except Exception as _e:
-                    logger.warning(f"⚠️ Could not deactivate user's projects on cancellation: {_e}")
+                # Desactivar los proyectos del usuario en los TRES sistemas para
+                # evitar que sus crons sigan corriendo tras cancelar. (Los crons
+                # ya excluyen a usuarios canceled/free, pero esto es defensa en
+                # profundidad y mantiene el estado coherente entre los 3.)
+                for _tbl in ('manual_ai_projects', 'ai_mode_projects', 'llm_monitoring_projects'):
+                    try:
+                        cur.execute(f'''
+                            UPDATE {_tbl}
+                            SET is_active = false, updated_at = NOW()
+                            WHERE user_id = (SELECT id FROM users WHERE stripe_customer_id = %s)
+                        ''', (customer_id,))
+                    except Exception as _e:
+                        logger.warning(f"⚠️ Could not deactivate user's {_tbl} on cancellation: {_e}")
             else:
                 # Crear/actualizar suscripción
                 quota_limit = self.config.get_plan_limits().get(plan, 0)
@@ -531,14 +535,32 @@ class StripeWebhookHandler:
                       period_end_dt, 
                       customer_id))
                 row = cur.fetchone()
-                
+
                 conn.commit()
                 if row and row.get('id'):
                     resume_quota_pauses_for_user(row['id'])
+                    logger.info(f"✅ Quota reset for customer {customer_id} - new period")
+                else:
+                    # El UPDATE no tocó ninguna fila: ningún usuario con ese
+                    # stripe_customer_id. El cliente pagó pero NO se le reseteó la
+                    # cuota ni se le despausó. Hay que reconciliar manualmente.
+                    logger.error(
+                        f"🚨 invoice.payment_succeeded sin usuario para "
+                        f"stripe_customer_id={customer_id} (sub={subscription_id}): "
+                        f"cuota NO reseteada. Revisar reconciliación de cliente."
+                    )
                 conn.close()
-                
-                logger.info(f"✅ Quota reset for customer {customer_id} - new period")
-            
+            else:
+                # No se pudo resolver el período de facturación por ninguna vía
+                # (top-level, lines.data, ni la API live de Stripe). Devolvemos
+                # success para no forzar reintentos infinitos, pero alertamos:
+                # este pago NO reseteó la cuota → posible cliente sin servicio.
+                logger.error(
+                    f"🚨 invoice.payment_succeeded sin período resoluble para "
+                    f"customer={customer_id} (sub={subscription_id}): cuota NO "
+                    f"reseteada. Revisar manualmente."
+                )
+
             return {'success': True, 'message': 'Payment succeeded processed'}
             
         except Exception as e:
