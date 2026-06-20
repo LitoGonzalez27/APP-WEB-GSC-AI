@@ -158,7 +158,10 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
             FROM llm_monitoring_projects p
             JOIN users u ON u.id = p.user_id
             WHERE p.is_active = TRUE
-              AND COALESCE(p.is_paused_by_quota, FALSE) = FALSE
+              AND (
+                  COALESCE(p.is_paused_by_quota, FALSE) = FALSE
+                  OR (p.paused_until IS NOT NULL AND p.paused_until <= NOW())
+              )
             ORDER BY p.user_id, p.created_at
         """)
 

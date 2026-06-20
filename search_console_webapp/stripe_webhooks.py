@@ -96,9 +96,9 @@ class StripeWebhookHandler:
                 result = self._handle_subscription_updated(event_data)
             elif event_type == 'customer.subscription.deleted':
                 result = self._handle_subscription_deleted(event_data)
-            elif event_type == 'invoice.payment.succeeded':
+            elif event_type == 'invoice.payment_succeeded':
                 result = self._handle_payment_succeeded(event_data)
-            elif event_type == 'invoice.payment.failed':
+            elif event_type == 'invoice.payment_failed':
                 result = self._handle_payment_failed(event_data)
             else:
                 logger.info(f"ℹ️ Unhandled event type: {event_type}")
@@ -449,7 +449,7 @@ class StripeWebhookHandler:
             return {'success': False, 'error': 'internal_error'}
     
     def _handle_payment_succeeded(self, invoice: dict) -> dict:
-        """Maneja invoice.payment.succeeded"""
+        """Maneja invoice.payment_succeeded"""
         try:
             customer_id = invoice.get('customer')
             subscription_id = invoice.get('subscription')
@@ -546,7 +546,7 @@ class StripeWebhookHandler:
             return {'success': False, 'error': 'internal_error'}
     
     def _handle_payment_failed(self, invoice: dict) -> dict:
-        """Maneja invoice.payment.failed"""
+        """Maneja invoice.payment_failed"""
         try:
             customer_id = invoice.get('customer')
             subscription_id = invoice.get('subscription')

@@ -118,13 +118,53 @@ class _EngineMixin:
             if not project:
                 raise Exception(f"Proyecto #{project_id} no encontrado o inactivo")
 
+            # Si el proyecto está pausado por cuota y la ventana paused_until aún no
+            # expiró, bloquear el análisis. Si paused_until ya pasó, lo limpiamos y
+            # seguimos (mismo patrón que Manual AI / AI Mode: auto-reanudación).
             if project.get('is_paused_by_quota'):
-                return {
-                    'success': False,
-                    'error': 'project_paused_quota',
-                    'message': 'Proyecto en pausa por agotamiento de cuota',
-                    'paused_until': project.get('paused_until')
-                }
+                paused_until = project.get('paused_until')
+                now_cmp = None
+                if paused_until is not None:
+                    try:
+                        now_cmp = datetime.now(paused_until.tzinfo) if paused_until.tzinfo else datetime.utcnow()
+                    except Exception:
+                        now_cmp = datetime.utcnow()
+
+                if paused_until is None or paused_until > now_cmp:
+                    return {
+                        'success': False,
+                        'error': 'project_paused_quota',
+                        'message': 'Proyecto en pausa por agotamiento de cuota',
+                        'paused_until': paused_until
+                    }
+
+                # paused_until expiró → limpiar el flag de este proyecto y continuar.
+                # Conexión separada para no tocar la transacción del análisis en curso.
+                try:
+                    resume_conn = get_db_connection()
+                    if resume_conn:
+                        resume_cur = resume_conn.cursor()
+                        try:
+                            resume_cur.execute('''
+                                UPDATE llm_monitoring_projects
+                                SET is_paused_by_quota = FALSE,
+                                    paused_until = NULL,
+                                    paused_at = NULL,
+                                    paused_reason = NULL,
+                                    updated_at = NOW()
+                                WHERE id = %s
+                            ''', (project_id,))
+                            resume_conn.commit()
+                            project['is_paused_by_quota'] = False
+                            project['paused_until'] = None
+                            project['paused_reason'] = None
+                        finally:
+                            resume_cur.close()
+                            resume_conn.close()
+                except Exception as resume_error:
+                    logger.warning(
+                        f"Error reanudando proyecto LLM {project_id} tras expiración de paused_until: {resume_error}"
+                    )
 
             # Obtener usuario y validar acceso por plan/billing
             cur.execute("""
