@@ -57,3 +57,15 @@ def test_llm_engine_resumes_on_expired_pause():
     assert "if paused_until is None or paused_until > now_cmp:" in norm
     # al expirar, limpia el flag del proyecto
     assert "UPDATE llm_monitoring_projects SET is_paused_by_quota = FALSE" in norm
+
+
+def test_llm_pause_never_sets_null_paused_until():
+    """Al pausar por cuota, LLM debe tener fallback a +30d si reset_date es None,
+    igual que Manual AI / AI Mode. Un paused_until NULL = pausa indefinida no
+    auto-reanudable (solo saldría por webhook de pago)."""
+    src = _read("services/llm_monitoring/engine.py")
+    norm = re.sub(r"\s+", " ", src)
+    # justo antes de pause_llm_projects_for_quota debe garantizarse no-NULL
+    assert "if paused_until is None: paused_until = datetime.utcnow() + timedelta(days=30)" in norm
+    # timedelta debe estar importado para que el fallback funcione
+    assert re.search(r"from datetime import .*\btimedelta\b", src)

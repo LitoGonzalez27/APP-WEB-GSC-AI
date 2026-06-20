@@ -11,7 +11,7 @@ import logging
 import re
 import json
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import os
 from urllib.parse import urlparse
 try:
@@ -286,6 +286,11 @@ class _EngineMixin:
                         paused_until = quota_status.get('reset_date')
                     except Exception:
                         pass
+                    # Nunca pausar con paused_until=NULL: quedaría en pausa
+                    # INDEFINIDA (ni el filtro del cron ni el gate per-proyecto la
+                    # auto-reanudarían). Mismo fallback que Manual AI / AI Mode.
+                    if paused_until is None:
+                        paused_until = datetime.utcnow() + timedelta(days=30)
                     try:
                         from database import pause_llm_projects_for_quota
                         pause_llm_projects_for_quota(user_row['id'], paused_until, reason='quota_exceeded')
