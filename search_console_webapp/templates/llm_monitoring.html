@@ -1788,8 +1788,22 @@
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=11"></script>
-    
+    <!-- LLM Monitoring: clase base (define LLMMonitoring) + mixins de prototipo (refactor Fase 3).
+         Orden: la clase base PRIMERO, luego los mixins (Object.assign al prototipo). Todos cargan
+         de forma síncrona antes del DOMContentLoaded que instancia window.llmMonitoring. -->
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-core.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-projects.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-prompts.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-queries.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-metrics.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-models.js') }}?v=12"></script>
+
     <script>
         // Usuario actual
         window.currentUser = {
