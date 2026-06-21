@@ -4,7 +4,7 @@
 > 1. **Carlos** (no técnico) pueda entender qué hace cada pieza y por qué.
 > 2. **Una futura sesión de Claude** entre fría al proyecto y sepa orientarse sin tener que reconstruir el contexto.
 >
-> Última actualización: 2026-05-08 (tras la auditoría del caso NeoAttack y los fixes de Stripe / cuotas / crons).
+> Última actualización: 2026-06-21 (fixes de junio: nombres de evento Stripe, cancelación que desactiva los 3 sistemas, alertas en reset fallido, `paused_until` / auto-reanudación).
 
 ---
 
@@ -21,7 +21,7 @@
 9. [Variables de entorno](#9-variables-de-entorno)
 10. [Esquema de base de datos relevante](#10-esquema-de-base-de-datos-relevante)
 11. [Operaciones manuales y troubleshooting](#11-operaciones-manuales-y-troubleshooting)
-12. [Historia de incidencias y fixes (mayo 2026)](#12-historia-de-incidencias-y-fixes-mayo-2026)
+12. [Historia de incidencias y fixes (mayo–junio 2026)](#12-historia-de-incidencias-y-fixes-mayojunio-2026)
 
 ---
 
@@ -71,11 +71,12 @@ Los análisis diarios los ejecuta un **cron en Railway** (servicios "Bun functio
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  2. Compra suscripción (checkout.session.completed)                 │
-│     → plan = basic/premium/business                                 │
-│     → subscription_id, customer_id, current_period_start/end        │
-│     → billing_status = 'active'                                     │
-│     → quota_reset_date = current_period_end                         │
+│  2. Compra suscripción                                              │
+│     a) checkout.session.completed → solo graba stripe_customer_id   │
+│        y subscription_id (NO fija plan ni quota_limit).             │
+│     b) customer.subscription.created/updated → fija plan,           │
+│        quota_limit, current_period_start/end, billing_status,       │
+│        quota_reset_date.                                            │
 └─────────────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
@@ -105,7 +106,10 @@ Los análisis diarios los ejecuta un **cron en Railway** (servicios "Bun functio
 │  5. Cancelación / impago                                            │
 │     - cancellation requested → cancel_at_period_end = TRUE          │
 │     - impago → billing_status = 'past_due'                          │
-│     - cancelado de verdad → plan = 'free', sub_id = NULL            │
+│     - cancelado de verdad (customer.subscription.deleted):          │
+│         → plan = 'free', sub_id = NULL, quota_limit = 0             │
+│         → is_active = false en los 3 sistemas (manual_ai_projects,  │
+│           ai_mode_projects, llm_monitoring_projects)               │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -123,11 +127,11 @@ Los análisis diarios los ejecuta un **cron en Railway** (servicios "Bun functio
 
 | Evento Stripe                        | Qué hace en BD |
 |--------------------------------------|----------------|
-| `checkout.session.completed`         | Activa la suscripción del usuario, fija plan y `subscription_id`. |
-| `customer.subscription.created`      | Cachea `current_period_start/end`, `billing_status`, `subscription_id`. |
+| `checkout.session.completed`         | Solo graba `stripe_customer_id` y `subscription_id`. **No** fija plan ni `quota_limit` (eso lo hacen los eventos `created/updated`). |
+| `customer.subscription.created`      | Fija `plan`, `quota_limit`, cachea `current_period_start/end`, `billing_status`, `subscription_id`, `quota_reset_date`. |
 | `customer.subscription.updated`      | Sincroniza cambios de plan, periodo o estado (active/past_due/canceled). |
-| `customer.subscription.deleted`      | Devuelve al usuario al plan `free`, limpia `subscription_id`. |
-| `invoice.payment_succeeded`          | **Resetea cuota**: `quota_used = 0`, actualiza `quota_reset_date`, llama a `resume_quota_pauses_for_user` para despausar proyectos. |
+| `customer.subscription.deleted`      | Devuelve al usuario al plan `free`, `quota_limit = 0`, limpia `subscription_id` y periodo. Además pone `is_active = false` en los **3 sistemas** (`manual_ai_projects`, `ai_mode_projects`, `llm_monitoring_projects`) para que sus crons dejen de correr. |
+| `invoice.payment_succeeded`          | **Resetea cuota**: `quota_used = 0`, actualiza `quota_reset_date`, llama a `resume_quota_pauses_for_user` para despausar proyectos. Si el `UPDATE … RETURNING` no toca filas (`stripe_customer_id` sin usuario) o el período es irresoluble, loguea un **🚨** y la cuota NO se resetea (ver abajo). |
 | `invoice.payment_failed`             | Marca `billing_status = 'past_due'`. Stripe sigue reintentando. |
 
 ### Códigos de respuesta (importante)
@@ -150,6 +154,15 @@ Esto es lo que arregló el bug de los 7 usuarios atascados con `current_period_e
 
 `_alert_unmatched_customer` envía un email a Carlos cuando un webhook llega para un `customer_id` que no está en BD. Hay rate-limit (tabla auxiliar) para no spamear.
 
+### Alertas 🚨 en `invoice.payment_succeeded` (reset fallido)
+
+`_handle_payment_succeeded` loguea un `logger.error` con prefijo **🚨** en dos casos en los que el cliente pagó pero la cuota NO se reseteó:
+
+1. **Sin usuario**: el `UPDATE … RETURNING id` no tocó filas → no hay usuario con ese `stripe_customer_id`. Mensaje: *"cuota NO reseteada. Revisar reconciliación de cliente."*
+2. **Sin período resoluble**: no se pudo obtener el período por ninguna vía (top-level, `lines.data`, ni la API live de Stripe). Se devuelve `success` para no forzar reintentos infinitos, pero se alerta: *"sin período resoluble, cuota NO reseteada. Revisar manualmente."*
+
+Ambos quedan en logs como **🚨** para detectar clientes que pagaron pero podrían quedarse sin servicio.
+
 ---
 
 ## 5. Sistema de cuotas
@@ -161,7 +174,18 @@ Esto es lo que arregló el bug de los 7 usuarios atascados con `current_period_e
 - **`custom_quota_limit`** — tope personalizado para Enterprise (si existe, manda).
 - **`quota_reset_date`** — fecha en la que se resetea (TIMESTAMPTZ). Se actualiza en cada renovación.
 - **`is_paused_by_quota`** — booleano por proyecto. `TRUE` = el proyecto no se ejecuta hasta que la cuota se resetee.
+- **`paused_until`** — fecha (por proyecto) hasta la que dura la pausa por cuota. Se fija al valor de `quota_reset_date` (la fecha de reset global del usuario), con fallback `NOW() + 30 días` si no hay `reset_date`.
 - **Eventos**: la tabla `quota_events` registra cada incremento para auditoría.
+
+### Auto-reanudación por `paused_until` (fixes junio 2026)
+
+Cuando un proyecto se pausa por cuota, se le graba `paused_until`. Los crons de los **3 sistemas** (Manual AI, AI Mode, LLM Monitoring) incluyen en su filtro de elegibilidad la condición:
+
+```
+OR (p.paused_until IS NOT NULL AND p.paused_until <= NOW())
+```
+
+Es decir, un proyecto pausado vuelve a ser elegible **en cuanto `paused_until` queda en el pasado**, sin depender de que el webhook/cron de reset lo despause explícitamente. Esto es el modelo de los fixes de junio (commits `5cb1586`, `3504c78`, `d1923d5`): el LLM nunca queda colgado con `paused_until = NULL` y los 3 sistemas auto-reanudan de forma consistente.
 
 ### Cuándo se incrementa
 
@@ -187,11 +211,11 @@ Función `compute_next_quota_reset_date` en `quota_manager.py`. Lógica:
 
 ### Despausar proyectos
 
-`database.resume_quota_pauses_for_user(user_id)` despausa **dos** tipos de proyectos:
-- `manual_ai_projects` con `is_paused_by_quota = TRUE`.
-- `llm_monitoring_projects` con `is_paused_by_quota = TRUE`.
+`database.resume_quota_pauses_for_user(user_id)` despausa los **tres** sistemas y limpia el estado de pausa en `users`:
+- `ai_mode_projects`, `llm_monitoring_projects` y `manual_ai_projects`: pone `is_paused_by_quota = FALSE` y limpia `paused_until / paused_at / paused_reason` a NULL.
+- En `users`: resetea `ai_overview_paused_until / ai_overview_paused_at / ai_overview_paused_reason` a NULL.
 
-Usa **SAVEPOINT** para que un fallo en una tabla no aborte la otra. Importante: se llama **después** del COMMIT del reset de cuota, en una conexión separada, para evitar self-deadlock por row-lock.
+`manual_ai_projects` va dentro de un **SAVEPOINT** (es la tabla menos universal): si esa tabla falla, solo se deshace ese paso y los demás módulos quedan despausados. Importante: se llama **después** del COMMIT del reset de cuota, en una conexión separada, para evitar self-deadlock por row-lock.
 
 ---
 
@@ -421,7 +445,7 @@ id                    BIGSERIAL PK
 email                 TEXT
 plan                  TEXT          -- 'free' | 'basic' | 'premium' | 'business' | 'enterprise'
 billing_status        TEXT          -- 'active' | 'trialing' | 'past_due' | 'canceled' | 'beta'
-customer_id           TEXT          -- Stripe customer
+stripe_customer_id    TEXT          -- Stripe customer
 subscription_id       TEXT          -- Stripe subscription
 current_period_start  TIMESTAMPTZ   -- inicio del ciclo Stripe actual
 current_period_end    TIMESTAMPTZ   -- fin del ciclo Stripe actual (= próxima cobranza)
@@ -497,14 +521,14 @@ Pasos:
 2. Comprobar `is_paused_by_quota` — si TRUE, mirar la cuota del usuario.
 3. Comprobar `users.quota_used` vs `users.quota_limit` (o `custom_quota_limit`).
 4. Comprobar `users.current_period_end` y `users.quota_reset_date`. Si están en el pasado, hubo un fallo de reset.
-5. Mirar últimos eventos en `stripe_webhook_events` para ese `customer_id`.
+5. Mirar últimos eventos en `stripe_webhook_events` para ese `stripe_customer_id`.
 6. Si todo está bien y simplemente le toca: lanzar el cron de LLM Monitoring manualmente.
 
 ### "Stripe ha cobrado pero la cuota no se ha reseteado"
 
 1. Buscar el evento `invoice.payment_succeeded` en Stripe Dashboard → Webhooks.
 2. ¿Llegó? ¿Devolvimos 200 / 503 / 500?
-3. Si 503 (`customer_not_found`): hay desincronización; buscar al usuario por email y arreglar `customer_id`.
+3. Si 503 (`customer_not_found`): hay desincronización; buscar al usuario por email y arreglar `stripe_customer_id`.
 4. Si 500: revisar logs de la app, mirar excepción.
 5. Como red de seguridad, lanzar `quota-reset` manualmente (paso anterior).
 
@@ -521,17 +545,24 @@ Llega email de `_alert_unmatched_customer`. Pasos:
 
 1. Abrir Stripe Dashboard → buscar el customer.
 2. Cruzar email con la BD.
-3. Si es un usuario que existe, asignarle el `customer_id` manualmente:
+3. Si es un usuario que existe, asignarle el `stripe_customer_id` manualmente:
    ```sql
-   UPDATE users SET customer_id = 'cus_...' WHERE email = '...';
+   UPDATE users SET stripe_customer_id = 'cus_...' WHERE email = '...';
    ```
 4. Reintentar el webhook desde Stripe Dashboard.
 
 ---
 
-## 12. Historia de incidencias y fixes (mayo 2026)
+## 12. Historia de incidencias y fixes (mayo–junio 2026)
 
 Esta sesión arregló cosas serias. Lo dejo listado para que se entienda **por qué** el sistema tiene la pinta que tiene hoy.
+
+### Fixes junio 2026 (commits `5cb1586`, `3504c78`, `d1923d5`)
+
+- **Nombres de evento Stripe (punto → guion bajo)**: el webhook escuchaba `invoice.payment.succeeded` (con punto) en vez de `invoice.payment_succeeded` (guion bajo), así que el reset + despausa de clientes de pago **nunca corría**. Corregido a `_succeeded`.
+- **Cancelación desactiva los 3 sistemas**: `customer.subscription.deleted` ahora, además de volver a `free`, pone `is_active = false` en `manual_ai_projects`, `ai_mode_projects` y `llm_monitoring_projects`.
+- **Alertas 🚨 en reset fallido**: `_handle_payment_succeeded` loguea cuando el cliente pagó pero la cuota NO se reseteó (sin usuario para el `stripe_customer_id`, o período irresoluble).
+- **`paused_until` / auto-reanudación**: la pausa por cuota graba `paused_until` (= `quota_reset_date`, fallback +30d) y los 3 sistemas auto-reanudan cuando `paused_until <= NOW()`. El LLM nunca queda colgado con `paused_until = NULL`.
 
 ### Bug: 7 usuarios con `current_period_end = NULL`
 

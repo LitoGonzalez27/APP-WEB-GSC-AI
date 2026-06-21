@@ -2,7 +2,7 @@
 
 > Manual del **sistema de cuotas transversal**: cómo se mide, consume, resetea y pausa la cuota a través de los 4 productos (Manual AI, AI Mode, LLM Monitoring, AI Overview legacy).
 >
-> Última actualización: 2026-05-08.
+> Última actualización: 2026-06-21.
 >
 > Manuales relacionados: `CLAUDE-stripe-cuotas-crons.md` (renovación Stripe → reset), `CLAUDE-manual-ai.md` / `CLAUDE-ai-mode.md` / `CLAUDE-llm-monitoring.md` (consumidores), `CLAUDE-base-de-datos.md` (esquema). Índice maestro: `CLAUDE-INDEX.md`.
 
@@ -88,7 +88,7 @@
 
 ## 3. Archivos centrales
 
-### `quota_manager.py` (574 líneas)
+### `quota_manager.py` (608 líneas)
 
 Funciones públicas:
 
@@ -264,10 +264,12 @@ Patrón común (en `manual_ai/services/analysis_service.py`, `ai_mode_projects/s
 
 ### 5.2 LLM Monitoring
 
-Diferente patrón (`services/llm_monitoring_service.py:1235-1265`):
+Diferente patrón. Tras el refactor de LLM Monitoring (Fase 3), la lógica de cuota vive en `services/llm_monitoring/engine.py` (función `_analyze_one`, ~277-296); el filtro del cron está en `services/llm_monitoring_service.py:160-163`.
 
-- **Pre-análisis**: `get_user_monthly_llm_usage(user_id)` vs `max_units` (custom o de plan).
-- Si `used >= max_units` o `used + expected > max_units` → llama a `pause_llm_projects_for_quota` y devuelve `'llm_quota_exceeded'`.
+- **Pre-análisis** (`engine.py:277`): `get_user_monthly_llm_usage(user_id, analysis_date)` vs `max_units` (custom o de plan, `max_monthly_units`).
+- Si `used >= max_units` o `used + expected > max_units` → llama a `pause_llm_projects_for_quota(user_id, paused_until)` (`engine.py:296`) y devuelve error de cuota.
+- **`paused_until`**: misma regla unificada que Manual AI / AI Mode — `quota_status['reset_date']` global, con fallback `datetime.utcnow() + timedelta(days=30)` (`engine.py:293`) para **nunca** pausar con `paused_until=NULL` (que dejaría una pausa indefinida que ni el cron ni el gate per-proyecto reanudarían). Fix commit `3504c78`.
+- **Auto-reanudación**: el filtro del cron (`llm_monitoring_service.py:160-163`) incluye proyectos cuyo `paused_until <= NOW()` aunque sigan con `is_paused_by_quota=TRUE`; al re-analizarse, el gate per-proyecto limpia el flag y continúa. Sin necesidad de pasar por `resume_quota_pauses_for_user`.
 - **No hay tracking incremental**. Las "units" se miden contando `llm_monitoring_results` post-hoc.
 - **No hay tabla `llm_quota_events`**.
 
@@ -420,19 +422,21 @@ Excluye usuarios con Stripe activo y periodo en futuro (esos los reseteará el w
 
 | Función | Línea | Qué hace |
 |---|---:|---|
-| `pause_ai_overview_for_quota(user_id, paused_until, reason)` | 2371 | UPDATE `users.ai_overview_paused_*`. **Pausa a nivel usuario, no proyecto** (porque AI Overview no tiene tabla de proyectos). |
-| `pause_ai_mode_projects_for_quota(user_id, paused_until, reason)` | 2398 | UPDATE `ai_mode_projects` WHERE user_id AND is_active. |
-| `pause_llm_projects_for_quota(user_id, paused_until, reason)` | 2427 | UPDATE `llm_monitoring_projects`. |
-| `pause_manual_ai_projects_for_quota(user_id, paused_until, reason)` | 2456 | UPDATE `manual_ai_projects`. |
+| `pause_ai_overview_for_quota(user_id, paused_until, reason)` | 2446 | UPDATE `users.ai_overview_paused_*`. **Pausa a nivel usuario, no proyecto** (porque AI Overview no tiene tabla de proyectos). |
+| `pause_ai_mode_projects_for_quota(user_id, paused_until, reason)` | 2473 | UPDATE `ai_mode_projects` WHERE `user_id` AND `is_active=TRUE`. |
+| `pause_llm_projects_for_quota(user_id, paused_until, reason)` | 2502 | UPDATE `llm_monitoring_projects` WHERE `user_id` AND `is_active=TRUE`. |
+| `pause_manual_ai_projects_for_quota(user_id, paused_until, reason)` | 2531 | UPDATE `manual_ai_projects` WHERE `user_id` AND `is_active=TRUE`. |
+
+> **Asimetría pausa-vs-resume respecto a `is_active`**: las 3 funciones de pausa de proyectos filtran `... AND is_active = TRUE` (solo pausan proyectos activos). En cambio `resume_quota_pauses_for_user` **NO** filtra `is_active` (solo `WHERE user_id = %s`): nunca toca la columna `is_active`, así que "preserva `is_active`" significa que jamás la modifica, **no** que respete su valor al despausar.
 
 ### Quién llama a cada una
 
-- `pause_manual_ai_projects_for_quota`: `manual_ai/services/analysis_service.py:126,160` (pre-validación y mid-loop).
-- `pause_ai_mode_projects_for_quota`: `ai_mode_projects/services/analysis_service.py:130,156,278`.
-- `pause_llm_projects_for_quota`: `services/llm_monitoring_service.py:1250` (cuando `max_units` excedido).
-- `pause_ai_overview_for_quota`: definida pero **no encontré llamadores activos** en código. Posible dead code o pendiente de wire-up.
+- `pause_manual_ai_projects_for_quota`: `manual_ai/services/analysis_service.py:132,166,294` (pre-validación, mid-loop y excepción de proveedor).
+- `pause_ai_mode_projects_for_quota`: `ai_mode_projects/services/analysis_service.py:136,167,286`.
+- `pause_llm_projects_for_quota`: `services/llm_monitoring/engine.py:296` (cuando `max_units` excedido). Tras el refactor Fase 3 la llamada está en el engine, no en `llm_monitoring_service.py`.
+- `pause_ai_overview_for_quota`: **SÍ tiene llamadores activos** en `app.py:2285` y `app.py:2428` (ambos pasan `quota_status.get('reset_date')` como `paused_until`, `reason='quota_exceeded'`). No es dead code.
 
-### `resume_quota_pauses_for_user(user_id)` (`database.py:2485`)
+### `resume_quota_pauses_for_user(user_id)` (`database.py:2560`)
 
 **Función única que despausa todos los módulos**. Patrón:
 
@@ -444,12 +448,20 @@ Excluye usuarios con Stripe activo y periodo en futuro (esos los reseteará el w
 
 | Llamador | Cuándo |
 |---|---|
-| `quota_manager.reset_user_quota` (línea 558) | Reset manual de admin. |
+| `quota_manager.reset_user_quota` (def línea 516, llamada a resume en 592) | Reset manual de admin. |
 | `daily_quota_reset_cron.main` (línea 199) | Cron diario tras reset. |
 | `stripe_webhooks._handle_payment_succeeded` (línea 685) | Tras pago Stripe. |
 | `admin_billing_panel.reset_user_quota_manual` | Reset manual desde panel admin. |
 
 > **Crítico**: todos hacen `commit` ANTES de llamar a esta función para evitar self-deadlock.
+
+### Auto-reanudación por `paused_until` (sin pasar por resume)
+
+Hay **dos** vías de despausa. `resume_quota_pauses_for_user` es la global (tras reset de cuota). La otra es la **auto-reanudación per-proyecto** que ocurre cuando vence la ventana `paused_until`, independiente del reset:
+
+- **Manual AI / AI Mode** (`analysis_service.py` de cada módulo): al entrar al análisis de un proyecto, si `is_paused_by_quota=TRUE` pero `paused_until <= NOW()`, el gate **limpia `is_paused_by_quota`/`paused_*` SOLO de ese proyecto** (UPDATE local, sin tocar otros) y continúa. Si `paused_until > NOW()` (o `NULL`), bloquea con `project_paused_quota`.
+- **LLM Monitoring**: doble mecanismo — el filtro del cron (`llm_monitoring_service.py:160-163`) reincluye proyectos con `paused_until <= NOW()` aunque sigan marcados, y el gate per-proyecto del engine (`engine.py:121-160`) limpia el flag al re-analizar.
+- **Regla unificada de `paused_until`** (fix commit `3504c78`): al pausar, `paused_until = quota_reset_date` global (`get_user_quota_status()['reset_date']`), con fallback `datetime.utcnow() + timedelta(days=30)` si viene `NULL`. **Nunca se pausa con `paused_until=NULL`**, porque sería una pausa indefinida que ni el cron ni el gate per-proyecto auto-reanudarían. Aplica idéntico en Manual AI, AI Mode y LLM.
 
 ---
 
@@ -606,6 +618,12 @@ Decorador: `@admin_required`.
 
 ### Bugs históricos resueltos
 
+#### 2026-06-20/21: pausas LLM/Stripe + auto-reanudación (commits `5cb1586`, `3504c78`, `d1923d5`)
+
+- **Síntoma**: clientes de pago no se reseteaban ni despausaban tras el pago; proyectos LLM quedaban pausados de forma indefinida.
+- **Causas**: (1) el dispatcher Stripe comprobaba `'invoice.payment.succeeded'` (con punto) en vez de `'invoice.payment_succeeded'` (guion bajo, el nombre real) → el reset+despausa de pago nunca corría; (2) el cron/engine de LLM no honraban `paused_until`, y la pausa LLM podía dejar `paused_until=NULL` → pausa indefinida que nada auto-reanudaba; (3) cancelación no desactivaba los 3 sistemas.
+- **Fix**: nombres de evento con guion bajo; LLM honra `paused_until` (filtro cron + gate per-proyecto) y nunca pausa con NULL (fallback `+30d` unificado con Manual AI / AI Mode); cancelación desactiva los 3 sistemas + alertas en reset de pago fallido. Blindado por `tests/test_quota_pauses_regression.py`. En PROD desde 2026-06-20.
+
 #### 2026-05-07: caso Driza UEMC (7 usuarios sin reset)
 
 - **Síntoma**: cliente Driza UEMC sin actualización 53 días.
@@ -639,7 +657,7 @@ Decorador: `@admin_required`.
 | **`chk_source` desactualizado en `quota_usage_events`** | AI Mode events y resets admin perdidos en log | Medio |
 | **`chk_ru_consumed > 0`** impide insertar resets como `0` | Workaround con SAVEPOINT | Bajo |
 | **Duplicación**: `quota_manager.record_quota_usage` vs `database.track_quota_consumption` | Confusión para futura sesión | Medio |
-| **`pause_ai_overview_for_quota` no tiene llamadores activos** | Posible dead code | Bajo |
+| **AI Overview pausa a nivel usuario (no proyecto)** vía `pause_ai_overview_for_quota` (`app.py:2285,2428`) | Modelo distinto al resto; no participa en la auto-reanudación per-proyecto de Manual AI/AI Mode/LLM | Bajo |
 | **`get_user_monthly_llm_usage` cuenta filas, no eventos** | Si `force_overwrite` borra y reinserta, la cuenta cambia | Bajo |
 | **AI Mode tracking pasa `source='ai_mode'`** que no está permitido | INSERT falla silenciosamente. `users.quota_used` se actualiza correctamente porque ese UPDATE es independiente | Medio |
 | **`compute_next_quota_reset_date` mezcla naive/tz-aware** | Funciona pero podría causar errores | Bajo |
@@ -669,6 +687,7 @@ Decorador: `@admin_required`.
 | `test_cron_routes.py` | Tests de los endpoints `/api/cron/*` (auth bearer, async/sync, health). |
 | `test_cron_alerts.py` | Alerta de duración/error rate/coste. |
 | `test_llm_cron_jobs.py` | Flujo completo del cron LLM (incluye eligibility filter). |
+| `tests/test_quota_pauses_regression.py` | **Regresión del fix de pausas (commits `3504c78`/`d1923d5`)**: el dispatcher Stripe usa los nombres de evento reales con guion bajo (`invoice.payment_succeeded`) y no la variante con punto; el cron y el engine de LLM honran `paused_until` (auto-reanudan al expirar, mismo criterio que Manual AI); la pausa LLM nunca deja `paused_until=NULL` (fallback `+30d`). Asserts sobre el código fuente. |
 
 ### Scripts (no tests)
 

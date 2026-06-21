@@ -7,7 +7,7 @@
 >
 > **Para Carlos**: si quieres entender una parte concreta del sistema, abre el archivo cuyo nombre coincida con esa parte.
 >
-> Última actualización: 2026-05-08. **Documentación completa**: 13 manuales cubriendo todos los dominios del sistema.
+> Última actualización: 2026-06-21. **Documentación completa**: 14 manuales cubriendo todos los dominios del sistema.
 
 ---
 
@@ -40,9 +40,10 @@ Patrón: `CLAUDE-<area>.md`, en español, con guiones, todo minúsculas excepto 
 | [`CLAUDE-stripe-cuotas-crons.md`](./CLAUDE-stripe-cuotas-crons.md) | ✅ | Stripe (webhooks, eventos), ciclo de vida del usuario, arquitectura de crons (Bun + HTTP), 3 capas de defensa de billing, troubleshooting Stripe. |
 | [`CLAUDE-base-de-datos.md`](./CLAUDE-base-de-datos.md) | ✅ | PostgreSQL + psycopg2, pool `_PooledConnection`, esquema completo (tablas `users`, `oauth_connections`, `quota_usage_events`, `project_collaborators`...), migraciones manuales, patrones (SAVEPOINT, advisory locks `4242`/`4243`, idempotencia con `ON CONFLICT`). |
 | [`CLAUDE-deploy-railway.md`](./CLAUDE-deploy-railway.md) | ✅ | Servicios Railway (app + Postgres + 5 Bun functions), `railway.json`/`Procfile`/`nixpacks.toml`, env vars completas, deploy por git push, MCP Railway, troubleshooting deploy. |
+| [`CLAUDE-staging.md`](./CLAUDE-staging.md) | ✅ | Entorno **staging**: para qué sirve y qué NO es, deploy por push a la rama `staging`, URLs/accesos, cómo probar antes de producción, cómo recuperar staging si se ensucia. |
 | [`CLAUDE-quota-system.md`](./CLAUDE-quota-system.md) | ✅ | Sistema de cuotas transversal: 2 contadores (RU global + units LLM), `quota_manager.py` / `quota_middleware.py` / `llm_monitoring_limits.py`, pause/resume cross-module, plan free, Enterprise custom, admin panel. |
 | [`CLAUDE-auth-usuarios.md`](./CLAUDE-auth-usuarios.md) | ✅ | OAuth Google + email/password local (PBKDF2-SHA256), sesiones Flask, roles (`user`/`admin`), `project_collaborators` (acceso compartido cross-módulo), Fernet token encryption, password reset, panel admin. |
-| [`CLAUDE-frontend.md`](./CLAUDE-frontend.md) | ✅ | Vanilla JS ES2017+ sin build system, plantillas Jinja2 por producto, módulos ES (Manual AI / AI Mode modulares; LLM monolítico 8.785 líneas), Chart.js + Grid.js, `window.QuotaUI`, sin i18n. |
+| [`CLAUDE-frontend.md`](./CLAUDE-frontend.md) | ✅ | Vanilla JS ES2017+ sin build system, plantillas Jinja2 por producto, módulos ES (Manual AI / AI Mode / LLM Monitoring modularizados en submódulos cargados por `<script>` + `Object.assign(prototype)`), Chart.js + Grid.js, `window.QuotaUI`, sin i18n. |
 | [`CLAUDE-emails-alertas.md`](./CLAUDE-emails-alertas.md) | ✅ | Brevo SMTP + API REST, `email_service.py` / `brevo_api_service.py` / `cron_alerts.py`, alertas (duración / error rate / cost spike / stuck quota / unmatched customer), aprobación de modelos LLM por email, plantillas hardcoded. |
 | [`CLAUDE-integraciones.md`](./CLAUDE-integraciones.md) | ✅ | Mapa exhaustivo de APIs externas: GSC, SerpAPI, Stripe, OpenAI/Anthropic/Gemini/Perplexity, Brevo, OAuth Google, reCAPTCHA v3, Jina.ai Reader, GTM. Tools MCP del usuario (Ahrefs, GA4, Notion, Figma, Hostinger). Servicios NO integrados. |
 | [`CLAUDE-brand-radar.md`](./CLAUDE-brand-radar.md) | ✅ | **Aclaración**: Brand Radar NO es producto interno. Son las herramientas MCP de Ahrefs disponibles desde sesiones de Claude. El equivalente interno es LLM Monitoring. |
@@ -76,6 +77,7 @@ Patrón: `CLAUDE-<area>.md`, en español, con guiones, todo minúsculas excepto 
 | Tocar Search Console / dashboard `/app` | `CLAUDE-search-console.md` |
 | Crear migración / cambiar esquema | `CLAUDE-base-de-datos.md` |
 | Configurar deploy / env vars / Railway | `CLAUDE-deploy-railway.md` |
+| Probar en staging / recuperar staging | `CLAUDE-staging.md` |
 | Tocar OAuth, login, sesión, roles | `CLAUDE-auth-usuarios.md` |
 | Tocar HTML / JS / CSS / dashboards | `CLAUDE-frontend.md` |
 | Añadir alerta o email | `CLAUDE-emails-alertas.md` |
@@ -110,9 +112,9 @@ Estas reglas valen para **cualquier área del sistema** y no se repiten en cada 
 ## Stats de la documentación
 
 ```
-13 archivos CLAUDE-*.md
-~7.500 líneas de documentación
-~250 KB de markdown
+15 archivos CLAUDE-*.md (14 manuales + este índice)
+~8.000 líneas de documentación
+~270 KB de markdown
 ```
 
 Cobertura completa: **productos** (Manual AI, AI Mode, LLM Monitoring, Search Console legacy), **billing** (Stripe + cuotas), **infra** (BD, deploy Railway, frontend, auth, emails), **integraciones** (GSC, SerpAPI, LLMs, Brevo, OAuth, reCAPTCHA, Jina, GTM), **clarificaciones** (Brand Radar).

@@ -2,9 +2,11 @@
 
 > Manual del subsistema **AI Mode**: monitorización de la presencia de marca en **Google AI Mode** — la respuesta generativa-conversacional que Google sirve en `google.com/ai`.
 >
-> Última actualización: 2026-05-08.
+> Última actualización: 2026-06-21.
 >
 > Sistemas hermanos: ver `CLAUDE-manual-ai.md` (AI Overviews / SGE) y `CLAUDE-llm-monitoring.md` (LLMs públicos). El índice maestro está en `CLAUDE-INDEX.md`.
+>
+> **Historial:** 2026-06-21 — sincronizado con el código tras refactor Fase 4 (`competitor_service.py`/`statistics_service.py` → shims de mixins en `services/_competitor/` y `services/_statistics/`; analytics JS dividido en barrel + 5 sub-archivos). Documentado: cancelación Stripe desactiva los 3 sistemas, `resume_quota_pauses_for_user` (4 tablas + SAVEPOINT), `analysis_frequency_days`, tabla `ai_mode_global_domains` (en prod, backfill 52k). Limpiadas referencias a scripts/.md ya eliminados y a las constantes muertas `SERPAPI_AI_MODE_*` (borradas 2026-06-19).
 
 ---
 
@@ -44,7 +46,7 @@
 
 **Reglas de oro:**
 
-1. La fuente de datos es **SerpAPI** con `engine="google_ai_mode"` (string literal en `analysis_service.py:362`, no es la concatenación de las constantes `SERPAPI_AI_MODE_ENGINE='google'` + `SERPAPI_AI_MODE_TYPE='ai_mode'` — esas constantes están **muertas**).
+1. La fuente de datos es **SerpAPI** con `engine="google_ai_mode"` (string literal en `analysis_service.py:362`). Nota histórica: existieron constantes `SERPAPI_AI_MODE_ENGINE='google'` / `SERPAPI_AI_MODE_TYPE='ai_mode'` sin uso, eliminadas en la limpieza de 2026-06-19 (`config.py` solo conserva una nota).
 2. El cron diario es **secuencial** (sin paralelismo configurable, sin timeout por proyecto).
 3. La idempotencia es por `UNIQUE(project_id, keyword_id, analysis_date)` en `ai_mode_results`.
 4. Concurrencia entre runs se evita con un **PostgreSQL advisory lock** (`pg_try_advisory_lock(4243, YYYYMMDD)`).
@@ -102,8 +104,8 @@ AI Mode es estructuralmente una réplica de Manual AI (mismo patrón de blueprin
 | `ai_mode_projects/services/analysis_service.py` | **Motor del análisis**. Llama SerpAPI, parsea, decide menciones, controla cuota. |
 | `ai_mode_projects/services/cron_service.py` | Job diario; advisory lock por día; iteración secuencial sobre proyectos. |
 | `ai_mode_projects/services/project_service.py` | CRUD/lógica de proyectos (pause/resume, ownership). |
-| `ai_mode_projects/services/statistics_service.py` | Agregaciones para gráficos (visibility por día, posiciones, top domains, ranking global). |
-| `ai_mode_projects/services/competitor_service.py` | Validación de competidores, charts comparativos, sync de flags históricos. |
+| `ai_mode_projects/services/statistics_service.py` | **Shim de mixins** (split Fase 4): clase `StatisticsService(_OverviewMixin, _KeywordsMixin, _DomainsMixin)`. Agregaciones para gráficos (visibility por día, posiciones, top domains, ranking global). Lógica en `services/_statistics/` (`overview.py`, `keywords.py`, `domains.py`). |
+| `ai_mode_projects/services/competitor_service.py` | **Shim de mixins** (split Fase 4): clase `CompetitorService(_ValidationMixin, _HistoricalMixin, _ChartsMixin)`. Validación de competidores, charts comparativos, sync de flags históricos. Lógica en `services/_competitor/` (`validation.py`, `historical.py`, `charts.py`). |
 | `ai_mode_projects/services/cluster_service.py` | Topic clusters: validación, classify, statistics. |
 | `ai_mode_projects/services/domains_service.py` | `store_global_domains_detected` (escribe en `ai_mode_global_domains`). |
 | `ai_mode_projects/services/export_service.py` | Excel export. |
@@ -130,19 +132,20 @@ AI Mode es estructuralmente una réplica de Manual AI (mismo patrón de blueprin
 | `create_ai_mode_tables_production.py` | Versión producción (mismo SQL; ⚠️ credenciales hardcodeadas). |
 | `add_selected_competitors_to_ai_mode.py` | Añade `selected_competitors JSONB`. |
 | `add_topic_clusters_to_ai_mode.py` | Añade `topic_clusters JSONB` + índice GIN. |
-| `analyze_ai_mode_migration.py` | Diff staging vs prod (one-shot). |
+| `migrate_analysis_frequency_fields.py` | Añade `analysis_frequency_days INTEGER DEFAULT 1` a `manual_ai_projects` y `ai_mode_projects` (2026-06-10). |
+| `create_global_domains_table.py` | Crea la tabla de dominios globales (mismo esquema que usa `ai_mode_global_domains`). |
 
-> ⚠️ **No se encontró** una migración explícita para `ai_mode_global_domains` ni para los campos de pause-by-quota (`is_paused_by_quota`, `paused_until`, `paused_at`, `paused_reason`). Existen en producción (el código las usa con confianza) pero el SQL de creación no aparece en el repo. Probablemente se aplicaron manualmente vía psql.
+> ℹ️ La tabla `ai_mode_global_domains` **existe en producción** (backfill 2026-06-19, ~52k filas) y la usa `domains_service.py:store_global_domains_detected`. Su esquema replica el de `create_global_domains_table.py`; el `CREATE TABLE` específico de `ai_mode_global_domains` se aplicó a mano (no aparece literal en el repo).
+>
+> ⚠️ Los campos de pause-by-quota (`is_paused_by_quota`, `paused_until`, `paused_at`, `paused_reason`) existen en producción (el código los usa con confianza) pero su SQL de creación no aparece en el repo; probablemente se aplicaron manualmente vía psql.
 
 ### Frontend
 
 | Archivo | Qué contiene |
 |---|---|
 | `templates/ai_mode_dashboard.html` | Plantilla principal. Reusa CSS de Manual AI. |
-| `static/js/ai-mode-system-modular.js` | Entry point del JS; importa los 11 módulos. |
-| `static/js/ai-mode-projects/*.js` | 11 archivos: `ai-mode-core.js`, `-utils.js`, `-projects.js`, `-keywords.js`, `-analysis.js`, `-charts.js`, `-analytics.js`, `-competitors.js`, `-clusters.js`, `-modals.js`, `-exports.js`. |
-
-> ⚠️ Carpeta huérfana `ai-mode-projects/utils/validators.py` (con guion) — directorio aparente abandonado de un primer intento de refactorización. La carpeta real es `ai_mode_projects/` (con guion bajo).
+| `static/js/ai-mode-system-modular.js` | Entry point del JS; importa los módulos y compone `AIModeSystem` vía `Object.assign(prototype, ...)`. |
+| `static/js/ai-mode-projects/*.js` | 16 archivos. Núcleo: `ai-mode-core.js`, `-utils.js`, `-projects.js`, `-keywords.js`, `-analysis.js`, `-charts.js`, `-competitors.js`, `-clusters.js`, `-modals.js`, `-exports.js`. Analytics dividido en `ai-mode-analytics.js` (**barrel** que re-exporta) + 5 sub-archivos `-analytics-core.js`, `-analytics-comparative.js`, `-analytics-domains.js`, `-analytics-table.js`, `-analytics-urls.js`. |
 
 ### Tests / scripts de diagnóstico
 
@@ -150,11 +153,6 @@ AI Mode es estructuralmente una réplica de Manual AI (mismo patrón de blueprin
 |---|---|
 | `test_ai_mode_system.py` | Verifica tablas, conexión y registro del blueprint. |
 | `quick_test_ai_mode.py` | Existencia de archivos clave. |
-| `check_ai_mode_data.py` | Inspecciona contenido por proyecto. |
-| `check_ai_mode_snapshots_structure.py` | Diff de columnas vs `manual_ai_snapshots`. |
-| `inspect_ai_mode_structure.py` | Lista todas las tablas `ai_mode_*` con su esquema. ⚠️ creds hardcodeadas. |
-| `clean_ai_mode_laserum.py` | Borrado puntual de datos del cliente Laserum. |
-| `run_ai_mode_analysis_manual.py` | Lanza análisis manual desde CLI. ⚠️ creds hardcodeadas. |
 | `verify_ai_mode_brand_detection.py` | Verifica detección de marca para un proyecto. |
 | `verify_ai_mode_methods.py` | Comprueba que ciertos métodos existen en el código. |
 
@@ -179,6 +177,7 @@ updated_at            TIMESTAMP
 -- migraciones posteriores:
 selected_competitors  JSONB DEFAULT '[]'   -- max 10 dominios
 topic_clusters        JSONB DEFAULT NULL   -- índice GIN idx_ai_mode_projects_topic_clusters
+analysis_frequency_days INTEGER DEFAULT 1  -- migrate_analysis_frequency_fields.py (1=diario hist., 7=semanal); cron usa COALESCE(...,1)
 -- pause-by-quota (migración no localizada en repo):
 is_paused_by_quota    BOOLEAN
 paused_until          TIMESTAMP
@@ -257,7 +256,7 @@ created_at          TIMESTAMP
 
 ### `ai_mode_global_domains`
 
-Tabla **no creada** en `create_ai_mode_tables.py` — se infiere de `domains_service.py`. Columnas usadas:
+Tabla **en producción** (backfill 2026-06-19, ~52k filas). El `CREATE` no está literal en `create_ai_mode_tables.py`; su esquema replica el de `create_global_domains_table.py` y se infiere de `domains_service.py`. Columnas usadas:
 
 ```
 project_id, keyword_id, analysis_date
@@ -409,18 +408,23 @@ Cada proyecto tiene `is_paused_by_quota`, `paused_until`, `paused_at`, `paused_r
 
 ### Despausa al renovar Stripe
 
-`database.resume_quota_pauses_for_user(user_id)` (lineas 2515-2523) hace:
+`database.resume_quota_pauses_for_user(user_id)` (`database.py:2560`) despausa **en una sola transacción** los campos legacy de `users` (`ai_overview_paused_*`) + `ai_mode_projects` + `llm_monitoring_projects`, y luego `manual_ai_projects` envuelto en `SAVEPOINT` (si esa tabla aún no tiene la columna en un deployment antiguo, solo se hace rollback de ese paso). El UPDATE de `ai_mode_projects` es:
 
 ```sql
 UPDATE ai_mode_projects
 SET is_paused_by_quota=FALSE,
     paused_until=NULL,
     paused_at=NULL,
-    paused_reason=NULL
+    paused_reason=NULL,
+    updated_at=NOW()
 WHERE user_id = %s
 ```
 
 Se llama desde el webhook `invoice.payment_succeeded` y el cron diario de quota-reset (ver `CLAUDE-stripe-cuotas-crons.md`).
+
+### Cancelación de la suscripción
+
+El webhook `customer.subscription.deleted` (`stripe_webhooks.py:~256-268`) pone `is_active=false` en los **tres** sistemas (`manual_ai_projects`, `ai_mode_projects`, `llm_monitoring_projects`) del user, cada UPDATE envuelto en try/except. Es defensa en profundidad: los crons ya excluyen usuarios `canceled`/`free`, pero esto mantiene el estado coherente entre los 3.
 
 ### Filtros del cron
 
@@ -535,11 +539,9 @@ MAX_COMPETITORS_PER_PROJECT   = 10
 MAX_NOTE_LENGTH               = 500
 DEFAULT_DAYS_RANGE            = 30
 CRON_LOCK_CLASS_ID            = 4243
-SERPAPI_AI_MODE_ENGINE        = 'google'    # ⚠️ MUERTA
-SERPAPI_AI_MODE_TYPE          = 'ai_mode'   # ⚠️ MUERTA
 ```
 
-> El código real usa literal `engine="google_ai_mode"` en `analysis_service.py:362`, no la concatenación de las constantes.
+> El código real usa literal `engine="google_ai_mode"` en `analysis_service.py:362`. Las antiguas constantes `SERPAPI_AI_MODE_ENGINE`/`SERPAPI_AI_MODE_TYPE` eran código muerto y se eliminaron el 2026-06-19 (`config.py` solo conserva una nota explicativa).
 
 Hardcoded en `_analyze_keyword`:
 - Pausa de 0.3 s entre keywords.
@@ -607,7 +609,7 @@ Secciones de UI:
 
 ### JS
 
-Entry: `static/js/ai-mode-system-modular.js`. Importa los 11 módulos de `static/js/ai-mode-projects/` y compone una clase `AIModeSystem` (con `Object.assign(prototype, ...)`). Instancia global `window.aiModeSystem` al `DOMContentLoaded`. Registra plugin `htmlLegendPlugin` en Chart.js.
+Entry: `static/js/ai-mode-system-modular.js`. Importa los módulos de `static/js/ai-mode-projects/` vía ES `import` (16 archivos; `ai-mode-analytics.js` es un barrel que re-exporta 5 sub-archivos) y compone una clase `AIModeSystem` (con `Object.assign(prototype, ...)`). Instancia global `window.aiModeSystem` al `DOMContentLoaded`. Registra plugin `htmlLegendPlugin` en Chart.js.
 
 ### Componentes
 
@@ -662,14 +664,11 @@ Son **tres sistemas paralelos** que comparten `users`, cuotas y patrón arquitec
 
 | Deuda | Impacto | Riesgo |
 |---|---|---|
-| **Engine declarado pero ignorado** (constantes `SERPAPI_AI_MODE_ENGINE` muertas) | Confusión al leer config. | Trivial. |
 | **README heredado** (empieza con `# 🤖 Manual AI Analysis System`) | Confusión. | Trivial. |
 | **`exports.py` llama `generate_manual_ai_excel`** | Strings copy-paste no actualizados. | Trivial. |
-| **Carpeta huérfana `ai-mode-projects/utils/validators.py`** (con guion) | Código muerto. | Trivial. |
-| **Tabla `ai_mode_global_domains` no en script de creación** | El código usa try/except para tolerar ausencia. | Bajo. |
+| **`CREATE TABLE` de `ai_mode_global_domains` no está literal en el repo** | Existe en prod; el código usa try/except. Si se replica en entorno fresco hay que crearla a mano. | Bajo. |
 | **Columnas de pause-by-quota no en `CREATE TABLE` original** | Si se replica en entorno fresco, fallarán los UPDATEs. | Medio. |
 | **Cron sin paralelismo / sin timeout por proyecto** | Un proyecto colgado bloquea todo. | Alto. |
-| **6+ scripts con credenciales producción hardcodeadas** (`run_ai_mode_analysis_manual.py`, `inspect_ai_mode_structure.py`, etc.) | Riesgo si repo se hace público. | Alto. |
 | **`raw_ai_mode_data` JSONB sin política de purga** | Crece sin límite. | Medio (largo plazo). |
 | **`ai_mode_cron_function.js` postea alertas a `/api/llm-monitoring/cron/alert`** | Plumbing reusado de LLM. | Bajo (funciona). |
 | **Sentimiento sólo en inglés** | Para clientes ESP siempre `neutral`. | Medio (UX). |
@@ -677,7 +676,7 @@ Son **tres sistemas paralelos** que comparten `users`, cuotas y patrón arquitec
 
 ### Archivos `.md` sueltos del módulo
 
-`ai_mode_projects/COMPLETION_SUMMARY.md`, `MIGRATION_COMPLETE.md`, `REFACTORING_GUIDE.md`, `SAFE_MIGRATION.md`, `README.md` — **todos hablan de "Manual AI System"** en el body aunque vivan en `ai_mode_projects/`. Reciclados de la refactorización de Manual AI.
+Ya no hay `.md` sueltos en `ai_mode_projects/` (los antiguos `COMPLETION_SUMMARY.md`, `MIGRATION_COMPLETE.md`, `REFACTORING_GUIDE.md`, `SAFE_MIGRATION.md`, `README.md` — reciclados de Manual AI — se eliminaron).
 
 **No hay docs específicos** de incidencias o fixes de AI Mode.
 
@@ -731,11 +730,6 @@ Es **deuda conocida**: las listas de palabras positivas/negativas están sólo e
 |---|---|
 | `test_ai_mode_system.py` | Existencia de tablas + acceso. |
 | `quick_test_ai_mode.py` | Smoke estructural (existencia de archivos). |
-| `check_ai_mode_data.py` | Inspecciona datos por proyecto. |
-| `check_ai_mode_snapshots_structure.py` | Diff `ai_mode_snapshots` vs `manual_ai_snapshots`. |
-| `inspect_ai_mode_structure.py` | Lista esquema completo. ⚠️ creds hardcodeadas. |
-| `clean_ai_mode_laserum.py` | Limpieza puntual. |
-| `run_ai_mode_analysis_manual.py` | Disparar análisis CLI. ⚠️ creds hardcodeadas. |
 | `verify_ai_mode_brand_detection.py` | Imprime detección de marca para `project_id` dado. |
 | `verify_ai_mode_methods.py` | Verifica que ciertos métodos esperados existen. |
 

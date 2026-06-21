@@ -2,7 +2,7 @@
 
 > Manual del subsistema **Manual AI Analysis**: medición de presencia de la marca del cliente en los **AI Overviews de Google** (los bloques generativos que Google muestra encima de los resultados orgánicos).
 >
-> Última actualización: 2026-05-08.
+> Última actualización: 2026-06-21.
 >
 > Sistemas hermanos: ver `CLAUDE-ai-mode.md` (Google AI Mode) y `CLAUDE-llm-monitoring.md` (LLMs públicos). El índice maestro está en `CLAUDE-INDEX.md`.
 
@@ -99,9 +99,9 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 | `manual_ai/services/project_service.py` | Alta/baja/pause/resume de proyectos. |
 | `manual_ai/services/analysis_service.py` | **Motor de análisis**: loop por keyword → cache → fetch SERP → detect AIO → expandir collapsed → guardar resultado + dominios + consumir cuota. |
 | `manual_ai/services/cron_service.py` | `run_daily_analysis_for_all_projects`, advisory-lock, filtros de elegibilidad, snapshot+evento. |
-| `manual_ai/services/competitor_service.py` | Validación, sync histórico de flags `is_selected_competitor`, charts comparativos. |
+| `manual_ai/services/competitor_service.py` | **Shell (~22 líneas)**: `class CompetitorService(_ValidationMixin, _HistoricalMixin, _ChartsMixin)`. Validación, sync histórico de flags `is_selected_competitor`, charts comparativos. Mixins en `manual_ai/services/_competitor/` (`validation.py`, `historical.py`, `charts.py`). |
 | `manual_ai/services/cluster_service.py` | Clasificación de keywords en clusters temáticos. |
-| `manual_ai/services/statistics_service.py` | Stats agregadas (visibility daily, top domains, urls ranking, AIO-vs-organic). |
+| `manual_ai/services/statistics_service.py` | **Shell (~21 líneas)**: `class StatisticsService(_OverviewMixin, _KeywordsMixin, _DomainsMixin, _AioOrganicMixin)`. Stats agregadas (visibility daily, top domains, urls ranking, AIO-vs-organic). Mixins en `manual_ai/services/_statistics/` (`overview.py`, `keywords.py`, `domains.py`, `aio_organic.py`). |
 | `manual_ai/services/domains_service.py` | `store_global_domains_detected` — escribe en `manual_ai_global_domains`. |
 | `manual_ai/services/export_service.py` | Excel multi-hoja. |
 | `manual_ai/services/pdf_export_service.py` | PDF multi-página vía ReportLab. |
@@ -130,7 +130,7 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 | `templates/paywall_manual_ai.html` | Paywall para usuarios free. |
 | `static/js/manual-ai-system-modular.js` | Entry point ES modules (único que carga el template). |
 | ~~`static/js/manual-ai-system.js`~~ | Monolito JS eliminado (ya no existe en el repo). |
-| `static/js/manual-ai/*.js` | 11 submódulos: `manual-ai-core.js`, `-projects.js`, `-keywords.js`, `-analysis.js`, `-charts.js`, `-competitors.js`, `-clusters.js`, `-modals.js`, `-analytics.js` (1660 líneas, el más grande), `-exports.js`, `-utils.js`. |
+| `static/js/manual-ai/*.js` | Submódulos: `manual-ai-core.js`, `-projects.js`, `-keywords.js`, `-analysis.js`, `-charts.js`, `-competitors.js`, `-clusters.js`, `-modals.js`, `-exports.js`, `-utils.js`. **`-analytics.js` es ahora un barrel (~13 líneas)** que reexporta 6 sub-módulos temáticos: `-analytics-core.js`, `-analytics-domains.js`, `-analytics-urls.js`, `-analytics-table.js`, `-analytics-comparative.js`, `-analytics-aio-organic.js`. |
 
 ### Migraciones
 
@@ -145,7 +145,7 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 
 ### Tests / diagnóstico
 
-`audit_manual_ai_system.py`, `check_manual_ai_system.py`, `diagnose_cron_skip.py`. Los scripts de verificación de la migración (`verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`) se eliminaron el 2026-06-19. **Test de caracterización** (2026-06-19): `tests/test_manual_ai_contract.py` congela el contrato de rutas del blueprint (36 endpoints) + exports del bridge + imports del cron. Cobertura de **lógica de negocio** sigue ~0% (ver §14).
+Scripts vigentes: `check_manual_ai_system.py`, `diagnose_cron_skip.py`. Los scripts de verificación de la migración (`audit_manual_ai_system.py`, `verify_manual_ai_refactoring.py`, `verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`) y el test de caracterización del blueprint (`tests/test_manual_ai_contract.py`, que congelaba el contrato de las 36 rutas) se eliminaron (último limpiado en commit 91a0f7a). El dato **36 endpoints** sigue siendo correcto (ver §8). Cobertura de **lógica de negocio** sigue ~0% (ver §14).
 
 ---
 
@@ -337,7 +337,7 @@ Para cada keyword activa:
 
 ## 6. Detección de AI Overview y expansión "collapsed"
 
-Detalle del fix más crítico del 2026-04-09 (vive como `# NUEVO 2026-04-09` en `analysis_service.py:352-396`).
+Detalle del fix más crítico del 2026-04-09 (vive como `# NUEVO 2026-04-09` en `analysis_service.py:361-402`).
 
 ### El problema
 
@@ -554,7 +554,13 @@ Entry: `static/js/manual-ai-system-modular.js`. Cada submodule tiene responsabil
 | `manual-ai-competitors.js` | 339 | Form chips, validación, charts comparativos. |
 | `manual-ai-clusters.js` | 758 | Config UI clusters, validación, gráficos. |
 | `manual-ai-modals.js` | 837 | Modales de detalles, edición, confirmación delete. |
-| `manual-ai-analytics.js` | **1660** | Stats endpoints, render Grid.js, ranking dominios/urls, AIO vs Organic. |
+| `manual-ai-analytics.js` | 13 | **Barrel**: reexporta los 6 sub-módulos de analytics (abajo). Stats endpoints, render Grid.js, ranking dominios/urls, AIO vs Organic. |
+| ↳ `manual-ai-analytics-core.js` | 187 | Núcleo de analytics. |
+| ↳ `manual-ai-analytics-domains.js` | 276 | Ranking de dominios. |
+| ↳ `manual-ai-analytics-urls.js` | 389 | Ranking de URLs. |
+| ↳ `manual-ai-analytics-table.js` | 259 | Tabla AI overview (Grid.js). |
+| ↳ `manual-ai-analytics-comparative.js` | 301 | Charts comparativos vs competidores. |
+| ↳ `manual-ai-analytics-aio-organic.js` | 278 | Comparativa AIO vs orgánico. |
 | `manual-ai-exports.js` | 250 | Botones descarga Excel/PDF. |
 | `manual-ai-utils.js` | 209 | escapeHtml, debounce, getDomainLogoUrl, normalizeDomainString, isValidDomain. |
 
@@ -568,8 +574,8 @@ Auto-refresh con `refreshInterval` (en core). Cachebusting con `?_t=${Date.now()
 
 ### Comentarios marcadores en código
 
-- **`# NOTA 2026-04-09`** (`analysis_service.py:141-147`): antes se abría conn+cur al inicio del método y se mantenía abierta durante todo el loop de keywords. Era vulnerable al `idle_in_transaction_session_timeout` (15 min, hardening del 2026-04-08). Ahora la conn de quota_error se abre localmente sólo cuando hace falta.
-- **`# NUEVO 2026-04-09 (collapsed AIO)`** (`analysis_service.py:352-396`): segundo fetch con `page_token` cuando AIO está collapsed. Detallado en §6.
+- **`# NOTA 2026-04-09`** (`analysis_service.py:147-153`): antes se abría conn+cur al inicio del método y se mantenía abierta durante todo el loop de keywords. Era vulnerable al `idle_in_transaction_session_timeout` (15 min, hardening del 2026-04-08). Ahora la conn de quota_error se abre localmente sólo cuando hace falta.
+- **`# NUEVO 2026-04-09 (collapsed AIO)`** (`analysis_service.py:361-402`): segundo fetch con `page_token` cuando AIO está collapsed. Detallado en §6.
 - **`# NUEVO 2026-04-09 (advisory lock autocommit)`** (`cron_service.py:56-63`): `lock_conn.autocommit=True` para que la lock no muera por `idle_in_transaction_session_timeout`.
 
 ### Deuda técnica conocida
@@ -580,7 +586,6 @@ Auto-refresh con `refreshInterval` (en core). Cachebusting con `?_t=${Date.now()
 | ~~Sin alertas de cron por email~~ **RESUELTO 2026-06-10** | Email por run + detección de cron parado. | — |
 | **Sin tests unitarios reales** | Cobertura 0%. Cualquier cambio requiere test manual extensivo. | Alto. |
 | **Doble entrada del cron** (Procfile + railway.json + endpoint) | No claro cuál se ejecuta en producción. La advisory lock lo mitiga. | Medio. |
-| **`audit_manual_ai_system.py` con credenciales hardcodeadas** | Riesgo si el repo se hace público. | Alto. (No trackeado en repo principal, solo en worktrees.) |
 | **`manual_ai_results.updated_at`** usado en código pero sin migración explícita | Posible fallo silencioso si la columna no existe en producción. | Bajo (ya verificado en runtime). |
 | ~~Bridge con fallback a monolítico que ya no existe~~ **RESUELTO 2026-06-19** | El bridge se simplificó: ya no tiene rama de fallback muerta, solo reexporta del paquete modular. | — |
 | ~~Versión monolítica del JS sigue presente~~ **RESUELTO** | El monolito JS ya estaba eliminado. | — |
@@ -647,12 +652,10 @@ Probablemente es un AIO collapsed sin `page_token`. Mirar `raw_serp_data` del re
 
 | Archivo | Cubre |
 |---|---|
-| `audit_manual_ai_system.py` | Audita BD: proyectos activos, keywords por proyecto, resultados últimos 7 días. ⚠️ credenciales hardcodeadas. |
 | `check_manual_ai_system.py` | Smoke check del sistema. |
-| `verify_manual_ai_refactoring.py` | Verifica integridad post-refactor modular. |
-| `verify_manual_ai_js.sh` | Verifica módulos JS. |
-| `manual_ai/check_refactoring_status.py` | % progreso de la refactorización modular. |
 | `diagnose_cron_skip.py` | Investigar por qué el cron saltó algún proyecto (genérico, también LLM). |
+
+> Los scripts de auditoría/verificación del refactor (`audit_manual_ai_system.py`, `verify_manual_ai_refactoring.py`, `verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`) y el test de caracterización del blueprint (`tests/test_manual_ai_contract.py`) se eliminaron (último limpiado en commit 91a0f7a).
 
 ### Lo que NO está cubierto
 
@@ -666,7 +669,7 @@ Probablemente es un AIO collapsed sin `page_token`. Mirar `raw_serp_data` del re
 
 ### Recomendación
 
-Migrar `audit_manual_ai_system.py` a un test pytest que use `DATABASE_URL` env var en lugar de credenciales hardcodeadas, y empezar a añadir tests unitarios al menos para `detect_ai_overview_elements` y `_analyze_keyword`.
+Empezar a añadir tests unitarios reales (con `DATABASE_URL` env var, sin credenciales hardcodeadas) al menos para `detect_ai_overview_elements` y `_analyze_keyword`.
 
 ---
 
@@ -676,7 +679,13 @@ Migrar `audit_manual_ai_system.py` a un test pytest que use `DATABASE_URL` env v
 2. **Cron secuencial sin timeout.** Riesgo conocido: un proyecto colgado bloquea todo. Advisory lock protege contra concurrencia.
 3. **Idempotencia por UNIQUE `(project_id, keyword_id, analysis_date)`.** No duplica nunca, sobreescribe sólo en modo manual `force_overwrite`.
 4. **Quota = 1 RU/keyword normal, 2 RU si AIO collapsed.** El segundo fetch reabre el AIO oculto tras "Show more".
-5. **Sin alertas por email.** Si el cron falla, no nos enteramos hasta que un cliente reclama.
-6. **Deuda principal**: portar el patrón Bun service + parallelism + timeout + alertas que ya existe en LLM Monitoring.
+5. **Alertas por email activas (desde 2026-06-10).** Email de resumen OK/WARNING/CRITICAL por run + detección diaria de "cron parado" (umbral 4 días).
+6. **Deuda principal**: portar el patrón Bun service + parallelism + timeout que ya existe en LLM Monitoring.
+
+---
+
+## Historial de cambios del doc
+
+- **2026-06-21**: Sincronizado al código actual. `statistics_service.py` y `competitor_service.py` documentados como shells que componen mixins (`_statistics/`, `_competitor/`). `manual-ai-analytics.js` documentado como barrel (~13 líneas) que reexporta 6 sub-módulos temáticos. Eliminadas las menciones a scripts/tests borrados (`audit_manual_ai_system.py`, `verify_manual_ai_refactoring.py`, `verify_manual_ai_js.sh`, `check_refactoring_status.py`, `tests/test_manual_ai_contract.py`); el dato de 36 endpoints sigue vigente. Resuelta la contradicción del TL;DR sobre alertas por email (existen desde 2026-06-10). Refrescados números de línea de los marcadores en `analysis_service.py`/`cron_service.py`.
 
 — Fin del manual —

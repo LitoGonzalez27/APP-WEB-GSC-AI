@@ -4,7 +4,7 @@
 >
 > **Es el producto principal de la app y el motor más complejo.** Más providers, más estado, más dinero en juego.
 >
-> Última actualización: 2026-05-08.
+> Última actualización: 2026-06-21.
 >
 > Sistemas hermanos: ver `CLAUDE-manual-ai.md` (AI Overviews / SGE) y `CLAUDE-ai-mode.md` (Google AI Mode). El índice maestro está en `CLAUDE-INDEX.md`.
 
@@ -94,11 +94,20 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 
 ### Núcleo backend
 
+> **Refactor Fase 2-3 (2026-06-20):** el antiguo monolito `services/llm_monitoring_service.py` (~2491 líneas) se dividió en una **fachada** delgada + un paquete de **6 mixins**. La clase pública sigue siendo `MultiLLMMonitoringService` y la API externa no cambió (los demás módulos importan igual). NO existe `core.py`.
+
 | Archivo | Líneas | Qué contiene |
 |---|---:|---|
-| `services/llm_monitoring_service.py` | 2491 | Clase `MultiLLMMonitoringService`, `analyze_project`, `analyze_all_active_projects`, `analyze_brand_mention`, `_detect_position_in_list`, `_analyze_sentiment_with_llm`, `_create_snapshot`, `_calculate_weighted_mentions`. **Pieza central**. |
+| `services/llm_monitoring_service.py` | ~445 | **Fachada**. Ensambla `class MultiLLMMonitoringService(_HelpersMixin, _GenerationMixin, _DetectionMixin, _SentimentMixin, _EngineMixin, _SnapshotMixin)`. Contiene también `analyze_all_active_projects` (función de módulo, no método) con el filtro de elegibilidad y el `ThreadPoolExecutor` por proyecto. **Punto de entrada**. |
+| `services/llm_monitoring/__init__.py` | — | Docstring (mixins internos, no importar directamente). |
+| `services/llm_monitoring/engine.py` | — | `_EngineMixin`: `analyze_project`, health check pre-análisis, retry de tareas, auto-reanudación por `paused_until`. **El más grande del paquete**. |
+| `services/llm_monitoring/detection.py` | — | `_DetectionMixin`: `analyze_brand_mention`, `_detect_position_in_list`. |
+| `services/llm_monitoring/generation.py` | — | `_GenerationMixin`: generación/sugerencia de queries (`generate_queries_for_project`, `generate_query_suggestions_with_ai`). |
+| `services/llm_monitoring/sentiment.py` | — | `_SentimentMixin`: `_analyze_sentiment_with_llm`, `_analyze_sentiment_keywords`. |
+| `services/llm_monitoring/snapshot.py` | — | `_SnapshotMixin`: `_create_snapshot`, `_calculate_weighted_mentions`. |
+| `services/llm_monitoring/helpers.py` | — | `_HelpersMixin`: utilidades compartidas. |
 | `services/llm_monitoring_stats.py` | — | `LLMMonitoringStatsService.get_project_urls_ranking`. |
-| `llm_monitoring_routes.py` | 8824 | Blueprint `llm_monitoring_bp` con prefijo `/api/llm-monitoring`. **Todos los endpoints viven aquí**. |
+| `llm_monitoring_routes.py` | ~9039 | Blueprint `llm_monitoring_bp` con prefijo `/api/llm-monitoring`. **Todos los endpoints viven aquí** (sigue siendo monolito). |
 | `llm_monitoring_limits.py` | — | `LLM_PLAN_LIMITS`, `can_access_llm_monitoring`, `get_user_monthly_llm_usage`, `get_upgrade_options`. |
 
 ### Providers
@@ -130,7 +139,7 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 | `weekly_model_discovery_cron.py` | Clase `ModelDiscoveryService`. Descubrimiento por API + email de aprobación. |
 | `weekly_model_check_cron.py` | Variante adicional. |
 | `llm_model_discovery_cron_function.js` | Bun function. |
-| Endpoint `POST /api/llm-monitoring/cron/model-discovery` | (`llm_monitoring_routes.py:7982`) Versión v2 con flujo de aprobación por token. |
+| Endpoint `POST /api/llm-monitoring/cron/model-discovery` | (`llm_monitoring_routes.py:8199`) Versión v2 con flujo de aprobación por token. |
 
 ### Migraciones / setup
 
@@ -140,10 +149,23 @@ SQL: `update_llm_models_freetier_may2026.sql`, `update_llm_pricing_2026.sql`, `u
 
 ### Frontend
 
+> **Refactor Fase 3 (2026-06-20):** el antiguo `static/js/llm_monitoring.js` (~8785 líneas) se dividió en una **clase base** (64 líneas) + **11 mixins** en `static/js/llm_monitoring/`, cargados por `<script>` en orden en la plantilla (base primero), cada uno haciendo `Object.assign(LLMMonitoring.prototype, {...})`.
+
 | Archivo | Líneas | Qué contiene |
 |---|---:|---|
-| `templates/llm_monitoring.html` | 2473 | Plantilla principal. |
-| `static/js/llm_monitoring.js` | **8785** | Toda la lógica del frontend. |
+| `templates/llm_monitoring.html` | 2473 | Plantilla principal. Incluye los 12 `<script>` en orden (ver abajo). |
+| `static/js/llm_monitoring.js` | 64 | **Clase base** `window.llmMonitoring`. Se carga primero. |
+| `static/js/llm_monitoring/llm-monitoring-core.js` | — | Mixin `core` (inicialización, estado, helpers). |
+| `static/js/llm_monitoring/llm-monitoring-projects.js` | — | Mixin `projects` (grid, crear/editar proyectos). |
+| `static/js/llm_monitoring/llm-monitoring-prompts.js` | — | Mixin `prompts` (modal de gestión de prompts). |
+| `static/js/llm_monitoring/llm-monitoring-queries.js` | — | Mixin `queries` (tabla de queries, historial). |
+| `static/js/llm_monitoring/llm-monitoring-metrics.js` | — | Mixin `metrics` (vista detalle de métricas). |
+| `static/js/llm_monitoring/llm-monitoring-charts.js` | — | Mixin `charts` (Chart.js: SoV, mention rate, sentiment, clusters). |
+| `static/js/llm_monitoring/llm-monitoring-urls.js` | — | Mixin `urls` (URLs ranking). |
+| `static/js/llm_monitoring/llm-monitoring-responses.js` | — | Mixin `responses` (inspección de respuestas crudas). |
+| `static/js/llm_monitoring/llm-monitoring-clusters.js` | — | Mixin `clusters` (gestión y métricas de clusters). |
+| `static/js/llm_monitoring/llm-monitoring-modals.js` | — | Mixin `modals` (modales informativos). |
+| `static/js/llm_monitoring/llm-monitoring-models.js` | — | Mixin `models` (info de modelos, knowledge cutoff). |
 | `static/llm-monitoring.css` | — | Estilos. |
 | `static/llm-monitoring-enhanced.css` | — | Estilos extra. |
 | `static/sov-metrics-ui.css` | — | Toggle weighted/standard SoV. |
@@ -392,28 +414,28 @@ Después: añadir prompts (`POST /projects/:id/queries`), opcionalmente clusters
 
 ### 6.2 Cron diario
 
-Bun service `function-bun-LLM-Monitoring` (Railway) → `POST /api/llm-monitoring/cron/daily-analysis?async=1` (Bearer `CRON_TOKEN`) → endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5058`):
+Bun service `function-bun-LLM-Monitoring` (Railway) → `POST /api/llm-monitoring/cron/daily-analysis?async=1` (Bearer `CRON_TOKEN`) → endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5096`):
 
 1. **Adquiere lock global**: `acquire_analysis_lock(triggered_by)`. Si ya hay un run activo (`status='running'` y `started_at < 30 min`) → 409 con info del run.
 2. Lanza thread → `analyze_all_active_projects(api_keys=None, max_workers=10)`.
 3. Al final → `release_analysis_lock(run_id, total_projects, successful, failed, total_queries)`.
 4. En errores libera el lock y devuelve 500 / 409.
 
-### 6.3 `analyze_all_active_projects` (líneas 2185-2339)
+### 6.3 `analyze_all_active_projects` (`services/llm_monitoring_service.py`, función de módulo)
 
 Pipeline:
 
 1. Crea `MultiLLMMonitoringService` (instancia los 4 providers vía Factory + valida conexión).
-2. Carga proyectos con `is_active=TRUE` AND `is_paused_by_quota=FALSE`.
+2. Carga proyectos con `is_active=TRUE` AND (`is_paused_by_quota=FALSE` **OR** `paused_until IS NOT NULL AND paused_until <= NOW()`) — los proyectos cuya ventana de pausa ya expiró **entran al run** para auto-reanudarse (ver §6.4 y §12). Query en `~línea 160`.
 3. **Fase 1 — eligibility filter SECUENCIAL**: para cada proyecto, `can_access_llm_monitoring(user)` (descarta plans/billing inválidos), aplica `max_projects` por usuario. Sin race conditions porque es secuencial.
 4. **Fase 2 — análisis PARALELO por proyecto**: `LLM_PROJECT_PARALLELISM` (default 2, prod 3) con `ThreadPoolExecutor`. Cada proyecto se ejecuta dentro de `run_project_with_timeout` (`project_timeout.py`, `LLM_PROJECT_TIMEOUT_MINUTES` default 30).
 
-### 6.4 `analyze_project(project_id)` (línea 1056)
+### 6.4 `analyze_project(project_id)` (`services/llm_monitoring/engine.py`, `_EngineMixin`)
 
 Pasos:
 
 1. Determina `analysis_date` con TZ `APP_TZ` (default `Europe/Madrid`).
-2. SELECT del proyecto. Si `is_paused_by_quota` → return early.
+2. SELECT del proyecto (incluye `is_paused_by_quota, paused_until, paused_at, paused_reason`). Si `is_paused_by_quota` (`engine.py:121-167`): **si `paused_until` es NULL o aún no expiró → return early** (`error: 'project_paused_quota'`); **si `paused_until` ya pasó → limpia el flag (UPDATE con conexión separada) y continúa** el análisis (auto-reanudación, mismo patrón que Manual AI / AI Mode). Commits 5cb1586, 3504c78.
 3. SELECT del usuario, valida `can_access_llm_monitoring` y `plan_limits` (con override custom para enterprise: `custom_llm_prompts_limit`, `custom_llm_monthly_units_limit`).
 4. Construye `LocaleContext` con `language` + `country_code` (ver §14).
 5. Carga queries activas. Si 0 → skip. Si len > `max_prompts_per_project` → error `prompt_limit_exceeded`.
@@ -478,7 +500,7 @@ A diferencia de AI Mode (que sólo usa keywords inglesas), aquí el sentimiento 
 
 `llm_monitoring_limits.LLM_ALLOWED_PLANS = ['basic','premium','business','enterprise']` y `LLM_ALLOWED_STATUSES = ['active','trialing','beta']`. **El plan free no puede acceder.** Admin siempre puede.
 
-Decorador: `enforce_llm_access` (`llm_monitoring_routes.py:101`).
+Decorador: `enforce_llm_access` (`llm_monitoring_routes.py:103`).
 
 ### Cuotas por plan (`LLM_PLAN_LIMITS`)
 
@@ -500,6 +522,7 @@ Enterprise puede sobrescribir con `users.custom_llm_prompts_limit` y `users.cust
 ### Pausa por cuota
 
 En `analyze_project`, si al validar units `used + expected > max_units`:
+- Calcula `paused_until` desde `quota_status.reset_date`. **Nunca pausa con `paused_until=NULL`**: si el reset_date no está disponible, fallback `datetime.utcnow() + timedelta(days=30)` (`engine.py:289-293`). Motivo: un proyecto con `paused_until=NULL` quedaría pausado indefinidamente (nada lo auto-reanudaría). Misma consistencia que Manual AI / AI Mode. Commit 3504c78.
 - `database.pause_llm_projects_for_quota(user_id, paused_until, reason='quota_exceeded')`.
 - Marca **todos los proyectos LLM** del usuario con `is_paused_by_quota=TRUE`.
 - Devuelve error sin ejecutar nada.
@@ -508,7 +531,7 @@ Es **proyecto-completo, no por prompt** (a diferencia de Manual AI / AI Mode que
 
 ### Despausa
 
-`resume_quota_pauses_for_user(user_id)` — llamado desde el webhook Stripe `invoice.payment_succeeded` y el cron quota-reset (ver `CLAUDE-stripe-cuotas-crons.md`). Limpia `is_paused_by_quota` en proyectos de Manual AI y LLM (no AI Mode todavía — verificar).
+`resume_quota_pauses_for_user(user_id)` (`database.py:2560`) — llamado desde el webhook Stripe `invoice.payment_succeeded` y el cron quota-reset (ver `CLAUDE-stripe-cuotas-crons.md`). En una sola transacción (con SAVEPOINT alrededor de `manual_ai_projects` para deployments antiguos) limpia `is_paused_by_quota`, `paused_until`, `paused_at`, `paused_reason` en **`ai_mode_projects`, `llm_monitoring_projects` y `manual_ai_projects`**, y resetea los campos `users.ai_overview_paused_*` (AI Overviews legacy). Cubre los 3 sistemas IA.
 
 ---
 
@@ -549,6 +572,8 @@ vs **media móvil 7d** (excluyendo hoy). Si hoy > `multiplier × media` (default
 
 Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@validate_project_ownership`, `@cron_or_auth_required`, y middleware `enforce_llm_access` (excepto `/cron/*` y `/health`).
 
+> ⚠️ `llm_monitoring_routes.py` es un monolito de **~9039 líneas**. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
+
 ### UI / proyectos
 
 | URL | Método | Línea |
@@ -573,8 +598,8 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 | `/projects/<id>/urls-ranking` | GET | 3529 |
 | `/projects/<id>/responses` | GET (inspección manual) | 5272 |
 | `/projects/<id>/queries/<qid>/history` | GET | 2655 |
-| `/projects/<id>/export/excel` | GET | 5421 |
-| `/projects/<id>/export/pdf` | GET | 6560 |
+| `/projects/<id>/export/excel` | GET | 5627 |
+| `/projects/<id>/export/pdf` | GET | 6772 |
 
 ### Clusters
 
@@ -594,23 +619,23 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 | `/models` | GET | 4807 |
 | `/models/current` | GET | 4877 |
 | `/models/<model_id>` | PUT | 4961 |
-| `/models/approve` | GET (token) | 8404 |
-| `/models/reject` | GET (token) | 8538 |
-| `/models/changelog` | GET | 8650 |
+| `/models/approve` | GET (token) | 8620 |
+| `/models/reject` | GET (token) | 8754 |
+| `/models/changelog` | GET | 8867 |
 
 ### Cron
 
 | URL | Método | Línea | Auth |
 |---|---|---:|---|
-| `/cron/daily-analysis?async=1&project_id=N` | POST | 5058 | Bearer CRON_TOKEN |
-| `/cron/model-discovery?notify_email=&auto_update=` | POST | 7982 | Bearer |
-| `/cron/alert` | POST | 8717 | — |
+| `/cron/daily-analysis?async=1&project_id=N` | POST | 5096 | Bearer CRON_TOKEN |
+| `/cron/model-discovery?notify_email=&auto_update=` | POST | 8199 | Bearer |
+| `/cron/alert` | POST | 8934 | — |
 
 ### Salud
 
 | URL | Método | Línea |
 |---|---|---:|
-| `/health` | GET | 5222 |
+| `/health` | GET | 5416 |
 
 ### UI (fuera del blueprint)
 
@@ -679,7 +704,7 @@ En `railway.json` hay tanto un cron Python (`0 4 * * *` ejecuta `daily_llm_monit
 
 Hace `POST {APP_URL}/api/llm-monitoring/cron/daily-analysis?async=1` con `Authorization: Bearer ${CRON_TOKEN}` y timeout 60s (espera la respuesta 202).
 
-### Endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5058`)
+### Endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5096`)
 
 - Lee `?async=1` y `?project_id=N` (modo single project).
 - **Modo `project_id`**: invoca `service.analyze_project` directamente, sin lock global (re-runs).
@@ -689,12 +714,14 @@ Hace `POST {APP_URL}/api/llm-monitoring/cron/daily-analysis?async=1` con `Author
 
 ### Filtros de elegibilidad
 
+**Paso 0 (en la query de carga)**: sólo entran proyectos `is_active=TRUE` AND (`is_paused_by_quota=FALSE` OR `paused_until <= NOW()`). Un proyecto pausado cuya ventana ya expiró **sí entra** para auto-reanudarse.
+
 **Paso 1 secuencial** (en `analyze_all_active_projects`):
 - `can_access_llm_monitoring(user)` → plan/billing válidos.
 - `max_projects` por plan no excedido.
 
 **Paso 2 (dentro de `analyze_project`)**:
-- `is_paused_by_quota=TRUE` → skip.
+- `is_paused_by_quota=TRUE` **y `paused_until` NULL o aún vigente** → skip. Si `paused_until` ya expiró → limpia el flag y continúa (auto-reanudación).
 - 0 queries activas → skip.
 - > `max_prompts_per_project` → error.
 - > `max_monthly_units` → pause + skip.
@@ -866,14 +893,13 @@ Test: `test_locale_fidelity.py` verifica que cada provider aplica el locale corr
 
 ### JS
 
-`static/js/llm_monitoring.js` (8785 líneas) — clase principal `window.llmMonitoring` con métodos:
+Refactor Fase 3 (2026-06-20): `static/js/llm_monitoring.js` pasó de ~8785 líneas a una **clase base de 64 líneas** (`window.llmMonitoring`) + **11 mixins** en `static/js/llm_monitoring/` (cada uno `Object.assign(prototype, {...})`), cargados por `<script>` en orden en `templates/llm_monitoring.html` (base primero): `core`, `projects`, `prompts`, `queries`, `metrics`, `charts`, `urls`, `responses`, `clusters`, `modals`, `models`.
 
-- `renderShareOfVoiceChart`, `renderShareOfVoiceDonutChart`.
-- `renderMentionRateChart`, `renderMentionsTimelineChart`.
-- `renderSentimentDistributionChart`, `renderClustersPerformanceChart`.
-- `loadQueryHistoryChart`.
-- `comparisonGrid`, `queriesGrid`.
-- `showPromptsManagementModal`, `switchPromptsTab`.
+Métodos repartidos por los mixins:
+
+- `charts`: `renderShareOfVoiceChart`, `renderShareOfVoiceDonutChart`, `renderMentionRateChart`, `renderMentionsTimelineChart`, `renderSentimentDistributionChart`, `renderClustersPerformanceChart`, `loadQueryHistoryChart`.
+- `queries` / `responses`: `comparisonGrid`, `queriesGrid`.
+- `prompts`: `showPromptsManagementModal`, `switchPromptsTab`.
 
 Usa **gridjs** para tablas y **Chart.js** para gráficos.
 
@@ -981,6 +1007,12 @@ Fix discrepancia entre tabla y "Brand Mentions Analysis": el endpoint `/queries`
 
 Eliminó el "análisis manual" del LLM Monitoring (botón ad-hoc de re-analizar un proyecto). Ahora todo va por cron + endpoint single-project.
 
+### Refactor a paquete de mixins + auto-reanudación por cuota (2026-06-20/21)
+
+- **Split Fase 2-3 (2026-06-20)**: `services/llm_monitoring_service.py` (~2491 líneas) → fachada (~445) + 6 mixins en `services/llm_monitoring/` (`engine`, `detection`, `generation`, `sentiment`, `snapshot`, `helpers`). `static/js/llm_monitoring.js` (~8785) → clase base (64) + 11 mixins en `static/js/llm_monitoring/`. API pública intacta; sin `core.py`.
+- **Auto-reanudación LLM por `paused_until`** (commits 5cb1586, 3504c78): el cron incluye proyectos con `paused_until <= NOW()`; `analyze_project` limpia el flag y continúa si la pausa expiró; **nunca se pausa con `paused_until=NULL`** (fallback +30d). Consistencia con Manual AI / AI Mode.
+- **Cancelación / despausa multi-sistema (3504c78, d1923d5)**: `resume_quota_pauses_for_user` rehabilita los 3 sistemas IA (`ai_mode_projects`, `llm_monitoring_projects`, `manual_ai_projects`) + `users.ai_overview_paused_*`.
+
 ### Otros cambios reflejados en código
 
 - **`LocaleContext`** (2026-04-08): cada provider recibe query raw + locale separado. Test `test_locale_fidelity.py`.
@@ -1080,7 +1112,7 @@ Adicionalmente: `test_cron_alerts.py`, `test_cron_routes.py`, `test_db_pool.py`.
 6. **Quota = 1 unidad por (prompt × LLM)**. Plan free **no puede acceder al producto**.
 7. **Costes reales en juego**: cada run consume tokens facturables. `cron_alerts.py` tiene detección de cost spike pero **no se dispara automáticamente** (deuda).
 8. **Locale fidelity**: cada provider aplica el locale en su mecanismo nativo (system message / prepended block / web_search_options).
-9. **Frontend pesado**: `llm_monitoring.js` 8785 líneas, `llm_monitoring.html` 2473 líneas, charts/tables/modals/banners.
+9. **Frontend pesado**: clase base `llm_monitoring.js` (64 líneas) + 11 mixins en `static/js/llm_monitoring/` (cargados por `<script>` en orden, base primero), `llm_monitoring.html` 2473 líneas, charts/tables/modals/banners.
 10. **Brand Radar no es parte de LLM Monitoring** (es Ahrefs MCP externo).
 
 — Fin del manual —
