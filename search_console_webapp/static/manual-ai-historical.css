@@ -1,37 +1,84 @@
 /* =================================================================
    Manual AI — Comparación histórica de AI Overview ("See historic")
-   Estilos del botón de la cabecera de la tabla y del modal de
-   comparación (scorecards + listas gained/lost/maintained).
-   Aislado del resto: usa las variables --manual-ai-* ya existentes.
+   ESTILO SEGÚN BRANDBOOK CLICANDSEO v1.1.
+   - Solo colores de la paleta oficial (sin azules/ámbar inventados).
+   - Tipografía Inter Tight. Sin gradientes. Formas "ultra soft".
+   - Bio-Lime (#d9f9b8) solo como barra de subrayado de acento, nunca
+     como fondo de elementos ni como texto sobre blanco.
+   - Sin pills/badges informativos: los contadores son texto plano.
+   Tokens de marca scopeados al modal + botón (no afectan al resto).
    ================================================================= */
 
-/* --- Cabecera de sección con acción a la derecha --- */
-.section-header.section-header--with-action {
-  align-items: flex-start;
-  gap: var(--manual-ai-spacing-md);
-}
-
-.section-header--with-action .section-header-main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
+#historicalComparisonModal,
 .historical-btn {
+  --hist-text: #0F172A;            /* text-primary   */
+  --hist-text-secondary: #64748B;  /* text-secondary */
+  --hist-text-tertiary: #94A3B8;   /* text-tertiary  */
+  --hist-bg: #FFFFFF;              /* bg-paper       */
+  --hist-bg-subtle: #F1F5F9;       /* bg-subtle      */
+  --hist-border: #E2E8F0;          /* border         */
+  --hist-border-subtle: #EEF2F7;   /* border-subtle  */
+  --hist-accent: #d9f9b8;          /* Bio-Lime       */
+  --hist-success: #3CB371;
+  --hist-error: #E05252;
+  --hist-radius-sm: 8px;
+  --hist-radius-md: 20px;
+  --hist-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.06);
+  --hist-shadow-md: 0 2px 4px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --hist-font: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --hist-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hist-transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* --- Botón disparador "See historic" (brand: secondary, pill) --- */
+.historical-btn.historical-btn {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: var(--manual-ai-spacing-sm);
+  gap: 0.5rem;
   white-space: nowrap;
+  font-family: var(--hist-font);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 10px 22px;
+  border-radius: 9999px;            /* pill: permitido SOLO en botones */
+  border: 1.5px solid var(--hist-border);
+  background: transparent;
+  color: var(--hist-text);
+  transition: var(--hist-transition);
 }
 
-/* --- Modal --- */
+.historical-btn.historical-btn:hover {
+  transform: translateY(-2px);
+  background: var(--hist-bg-subtle);
+  box-shadow: var(--hist-shadow-sm);
+}
+
+.historical-btn.historical-btn i {
+  color: var(--hist-text-tertiary);
+}
+
+/* --- Modal: forma "ultra soft" (radius-md) y tipografía de marca --- */
 .modal-content.modal-historical {
   max-width: 920px;
+  border-radius: var(--hist-radius-md);
+  font-family: var(--hist-font);
+}
+
+#historicalComparisonModal .modal-header h3 {
+  font-family: var(--hist-font);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--hist-text);
+}
+
+#historicalComparisonModal .modal-header h3 i {
+  color: var(--hist-text-tertiary);
 }
 
 #historicalComparisonModal .modal-body {
-  padding: var(--manual-ai-spacing-lg);
+  padding: var(--hist-radius-md);
+  color: var(--hist-text);
 }
 
 /* --- Estados de carga / vacío --- */
@@ -42,27 +89,27 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: var(--manual-ai-spacing-sm);
-  padding: var(--manual-ai-spacing-2xl) var(--manual-ai-spacing-lg);
-  color: var(--manual-ai-gray-500);
+  gap: 0.5rem;
+  padding: 3rem 1.5rem;
+  color: var(--hist-text-secondary);
 }
 
 .hist-loading i,
 .hist-empty i {
   font-size: 2rem;
-  color: var(--manual-ai-gray-400);
+  color: var(--hist-text-tertiary);
 }
 
 .hist-empty p {
   margin: 0;
-  font-weight: 600;
-  color: var(--manual-ai-gray-700);
+  font-weight: 700;
+  color: var(--hist-text);
 }
 
 .hist-empty small {
   max-width: 460px;
-  color: var(--manual-ai-gray-500);
-  line-height: 1.45;
+  color: var(--hist-text-secondary);
+  line-height: 1.6;
 }
 
 /* --- Meta (fechas comparadas) --- */
@@ -70,22 +117,23 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--manual-ai-spacing-xs);
+  gap: 0.3rem;
   font-size: 0.9rem;
-  color: var(--manual-ai-gray-600);
-  background: var(--manual-ai-gray-50);
-  border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);
-  border-radius: var(--manual-ai-border-radius);
-  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
-  margin-bottom: var(--manual-ai-spacing-lg);
+  color: var(--hist-text-secondary);
+  background: var(--hist-bg-subtle);
+  border: 1px solid var(--hist-border-subtle);
+  border-radius: var(--hist-radius-sm);
+  padding: 0.6rem 1rem;
+  margin-bottom: 1.75rem;
 }
 
 .hist-meta strong {
-  color: var(--manual-ai-gray-900);
+  color: var(--hist-text);
+  font-weight: 700;
 }
 
 .hist-meta i {
-  color: var(--manual-ai-accent);
+  color: var(--hist-text-tertiary);
 }
 
 .hist-meta-arrow {
@@ -93,54 +141,65 @@
 }
 
 .hist-meta-sep {
-  color: var(--manual-ai-gray-300);
-  margin: 0 0.15rem;
+  color: var(--hist-text-tertiary);
+  margin: 0 0.2rem;
 }
 
-/* --- Tabs (tu dominio + competidores) --- */
+/* --- Tabs (tu dominio + competidores) — acento Bio-Lime en activo --- */
 .hist-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--manual-ai-spacing-xs);
-  border-bottom: 2px solid var(--manual-ai-gray-100);
-  margin-bottom: var(--manual-ai-spacing-lg);
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--hist-border);
+  margin-bottom: 1.75rem;
 }
 
 .hist-tab {
+  position: relative;
   border: none;
   background: none;
   cursor: pointer;
-  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
+  font-family: var(--hist-font);
+  padding: 0.6rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--manual-ai-gray-500);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  transition: var(--manual-ai-transition);
-  border-radius: var(--manual-ai-border-radius) var(--manual-ai-border-radius) 0 0;
+  color: var(--hist-text-secondary);
+  margin-bottom: -1px;
+  transition: color var(--hist-transition);
 }
 
 .hist-tab:hover {
-  color: var(--manual-ai-gray-800);
-  background: var(--manual-ai-gray-50);
+  color: var(--hist-text);
 }
 
 .hist-tab.active {
-  color: var(--manual-ai-accent);
-  border-bottom-color: var(--manual-ai-accent);
+  color: var(--hist-text);
+  font-weight: 700;
+}
+
+/* Subrayado de marca (Bio-Lime) bajo la pestaña activa */
+.hist-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0;
+  height: 3px;
+  background: var(--hist-accent);
+  border-radius: 2px;
 }
 
 .hist-tab i {
-  color: var(--manual-ai-warning);
-  margin-right: 0.25rem;
+  color: var(--hist-text-tertiary);
+  margin-right: 0.3rem;
 }
 
-/* --- Scorecards --- */
+/* --- Scorecards (tarjetas de marca: radius suave, hover con borde Bio-Lime) --- */
 .hist-scorecards {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--manual-ai-spacing-md);
-  margin-bottom: var(--manual-ai-spacing-xl);
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .hist-card {
@@ -150,53 +209,56 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 0.15rem;
-  padding: var(--manual-ai-spacing-md);
-  background: white;
-  border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);
-  border-radius: var(--manual-ai-border-radius);
-  box-shadow: var(--manual-ai-shadow-sm);
+  gap: 0.2rem;
+  padding: 1rem;
+  background: var(--hist-bg);
+  border: 1px solid var(--hist-border-subtle);
+  border-radius: var(--hist-radius-sm);
+  box-shadow: var(--hist-shadow-sm);
+  transition: border-color var(--hist-transition);
 }
 
 .hist-card-value {
   font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--manual-ai-gray-900);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--hist-text);
   line-height: 1.1;
 }
 
 .hist-card-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--manual-ai-gray-500);
+  letter-spacing: 0.1em;
+  color: var(--hist-text-tertiary);
 }
 
-.hist-card--gain .hist-card-value { color: var(--manual-ai-success); }
-.hist-card--loss .hist-card-value { color: var(--manual-ai-error); }
+.hist-card--gain .hist-card-value { color: var(--hist-success); }
+.hist-card--loss .hist-card-value { color: var(--hist-error); }
 
 .hist-net {
   position: absolute;
-  top: 0.4rem;
-  right: 0.5rem;
+  top: 0.45rem;
+  right: 0.55rem;
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--manual-ai-gray-400);
+  color: var(--hist-text-tertiary);
 }
 
-.hist-net--up { color: var(--manual-ai-success); }
-.hist-net--down { color: var(--manual-ai-error); }
+.hist-net--up { color: var(--hist-success); }
+.hist-net--down { color: var(--hist-error); }
 
 /* --- Listas (gained / lost / maintained) --- */
 .hist-lists {
   display: flex;
   flex-direction: column;
-  gap: var(--manual-ai-spacing-md);
+  gap: 1rem;
 }
 
 .hist-list {
-  border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);
-  border-radius: var(--manual-ai-border-radius);
+  border: 1px solid var(--hist-border-subtle);
+  border-radius: var(--hist-radius-sm);
   overflow: hidden;
 }
 
@@ -204,10 +266,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--manual-ai-spacing-md);
-  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
+  gap: 1rem;
+  padding: 0.6rem 1rem;
   cursor: pointer;
-  background: var(--manual-ai-gray-50);
+  background: var(--hist-bg-subtle);
   list-style: none;
   user-select: none;
 }
@@ -215,13 +277,13 @@
 .hist-list-summary::-webkit-details-marker { display: none; }
 
 .hist-list-summary::before {
-  content: '\f078'; /* chevron-down */
+  content: '\f078'; /* chevron-down (Font Awesome) */
   font-family: 'Font Awesome 6 Free';
   font-weight: 900;
   font-size: 0.7rem;
-  color: var(--manual-ai-gray-400);
+  color: var(--hist-text-tertiary);
   margin-right: 0.4rem;
-  transition: transform 0.15s ease;
+  transition: transform 0.3s var(--hist-ease);
 }
 
 .hist-list:not([open]) .hist-list-summary::before {
@@ -235,36 +297,32 @@
   font-weight: 700;
   font-size: 0.9rem;
   flex: 1;
+  color: var(--hist-text);
 }
 
+/* Contador = texto plano (brandbook: sin badges/pills informativos) */
 .hist-list-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.4rem;
-  height: 1.4rem;
-  padding: 0 0.4rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  background: var(--manual-ai-gray-200);
-  color: var(--manual-ai-gray-700);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--hist-text-tertiary);
 }
 
 .hist-list-hint {
   font-size: 0.75rem;
-  color: var(--manual-ai-gray-400);
+  color: var(--hist-text-tertiary);
   font-style: italic;
 }
 
-.hist-list--lost .hist-list-title { color: var(--manual-ai-error); }
-.hist-list--lost .hist-list-title i { color: var(--manual-ai-error); }
-.hist-list--lost .hist-list-count { background: #fde8e8; color: #b91c1c; }
+.hist-list--lost .hist-list-title,
+.hist-list--lost .hist-list-title i,
+.hist-list--lost .hist-list-count { color: var(--hist-error); }
 
-.hist-list--gain .hist-list-title { color: var(--manual-ai-success); }
-.hist-list--gain .hist-list-title i { color: var(--manual-ai-success); }
-.hist-list--gain .hist-list-count { background: #dcfce7; color: #15803d; }
+.hist-list--gain .hist-list-title,
+.hist-list--gain .hist-list-title i,
+.hist-list--gain .hist-list-count { color: var(--hist-success); }
 
-.hist-list--kept .hist-list-title i { color: var(--manual-ai-gray-500); }
+.hist-list--kept .hist-list-title i { color: var(--hist-text-tertiary); }
+.hist-list--kept .hist-list-count { color: var(--hist-text-tertiary); }
 
 .hist-rows {
   display: flex;
@@ -275,9 +333,9 @@
   display: grid;
   grid-template-columns: 1fr auto minmax(0, 16rem);
   align-items: center;
-  gap: var(--manual-ai-spacing-md);
-  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
-  border-top: var(--manual-ai-border-width) solid var(--manual-ai-gray-100);
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--hist-border-subtle);
   font-size: 0.85rem;
 }
 
@@ -286,14 +344,14 @@
 .hist-row--empty {
   display: block;
   text-align: center;
-  color: var(--manual-ai-gray-400);
+  color: var(--hist-text-tertiary);
   font-style: italic;
-  padding: var(--manual-ai-spacing-md);
+  padding: 1rem;
 }
 
 .hist-row-kw {
   font-weight: 600;
-  color: var(--manual-ai-gray-800);
+  color: var(--hist-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -301,8 +359,8 @@
 
 .hist-pos {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--manual-ai-gray-700);
+  font-weight: 700;
+  color: var(--hist-text);
   white-space: nowrap;
 }
 
@@ -310,36 +368,42 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--manual-ai-gray-600);
-  font-weight: 500;
+  color: var(--hist-text-secondary);
+  font-weight: 600;
 }
 
 .hist-pos-sep {
   font-size: 0.65rem;
-  color: var(--manual-ai-gray-400);
+  color: var(--hist-text-tertiary);
 }
 
-.hist-delta-up { color: var(--manual-ai-success); font-weight: 700; }
-.hist-delta-down { color: var(--manual-ai-error); font-weight: 700; }
-.hist-delta-flat { color: var(--manual-ai-gray-400); }
+.hist-delta-up { color: var(--hist-success); font-weight: 700; }
+.hist-delta-down { color: var(--hist-error); font-weight: 700; }
+.hist-delta-flat { color: var(--hist-text-tertiary); }
 
+/* URLs: enlaces de marca (texto neutro, subrayado al hover; sin azul) */
 .hist-url {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--manual-ai-accent);
+  color: var(--hist-text-secondary);
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.8rem;
+  transition: color var(--hist-transition);
 }
 
-.hist-url:hover { text-decoration: underline; }
-.hist-url i { font-size: 0.7rem; color: var(--manual-ai-gray-400); }
+.hist-url:hover {
+  color: var(--hist-text);
+  text-decoration: underline;
+}
+
+.hist-url i { font-size: 0.7rem; color: var(--hist-text-tertiary); }
 
 .hist-url--none {
-  color: var(--manual-ai-gray-300);
+  color: var(--hist-text-tertiary);
   justify-self: start;
 }
 
