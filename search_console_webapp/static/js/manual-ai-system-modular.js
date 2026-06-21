@@ -121,7 +121,20 @@ import {
     // ✨ NEW (2026-04-09): AIO vs Organic comparison
     loadAioVsOrganicComparison,
     renderAioVsOrganicComparison,
-    showNoAioVsOrganicMessage
+    showNoAioVsOrganicMessage,
+    // ✨ NEW (2026-06-21): Historical comparison (See historic)
+    openHistoricalComparison,
+    loadHistoricalComparison,
+    hideHistoricalComparison,
+    renderHistoricalComparison,
+    switchHistoricalTab,
+    renderHistoricalPanel,
+    renderHistoricalList,
+    renderHistoricalRow,
+    renderHistoricalDelta,
+    renderHistoricalUrl,
+    formatHistPosition,
+    formatHistDate
 } from './manual-ai/manual-ai-analytics.js';
 
 // Exports
@@ -276,6 +289,20 @@ Object.assign(ManualAISystem.prototype, {
     loadAioVsOrganicComparison,
     renderAioVsOrganicComparison,
     showNoAioVsOrganicMessage,
+
+    // ✨ NEW (2026-06-21): Historical comparison (See historic)
+    openHistoricalComparison,
+    loadHistoricalComparison,
+    hideHistoricalComparison,
+    renderHistoricalComparison,
+    switchHistoricalTab,
+    renderHistoricalPanel,
+    renderHistoricalList,
+    renderHistoricalRow,
+    renderHistoricalDelta,
+    renderHistoricalUrl,
+    formatHistPosition,
+    formatHistDate,
 
     // Exports
     handleDownloadExcel,
