@@ -29,14 +29,17 @@ export function openHistoricalComparison() {
     const body = document.getElementById('historicalComparisonBody');
     if (!modal || !body) return;
 
-    // Estado de carga + abrir modal
+    // Estado de carga + abrir modal.
+    // Usamos display inline (flex) como el resto de modales del sistema: el
+    // handler global hideAllModals() (Escape / click fuera) cierra con
+    // style.display='none', que ganaría a la clase .show e impediría reabrir.
     body.innerHTML = `
         <div class="hist-loading">
             <i class="fas fa-spinner fa-spin"></i>
             <p>Loading historical comparison...</p>
         </div>
     `;
-    modal.classList.add('show');
+    modal.style.display = 'flex';
 
     this.loadHistoricalComparison(projectId, days);
 }
@@ -70,7 +73,7 @@ export async function loadHistoricalComparison(projectId, days) {
 
 export function hideHistoricalComparison() {
     const modal = document.getElementById('historicalComparisonModal');
-    if (modal) modal.classList.remove('show');
+    if (modal) modal.style.display = 'none';
     this.destroyHistoricalChart();
     this._historicalData = null;
 }
