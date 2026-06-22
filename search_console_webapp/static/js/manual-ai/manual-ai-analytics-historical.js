@@ -256,6 +256,9 @@ export function renderHistoricalOverview(data) {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
+            // Acerca las dos barras (gained/lost) dentro de cada entidad y deja
+            // más separación entre entidades.
+            datasets: { bar: { categoryPercentage: 0.5, barPercentage: 0.9 } },
             plugins: {
                 legend: {
                     position: 'bottom',
