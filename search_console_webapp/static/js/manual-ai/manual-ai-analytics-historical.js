@@ -71,6 +71,7 @@ export async function loadHistoricalComparison(projectId, days) {
 export function hideHistoricalComparison() {
     const modal = document.getElementById('historicalComparisonModal');
     if (modal) modal.classList.remove('show');
+    this.destroyHistoricalChart();
     this._historicalData = null;
 }
 
@@ -106,12 +107,19 @@ export function renderHistoricalComparison(data) {
     const prev = this.formatHistDate(data.compared_dates?.previous);
     const curr = this.formatHistDate(data.compared_dates?.current);
 
-    const tabsHtml = entities.map((e, i) => `
+    // Tab 0 = Overview (resumen + gráfico); tabs 1..N = una por entidad.
+    const tabs = [{ label: 'Overview', icon: 'fa-chart-column' }].concat(
+        entities.map(e => ({
+            label: e.label || e.domain || '',
+            icon: e.type === 'project' ? 'fa-star' : null,
+        }))
+    );
+    const tabsHtml = tabs.map((t, i) => `
         <button type="button"
                 class="hist-tab ${i === 0 ? 'active' : ''}"
                 data-hist-tab="${i}"
                 onclick="manualAI.switchHistoricalTab(${i})">
-            ${e.type === 'project' ? '<i class="fas fa-star"></i> ' : ''}${this.escapeHtml(e.label || e.domain || '')}
+            ${t.icon ? `<i class="fas ${t.icon}"></i> ` : ''}${this.escapeHtml(t.label)}
         </button>
     `).join('');
 
@@ -146,18 +154,25 @@ export function renderHistoricalPanel(index) {
     const data = this._historicalData;
     if (!panel || !data) return;
 
-    const entity = (data.entities || [])[index];
-    if (!entity) {
-        panel.innerHTML = '';
+    // Destruir cualquier gráfico previo (evita fugas de Chart.js al re-render).
+    this.destroyHistoricalChart();
+
+    if (index === 0) {
+        this.renderHistoricalOverview(data);
         return;
     }
 
+    const entity = (data.entities || [])[index - 1];
+    panel.innerHTML = entity ? this.renderHistoricalEntity(entity) : '';
+}
+
+export function renderHistoricalEntity(entity) {
     const s = entity.summary || {};
     const net = (s.current_count || 0) - (s.previous_count || 0);
     const netClass = net > 0 ? 'hist-net--up' : (net < 0 ? 'hist-net--down' : '');
     const netLabel = net > 0 ? `+${net}` : String(net);
 
-    panel.innerHTML = `
+    return `
         <div class="hist-scorecards">
             <div class="hist-card">
                 <span class="hist-card-value">${s.previous_count || 0}</span>
@@ -188,6 +203,128 @@ export function renderHistoricalPanel(index) {
             ${this.renderHistoricalList('maintained', entity.maintained || [])}
         </div>
     `;
+}
+
+// ================================
+// OVERVIEW (resumen + gráfico de barras gained vs lost por entidad)
+// ================================
+
+export function renderHistoricalOverview(data) {
+    const panel = document.getElementById('historicalPanel');
+    const entities = data.entities || [];
+    if (!panel) return;
+
+    panel.innerHTML = `
+        <div class="hist-overview-chart">
+            <canvas id="historicalOverviewChart"></canvas>
+        </div>
+        ${this.renderHistoricalSummaryTable(entities)}
+    `;
+
+    const canvas = document.getElementById('historicalOverviewChart');
+    if (!canvas || typeof window.Chart === 'undefined') return; // fallback: solo tabla
+
+    const FONT = "'Inter Tight', sans-serif";
+    const labelFor = e => (e.type === 'project'
+        ? (e.domain || e.label || 'Your domain')
+        : (e.domain || e.label || ''));
+
+    // responsive:true → Chart.js observa el contenedor y ajusta el tamaño en
+    // cuanto tiene anchura definitiva (no dependemos de timing de layout).
+    this._historicalChart = new window.Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: entities.map(labelFor),
+            datasets: [
+                {
+                    label: 'Gained',
+                    data: entities.map(e => e.summary?.gained_count || 0),
+                    backgroundColor: '#3CB371',
+                    borderRadius: 6,
+                    maxBarThickness: 48,
+                },
+                {
+                    label: 'Lost',
+                    data: entities.map(e => e.summary?.lost_count || 0),
+                    backgroundColor: '#E05252',
+                    borderRadius: 6,
+                    maxBarThickness: 48,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { family: FONT }, usePointStyle: true, boxWidth: 8 },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} keyword${ctx.parsed.y === 1 ? '' : 's'}`,
+                    },
+                },
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { family: FONT } } },
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, font: { family: FONT } },
+                    grid: { color: '#EEF2F7' },
+                    title: { display: true, text: 'Keywords', font: { family: FONT } },
+                },
+            },
+        },
+    });
+}
+
+export function renderHistoricalSummaryTable(entities) {
+    const rows = entities.map(e => {
+        const s = e.summary || {};
+        const net = (s.current_count || 0) - (s.previous_count || 0);
+        const netClass = net > 0 ? 'hist-net--up' : (net < 0 ? 'hist-net--down' : '');
+        const netLabel = net > 0 ? `+${net}` : String(net);
+        const name = e.type === 'project'
+            ? `<i class="fas fa-star"></i> ${this.escapeHtml(e.domain || e.label || 'Your domain')}`
+            : this.escapeHtml(e.domain || e.label || '');
+        return `
+            <tr>
+                <td class="hist-st-name">${name}</td>
+                <td>${s.previous_count || 0}</td>
+                <td>${s.current_count || 0} <span class="hist-net ${netClass}">${netLabel}</span></td>
+                <td class="hist-st-gain">+${s.gained_count || 0}</td>
+                <td class="hist-st-loss">−${s.lost_count || 0}</td>
+                <td>${s.maintained_count || 0}</td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="hist-summary-table-wrap">
+            <table class="hist-summary-table">
+                <thead>
+                    <tr>
+                        <th>Domain</th>
+                        <th>Then</th>
+                        <th>Now</th>
+                        <th>Gained</th>
+                        <th>Lost</th>
+                        <th>Kept</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+export function destroyHistoricalChart() {
+    if (this._historicalChart) {
+        this._historicalChart.destroy();
+        this._historicalChart = null;
+    }
 }
 
 export function renderHistoricalList(kind, items) {

@@ -407,6 +407,71 @@
   justify-self: start;
 }
 
+/* --- Overview: gráfico de barras (gained vs lost) + tabla resumen --- */
+.hist-overview-chart {
+  position: relative;
+  height: 300px;
+  margin-bottom: 1.75rem;
+}
+
+.hist-summary-table-wrap {
+  border: 1px solid var(--hist-border-subtle);
+  border-radius: var(--hist-radius-sm);
+  overflow: hidden;
+}
+
+.hist-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.hist-summary-table th {
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hist-text-tertiary);
+  padding: 0.6rem 1rem;
+  background: var(--hist-bg-subtle);
+  border-bottom: 1px solid var(--hist-border-subtle);
+  white-space: nowrap;
+}
+
+.hist-summary-table th:first-child { text-align: left; }
+
+.hist-summary-table td {
+  text-align: right;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--hist-border-subtle);
+  color: var(--hist-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hist-summary-table tbody tr:first-child td { border-top: none; }
+
+.hist-summary-table .hist-st-name {
+  text-align: left;
+  font-weight: 700;
+}
+
+.hist-summary-table .hist-st-name i {
+  color: var(--hist-text-tertiary);
+  margin-right: 0.3rem;
+}
+
+.hist-summary-table .hist-st-gain { color: var(--hist-success); }
+.hist-summary-table .hist-st-loss { color: var(--hist-error); }
+
+/* En la tabla, el delta neto va en línea (no absoluto como en las scorecards) */
+.hist-summary-table .hist-net {
+  position: static;
+  font-size: 0.72rem;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
   .hist-scorecards {
@@ -418,5 +483,11 @@
   }
   .hist-url {
     grid-column: 1 / -1;
+  }
+  .hist-overview-chart {
+    height: 240px;
+  }
+  .hist-summary-table-wrap {
+    overflow-x: auto;
   }
 }
