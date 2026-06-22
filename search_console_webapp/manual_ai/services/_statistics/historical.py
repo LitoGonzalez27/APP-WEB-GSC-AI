@@ -51,6 +51,17 @@ def _domains_match(detected: str, competitor: str) -> bool:
     )
 
 
+def _keep_best(bucket: Dict[int, Dict], keyword_id: int, position, url) -> None:
+    """Guarda en bucket[keyword_id] la MEJOR (menor) posición vista para esa
+    keyword en una fecha, junto a su URL. Una keyword puede aparecer varias
+    veces en global_domains; nos quedamos con la cita mejor posicionada."""
+    existing = bucket.get(keyword_id)
+    if existing is None or (
+        position is not None and (existing['position'] is None or position < existing['position'])
+    ):
+        bucket[keyword_id] = {'position': position, 'url': url}
+
+
 class _HistoricalMixin:
 
     @staticmethod
@@ -164,15 +175,6 @@ class _HistoricalMixin:
         for r in results_rows:
             kw_text[r['keyword_id']] = r['keyword']
 
-        # Dominio propio: mención autoritativa (results) por fecha -> {kw_id: position}
-        proj_mention: Dict[str, Dict[int, Optional[int]]] = {fd: {}, ld: {}}
-        for r in results_rows:
-            dstr = str(r['analysis_date'])
-            if r['domain_mentioned'] and dstr in proj_mention:
-                proj_mention[dstr][r['keyword_id']] = r['domain_position']
-
-        # URL del dominio propio por (fecha, kw_id) desde global_domains (mejor posición)
-        proj_url: Dict[tuple, Dict] = {}
         # Competidores normalizados (preservando el original para mostrar)
         comp_list = []
         seen_norm = set()
@@ -182,7 +184,9 @@ class _HistoricalMixin:
                 seen_norm.add(cn)
                 comp_list.append((cn, c))
 
-        # comp_data[norm][fecha][kw_id] = {'position', 'url'}
+        # Todas las entidades usan la misma forma: {fecha: {kw_id: {position, url}}}.
+        # Dominio propio (URLs) y competidores salen de global_domains.
+        proj_url = {fd: {}, ld: {}}
         comp_data = {cn: {fd: {}, ld: {}} for cn, _ in comp_list}
 
         for g in gd_rows:
@@ -190,56 +194,57 @@ class _HistoricalMixin:
             if dstr not in (fd, ld):
                 continue
             det = _normalize_domain(g['detected_domain'])
-            kid = g['keyword_id']
-            pos = g['domain_position']
-            url = g['domain_source_url']
+            kid, pos, url = g['keyword_id'], g['domain_position'], g['domain_source_url']
 
             if g['is_project_domain']:
-                key = (dstr, kid)
-                existing = proj_url.get(key)
-                if existing is None or (
-                    pos is not None and (existing['position'] is None or pos < existing['position'])
-                ):
-                    proj_url[key] = {'url': url, 'position': pos}
+                _keep_best(proj_url[dstr], kid, pos, url)
 
             for cn, _orig in comp_list:
                 if _domains_match(det, cn):
-                    bucket = comp_data[cn][dstr]
-                    existing = bucket.get(kid)
-                    if existing is None or (
-                        pos is not None and (existing['position'] is None or pos < existing['position'])
-                    ):
-                        bucket[kid] = {'position': pos, 'url': url}
+                    _keep_best(comp_data[cn][dstr], kid, pos, url)
 
-        def _build_entity(label, domain, dtype, prev_map, curr_map, url_lookup) -> Dict:
-            prev_ids = set(prev_map.keys())
-            curr_ids = set(curr_map.keys())
+        # Dominio propio: pertenencia y posición AUTORITATIVAS desde results
+        # (domain_mentioned); la URL se toma de global_domains (is_project_domain).
+        proj_data = {fd: {}, ld: {}}
+        for r in results_rows:
+            dstr = str(r['analysis_date'])
+            if r['domain_mentioned'] and dstr in proj_data:
+                kid = r['keyword_id']
+                proj_data[dstr][kid] = {
+                    'position': r['domain_position'],
+                    'url': (proj_url[dstr].get(kid) or {}).get('url'),
+                }
+
+        def _build_entity(label, domain, dtype, prev_map, curr_map) -> Dict:
+            """prev_map / curr_map: {kw_id: {'position', 'url'}} en cada fecha."""
+            prev_ids = set(prev_map)
+            curr_ids = set(curr_map)
             gained_ids = curr_ids - prev_ids
             lost_ids = prev_ids - curr_ids
             kept_ids = prev_ids & curr_ids
 
             gained = [{
                 'keyword': kw_text.get(kid, ''),
-                'position': curr_map[kid],
-                'url': url_lookup(ld, kid),
+                'position': curr_map[kid]['position'],
+                'url': curr_map[kid]['url'],
             } for kid in gained_ids]
 
             lost = [{
                 'keyword': kw_text.get(kid, ''),
-                'previous_position': prev_map[kid],
-                'previous_url': url_lookup(fd, kid),
+                'previous_position': prev_map[kid]['position'],
+                'previous_url': prev_map[kid]['url'],
             } for kid in lost_ids]
 
             maintained = []
             for kid in kept_ids:
-                pp, cp = prev_map[kid], curr_map[kid]
+                pp, cp = prev_map[kid]['position'], curr_map[kid]['position']
                 delta = (cp - pp) if (pp is not None and cp is not None) else None
                 maintained.append({
                     'keyword': kw_text.get(kid, ''),
                     'previous_position': pp,
                     'current_position': cp,
                     'position_delta': delta,  # negativo = mejora (sube en el ranking)
-                    'url': url_lookup(ld, kid),
+                    'url': curr_map[kid]['url'],
                 })
 
             gained.sort(key=lambda x: (x['position'] is None, x['position'] or 0, x['keyword']))
@@ -262,28 +267,13 @@ class _HistoricalMixin:
                 'maintained': maintained,
             }
 
-        entities: List[Dict] = []
-
-        # Entidad: tu dominio
-        entities.append(_build_entity(
-            'Your domain', project_domain, 'project',
-            proj_mention[fd], proj_mention[ld],
-            lambda dstr, kid: (proj_url.get((dstr, kid)) or {}).get('url'),
-        ))
-
-        # Entidades: cada competidor
+        entities: List[Dict] = [
+            _build_entity('Your domain', project_domain, 'project', proj_data[fd], proj_data[ld])
+        ]
         for cn, orig in comp_list:
-            prev_map = {kid: v['position'] for kid, v in comp_data[cn][fd].items()}
-            curr_map = {kid: v['position'] for kid, v in comp_data[cn][ld].items()}
-
-            def _make_lookup(_cn):
-                def _lookup(dstr, kid):
-                    return (comp_data[_cn][dstr].get(kid) or {}).get('url')
-                return _lookup
-
-            entities.append(_build_entity(
-                orig, orig, 'competitor', prev_map, curr_map, _make_lookup(cn),
-            ))
+            entities.append(
+                _build_entity(orig, orig, 'competitor', comp_data[cn][fd], comp_data[cn][ld])
+            )
 
         return {
             'comparison_available': True,
