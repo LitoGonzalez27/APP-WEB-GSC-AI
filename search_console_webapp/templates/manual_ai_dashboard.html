@@ -27,7 +27,14 @@
     
     <!-- CSS específico para Manual AI -->
     <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
-    
+
+    <!-- ✨ NUEVO (2026-06-21): Comparación histórica AI Overview (See historic) -->
+    <!-- Tipografías de marca (brandbook clicandseo) — usadas por el modal histórico -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='manual-ai-historical.css') }}" rel="stylesheet">
+
     <!-- ✅ FASE 4: Quota UI para Manual AI -->
     <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
@@ -732,23 +739,29 @@
 
                     <!-- AI Overview Keywords Details Section -->
                     <div class="ai-overview-keywords-section">
-                        <div class="section-header">
-                            <h3>
-                                <i class="fas fa-table"></i>
-                                AI Overview Keywords Details
-                                <span class="cg-info-tooltip">
-                                    <i class="fas fa-info-circle"></i>
-                                    <span class="cg-info-tooltip-content">
-                                        <strong>What is this?</strong>
-                                        A detailed table showing every keyword that triggers an AI Overview, with your domain's presence and your competitors' appearances side by side.
-                                        <strong>How to use it</strong>
-                                        Sort or filter the table to find keywords where you are present, absent or losing to competitors — and prioritize your content actions accordingly.
+                        <div class="section-header section-header--with-action">
+                            <div class="section-header-main">
+                                <h3>
+                                    <i class="fas fa-table"></i>
+                                    AI Overview Keywords Details
+                                    <span class="cg-info-tooltip">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span class="cg-info-tooltip-content">
+                                            <strong>What is this?</strong>
+                                            A detailed table showing every keyword that triggers an AI Overview, with your domain's presence and your competitors' appearances side by side.
+                                            <strong>How to use it</strong>
+                                            Sort or filter the table to find keywords where you are present, absent or losing to competitors — and prioritize your content actions accordingly.
+                                        </span>
                                     </span>
-                                </span>
-                            </h3>
-                            <p class="section-description">
-                                Data from the latest analysis showing keywords with AI Overview and domain presence
-                            </p>
+                                </h3>
+                                <p class="section-description">
+                                    Data from the latest analysis showing keywords with AI Overview and domain presence
+                                </p>
+                            </div>
+                            <button type="button" class="btn-secondary historical-btn" onclick="manualAI.openHistoricalComparison()">
+                                <i class="fas fa-clock-rotate-left"></i>
+                                See historic
+                            </button>
                         </div>
                         
                         <div class="ai-overview-keywords-container">
@@ -1792,6 +1805,21 @@ keyword 3"></textarea>
                     <i class="fas fa-save"></i>
                     Save Annotation
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historical Comparison Modal (See historic) -->
+    <div class="modal-overlay" id="historicalComparisonModal">
+        <div class="modal-content modal-historical">
+            <div class="modal-header">
+                <h3><i class="fas fa-clock-rotate-left"></i> AI Overview — Historical Comparison</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideHistoricalComparison()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="historicalComparisonBody">
+                <!-- Rendered by manual-ai-analytics-historical.js -->
             </div>
         </div>
     </div>

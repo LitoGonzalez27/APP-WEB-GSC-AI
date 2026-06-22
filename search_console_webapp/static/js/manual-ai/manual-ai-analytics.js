@@ -11,3 +11,4 @@ export * from './manual-ai-analytics-urls.js';
 export * from './manual-ai-analytics-table.js';
 export * from './manual-ai-analytics-comparative.js';
 export * from './manual-ai-analytics-aio-organic.js';
+export * from './manual-ai-analytics-historical.js';

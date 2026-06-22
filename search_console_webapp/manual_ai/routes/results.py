@@ -315,3 +315,42 @@ def get_aio_vs_organic_comparison(project_id):
     except Exception as e:
         logger.error(f"Error computing AIO vs Organic comparison for project {project_id}: {e}")
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/ai-overview-historical', methods=['GET'])
+@auth_required
+def get_ai_overview_historical(project_id):
+    """
+    Comparación histórica de AI Overview: presencia en el primer vs el último
+    análisis disponibles dentro de la ventana de `days` días, para el dominio
+    del proyecto y cada competidor (keywords ganadas / perdidas / mantenidas con
+    sus URLs afectadas).
+
+    Reutiliza datos ya almacenados (manual_ai_results + manual_ai_global_domains)
+    → cero coste SerpAPI extra.
+
+    Args:
+        project_id: ID del proyecto
+
+    Query params:
+        days: Número de días hacia atrás (default: 30)
+
+    Returns:
+        JSON con {success, data: {comparison_available, compared_dates, entities, ...}}
+    """
+    user = get_current_user()
+
+    if not project_service.user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        days = int(request.args.get('days', DEFAULT_DAYS_RANGE))
+        data = stats_service.get_ai_overview_historical_comparison(project_id, days)
+
+        return jsonify({
+            'success': True,
+            'data': data
+        })
+    except Exception as e:
+        logger.error(f"Error computing AI Overview historical comparison for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
