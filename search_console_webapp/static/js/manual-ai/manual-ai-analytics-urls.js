@@ -60,7 +60,7 @@ export async function loadTopUrlsRanking(projectId) {
             } catch (e) {
                 console.error('Error applying filter, showing all URLs:', e);
                 // Apply pagination on error
-                const pageSize = 20;
+                const pageSize = 10;
                 const state = { page: 1 };
                 const totalPages = Math.max(1, Math.ceil(this._allUrlsData.length / pageSize));
                 const paged = this._allUrlsData.slice(0, pageSize);
@@ -71,7 +71,7 @@ export async function loadTopUrlsRanking(projectId) {
         } else {
             console.log('⚪ Filter is inactive, showing all URLs with pagination');
             // Apply pagination
-            const pageSize = 20;
+            const pageSize = 10;
             const state = this._topUrlsState || { page: 1 };
             const totalPages = Math.max(1, Math.ceil(this._allUrlsData.length / pageSize));
             state.page = Math.min(state.page, totalPages);
@@ -121,7 +121,7 @@ export function filterUrlsByDomain(showOnlyMyDomain) {
             if (!project || !project.domain) {
                 console.error('❌ No project or domain found for filtering, showing all URLs');
                 // Reset pagination and render all
-                const pageSize = 20;
+                const pageSize = 10;
                 const state = { page: 1 };
                 const totalPages = Math.max(1, Math.ceil(this._allUrlsData.length / pageSize));
                 const paged = this._allUrlsData.slice(0, pageSize);
@@ -174,7 +174,7 @@ export function filterUrlsByDomain(showOnlyMyDomain) {
     }
     
     // Apply pagination
-    const pageSize = 20;
+    const pageSize = 10;
     const state = this._topUrlsState || { page: 1 };
     const totalPages = Math.max(1, Math.ceil(filteredUrls.length / pageSize));
     state.page = Math.min(state.page, totalPages);
@@ -332,7 +332,7 @@ export function renderTopUrlsPaginator() {
         if (isFilterActive) {
             this.filterUrlsByDomain(true);
         } else {
-            const pageSize = 20;
+            const pageSize = 10;
             const start = (this._topUrlsState.page - 1) * pageSize;
             const paged = fullList.slice(start, start + pageSize);
             this.renderTopUrlsRanking(paged);
@@ -361,7 +361,7 @@ export function renderTopUrlsPaginator() {
         if (isFilterActive) {
             this.filterUrlsByDomain(true);
         } else {
-            const pageSize = 20;
+            const pageSize = 10;
             const start = (this._topUrlsState.page - 1) * pageSize;
             const paged = fullList.slice(start, start + pageSize);
             this.renderTopUrlsRanking(paged);

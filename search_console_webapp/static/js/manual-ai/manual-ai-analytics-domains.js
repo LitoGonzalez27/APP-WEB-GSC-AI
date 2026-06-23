@@ -133,9 +133,9 @@ export async function loadGlobalDomainsRanking(projectId) {
 
         const data = await response.json();
         
-        // Añadir paginación simple en cliente (20 por página)
+        // Añadir paginación simple en cliente (10 por página)
         const fullList = data.domains || [];
-        const pageSize = 20;
+        const pageSize = 10;
         const state = this._globalDomainsState || { page: 1 };
         const totalPages = Math.max(1, Math.ceil(fullList.length / pageSize));
         state.page = Math.min(state.page, totalPages);
