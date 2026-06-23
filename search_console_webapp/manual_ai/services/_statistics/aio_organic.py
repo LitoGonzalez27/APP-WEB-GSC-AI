@@ -89,18 +89,42 @@ class _AioOrganicMixin:
             # dominios extraídos de las URLs (que vienen con/sin www).
             project_domain_norm = _domain_of(f'https://{project_domain}')
 
+            # Selección de fila ALINEADA con el Overview: una sola fila por
+            # keyword (la MÁS RECIENTE del rango), idéntico a
+            # get_project_statistics() en overview.py. Así el panel mira el
+            # mismo día que el contador de "menciones" del Overview y no
+            # diverge por elegir un día distinto de la misma keyword.
+            #
+            # "Citado en AIO" pasa a usar r.domain_mentioned (la MISMA señal
+            # que el Overview: detecta el dominio en referencias oficiales,
+            # en el texto del AI Overview y en listados). Antes este panel
+            # solo miraba el array `references`, perdiendo las menciones en
+            # texto/listado que no llevan link.
+            #
+            # Denominador ("keywords analizadas") = keywords cuya última fila
+            # tiene AI Overview + resultados orgánicos. Ya NO se exige que el
+            # array `references` esté poblado (una mención en texto puede
+            # existir sin referencias formales).
             cur.execute("""
-                SELECT r.keyword,
-                       r.raw_serp_data->'organic_results' AS organic,
-                       r.raw_serp_data->'ai_overview'->'references' AS refs
-                FROM manual_ai_results r
-                WHERE r.project_id = %s
-                  AND r.analysis_date BETWEEN %s AND %s
-                  AND r.has_ai_overview = TRUE
-                  AND jsonb_array_length(COALESCE(r.raw_serp_data->'organic_results', '[]'::jsonb)) > 0
-                  AND jsonb_array_length(COALESCE(r.raw_serp_data->'ai_overview'->'references', '[]'::jsonb)) > 0
-                ORDER BY r.analysis_date DESC, r.id DESC
-            """, (project_id, start_date, end_date))
+                WITH latest AS (
+                    SELECT DISTINCT ON (k.id)
+                        k.id AS keyword_id,
+                        k.keyword,
+                        r.has_ai_overview,
+                        r.domain_mentioned,
+                        r.raw_serp_data->'organic_results' AS organic,
+                        r.raw_serp_data->'ai_overview'->'references' AS refs
+                    FROM manual_ai_keywords k
+                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                        AND r.analysis_date >= %s AND r.analysis_date <= %s
+                    WHERE k.project_id = %s
+                    ORDER BY k.id, r.analysis_date DESC
+                )
+                SELECT keyword, domain_mentioned, organic, refs
+                FROM latest
+                WHERE has_ai_overview = TRUE
+                  AND jsonb_array_length(COALESCE(organic, '[]'::jsonb)) > 0
+            """, (start_date, end_date, project_id))
             rows = cur.fetchall()
         finally:
             cur.close()
@@ -192,18 +216,21 @@ class _AioOrganicMixin:
             overlap_url_total += n_url_overlap
             overlap_domain_total += n_dom_overlap
 
-            # Cuadrantes del dominio del proyecto (comparación por dominio,
-            # NO por URL exacta: si mi dominio aparece en /pagina-A como
-            # orgánico y en /pagina-B como ref de AIO, para el análisis
-            # SEO/GEO cuenta como "presente en ambos").
+            # Cuadrantes del dominio del proyecto:
+            #   - Orgánico: comparación por dominio (no URL exacta): si mi
+            #     dominio aparece en cualquier resultado orgánico, cuenta.
+            #   - AIO: usa domain_mentioned (referencias + texto + listados),
+            #     la misma señal que el Overview.
             my_in_org = (
                 project_domain_norm in org_dom_set
                 if project_domain_norm else False
             )
-            my_in_aio = (
-                project_domain_norm in ref_dom_set
-                if project_domain_norm else False
-            )
+            # "Citado en AIO" = MISMA señal que el Overview (domain_mentioned),
+            # que cubre referencias oficiales + menciones en texto + listados.
+            # `ref_dom_set` se sigue usando para las stats de overlap y para
+            # aio_refs_count, pero ya NO decide si el dominio cuenta como
+            # citado (eso perdía las menciones de texto sin link).
+            my_in_aio = bool(r['domain_mentioned'])
 
             if my_in_org and my_in_aio:
                 kw_in_both += 1
