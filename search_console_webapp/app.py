@@ -94,14 +94,27 @@ limiter = Limiter(
     storage_uri=os.getenv('RATE_LIMIT_STORAGE_URL', 'memory://')
 )
 
-# --- NUEVO: Configuración de sesión para autenticación ---
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here-change-in-production')
-
 # Configuración automática según entorno
 railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
 is_production = railway_env == 'production'
 is_staging = railway_env == 'staging'
 is_development = not railway_env or railway_env == 'development'
+
+# --- NUEVO: Configuración de sesión para autenticación ---
+# 🔒 Seguridad: en producción/staging FLASK_SECRET_KEY DEBE venir del entorno.
+# Con un fallback conocido, un atacante podría falsificar la cookie de sesión y
+# suplantar a cualquier usuario/admin. Por eso fallamos al arrancar si falta.
+_flask_secret = os.getenv('FLASK_SECRET_KEY', '').strip()
+if not _flask_secret:
+    if is_production or is_staging:
+        raise RuntimeError(
+            "FLASK_SECRET_KEY no está definida. Es obligatoria en producción/staging "
+            "para firmar de forma segura las cookies de sesión."
+        )
+    # Solo desarrollo local: fallback estable para no romper el flujo de dev.
+    _flask_secret = 'dev-only-insecure-secret-key-change-me'
+    logger.warning("⚠️ Usando FLASK_SECRET_KEY de desarrollo (NO válida para producción).")
+app.secret_key = _flask_secret
 
 logger.info(f"🌍 Entorno detectado: {railway_env or 'development'}")
 logger.info(f"📊 Configuración: Production={is_production}, Staging={is_staging}, Development={is_development}")
@@ -3970,10 +3983,13 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     
     # Configurar debug según entorno
-    debug_mode = not is_production
-    
+    # 🔒 Seguridad: el debugger interactivo de Werkzeug permite ejecución remota de código.
+    # Debe estar DESACTIVADO en cualquier entorno desplegado (producción Y staging);
+    # solo se habilita en desarrollo local.
+    debug_mode = is_development
+
     logger.info(f"🚀 Iniciando aplicación en puerto {port}")
-    logger.info(f"📊 Entorno: {'PRODUCCIÓN' if is_production else 'DESARROLLO'}")
+    logger.info(f"📊 Entorno: {railway_env or 'DESARROLLO'}")
     logger.info(f"🐛 Debug mode: {debug_mode}")
-    
+
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
