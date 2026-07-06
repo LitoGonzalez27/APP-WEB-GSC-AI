@@ -434,10 +434,36 @@ def setup_billing_routes(app):
             try:
                 # Obtener checkout session completo
                 checkout_session = stripe.checkout.Session.retrieve(session_id, expand=['subscription', 'invoice'])
-                
+
+                # 🔒 Seguridad (IDOR): verificar que la checkout session pertenece al
+                # usuario autenticado antes de mostrar sus datos o sincronizar su plan.
+                # El checkout fija client_reference_id y metadata['user_id'] con el id del
+                # usuario, y el customer con su stripe_customer_id. Sin esta comprobación,
+                # cualquiera podría pasar un session_id ajeno y auto-asignarse un plan de pago.
+                try:
+                    cs_meta_user_id = checkout_session.metadata.get('user_id') if checkout_session.metadata else None
+                except Exception:
+                    cs_meta_user_id = None
+                _uid = str(user['id'])
+                owns_session = (
+                    str(getattr(checkout_session, 'client_reference_id', '') or '') == _uid
+                    or str(cs_meta_user_id or '') == _uid
+                    or (
+                        getattr(checkout_session, 'customer', None)
+                        and user.get('stripe_customer_id')
+                        and checkout_session.customer == user.get('stripe_customer_id')
+                    )
+                )
+                if not owns_session:
+                    logger.warning(
+                        f"⛔ billing_success: session {session_id} no pertenece al usuario "
+                        f"{user['id']} — se ignora (posible intento de IDOR)."
+                    )
+                    raise PermissionError("checkout session ownership mismatch")
+
                 # Obtener customer para email y detalles
                 customer = stripe.Customer.retrieve(checkout_session.customer)
-                
+
                 # Determinar estado del pago / trial
                 sub_status = getattr(checkout_session.subscription, 'status', None) if checkout_session.subscription else None
                 cs_payment_status = getattr(checkout_session, 'payment_status', 'unknown')

@@ -551,13 +551,17 @@ def _get_fernet() -> Optional["Fernet"]:
     try:
         if Fernet is None:
             return None
-        key = os.getenv('TOKEN_ENCRYPTION_KEY', '').strip()
+        # Aceptar ambos nombres de variable. Históricamente el código leía
+        # TOKEN_ENCRYPTION_KEY pero el entorno define ENCRYPTION_KEY, lo que hacía
+        # que el cifrado se desactivara silenciosamente y los refresh tokens se
+        # guardaran en texto plano. Leemos las dos para usar la clave existente.
+        key = (os.getenv('TOKEN_ENCRYPTION_KEY', '') or os.getenv('ENCRYPTION_KEY', '')).strip()
         if not key:
             return None
         # Permitir clave sin base64 padding
         return Fernet(key)
     except Exception as e:
-        logger.warning(f"TOKEN_ENCRYPTION_KEY inválida o no disponible: {e}")
+        logger.warning(f"Clave de cifrado inválida o no disponible: {e}")
         return None
 
 def _encrypt(text: Optional[str]) -> Optional[str]:
@@ -565,6 +569,13 @@ def _encrypt(text: Optional[str]) -> Optional[str]:
         return text
     f = _get_fernet()
     if not f:
+        # 🔒 No degradar silenciosamente a texto plano en entornos desplegados:
+        # es preferible fallar de forma visible a guardar un refresh token sin cifrar.
+        if os.getenv('RAILWAY_ENVIRONMENT', '') in ('production', 'staging'):
+            raise RuntimeError(
+                "Clave de cifrado (TOKEN_ENCRYPTION_KEY/ENCRYPTION_KEY) ausente o inválida: "
+                "no se guardará el token sin cifrar."
+            )
         return text
     try:
         return f.encrypt(text.encode('utf-8')).decode('utf-8')

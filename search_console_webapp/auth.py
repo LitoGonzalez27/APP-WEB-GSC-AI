@@ -576,7 +576,9 @@ def refresh_credentials_if_needed(credentials):
 def _get_fernet():
     try:
         from cryptography.fernet import Fernet
-        key = os.getenv('TOKEN_ENCRYPTION_KEY', '').strip()
+        # Aceptar ambos nombres (ver database._get_fernet): el entorno define
+        # ENCRYPTION_KEY, así que la incluimos como fallback para poder descifrar.
+        key = (os.getenv('TOKEN_ENCRYPTION_KEY', '') or os.getenv('ENCRYPTION_KEY', '')).strip()
         if not key:
             return None
         return Fernet(key)
