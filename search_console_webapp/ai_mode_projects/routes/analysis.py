@@ -6,7 +6,7 @@ import logging
 import threading
 from datetime import date
 from flask import request, jsonify
-from auth import auth_required, cron_or_auth_required, get_current_user
+from auth import auth_required, cron_or_admin_required, get_current_user
 from ai_mode_projects import ai_mode_bp
 from ai_mode_projects.services.project_service import ProjectService
 from ai_mode_projects.services.analysis_service import AnalysisService
@@ -137,7 +137,7 @@ def analyze_project(project_id):
 
 
 @ai_mode_bp.route('/api/cron/daily-analysis', methods=['POST'])
-@cron_or_auth_required
+@cron_or_admin_required
 def trigger_daily_analysis():
     """
     Trigger para análisis diario automático (cron job)

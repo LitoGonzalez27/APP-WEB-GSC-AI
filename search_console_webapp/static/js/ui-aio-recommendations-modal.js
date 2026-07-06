@@ -1,6 +1,21 @@
 // static/js/ui-aio-recommendations-modal.js
 // Standalone AI Recommendations modal — triggered from Grid.js table
 
+// ── HTML escaping ───────────────────────────────────────────────────
+// All recommendation fields (summary, cited_sources_analysis, title,
+// description, category) come from LLM (Gemini) output and are interpolated
+// into an innerHTML string, so they MUST be escaped to prevent stored XSS.
+// Escapes quotes too, so it is safe inside double-quoted attributes.
+function escapeHtml(unsafe) {
+  if (typeof unsafe !== 'string') return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ── Session-level cache ─────────────────────────────────────────────
 window._aioRecommendationsCache = window._aioRecommendationsCache || {};
 
@@ -286,7 +301,7 @@ function _renderRecommendationsHTML(data) {
   html += `
     <div class="aio-rec-summary">
       <i class="fas fa-lightbulb" style="color:#F59E0B;font-size:1.1em;flex-shrink:0;"></i>
-      <span>${data.summary || 'Analysis complete.'}</span>
+      <span>${data.summary ? escapeHtml(data.summary) : 'Analysis complete.'}</span>
     </div>`;
 
   // Cited sources analysis
@@ -294,7 +309,7 @@ function _renderRecommendationsHTML(data) {
     html += `
       <div class="aio-rec-sources-analysis">
         <strong><i class="fas fa-search"></i> Why competitors are cited:</strong>
-        <p>${data.cited_sources_analysis}</p>
+        <p>${escapeHtml(data.cited_sources_analysis)}</p>
       </div>`;
   }
 
@@ -309,11 +324,11 @@ function _renderRecommendationsHTML(data) {
       <div class="aio-rec-card">
         <div class="aio-rec-card__header">
           <span class="aio-rec-card__num" style="background:${color};">${i + 1}</span>
-          <span class="aio-rec-card__title">${rec.title || ''}</span>
-          <span class="aio-rec-card__priority" style="color:${color};border-color:${color};">${label}</span>
+          <span class="aio-rec-card__title">${rec.title ? escapeHtml(rec.title) : ''}</span>
+          <span class="aio-rec-card__priority" style="color:${color};border-color:${color};">${escapeHtml(label)}</span>
         </div>
-        <p class="aio-rec-card__desc">${rec.description || ''}</p>
-        <span class="aio-rec-card__category"><i class="${icon}"></i> ${rec.category || ''}</span>
+        <p class="aio-rec-card__desc">${rec.description ? escapeHtml(rec.description) : ''}</p>
+        <span class="aio-rec-card__category"><i class="${icon}"></i> ${rec.category ? escapeHtml(rec.category) : ''}</span>
       </div>`;
   });
 

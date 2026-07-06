@@ -6,6 +6,20 @@
 
 import { getDomainLogoUrl } from './manual-ai-utils.js';
 
+// Local HTML escaper that also escapes quotes, safe for use inside
+// double-quoted HTML attributes (mirrors ui-serp-modal.js). The shared
+// escapeHtml in manual-ai-utils.js uses textContent→innerHTML and does NOT
+// escape quotes, so it is unsafe for attribute interpolation.
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // ================================
 // TOP DOMAINS
 // ================================
@@ -64,13 +78,15 @@ export function renderTopDomains(domains) {
         // Get logo URL for domain
         const logoUrl = getDomainLogoUrl(domain.domain);
         
+        const safeDomain = escapeHtml(domain.domain);
+        const safeDomainInitial = escapeHtml((domain.domain || '').charAt(0).toUpperCase());
         row.innerHTML = `
             <td class="rank-cell">${index + 1}</td>
-            <td class="domain-cell" title="${domain.domain}">
+            <td class="domain-cell" title="${safeDomain}">
                 <div class="domain-cell-content">
-                    <img src="${logoUrl}" alt="${domain.domain} logo" class="domain-logo" 
-                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.domain.charAt(0).toUpperCase()}</text></svg>'">
-                    <span class="domain-name">${domain.domain}</span>
+                    <img src="${logoUrl}" alt="${safeDomain} logo" class="domain-logo"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${safeDomainInitial}</text></svg>'">
+                    <span class="domain-name">${safeDomain}</span>
                 </div>
             </td>
             <td class="appearances-cell">${domain.appearances}</td>
@@ -187,15 +203,17 @@ export function renderGlobalDomainsRanking(domains) {
             domainBadge = '<span class="domain-badge competitor">Competitor</span>';
         }
         
+        const safeDetectedDomain = escapeHtml(domain.detected_domain);
+        const safeDetectedInitial = escapeHtml((domain.detected_domain || '').charAt(0).toUpperCase());
         row.innerHTML = `
             <td class="rank-cell">${domain.rank}</td>
             <td class="domain-cell">
                 <div class="global-domain-cell">
-                    <img src="${logoUrl}" alt="${domain.detected_domain} logo" class="domain-logo" 
-                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.detected_domain.charAt(0).toUpperCase()}</text></svg>'">
+                    <img src="${logoUrl}" alt="${safeDetectedDomain} logo" class="domain-logo"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${safeDetectedInitial}</text></svg>'">
                     <div class="global-domain-info">
                         <div class="global-domain-label">
-                            <span class="global-domain-name">${domain.detected_domain}</span>
+                            <span class="global-domain-name">${safeDetectedDomain}</span>
                             ${domainBadge}
                         </div>
                     </div>

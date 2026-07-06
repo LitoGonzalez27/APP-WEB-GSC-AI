@@ -290,8 +290,6 @@ highlightMentions(response) {
             return '<em style="color: #9ca3af;">No response text available</em>';
         }
 
-        let html = this.parseMarkdown(response.full_response);
-
         // Get brand keywords and competitor keywords
         const brandKeywords = this.currentProject?.brand_keywords || [];
         const brandName = this.currentProject?.brand_name || '';
@@ -310,8 +308,38 @@ highlightMentions(response) {
         if (brandName) allBrandTerms.push(brandName);
         if (brandDomain) allBrandTerms.push(brandDomain.replace('www.', ''));
 
-        // Highlight in order: first competitors (to avoid conflicts), then brand
-        html = this.highlightTextMentions(html, response, allBrandTerms, competitorKeywords);
+        // Highlight+escape the RAW response first (highlightTextMentions now
+        // escapes internally), then apply markdown decorations that don't re-escape.
+        let html = this.highlightTextMentions(response.full_response, response, allBrandTerms, competitorKeywords);
+        html = this.applyMarkdownDecorations(html);
+
+        return html;
+    },
+
+    applyMarkdownDecorations(html) {
+        // Lightweight markdown formatting for already-escaped HTML.
+        // Headers
+        html = html.replace(/^### (.+)$/gm, '<strong style="font-size: 1.1em;">$1</strong><br>');
+        html = html.replace(/^## (.+)$/gm, '<strong style="font-size: 1.15em;">$1</strong><br>');
+        html = html.replace(/^# (.+)$/gm, '<strong style="font-size: 1.2em;">$1</strong><br>');
+
+        // Bold
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+        // Links [text](url) - el texto ya viene escapado; solo se permiten esquemas
+        // http(s)/relativos (bloquea javascript:, data:, etc.), igual que parseMarkdown.
+        html = html.replace(/\[(.+?)\]\((.+?)\)/g, (match, label, url) => {
+            if (!this.isSafeUrl(url)) return label;
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="md-link">${label}</a>`;
+        });
+
+        // Lists
+        html = html.replace(/^- (.+)$/gm, '• $1<br>');
+        html = html.replace(/^\d+\. (.+)$/gm, '$&<br>');
+
+        // Line breaks
+        html = html.replace(/\n\n/g, '<br><br>');
+        html = html.replace(/\n/g, '<br>');
 
         return html;
     },
@@ -339,14 +367,25 @@ highlightTextMentions(text, response, brandTerms = null, competitorTerms = null)
             });
         }
 
-        let result = text;
+        // Apply highlighting to raw text using placeholder tokens, so the <mark>
+        // tags we add survive HTML escaping but the user text stays escaped.
+        let processedText = text;
+        const highlights = [];
+        let highlightIndex = 0;
+
+        const createPlaceholder = (type, matchedText) => {
+            const placeholder = `___HIGHLIGHT_${highlightIndex}_${type}___`;
+            highlights.push({ placeholder, type, text: matchedText });
+            highlightIndex++;
+            return placeholder;
+        };
 
         // First highlight competitors (orange/red)
         competitorTerms.forEach(term => {
             if (!term) return;
             const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`\\b(${escapedTerm})\\b`, 'gi');
-            result = result.replace(regex, '<mark class="competitor-mention">$1</mark>');
+            processedText = processedText.replace(regex, (match) => createPlaceholder('competitor', match));
         });
 
         // Then highlight brand (blue) - will take precedence if term appears in both lists
@@ -354,7 +393,15 @@ highlightTextMentions(text, response, brandTerms = null, competitorTerms = null)
             if (!term) return;
             const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`\\b(${escapedTerm})\\b`, 'gi');
-            result = result.replace(regex, '<mark class="brand-mention">$1</mark>');
+            processedText = processedText.replace(regex, (match) => createPlaceholder('brand', match));
+        });
+
+        // Now escape HTML, then restore highlights with proper markup
+        let result = this.escapeHtml(processedText);
+        highlights.forEach(({ placeholder, type, text: matchedText }) => {
+            const cssClass = type === 'brand' ? 'brand-mention' : 'competitor-mention';
+            const escapedMatch = this.escapeHtml(matchedText);
+            result = result.replace(placeholder, `<mark class="${cssClass}">${escapedMatch}</mark>`);
         });
 
         return result;

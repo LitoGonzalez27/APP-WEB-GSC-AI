@@ -30,6 +30,7 @@ import logging
 import os
 import json
 import re
+import html
 import unicodedata
 import threading
 import secrets
@@ -71,6 +72,25 @@ llm_monitoring_bp = Blueprint('llm_monitoring', __name__, url_prefix='/api/llm-m
 _INITIAL_ANALYSIS_RUNNING = set()
 _INITIAL_ANALYSIS_RUNNING_LOCK = threading.Lock()
 
+
+def _safe_notify_email(candidate):
+    """Evita que los endpoints de cron (protegidos por cron-token/admin) se usen como
+    relay de correo hacia destinatarios arbitrarios (spam/phishing desde nuestro dominio).
+
+    Solo se acepta el destinatario si pertenece a un dominio interno de confianza;
+    en cualquier otro caso se usa el destinatario configurado por entorno.
+    """
+    default = (
+        os.getenv('CRON_ALERTS_EMAIL')
+        or os.getenv('CRON_ALERT_EMAIL')
+        or os.getenv('MODEL_DISCOVERY_EMAIL')
+        or 'info@soycarlosgonzalez.com'
+    )
+    allowed_domains = ('clicandseo.com', 'soycarlosgonzalez.com')
+    val = (candidate or '').strip()
+    if val and '@' in val and val.rsplit('@', 1)[-1].lower() in allowed_domains:
+        return val
+    return default
 
 def _is_initial_analysis_running(project_id: int) -> bool:
     with _INITIAL_ANALYSIS_RUNNING_LOCK:
@@ -5361,12 +5381,7 @@ def cron_watchdog():
         # state in ('stale', 'never_run') → send critical email
         try:
             payload = request.get_json(silent=True) or {}
-            notify_email = (
-                payload.get('notify_email')
-                or os.getenv('CRON_ALERTS_EMAIL')
-                or os.getenv('CRON_ALERT_EMAIL')
-                or 'info@soycarlosgonzalez.com'
-            )
+            notify_email = _safe_notify_email(payload.get('notify_email'))
             from email_service import send_email
             env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
             last_info = ''
@@ -8218,7 +8233,7 @@ def cron_model_discovery():
     import openai
     import google.generativeai as genai
 
-    notify_email = request.args.get('notify_email', 'info@soycarlosgonzalez.com')
+    notify_email = _safe_notify_email(request.args.get('notify_email'))
     auto_update = request.args.get('auto_update', 'false').lower() == 'true'
 
     logger.info("=" * 60)
@@ -8952,14 +8967,8 @@ def cron_alert():
 
     data = request.get_json(silent=True) or {}
     
-    notify_email = (
-        data.get('notify_email')
-        or request.args.get('notify_email')
-        or os.getenv('CRON_ALERT_EMAIL')
-        or os.getenv('MODEL_DISCOVERY_EMAIL')
-        or 'info@soycarlosgonzalez.com'
-    )
-    
+    notify_email = _safe_notify_email(data.get('notify_email') or request.args.get('notify_email'))
+
     job_name = data.get('job_name') or 'Cron'
     status = (data.get('status') or 'failed').lower()
     message = data.get('message') or 'Fallo no especificado'
@@ -8969,12 +8978,14 @@ def cron_alert():
     run_at = data.get('run_at') or datetime.utcnow().isoformat()
     
     def _truncate(value: str, max_len: int = 2000) -> str:
+        # Escapa HTML: estos valores vienen del cuerpo de la petición y se
+        # interpolan en un email HTML → evitar inyección de HTML/enlaces.
         if value is None:
             return ''
         text = str(value)
-        if len(text) <= max_len:
-            return text
-        return text[:max_len] + "…"
+        if len(text) > max_len:
+            text = text[:max_len] + "…"
+        return html.escape(text)
     
     status_icon = "🚨" if status == "failed" else "⚠️" if status == "warning" else "✅"
     subject = f"{status_icon} Cron {status.upper()}: {job_name}"
@@ -8984,7 +8995,7 @@ def cron_alert():
         <h1 style="color: #161616; border-bottom: 3px solid #D8F9B8; padding-bottom: 10px;">
             {status_icon} Alerta de Cron
         </h1>
-        <p style="color: #666;">Fecha: {run_at} UTC</p>
+        <p style="color: #666;">Fecha: {html.escape(str(run_at))} UTC</p>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
             <tr style="background: #161616; color: #D8F9B8;">
                 <th style="padding: 10px; text-align: left;">Campo</th>
@@ -8992,11 +9003,11 @@ def cron_alert():
             </tr>
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 10px;">Job</td>
-                <td style="padding: 10px;">{job_name}</td>
+                <td style="padding: 10px;">{html.escape(str(job_name))}</td>
             </tr>
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 10px;">Estado</td>
-                <td style="padding: 10px;">{status.upper()}</td>
+                <td style="padding: 10px;">{html.escape(str(status).upper())}</td>
             </tr>
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 10px;">Endpoint</td>

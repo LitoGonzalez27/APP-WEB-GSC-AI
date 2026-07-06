@@ -13,6 +13,19 @@ from database import get_db_connection
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_cell(value):
+    """
+    Defensa contra CSV/Excel formula injection.
+    Si el valor es un string que empieza por un carácter peligroso
+    (= + - @, tab o retorno de carro), le antepone un apóstrofo para que
+    Excel lo trate como texto. No altera números, fechas, None ni strings
+    que no empiecen por esos caracteres.
+    """
+    if isinstance(value, str) and value and value[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + value
+    return value
+
+
 class ExportService:
     """Servicio para generar exportaciones de Manual AI"""
     
@@ -75,7 +88,11 @@ class ExportService:
             # Configuración de zona horaria
             madrid_tz = pytz.timezone('Europe/Madrid')
             
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            with pd.ExcelWriter(
+                output,
+                engine='xlsxwriter',
+                engine_kwargs={'options': {'strings_to_formulas': False}}
+            ) as writer:
                 workbook = writer.book
                 
                 # Formatos comunes
@@ -608,7 +625,7 @@ class ExportService:
         
         # Aplicar formato al header
         for col_num, value in enumerate(rows[0]):
-            worksheet.write(0, col_num, value, header_format)
+            worksheet.write(0, col_num, _sanitize_cell(value), header_format)
         
         # Ajustar columnas
         worksheet.set_column('A:A', 20)  # Métrica
@@ -912,7 +929,7 @@ class ExportService:
                     f"{kw.get('overlap_domain_count', 0)}"
                 )
                 worksheet.write(row, 0, idx, value_number)
-                worksheet.write(row, 1, kw.get('keyword', ''), value_format)
+                worksheet.write(row, 1, _sanitize_cell(kw.get('keyword', '')), value_format)
                 worksheet.write(row, 2, pos_display, value_format)
                 worksheet.write(row, 3, kw.get('aio_refs_count', 0), value_number)
                 worksheet.write(row, 4, overlap_display, value_format)

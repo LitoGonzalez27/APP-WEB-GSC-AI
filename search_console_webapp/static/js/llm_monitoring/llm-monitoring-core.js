@@ -1402,6 +1402,14 @@ escapeHtml(text) {
         return div.innerHTML;
     },
 
+escapeAttr(text) {
+        // escapeHtml (textContent trick) does NOT escape quotes, which can break
+        // out of an HTML attribute. Escape quotes too for attribute-value contexts.
+        return this.escapeHtml(text)
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
 showError(message) {
         this.showToast(message, 'error', 7000);
     },
@@ -1414,10 +1422,22 @@ showInfo(message) {
         this.showToast(message, 'info', 5000);
     },
 
+isSafeUrl(url) {
+        // Allow only http(s) and relative URLs; block javascript:, data:, etc.
+        const value = String(url || '').trim();
+        if (!value) return false;
+        // Absolute http(s) or protocol-relative URLs are safe
+        if (/^(https?:)?\/\//i.test(value)) return true;
+        // Relative URLs / anchors have no scheme before the first / # ?
+        if (/^[^:]*[/#?]/.test(value) || !/:/.test(value)) return true;
+        return false;
+    },
+
 parseMarkdown(text) {
         if (!text) return '';
 
-        let html = text;
+        // Escape HTML FIRST so raw LLM output can't inject markup, then decorate.
+        let html = this.escapeHtml(text);
 
         // Headers (### Header -> <h3>)
         html = html.replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>');
@@ -1435,8 +1455,11 @@ parseMarkdown(text) {
         // Inline code (`code`)
         html = html.replace(/`(.+?)`/g, '<code class="md-code">$1</code>');
 
-        // Links [text](url)
-        html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
+        // Links [text](url) - only allow http(s)/relative URLs to block javascript:, data:, etc.
+        html = html.replace(/\[(.+?)\]\((.+?)\)/g, (match, label, url) => {
+            if (!this.isSafeUrl(url)) return label;
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="md-link">${label}</a>`;
+        });
 
         // Unordered lists (- item or * item)
         html = html.replace(/^\s*[-*]\s+(.+)$/gm, '<li class="md-li">$1</li>');
