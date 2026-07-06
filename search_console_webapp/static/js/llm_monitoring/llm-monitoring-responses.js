@@ -566,16 +566,17 @@ showResponseModal(index) {
                                 ${response.sources.map((source, idx) => {
             const rawUrl = source?.url || '';
             const navigableUrl = this.toNavigableUrl(rawUrl);
+            const safeHref = this.isSafeUrl(navigableUrl) ? navigableUrl : '#';
             const domain = this.extractNormalizedHost(rawUrl) || 'unknown';
             const isBrand = this.isUrlFromBrand(rawUrl);
             const isCompetitor = this.isUrlFromCompetitor(rawUrl);
 
             return `
-                                        <a href="${this.escapeHtml(navigableUrl)}"
-                                           target="_blank" 
-                                           rel="noopener noreferrer" 
+                                        <a href="${this.escapeAttr(safeHref)}"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
                                            class="source-link-modal ${isBrand ? 'brand-source' : ''} ${isCompetitor ? 'competitor-source' : ''}"
-                                           title="${this.escapeHtml(rawUrl)}">
+                                           title="${this.escapeAttr(rawUrl)}">
                                             <i class="fas fa-external-link-alt"></i>
                                             <span class="source-domain">${this.escapeHtml(domain)}</span>
                                             ${isBrand ? '<span class="source-label brand-label">Your Brand</span>' : ''}

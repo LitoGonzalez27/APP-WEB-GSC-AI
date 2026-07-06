@@ -460,6 +460,15 @@ def _parse_gemini_response(raw_content: str) -> Dict:
         if not isinstance(recommendations, list):
             recommendations = []
 
+        # SECURITY NOTE (DOM-XSS): the fields returned below (summary,
+        # cited_sources_analysis, title, description, category) originate from
+        # LLM (Gemini) output and are interpolated into innerHTML on the
+        # frontend. Escaping is performed on the JS side in
+        # static/js/ui-aio-recommendations-modal.js (escapeHtml) as the single
+        # source of truth. We deliberately do NOT html.escape() here to avoid
+        # double-encoding (which would surface literal entities like "&amp;"
+        # to users). If any future consumer renders these values as raw HTML
+        # without escaping, add html.escape() at that call site.
         # Validate each recommendation
         valid_recs = []
         for rec in recommendations:

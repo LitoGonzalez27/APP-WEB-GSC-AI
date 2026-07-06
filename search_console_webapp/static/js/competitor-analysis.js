@@ -4,6 +4,38 @@
  */
 
 /**
+ * HTML escaper that also escapes quotes, safe for use inside double-quoted
+ * HTML attributes (mirrors ui-serp-modal.js). Values here come from LLM /
+ * parsed AIO output and must never be interpolated raw into innerHTML.
+ */
+function escapeHtmlAttr(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/**
+ * Returns url only if it uses an http(s) scheme; otherwise '#'.
+ * Rejects javascript:, data:, and other dangerous URI schemes in href.
+ */
+function safeHttpUrl(url) {
+    if (typeof url !== 'string') return '#';
+    try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return url;
+        }
+    } catch (e) {
+        // fall through
+    }
+    return '#';
+}
+
+/**
  * Normalizes a domain input by removing protocol and www prefix while preserving subdomains
  * @param {string} input - Raw domain input from user
  * @returns {string|null} - Normalized domain or null if invalid
@@ -502,14 +534,18 @@ function createMostCitedUrlsTable(citedUrls) {
     const PAGE_SIZE = 10;
 
     function buildRows(items) {
-        return items.map(item => `
+        return items.map(item => {
+            const safeUrl = escapeHtmlAttr(item.url);
+            const safeHref = escapeHtmlAttr(safeHttpUrl(item.url));
+            return `
             <tr>
-                <td class="url-cell" title="${item.url}">
-                    <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.url}</a>
+                <td class="url-cell" title="${safeUrl}">
+                    <a href="${safeHref}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>
                 </td>
                 <td class="citation-count">${item.citation_count}</td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
     }
 
     const firstPage = allUrls.slice(0, PAGE_SIZE);

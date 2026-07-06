@@ -6,6 +6,20 @@ from services.country_config import get_country_name # Importar la función get_
 
 logger = logging.getLogger(__name__)
 
+
+def _sanitize_cell(value):
+    """
+    Defensa contra CSV/Excel formula injection.
+    Si el valor es un string que empieza por un carácter peligroso
+    (= + - @, tab o retorno de carro), le antepone un apóstrofo para que
+    Excel lo trate como texto. No altera números, fechas, None ni strings
+    que no empiecen por esos caracteres.
+    """
+    if isinstance(value, str) and value and value[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + value
+    return value
+
+
 def format_percent_or_infinity(value):
     """
     Convierte un valor numérico a porcentaje con un decimal,
@@ -276,7 +290,11 @@ def generate_excel_from_data(data, ai_overview_data=None):
     :return: BytesIO con el Excel generado
     """
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    with pd.ExcelWriter(
+        output,
+        engine='xlsxwriter',
+        engine_kwargs={'options': {'strings_to_formulas': False}}
+    ) as writer:
         workbook = writer.book
         
         # Obtener información del país y determinar su origen
@@ -1052,7 +1070,7 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         table_header_row = startrow_table  # 0-based
         for col_num in range(min(num_columns, len(df_table.columns))):
             col_letter = chr(ord('A') + col_num)
-            worksheet.write(table_header_row, col_num, df_table.columns[col_num], header_format)
+            worksheet.write(table_header_row, col_num, _sanitize_cell(df_table.columns[col_num]), header_format)
         
         # 3) MOST CITED URLs section
         most_cited_urls = summary.get('most_cited_urls', [])

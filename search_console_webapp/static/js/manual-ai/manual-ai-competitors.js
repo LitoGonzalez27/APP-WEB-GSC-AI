@@ -5,6 +5,19 @@
 
 import { getDomainLogoUrl, isValidDomain } from './manual-ai-utils.js';
 
+// Local HTML escaper that also escapes quotes, safe for use inside
+// double-quoted HTML attributes (mirrors ui-serp-modal.js). The shared
+// escapeHtml in manual-ai-utils.js does NOT escape quotes.
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // ================================
 // COMPETITORS LOADING & RENDERING
 // ================================
@@ -308,7 +321,9 @@ export function renderCompetitorsPreview(competitors) {
         logoEl.className = 'competitor-logo-small';
         logoEl.title = domain;
         logoEl.onerror = function() {
-            this.outerHTML = `<div class="competitor-logo-placeholder" title="${domain}">${domain.charAt(0).toUpperCase()}</div>`;
+            const safeDomain = escapeHtml(domain);
+            const safeInitial = escapeHtml((domain || '').charAt(0).toUpperCase());
+            this.outerHTML = `<div class="competitor-logo-placeholder" title="${safeDomain}">${safeInitial}</div>`;
         };
         competitorsPreviewEl.appendChild(logoEl);
     });

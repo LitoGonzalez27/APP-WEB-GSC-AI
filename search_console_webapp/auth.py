@@ -345,6 +345,31 @@ def cron_or_auth_required(f):
         return auth_required(f)(*args, **kwargs)
     return decorated_function
 
+def cron_or_admin_required(f):
+    """Como cron_or_auth_required, pero el fallback exige ADMIN (no un usuario normal).
+
+    Se usa en endpoints de cron que disparan trabajo global costoso (SerpAPI/LLM sobre
+    TODOS los proyectos de TODOS los usuarios). Deben aceptarse únicamente desde el cron
+    (token Bearer) o desde un administrador; nunca desde un usuario autenticado cualquiera,
+    para evitar amplificación de coste/DoS. Los servicios Bun de Railway ya envían el
+    header Authorization: Bearer <CRON_TOKEN>, por lo que este cambio no los afecta.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 1) Intentar autenticar por token de cron (comparación en tiempo constante)
+        try:
+            auth_header = request.headers.get('Authorization', '') or ''
+            token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
+            cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
+            if cron_secret and token and secrets.compare_digest(token, cron_secret):
+                return f(*args, **kwargs)
+        except Exception:
+            pass
+
+        # 2) Fallback: exigir privilegios de administrador (no basta con estar logueado)
+        return admin_required(f)(*args, **kwargs)
+    return decorated_function
+
 def admin_required(f):
     """Decorador que requiere privilegios de administrador"""
     @wraps(f)
@@ -600,6 +625,22 @@ def _is_invitation_next_url(value: str) -> bool:
     """True when URL points to the invitation accept flow."""
     return isinstance(value, str) and '/project-invitations/accept' in value
 
+def _safe_next_url(value):
+    """Devuelve `value` si es una ruta relativa segura del propio sitio; si no, None.
+
+    Previene open redirect: solo se aceptan rutas que empiezan por un único '/'
+    (no '//' ni '/\\', que el navegador trataría como host externo) y sin saltos de
+    línea. Cualquier URL absoluta (http://evil.com) o esquema raro se descarta."""
+    if not isinstance(value, str) or not value:
+        return None
+    if not value.startswith('/'):
+        return None
+    if value.startswith('//') or value.startswith('/\\'):
+        return None
+    if any(c in value for c in ('\r', '\n', '\t')):
+        return None
+    return value
+
 def _clear_signup_intent():
     """Clear pricing/signup intent values to avoid stale checkout redirects."""
     session.pop('signup_plan', None)
@@ -779,7 +820,7 @@ def setup_auth_routes(app):
     def login_page():
         """Página de inicio de sesión - FASE 4.5: Soporte parámetros next y plan"""
         # ✅ NUEVO: Guardar parámetro next en sesión
-        next_url = request.args.get('next')
+        next_url = _safe_next_url(request.args.get('next'))
         existing_next = session.get('auth_next')
         if next_url:
             session['auth_next'] = next_url
@@ -831,7 +872,7 @@ def setup_auth_routes(app):
     def signup_page():
         """Página de registro - FASE 4.5: Soporte parámetros next y plan"""
         # ✅ NUEVO: Guardar parámetro next en sesión
-        next_url = request.args.get('next')
+        next_url = _safe_next_url(request.args.get('next'))
         existing_next = session.get('auth_next')
         if next_url:
             session['auth_next'] = next_url
