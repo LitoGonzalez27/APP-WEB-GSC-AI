@@ -12,7 +12,6 @@ export class AISummarySystem {
         this.suggestions = [];
         this.moduleProjects = { manual_ai: [], ai_mode: [], llm: [] };
         this.currentBrandId = null;
-        this.currentSummary = null;
         this.days = 30;
         this.charts = {};
 
@@ -74,12 +73,6 @@ export class AISummarySystem {
 
     getCurrentBrand() {
         return this.brands.find(b => b.id === this.currentBrandId) || null;
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text == null ? '' : String(text);
-        return div.innerHTML;
     }
 
     async fetchJson(url, options = {}) {

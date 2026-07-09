@@ -8,7 +8,7 @@ y reutiliza el StatisticsService de AI Mode para el ranking de dominios.
 import logging
 from typing import Dict
 
-from database import get_db_connection
+from database import db_conn
 from ai_summary.services.adapters.base import (
     empty_channel, window_bounds, split_windows, avg, delta, rounded
 )
@@ -24,11 +24,10 @@ def get_channel_summary(project_id: int, days: int = 30) -> Dict:
 
     previous_start, current_start, today = window_bounds(days)
 
-    conn = get_db_connection()
-    if not conn:
-        summary['reason'] = 'error'
-        return summary
-    try:
+    with db_conn() as conn:
+        if not conn:
+            summary['reason'] = 'error'
+            return summary
         cur = conn.cursor()
 
         cur.execute("SELECT name, brand_name FROM ai_mode_projects WHERE id = %s", (project_id,))
@@ -46,18 +45,14 @@ def get_channel_summary(project_id: int, days: int = 30) -> Dict:
             ORDER BY snapshot_date ASC
         """, (project_id, previous_start, today))
         rows = cur.fetchall()
-    finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
 
     previous, current = split_windows(rows, 'snapshot_date', current_start)
-    if not current:
+    visibility = avg([r['visibility_percentage'] for r in current])
+    # visibility None con filas presentes = snapshots parciales/corruptos:
+    # el canal no puede puntuar y el frontend lo trata como sin datos.
+    if not current or visibility is None:
         summary['reason'] = 'no_data'
         return summary
-
-    visibility = avg([r['visibility_percentage'] for r in current])
     position = avg([r['avg_position'] for r in current])
 
     summary.update({
