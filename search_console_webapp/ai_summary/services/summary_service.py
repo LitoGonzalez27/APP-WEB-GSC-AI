@@ -61,20 +61,31 @@ class SummaryService:
                 failed['project_id'] = project_id
                 return failed
 
-        # Los canales son independientes (cada adapter usa su propia conexión
-        # del pool): en paralelo la latencia es la del canal más lento, no la
-        # suma de los tres.
+        def load_opportunities() -> Dict:
+            try:
+                from ai_summary.services.opportunities_service import get_opportunities
+                return get_opportunities(brand, period)
+            except Exception as e:
+                logger.error(f"AI Summary: opportunities failed for brand {brand['id']}: {e}",
+                             exc_info=True)
+                return {'aio': [], 'llm': []}
+
+        # Los canales (y las oportunidades) son independientes, cada uno con
+        # su propia conexión del pool: en paralelo la latencia es la del más
+        # lento, no la suma.
         channels = {}
         pending = {}
-        with ThreadPoolExecutor(max_workers=len(CHANNEL_ADAPTERS)) as pool:
+        with ThreadPoolExecutor(max_workers=len(CHANNEL_ADAPTERS) + 1) as pool:
             for channel, (link_field, _adapter) in CHANNEL_ADAPTERS.items():
                 project_id = brand.get(link_field)
                 if not project_id:
                     channels[channel] = empty_channel(channel)
                 else:
                     pending[channel] = pool.submit(load_channel, channel, project_id)
+            opportunities_future = pool.submit(load_opportunities)
             for channel, future in pending.items():
                 channels[channel] = future.result()
+            opportunities = opportunities_future.result()
 
         score = _composite_score(channels)
         return {
@@ -84,7 +95,42 @@ class SummaryService:
             'channels': channels,
             'competitors_unified': _unified_competitors(brand, channels),
             'highlights': _build_highlights(channels, score),
+            'opportunities': opportunities,
         }
+
+
+def snapshot_all_brands() -> Dict:
+    """
+    Registrar el score diario (periodo 30d) de todas las marcas. Pensado para
+    el cron /api/cron/daily-snapshots; secuencial entre marcas porque cada
+    summary ya paraleliza sus canales internamente.
+    """
+    from database import db_conn
+    from ai_summary.models.score_snapshot_repository import ScoreSnapshotRepository
+
+    with db_conn() as conn:
+        if not conn:
+            return {'brands_processed': 0, 'snapshots_written': 0}
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, user_id, brand_name, brand_domain,
+                   manual_ai_project_id, ai_mode_project_id, llm_project_id
+            FROM ai_brand_links
+            ORDER BY id
+        """)
+        brands = [dict(r) for r in cur.fetchall()]
+
+    written = 0
+    for brand in brands:
+        try:
+            summary = SummaryService.get_brand_summary(brand, '30')
+            if ScoreSnapshotRepository.upsert_today(brand['id'], summary):
+                written += 1
+        except Exception as e:
+            logger.error(f"Daily snapshot failed for brand {brand['id']}: {e}")
+
+    logger.info(f"AI Summary daily snapshots: {written}/{len(brands)} written")
+    return {'brands_processed': len(brands), 'snapshots_written': written}
 
 
 # ----------------------------------------------------------------------

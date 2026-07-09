@@ -6,6 +6,8 @@ de Manual AI, AI Mode y LLM Monitoring bajo una misma entidad).
 import logging
 from typing import Dict, List, Optional
 
+import psycopg2
+
 from database import db_conn
 from services.utils import normalize_search_console_url
 
@@ -17,13 +19,26 @@ BRAND_LINK_FIELDS = """
     created_at, updated_at
 """
 
+# Cláusula de acceso: dueño o colaborador viewer (misma infraestructura de
+# project_collaborators que el resto de módulos, module_name='ai_summary').
+ACCESS_CLAUSE = """
+    (b.user_id = %s
+     OR EXISTS (
+         SELECT 1 FROM project_collaborators c
+         WHERE c.module_name = 'ai_summary'
+           AND c.project_id = b.id
+           AND c.user_id = %s
+     ))
+"""
+
 # Longitud mínima del slug para el matching difuso de AI Mode: por debajo,
 # la contención por prefijo produce falsos positivos casi seguros
 # (p.ej. brand_name "Sun" ⊂ "samsung").
 MIN_FUZZY_SLUG_LEN = 4
 
 
-def _row_to_brand(row) -> Dict:
+def _row_to_brand(row, viewer_user_id: Optional[int] = None) -> Dict:
+    is_owner = viewer_user_id is None or row['user_id'] == viewer_user_id
     return {
         'id': row['id'],
         'user_id': row['user_id'],
@@ -34,6 +49,9 @@ def _row_to_brand(row) -> Dict:
         'llm_project_id': row['llm_project_id'],
         'created_at': row['created_at'].isoformat() if row['created_at'] else None,
         'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None,
+        'is_owner': is_owner,
+        'can_edit': is_owner,
+        'can_manage_access': is_owner,
     }
 
 
@@ -42,31 +60,51 @@ class BrandLinkRepository:
 
     @staticmethod
     def get_user_brands(user_id: int) -> List[Dict]:
+        """Marcas propias + marcas compartidas con el usuario (viewer)."""
         with db_conn() as conn:
             if not conn:
                 return []
             cur = conn.cursor()
-            cur.execute(f"""
-                SELECT {BRAND_LINK_FIELDS}
-                FROM ai_brand_links
-                WHERE user_id = %s
-                ORDER BY brand_name ASC
-            """, (user_id,))
-            return [_row_to_brand(r) for r in cur.fetchall()]
+            try:
+                cur.execute(f"""
+                    SELECT {BRAND_LINK_FIELDS}
+                    FROM ai_brand_links b
+                    WHERE {ACCESS_CLAUSE}
+                    ORDER BY brand_name ASC
+                """, (user_id, user_id))
+            except psycopg2.errors.UndefinedTable:
+                # Entornos sin las tablas de colaboración migradas
+                conn.rollback()
+                cur.execute(f"""
+                    SELECT {BRAND_LINK_FIELDS}
+                    FROM ai_brand_links b
+                    WHERE b.user_id = %s
+                    ORDER BY brand_name ASC
+                """, (user_id,))
+            return [_row_to_brand(r, viewer_user_id=user_id) for r in cur.fetchall()]
 
     @staticmethod
     def get_brand(brand_id: int, user_id: int) -> Optional[Dict]:
+        """Una marca si el usuario es dueño o colaborador (viewer)."""
         with db_conn() as conn:
             if not conn:
                 return None
             cur = conn.cursor()
-            cur.execute(f"""
-                SELECT {BRAND_LINK_FIELDS}
-                FROM ai_brand_links
-                WHERE id = %s AND user_id = %s
-            """, (brand_id, user_id))
+            try:
+                cur.execute(f"""
+                    SELECT {BRAND_LINK_FIELDS}
+                    FROM ai_brand_links b
+                    WHERE b.id = %s AND {ACCESS_CLAUSE}
+                """, (brand_id, user_id, user_id))
+            except psycopg2.errors.UndefinedTable:
+                conn.rollback()
+                cur.execute(f"""
+                    SELECT {BRAND_LINK_FIELDS}
+                    FROM ai_brand_links b
+                    WHERE b.id = %s AND b.user_id = %s
+                """, (brand_id, user_id))
             row = cur.fetchone()
-            return _row_to_brand(row) if row else None
+            return _row_to_brand(row, viewer_user_id=user_id) if row else None
 
     @staticmethod
     def create_brand(user_id: int, brand_name: str, brand_domain: str,

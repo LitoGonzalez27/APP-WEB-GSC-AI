@@ -3,19 +3,23 @@ Rutas del panel AI Visibility Summary
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from flask import render_template, request, jsonify
 
-from auth import auth_required, get_current_user
+from auth import auth_required, cron_or_auth_required, get_current_user
 from ai_summary import ai_summary_bp
 from ai_summary.models.brand_link_repository import BrandLinkRepository
+from ai_summary.models.score_snapshot_repository import ScoreSnapshotRepository
 from ai_summary.services.summary_service import SummaryService
 from services.utils import normalize_search_console_url
 
 logger = logging.getLogger(__name__)
 
 ALLOWED_PERIODS = ('7', '14', '28', '30', 'last_month', '90', '180')
+SNAPSHOT_PERIOD = '30'  # definición canónica del score histórico
 MAX_BRANDS_PER_USER = 25
 MAX_NAME_LENGTH = 255
+SCORE_BACKFILL_WORKERS = 4
 
 MODULE_LINK_FIELDS = {
     'manual_ai': 'manual_ai_project_id',
@@ -26,13 +30,18 @@ MODULE_LINK_FIELDS = {
 
 def _check_access(user):
     """
-    El panel agrega proyectos PROPIOS de los tres módulos de IA, así que el
-    criterio de acceso es el mismo que para crearlos: cualquier plan de pago
-    (o admin). El acceso compartido por proyecto no aplica aquí: la capa de
-    datos es owner-only y un colaborador sin proyectos propios solo vería un
-    panel vacío.
+    Acceso: cualquier plan de pago (o admin) — el mismo criterio que para
+    crear proyectos en los módulos — o bien usuarios con alguna marca
+    compartida (colaboradores de solo lectura, p.ej. el cliente de una
+    agencia con cuenta free).
     """
-    return user.get('role') == 'admin' or user.get('plan', 'free') != 'free'
+    if user.get('role') == 'admin' or user.get('plan', 'free') != 'free':
+        return True
+    try:
+        from services.project_access_service import user_has_any_module_access
+        return user_has_any_module_access(user['id'], 'ai_summary')
+    except Exception:
+        return False
 
 
 def _payment_required_response():
@@ -184,7 +193,127 @@ def get_brand_summary(brand_id):
 
     try:
         summary = SummaryService.get_brand_summary(brand, period)
-        return jsonify({'success': True, **summary})
     except Exception as e:
         logger.error(f"Error building AI summary for brand {brand_id}: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to build summary'}), 500
+
+    # Registro oportunista del histórico: el periodo 30d es la definición
+    # canónica del score diario. Nunca bloquea la respuesta.
+    if period == SNAPSHOT_PERIOD:
+        try:
+            ScoreSnapshotRepository.upsert_today(brand['id'], summary)
+        except Exception as e:
+            logger.warning(f"Score snapshot upsert failed for brand {brand_id}: {e}")
+
+    return jsonify({'success': True, **summary})
+
+
+@ai_summary_bp.route('/api/brands/scores', methods=['GET'])
+@auth_required
+def get_brand_scores():
+    """
+    Último score + delta por marca para las tarjetas del listado. Lee del
+    histórico; las marcas sin snapshot de hoy se calculan ahora (acotado)
+    y quedan registradas para la próxima vez.
+    """
+    user = get_current_user()
+    if not _check_access(user):
+        return _payment_required_response()
+
+    brands = BrandLinkRepository.get_user_brands(user['id'])
+    brand_ids = [b['id'] for b in brands]
+    scores = ScoreSnapshotRepository.get_latest_scores(brand_ids)
+
+    from datetime import date
+    today = date.today().isoformat()
+    stale = [b for b in brands if scores.get(b['id'], {}).get('date') != today]
+
+    if stale:
+        def compute_and_store(brand):
+            try:
+                summary = SummaryService.get_brand_summary(brand, SNAPSHOT_PERIOD)
+                ScoreSnapshotRepository.upsert_today(brand['id'], summary)
+            except Exception as e:
+                logger.warning(f"Score backfill failed for brand {brand['id']}: {e}")
+
+        with ThreadPoolExecutor(max_workers=SCORE_BACKFILL_WORKERS) as pool:
+            list(pool.map(compute_and_store, stale))
+        scores = ScoreSnapshotRepository.get_latest_scores(brand_ids)
+
+    return jsonify({'success': True, 'scores': scores})
+
+
+@ai_summary_bp.route('/api/brands/<int:brand_id>/score-history', methods=['GET'])
+@auth_required
+def get_brand_score_history(brand_id):
+    """Serie diaria del AI Visibility Score. Query param: months = 3|6|12."""
+    user = get_current_user()
+    if not _check_access(user):
+        return _payment_required_response()
+
+    brand = BrandLinkRepository.get_brand(brand_id, user['id'])
+    if not brand:
+        return jsonify({'success': False, 'error': 'Brand not found'}), 404
+
+    try:
+        months = int(request.args.get('months', 6))
+    except (TypeError, ValueError):
+        months = 6
+
+    history = ScoreSnapshotRepository.get_history(brand_id, months)
+    return jsonify({'success': True, 'history': history})
+
+
+@ai_summary_bp.route('/api/brands/<int:brand_id>/export/pdf', methods=['GET'])
+@auth_required
+def export_brand_pdf(brand_id):
+    """Informe ejecutivo en PDF (one-pager) del resumen de la marca."""
+    user = get_current_user()
+    if not _check_access(user):
+        return _payment_required_response()
+
+    brand = BrandLinkRepository.get_brand(brand_id, user['id'])
+    if not brand:
+        return jsonify({'success': False, 'error': 'Brand not found'}), 404
+
+    period = request.args.get('period', '30')
+    if period not in ALLOWED_PERIODS:
+        period = '30'
+
+    try:
+        from flask import send_file
+        from ai_summary.services.pdf_export_service import AiSummaryPdfExportService
+
+        summary = SummaryService.get_brand_summary(brand, period)
+        history = ScoreSnapshotRepository.get_history(brand_id, 6)
+        pdf_buffer = AiSummaryPdfExportService().build(brand, summary, history)
+
+        safe_name = ''.join(c if c.isalnum() or c in '-_' else '-' for c in brand['brand_name'])[:60]
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"ai-visibility-report-{safe_name.lower()}.pdf",
+        )
+    except ImportError as e:
+        logger.error(f"PDF export dependencies missing: {e}")
+        return jsonify({'success': False, 'error': 'PDF generation not available'}), 500
+    except Exception as e:
+        logger.error(f"Error exporting PDF for brand {brand_id}: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to generate PDF'}), 500
+
+
+@ai_summary_bp.route('/api/cron/daily-snapshots', methods=['POST'])
+@cron_or_auth_required
+def cron_daily_snapshots():
+    """
+    Registrar el score diario de TODAS las marcas (cron). Autenticación:
+    Bearer CRON_TOKEN o sesión de admin.
+    """
+    user = get_current_user()
+    if user is not None and user.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin only'}), 403
+
+    from ai_summary.services.summary_service import snapshot_all_brands
+    result = snapshot_all_brands()
+    return jsonify({'success': True, **result})

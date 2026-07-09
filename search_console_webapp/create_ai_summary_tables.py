@@ -61,6 +61,27 @@ def create_ai_summary_tables():
         """)
         logger.info("✅ Tabla ai_brand_links creada")
 
+        # Histórico diario del AI Visibility Score por marca. Se escribe de
+        # forma oportunista al ver el resumen (periodo 30d) y desde el cron
+        # /api/cron/daily-snapshots; una fila por marca y día (upsert).
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ai_brand_score_snapshots (
+                id SERIAL PRIMARY KEY,
+                brand_id INTEGER REFERENCES ai_brand_links(id) ON DELETE CASCADE,
+                snapshot_date DATE NOT NULL,
+                score DECIMAL(5,1) NOT NULL,
+                aio_visibility DECIMAL(5,1),
+                ai_mode_visibility DECIMAL(5,1),
+                llm_visibility DECIMAL(5,1),
+                channels_used TEXT[],
+                created_at TIMESTAMP DEFAULT NOW(),
+
+                UNIQUE(brand_id, snapshot_date),
+                CHECK (score >= 0 AND score <= 100)
+            )
+        """)
+        logger.info("✅ Tabla ai_brand_score_snapshots creada")
+
         # Migraciones idempotentes para entornos donde la tabla ya existía
         # con el esquema inicial (2026-07-09):
         # 1. El CHECK "al menos un módulo" rompía el borrado de proyectos en

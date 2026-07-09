@@ -16,6 +16,58 @@ const CHANNEL_LABELS = {
     llm: 'LLMs (mention rate)',
 };
 
+export function renderScoreHistoryChart(history) {
+    const canvas = this.elements.scoreHistoryChart;
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    if (this.charts.scoreHistory) {
+        this.charts.scoreHistory.destroy();
+        this.charts.scoreHistory = null;
+    }
+
+    this.charts.scoreHistory = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: history.map(p => p.date),
+            datasets: [{
+                label: 'AI Visibility Score',
+                data: history.map(p => p.score),
+                borderColor: '#0F172A',
+                backgroundColor: 'rgba(217, 249, 184, 0.35)',
+                borderWidth: 2,
+                pointRadius: 2,
+                pointHoverRadius: 5,
+                tension: 0.3,
+                fill: true,
+                clip: false,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `Score: ${ctx.parsed.y.toFixed(1)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(0,0,0,0.04)' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { maxTicksLimit: 10 }
+                }
+            }
+        }
+    });
+}
+
 export function renderTrendChart(channels) {
     const canvas = this.elements.trendChart;
     if (!canvas || typeof Chart === 'undefined') return;
