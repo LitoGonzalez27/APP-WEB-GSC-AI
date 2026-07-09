@@ -49,7 +49,6 @@ export async function loadSummary() {
     if (this.elements.summaryContent) {
         this.elements.summaryContent.style.display = 'block';
     }
-    this.currentSummary = data;
     this.renderSummary(data);
 }
 
@@ -142,7 +141,9 @@ export function renderChannelCard(channel, meta, summary) {
         `;
     }
 
-    if (!summary.available) {
+    // visibility_pct null con available=true no debería llegar (los adapters
+    // lo marcan como no_data), pero un null aquí rompería todo el render.
+    if (!summary.available || summary.visibility_pct == null) {
         return `
             <div class="channel-card channel-missing">
                 <div class="channel-card-header">
@@ -183,7 +184,7 @@ export function renderChannelCard(channel, meta, summary) {
         const byLlm = extras.by_llm || {};
         const parts = Object.values(byLlm)
             .filter(v => v.mention_rate != null)
-            .map(v => `${v.label} ${v.mention_rate.toFixed(0)}%`);
+            .map(v => `${this.escapeHtml(v.label)} ${v.mention_rate.toFixed(0)}%`);
         if (parts.length) {
             secondary.push(metricBlock('By model', parts.join(' · ')));
         }

@@ -11,8 +11,10 @@ Combina los ChannelSummary de los adapters en un payload único:
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List
 
+from services.utils import normalize_search_console_url
 from ai_summary.services.adapters import (
     manual_ai_adapter,
     ai_mode_adapter,
@@ -48,19 +50,31 @@ class SummaryService:
 
     @staticmethod
     def get_brand_summary(brand: Dict, days: int = 30) -> Dict:
-        channels = {}
-        for channel, (link_field, adapter) in CHANNEL_ADAPTERS.items():
-            project_id = brand.get(link_field)
-            if not project_id:
-                channels[channel] = empty_channel(channel)
-                continue
+        def load_channel(channel: str, project_id: int) -> Dict:
+            adapter = CHANNEL_ADAPTERS[channel][1]
             try:
-                channels[channel] = adapter.get_channel_summary(project_id, days)
+                return adapter.get_channel_summary(project_id, days)
             except Exception as e:
                 logger.error(f"AI Summary: adapter '{channel}' failed for brand {brand['id']}: {e}",
                              exc_info=True)
-                channels[channel] = empty_channel(channel, reason='error')
-                channels[channel]['project_id'] = project_id
+                failed = empty_channel(channel, reason='error')
+                failed['project_id'] = project_id
+                return failed
+
+        # Los canales son independientes (cada adapter usa su propia conexión
+        # del pool): en paralelo la latencia es la del canal más lento, no la
+        # suma de los tres.
+        channels = {}
+        pending = {}
+        with ThreadPoolExecutor(max_workers=len(CHANNEL_ADAPTERS)) as pool:
+            for channel, (link_field, _adapter) in CHANNEL_ADAPTERS.items():
+                project_id = brand.get(link_field)
+                if not project_id:
+                    channels[channel] = empty_channel(channel)
+                else:
+                    pending[channel] = pool.submit(load_channel, channel, project_id)
+            for channel, future in pending.items():
+                channels[channel] = future.result()
 
         score = _composite_score(channels)
         return {
@@ -128,7 +142,10 @@ def _unified_competitors(brand: Dict, channels: Dict) -> List[Dict]:
 
     for channel, summary in channels.items():
         for comp in summary.get('competitors') or []:
-            domain = (comp.get('domain') or '').strip().lower()
+            # Clave normalizada: los canales traen formatos distintos
+            # (www.acme.com, https://acme.com, acme.com) que deben fusionarse
+            # en una sola fila.
+            domain = normalize_search_console_url((comp.get('domain') or '').strip())
             if not domain:
                 continue
             entry = merged[domain]
@@ -153,7 +170,14 @@ def _unified_competitors(brand: Dict, channels: Dict) -> List[Dict]:
     result.sort(key=lambda e: (-(e['avg_visibility'] or 0), -e['channels_count']))
     for rank, entry in enumerate(result, start=1):
         entry['rank'] = rank
-    return result[:15]
+
+    # La fila de la propia marca (YOU) siempre visible: si queda fuera del
+    # top, sustituye a la última entrada conservando su rank real.
+    top = result[:15]
+    brand_entry = next((e for e in result if e['is_brand']), None)
+    if brand_entry and brand_entry not in top:
+        top[-1] = brand_entry
+    return top
 
 
 # ----------------------------------------------------------------------

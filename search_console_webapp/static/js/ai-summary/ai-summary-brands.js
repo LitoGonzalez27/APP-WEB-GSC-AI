@@ -15,10 +15,14 @@ export async function loadBrands() {
         this.renderSuggestions();
 
         if (this.brands.length > 0) {
-            this.currentBrandId = this.brands[0].id;
+            // Conservar la marca que el usuario estaba viendo (o la recién
+            // creada); solo caer a la primera si ya no existe.
+            const preferred = this.brands.find(b => b.id === this.currentBrandId) || this.brands[0];
+            this.currentBrandId = preferred.id;
             this.elements.brandSelect.value = String(this.currentBrandId);
             await this.loadSummary();
         } else {
+            this.currentBrandId = null;
             this.showSetup();
         }
     } catch (error) {
@@ -119,6 +123,7 @@ export async function confirmSuggestion(suggestion, button) {
             })
         });
         console.log('✅ Brand linked:', data.brand);
+        this.currentBrandId = data.brand?.id || this.currentBrandId;
         await this.loadBrands();
     } catch (error) {
         console.error('❌ Error confirming suggestion:', error);
@@ -147,7 +152,7 @@ export async function handleCreateBrand() {
 
     try {
         this.elements.createBrandBtn.disabled = true;
-        await this.fetchJson(`${this.apiBase}/brands`, {
+        const data = await this.fetchJson(`${this.apiBase}/brands`, {
             method: 'POST',
             body: JSON.stringify({
                 brand_name: brandName,
@@ -159,6 +164,7 @@ export async function handleCreateBrand() {
         });
         this.elements.brandNameInput.value = '';
         this.elements.brandDomainInput.value = '';
+        this.currentBrandId = data.brand?.id || this.currentBrandId;
         await this.loadBrands();
     } catch (error) {
         console.error('❌ Error creating brand:', error);

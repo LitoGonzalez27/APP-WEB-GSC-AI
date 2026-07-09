@@ -9,10 +9,13 @@ from auth import auth_required, get_current_user
 from ai_summary import ai_summary_bp
 from ai_summary.models.brand_link_repository import BrandLinkRepository
 from ai_summary.services.summary_service import SummaryService
+from services.utils import normalize_search_console_url
 
 logger = logging.getLogger(__name__)
 
 ALLOWED_DAYS = (7, 30, 90)
+MAX_BRANDS_PER_USER = 25
+MAX_NAME_LENGTH = 255
 
 MODULE_LINK_FIELDS = {
     'manual_ai': 'manual_ai_project_id',
@@ -23,22 +26,13 @@ MODULE_LINK_FIELDS = {
 
 def _check_access(user):
     """
-    El panel es transversal: se permite si el usuario puede usar al menos uno
-    de los módulos de IA (mismo criterio que Manual AI: cualquier plan de pago,
-    o acceso compartido a algún módulo).
+    El panel agrega proyectos PROPIOS de los tres módulos de IA, así que el
+    criterio de acceso es el mismo que para crearlos: cualquier plan de pago
+    (o admin). El acceso compartido por proyecto no aplica aquí: la capa de
+    datos es owner-only y un colaborador sin proyectos propios solo vería un
+    panel vacío.
     """
-    if user.get('role') == 'admin':
-        return True
-    if user.get('plan', 'free') != 'free':
-        return True
-    try:
-        from services.project_access_service import user_has_any_module_access
-        return any(
-            user_has_any_module_access(user['id'], module)
-            for module in ('manual_ai', 'ai_mode', 'llm_monitoring')
-        )
-    except Exception:
-        return False
+    return user.get('role') == 'admin' or user.get('plan', 'free') != 'free'
 
 
 def _payment_required_response():
@@ -47,6 +41,25 @@ def _payment_required_response():
         'error': 'Your plan does not include AI visibility modules',
         'paywall': True,
     }), 402
+
+
+def _validated_links(user, data):
+    """
+    Extraer y validar los *_project_id del body: tipo entero estricto y
+    ownership verificado (anti-IDOR). Devuelve (links, error_response).
+    """
+    links = {}
+    for module, field in MODULE_LINK_FIELDS.items():
+        project_id = data.get(field)
+        if project_id is None:
+            links[field] = None
+            continue
+        if not isinstance(project_id, int) or isinstance(project_id, bool):
+            return None, (jsonify({'success': False, 'error': f'{field} must be an integer'}), 400)
+        if not BrandLinkRepository.verify_project_ownership(user['id'], module, project_id):
+            return None, (jsonify({'success': False, 'error': f'Invalid {field}'}), 403)
+        links[field] = project_id
+    return links, None
 
 
 @ai_summary_bp.route('/')
@@ -80,8 +93,8 @@ def get_brands():
         return _payment_required_response()
 
     brands = BrandLinkRepository.get_user_brands(user['id'])
-    suggestions = BrandLinkRepository.suggest_links(user['id'], brands)
     projects = BrandLinkRepository.get_user_module_projects(user['id'])
+    suggestions = BrandLinkRepository.suggest_links(user['id'], brands, projects)
 
     return jsonify({
         'success': True,
@@ -108,21 +121,20 @@ def create_brand():
         return _payment_required_response()
 
     data = request.get_json() or {}
-    brand_name = (data.get('brand_name') or '').strip()
-    brand_domain = (data.get('brand_domain') or '').strip()
-    if not brand_name or not brand_domain:
-        return jsonify({'success': False, 'error': 'brand_name and brand_domain are required'}), 400
+    brand_name = str(data.get('brand_name') or '').strip()
+    brand_domain = normalize_search_console_url(str(data.get('brand_domain') or '').strip())
 
-    links = {}
-    for module, field in MODULE_LINK_FIELDS.items():
-        project_id = data.get(field)
-        if project_id is None:
-            links[field] = None
-            continue
-        if not BrandLinkRepository.verify_project_ownership(user['id'], module, project_id):
-            return jsonify({'success': False, 'error': f'Invalid {field}'}), 403
-        links[field] = project_id
+    if not brand_name or len(brand_name) > MAX_NAME_LENGTH:
+        return jsonify({'success': False, 'error': 'brand_name is required (max 255 chars)'}), 400
+    if len(brand_domain) < 3 or len(brand_domain) > MAX_NAME_LENGTH:
+        return jsonify({'success': False, 'error': 'brand_domain must be a valid domain'}), 400
 
+    if len(BrandLinkRepository.get_user_brands(user['id'])) >= MAX_BRANDS_PER_USER:
+        return jsonify({'success': False, 'error': f'Brand limit reached ({MAX_BRANDS_PER_USER})'}), 400
+
+    links, error = _validated_links(user, data)
+    if error:
+        return error
     if not any(links.values()):
         return jsonify({'success': False, 'error': 'Link at least one project'}), 400
 
@@ -133,32 +145,6 @@ def create_brand():
         **links,
     )
     return (jsonify(result), 201) if result.get('success') else (jsonify(result), 400)
-
-
-@ai_summary_bp.route('/api/brands/<int:brand_id>', methods=['PUT'])
-@auth_required
-def update_brand(brand_id):
-    """Actualizar nombre o vínculos de una marca"""
-    user = get_current_user()
-    if not _check_access(user):
-        return _payment_required_response()
-
-    data = request.get_json() or {}
-    updates = {}
-    if data.get('brand_name'):
-        updates['brand_name'] = data['brand_name'].strip()
-
-    for module, field in MODULE_LINK_FIELDS.items():
-        if field not in data:
-            continue
-        project_id = data[field]
-        if project_id is not None and not BrandLinkRepository.verify_project_ownership(
-                user['id'], module, project_id):
-            return jsonify({'success': False, 'error': f'Invalid {field}'}), 403
-        updates[field] = project_id
-
-    result = BrandLinkRepository.update_brand(brand_id, user['id'], updates)
-    return jsonify(result), (200 if result.get('success') else 400)
 
 
 @ai_summary_bp.route('/api/brands/<int:brand_id>', methods=['DELETE'])

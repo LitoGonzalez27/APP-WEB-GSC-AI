@@ -6,6 +6,14 @@ SEGURO: Solo crea tablas nuevas, no modifica nada existente
 La tabla ai_brand_links vincula proyectos de los tres módulos de IA
 (Manual AI / AI Overview, AI Mode y LLM Monitoring) bajo una misma "marca"
 para poder mostrar un panel de resumen unificado por marca.
+
+Nota de diseño: la regla "una marca debe tener al menos un módulo vinculado"
+se valida SOLO en la capa de aplicación (routes), nunca como CHECK en BD.
+Un CHECK aquí combinado con los FK ON DELETE SET NULL haría fallar el
+borrado de proyectos en los otros módulos cuando el proyecto borrado fuese
+el único vínculo de una marca (el SET NULL violaría el CHECK y abortaría
+el DELETE original). Una marca huérfana es válida: el panel la muestra sin
+canales y el usuario puede revincularla o eliminarla.
 """
 
 import sys
@@ -44,25 +52,24 @@ def create_ai_summary_tables():
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW(),
 
-                -- Constraints
+                -- Constraints (la regla "al menos un vínculo" vive en routes,
+                -- ver nota de diseño en el docstring del módulo)
                 UNIQUE(user_id, brand_domain),
                 CHECK (char_length(brand_name) >= 1),
-                CHECK (char_length(brand_domain) >= 3),
-                -- Una marca debe tener al menos un módulo vinculado
-                CHECK (
-                    manual_ai_project_id IS NOT NULL
-                    OR ai_mode_project_id IS NOT NULL
-                    OR llm_project_id IS NOT NULL
-                )
+                CHECK (char_length(brand_domain) >= 3)
             )
         """)
         logger.info("✅ Tabla ai_brand_links creada")
 
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_ai_brand_links_user
-            ON ai_brand_links(user_id)
-        """)
-        logger.info("✅ Índices de ai_brand_links creados")
+        # Migraciones idempotentes para entornos donde la tabla ya existía
+        # con el esquema inicial (2026-07-09):
+        # 1. El CHECK "al menos un módulo" rompía el borrado de proyectos en
+        #    los otros módulos (ver nota de diseño arriba).
+        cur.execute("ALTER TABLE ai_brand_links DROP CONSTRAINT IF EXISTS ai_brand_links_check")
+        # 2. idx_ai_brand_links_user era redundante: el UNIQUE(user_id,
+        #    brand_domain) ya crea un índice con user_id como columna líder.
+        cur.execute("DROP INDEX IF EXISTS idx_ai_brand_links_user")
+        logger.info("✅ Migraciones idempotentes de ai_brand_links aplicadas")
 
         conn.commit()
         logger.info("🎉 Tablas de AI Visibility Summary creadas correctamente")

@@ -1,7 +1,7 @@
 /* ============================================================
    AI Visibility Summary — Panel unificado de visibilidad IA
    ESTILO SEGÚN BRANDBOOK CLICANDSEO v1.1:
-   - Inter Tight; Libre Baskerville itálica solo en palabras acento.
+   - Tipografía Inter Tight.
    - Bio-Lime (#d9f9b8) solo como acento (subrayados, dots, o sobre
      panel oscuro). Nunca fondo pleno ni texto sobre blanco.
    - Sin gradientes ni glassmorphism. Formas ultra soft (radius 20px
@@ -28,7 +28,6 @@
   --ais-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.06);
   --ais-shadow-md: 0 2px 4px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.08);
   --ais-font: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --ais-font-serif: 'Libre Baskerville', 'Georgia', serif;
   --ais-transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 
   font-family: var(--ais-font);

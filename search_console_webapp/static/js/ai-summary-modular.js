@@ -5,6 +5,9 @@
 
 import { AISummarySystem } from './ai-summary/ai-summary-core.js';
 
+// Utils compartidos (mismo helper que Manual AI / AI Mode)
+import { escapeHtml } from './manual-ai/manual-ai-utils.js';
+
 import {
     loadBrands,
     renderBrandSelect,
@@ -31,6 +34,9 @@ import {
 import { renderTrendChart } from './ai-summary/ai-summary-charts.js';
 
 Object.assign(AISummarySystem.prototype, {
+    // Utils
+    escapeHtml,
+
     // Brands
     loadBrands,
     renderBrandSelect,

@@ -10,7 +10,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, List, Optional
 
-from database import get_db_connection
+from database import db_conn
 from services.utils import normalize_search_console_url
 from ai_summary.services.adapters.base import (
     empty_channel, window_bounds, split_windows, avg, delta, rounded
@@ -34,11 +34,10 @@ def get_channel_summary(project_id: int, days: int = 30) -> Dict:
 
     previous_start, current_start, today = window_bounds(days)
 
-    conn = get_db_connection()
-    if not conn:
-        summary['reason'] = 'error'
-        return summary
-    try:
+    with db_conn() as conn:
+        if not conn:
+            summary['reason'] = 'error'
+            return summary
         cur = conn.cursor()
 
         cur.execute("""
@@ -62,18 +61,14 @@ def get_channel_summary(project_id: int, days: int = 30) -> Dict:
             ORDER BY snapshot_date ASC
         """, (project_id, previous_start, today))
         rows = cur.fetchall()
-    finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
 
     previous, current = split_windows(rows, 'snapshot_date', current_start)
-    if not current:
+    mention_rate = _weighted_rate(current, 'mention_rate') if current else None
+    # mention_rate None con filas presentes = snapshots parciales/corruptos:
+    # el canal no puede puntuar y el frontend lo trata como sin datos.
+    if not current or mention_rate is None:
         summary['reason'] = 'no_data'
         return summary
-
-    mention_rate = _weighted_rate(current, 'mention_rate')
     sov = _weighted_rate(current, 'share_of_voice')
     position = avg([r['avg_position'] for r in current])
 
@@ -200,7 +195,19 @@ def _competitor_sov(project: Dict, rows: List[Dict]) -> List[Dict]:
 
 
 def _competitor_domain_map(project: Dict) -> Dict[str, str]:
+    """
+    Mapa nombre→dominio para resolver las claves de competitor_breakdown.
+    Fuentes, de menor a mayor prioridad: competitor_domains legacy (se indexa
+    por su primera etiqueta, p.ej. 'fortuneo' → fortuneo.com) y
+    selected_competitors (estructura nueva con name+domain explícitos).
+    """
     mapping = {}
+    legacy_domains = project.get('competitor_domains') or []
+    if isinstance(legacy_domains, list):
+        for domain in legacy_domains:
+            normalized = normalize_search_console_url(str(domain))
+            if normalized:
+                mapping[normalized.split('.')[0]] = normalized
     selected = project.get('selected_competitors') or []
     if isinstance(selected, list):
         for comp in selected:

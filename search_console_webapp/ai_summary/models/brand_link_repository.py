@@ -3,11 +3,10 @@ Repositorio para la tabla ai_brand_links (marcas que agrupan proyectos
 de Manual AI, AI Mode y LLM Monitoring bajo una misma entidad).
 """
 
-import json
 import logging
 from typing import Dict, List, Optional
 
-from database import get_db_connection
+from database import db_conn
 from services.utils import normalize_search_console_url
 
 logger = logging.getLogger(__name__)
@@ -17,6 +16,11 @@ BRAND_LINK_FIELDS = """
     manual_ai_project_id, ai_mode_project_id, llm_project_id,
     created_at, updated_at
 """
+
+# Longitud mínima del slug para el matching difuso de AI Mode: por debajo,
+# la contención por prefijo produce falsos positivos casi seguros
+# (p.ej. brand_name "Sun" ⊂ "samsung").
+MIN_FUZZY_SLUG_LEN = 4
 
 
 def _row_to_brand(row) -> Dict:
@@ -38,10 +42,9 @@ class BrandLinkRepository:
 
     @staticmethod
     def get_user_brands(user_id: int) -> List[Dict]:
-        conn = get_db_connection()
-        if not conn:
-            return []
-        try:
+        with db_conn() as conn:
+            if not conn:
+                return []
             cur = conn.cursor()
             cur.execute(f"""
                 SELECT {BRAND_LINK_FIELDS}
@@ -50,18 +53,12 @@ class BrandLinkRepository:
                 ORDER BY brand_name ASC
             """, (user_id,))
             return [_row_to_brand(r) for r in cur.fetchall()]
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
 
     @staticmethod
     def get_brand(brand_id: int, user_id: int) -> Optional[Dict]:
-        conn = get_db_connection()
-        if not conn:
-            return None
-        try:
+        with db_conn() as conn:
+            if not conn:
+                return None
             cur = conn.cursor()
             cur.execute(f"""
                 SELECT {BRAND_LINK_FIELDS}
@@ -70,11 +67,6 @@ class BrandLinkRepository:
             """, (brand_id, user_id))
             row = cur.fetchone()
             return _row_to_brand(row) if row else None
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
 
     @staticmethod
     def create_brand(user_id: int, brand_name: str, brand_domain: str,
@@ -82,91 +74,49 @@ class BrandLinkRepository:
                      ai_mode_project_id: Optional[int] = None,
                      llm_project_id: Optional[int] = None) -> Dict:
         brand_domain = normalize_search_console_url(brand_domain)
-        conn = get_db_connection()
-        if not conn:
-            return {'success': False, 'error': 'Database connection failed'}
-        try:
-            cur = conn.cursor()
-            cur.execute(f"""
-                INSERT INTO ai_brand_links
-                    (user_id, brand_name, brand_domain,
-                     manual_ai_project_id, ai_mode_project_id, llm_project_id)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING {BRAND_LINK_FIELDS}
-            """, (user_id, brand_name.strip(), brand_domain,
-                  manual_ai_project_id, ai_mode_project_id, llm_project_id))
-            row = cur.fetchone()
-            conn.commit()
-            return {'success': True, 'brand': _row_to_brand(row)}
-        except Exception as e:
-            conn.rollback()
-            if 'unique' in str(e).lower():
-                return {'success': False, 'error': f'A brand for "{brand_domain}" already exists'}
-            logger.error(f"Error creating brand link: {e}")
-            return {'success': False, 'error': str(e)}
-        finally:
+        with db_conn() as conn:
+            if not conn:
+                return {'success': False, 'error': 'Database connection failed'}
             try:
-                conn.close()
-            except Exception:
-                pass
-
-    @staticmethod
-    def update_brand(brand_id: int, user_id: int, updates: Dict) -> Dict:
-        allowed = {'brand_name', 'manual_ai_project_id', 'ai_mode_project_id', 'llm_project_id'}
-        fields = {k: v for k, v in updates.items() if k in allowed}
-        if not fields:
-            return {'success': False, 'error': 'No valid fields to update'}
-
-        set_clause = ', '.join(f"{k} = %s" for k in fields)
-        conn = get_db_connection()
-        if not conn:
-            return {'success': False, 'error': 'Database connection failed'}
-        try:
-            cur = conn.cursor()
-            cur.execute(f"""
-                UPDATE ai_brand_links
-                SET {set_clause}, updated_at = NOW()
-                WHERE id = %s AND user_id = %s
-                RETURNING {BRAND_LINK_FIELDS}
-            """, (*fields.values(), brand_id, user_id))
-            row = cur.fetchone()
-            conn.commit()
-            if not row:
-                return {'success': False, 'error': 'Brand not found'}
-            return {'success': True, 'brand': _row_to_brand(row)}
-        except Exception as e:
-            conn.rollback()
-            logger.error(f"Error updating brand link {brand_id}: {e}")
-            return {'success': False, 'error': str(e)}
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+                cur = conn.cursor()
+                cur.execute(f"""
+                    INSERT INTO ai_brand_links
+                        (user_id, brand_name, brand_domain,
+                         manual_ai_project_id, ai_mode_project_id, llm_project_id)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING {BRAND_LINK_FIELDS}
+                """, (user_id, brand_name.strip(), brand_domain,
+                      manual_ai_project_id, ai_mode_project_id, llm_project_id))
+                row = cur.fetchone()
+                conn.commit()
+                return {'success': True, 'brand': _row_to_brand(row)}
+            except Exception as e:
+                conn.rollback()
+                if 'unique' in str(e).lower():
+                    return {'success': False, 'error': f'A brand for "{brand_domain}" already exists'}
+                # No exponer detalles internos de BD al cliente (constraint
+                # names, esquema): log completo aquí, mensaje genérico fuera.
+                logger.error(f"Error creating brand link for user {user_id}: {e}")
+                return {'success': False, 'error': 'Could not create the brand'}
 
     @staticmethod
     def delete_brand(brand_id: int, user_id: int) -> bool:
-        conn = get_db_connection()
-        if not conn:
-            return False
-        try:
-            cur = conn.cursor()
-            cur.execute("""
-                DELETE FROM ai_brand_links
-                WHERE id = %s AND user_id = %s
-            """, (brand_id, user_id))
-            deleted = cur.rowcount > 0
-            conn.commit()
-            return deleted
-        except Exception as e:
-            conn.rollback()
-            logger.error(f"Error deleting brand link {brand_id}: {e}")
-            return False
-        finally:
+        with db_conn() as conn:
+            if not conn:
+                return False
             try:
-                conn.close()
-            except Exception:
-                pass
+                cur = conn.cursor()
+                cur.execute("""
+                    DELETE FROM ai_brand_links
+                    WHERE id = %s AND user_id = %s
+                """, (brand_id, user_id))
+                deleted = cur.rowcount > 0
+                conn.commit()
+                return deleted
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Error deleting brand link {brand_id}: {e}")
+                return False
 
     # ------------------------------------------------------------------
     # Proyectos por módulo (para el formulario de vinculación y sugerencias)
@@ -179,45 +129,40 @@ class BrandLinkRepository:
         (dominio o marca) para poder sugerir vínculos.
         """
         projects = {'manual_ai': [], 'ai_mode': [], 'llm': []}
-        conn = get_db_connection()
-        if not conn:
-            return projects
-        try:
-            cur = conn.cursor()
-
-            cur.execute("""
-                SELECT id, name, domain AS identity, country_code
-                FROM manual_ai_projects
-                WHERE user_id = %s
-                ORDER BY name
-            """, (user_id,))
-            projects['manual_ai'] = [dict(r) for r in cur.fetchall()]
-
-            cur.execute("""
-                SELECT id, name, brand_name AS identity, country_code
-                FROM ai_mode_projects
-                WHERE user_id = %s
-                ORDER BY name
-            """, (user_id,))
-            projects['ai_mode'] = [dict(r) for r in cur.fetchall()]
-
-            cur.execute("""
-                SELECT id, name, brand_domain AS identity, country_code
-                FROM llm_monitoring_projects
-                WHERE user_id = %s AND is_active = TRUE
-                ORDER BY name
-            """, (user_id,))
-            projects['llm'] = [dict(r) for r in cur.fetchall()]
-
-            return projects
-        except Exception as e:
-            logger.error(f"Error fetching module projects for user {user_id}: {e}")
-            return projects
-        finally:
+        with db_conn() as conn:
+            if not conn:
+                return projects
             try:
-                conn.close()
-            except Exception:
-                pass
+                cur = conn.cursor()
+
+                cur.execute("""
+                    SELECT id, name, domain AS identity, country_code
+                    FROM manual_ai_projects
+                    WHERE user_id = %s
+                    ORDER BY name
+                """, (user_id,))
+                projects['manual_ai'] = [dict(r) for r in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT id, name, brand_name AS identity, country_code
+                    FROM ai_mode_projects
+                    WHERE user_id = %s
+                    ORDER BY name
+                """, (user_id,))
+                projects['ai_mode'] = [dict(r) for r in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT id, name, brand_domain AS identity, country_code
+                    FROM llm_monitoring_projects
+                    WHERE user_id = %s AND is_active = TRUE
+                    ORDER BY name
+                """, (user_id,))
+                projects['llm'] = [dict(r) for r in cur.fetchall()]
+
+                return projects
+            except Exception as e:
+                logger.error(f"Error fetching module projects for user {user_id}: {e}")
+                return projects
 
     @staticmethod
     def verify_project_ownership(user_id: int, module: str, project_id: int) -> bool:
@@ -230,32 +175,31 @@ class BrandLinkRepository:
         table = tables.get(module)
         if not table or not project_id:
             return False
-        conn = get_db_connection()
-        if not conn:
-            return False
-        try:
+        with db_conn() as conn:
+            if not conn:
+                return False
             cur = conn.cursor()
             cur.execute(f"SELECT 1 FROM {table} WHERE id = %s AND user_id = %s", (project_id, user_id))
             return cur.fetchone() is not None
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
 
     # ------------------------------------------------------------------
     # Sugerencias de vinculación automática
     # ------------------------------------------------------------------
 
     @staticmethod
-    def suggest_links(user_id: int, existing_brands: List[Dict]) -> List[Dict]:
+    def suggest_links(user_id: int, existing_brands: List[Dict],
+                      projects: Optional[Dict[str, List[Dict]]] = None) -> List[Dict]:
         """
         Sugerir marcas agrupando proyectos no vinculados de los tres módulos
         por dominio normalizado. AI Mode guarda un brand_name libre, así que
-        su matching es difuso (nombre contra la primera etiqueta del dominio)
-        y siempre requiere confirmación del usuario.
+        su matching es difuso (slug del nombre contra la primera etiqueta del
+        dominio, con longitud mínima) y siempre requiere confirmación.
+
+        `projects` permite pasar el resultado de get_user_module_projects()
+        ya cargado por el caller para no repetir las 3 queries.
         """
-        projects = BrandLinkRepository.get_user_module_projects(user_id)
+        if projects is None:
+            projects = BrandLinkRepository.get_user_module_projects(user_id)
 
         linked = {
             'manual_ai': {b['manual_ai_project_id'] for b in existing_brands if b['manual_ai_project_id']},
@@ -289,19 +233,26 @@ class BrandLinkRepository:
                     group[key] = p['id']
                     group['matched_projects'].append({'module': module, 'id': p['id'], 'name': p['name']})
 
-        # AI Mode: matching difuso de brand_name contra la primera etiqueta del dominio
+        # AI Mode: matching difuso de brand_name contra la primera etiqueta del
+        # dominio. Exigimos slug de longitud mínima e igualdad o prefijo (no
+        # contención bidireccional) para evitar uniones absurdas tipo
+        # "Sun" ⊂ "samsung".
         for p in projects['ai_mode']:
             if p['id'] in linked['ai_mode']:
                 continue
             identity = p.get('identity') or ''
             name_slug = slug(identity.split('.')[0] if '.' in identity else identity)
-            if not name_slug:
+            if len(name_slug) < MIN_FUZZY_SLUG_LEN:
                 continue
             for domain, group in groups.items():
                 if group['ai_mode_project_id'] is not None:
                     continue
                 domain_slug = slug(domain.split('.')[0])
-                if name_slug == domain_slug or name_slug in domain_slug or domain_slug in name_slug:
+                if len(domain_slug) < MIN_FUZZY_SLUG_LEN:
+                    continue
+                if (name_slug == domain_slug
+                        or domain_slug.startswith(name_slug)
+                        or name_slug.startswith(domain_slug)):
                     group['ai_mode_project_id'] = p['id']
                     group['matched_projects'].append({'module': 'ai_mode', 'id': p['id'], 'name': p['name']})
                     break
