@@ -279,6 +279,16 @@
               <div class="status-dot status-ready" id="statusLLMMonitoring"></div>
             </div>
           </button>
+
+          <button type="button" class="nav-item" id="navAISummary" onclick="openAISummary()">
+            <div class="nav-icon">
+              <i class="fas fa-chart-pie"></i>
+            </div>
+            <div class="nav-text">AI Visibility Summary <span class="nav-badge-new">new</span></div>
+            <div class="section-status">
+              <div class="status-dot status-ready" id="statusAISummary"></div>
+            </div>
+          </button>
           {% else %}
           <div class="nav-item disabled" id="navManualAI" title="Authentication required">
             <div class="nav-icon">
@@ -307,6 +317,16 @@
             <div class="nav-text">LLM Visibility Monitor</div>
             <div class="section-status">
               <div class="status-dot status-disabled" id="statusLLMMonitoring"></div>
+            </div>
+          </div>
+
+          <div class="nav-item disabled" id="navAISummary" title="Authentication required">
+            <div class="nav-icon">
+              <i class="fas fa-chart-pie"></i>
+            </div>
+            <div class="nav-text">AI Visibility Summary <span class="nav-badge-new">new</span></div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusAISummary"></div>
             </div>
           </div>
           {% endif %}
@@ -1376,6 +1396,11 @@
     function openLLMMonitoring() {
       console.log('🚀 Navegando a LLM Visibility Monitor desde aplicación principal...');
       window.location.href = '/llm-monitoring';
+    }
+
+    function openAISummary() {
+      console.log('🚀 Navegando a AI Visibility Summary desde aplicación principal...');
+      window.location.href = '/ai-summary/';
     }
   </script>
 
