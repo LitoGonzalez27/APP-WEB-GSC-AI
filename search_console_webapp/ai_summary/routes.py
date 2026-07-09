@@ -13,7 +13,7 @@ from services.utils import normalize_search_console_url
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_DAYS = (7, 30, 90)
+ALLOWED_PERIODS = ('7', '14', '28', '30', 'last_month', '90', '180')
 MAX_BRANDS_PER_USER = 25
 MAX_NAME_LENGTH = 255
 
@@ -168,7 +168,7 @@ def get_brand_summary(brand_id):
     Resumen unificado de visibilidad IA de una marca.
 
     Query params:
-        - days: 7 | 30 | 90 (default 30)
+        - period: 7 | 14 | 28 | 30 | last_month | 90 | 180 (default 30)
     """
     user = get_current_user()
     if not _check_access(user):
@@ -178,15 +178,12 @@ def get_brand_summary(brand_id):
     if not brand:
         return jsonify({'success': False, 'error': 'Brand not found'}), 404
 
-    try:
-        days = int(request.args.get('days', 30))
-    except (TypeError, ValueError):
-        days = 30
-    if days not in ALLOWED_DAYS:
-        days = 30
+    period = request.args.get('period', '30')
+    if period not in ALLOWED_PERIODS:
+        period = '30'
 
     try:
-        summary = SummaryService.get_brand_summary(brand, days)
+        summary = SummaryService.get_brand_summary(brand, period)
         return jsonify({'success': True, **summary})
     except Exception as e:
         logger.error(f"Error building AI summary for brand {brand_id}: {e}", exc_info=True)

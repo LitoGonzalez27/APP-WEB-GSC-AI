@@ -10,7 +10,7 @@ from typing import Dict
 
 from database import db_conn
 from ai_summary.services.adapters.base import (
-    empty_channel, window_bounds, split_windows, avg, delta, rounded
+    empty_channel, window_bounds, ranking_days, split_windows, avg, delta, rounded
 )
 
 logger = logging.getLogger(__name__)
@@ -18,11 +18,11 @@ logger = logging.getLogger(__name__)
 CHANNEL = 'ai_overview'
 
 
-def get_channel_summary(project_id: int, days: int = 30) -> Dict:
+def get_channel_summary(project_id: int, period: str = '30') -> Dict:
     summary = empty_channel(CHANNEL)
     summary['project_id'] = project_id
 
-    previous_start, current_start, today = window_bounds(days)
+    previous_start, current_start, end = window_bounds(period)
 
     with db_conn() as conn:
         if not conn:
@@ -43,7 +43,7 @@ def get_channel_summary(project_id: int, days: int = 30) -> Dict:
             WHERE project_id = %s
               AND snapshot_date > %s AND snapshot_date <= %s
             ORDER BY snapshot_date ASC
-        """, (project_id, previous_start, today))
+        """, (project_id, previous_start, end))
         rows = cur.fetchall()
 
     previous, current = split_windows(rows, 'snapshot_date', current_start)
@@ -79,7 +79,7 @@ def get_channel_summary(project_id: int, days: int = 30) -> Dict:
         },
     })
 
-    summary['competitors'] = _get_competitors(project_id, days)
+    summary['competitors'] = _get_competitors(project_id, ranking_days(current_start))
     return summary
 
 

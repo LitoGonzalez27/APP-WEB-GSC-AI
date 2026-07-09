@@ -49,11 +49,11 @@ class SummaryService:
     """Orquestador de resumen por marca"""
 
     @staticmethod
-    def get_brand_summary(brand: Dict, days: int = 30) -> Dict:
+    def get_brand_summary(brand: Dict, period: str = '30') -> Dict:
         def load_channel(channel: str, project_id: int) -> Dict:
             adapter = CHANNEL_ADAPTERS[channel][1]
             try:
-                return adapter.get_channel_summary(project_id, days)
+                return adapter.get_channel_summary(project_id, period)
             except Exception as e:
                 logger.error(f"AI Summary: adapter '{channel}' failed for brand {brand['id']}: {e}",
                              exc_info=True)
@@ -79,7 +79,7 @@ class SummaryService:
         score = _composite_score(channels)
         return {
             'brand': brand,
-            'days': days,
+            'period': period,
             'score': score,
             'channels': channels,
             'competitors_unified': _unified_competitors(brand, channels),
@@ -218,8 +218,28 @@ def _build_highlights(channels: Dict, score: Dict) -> List[Dict]:
                 'text': f"{CHANNEL_LABELS[worst[0]]} is losing visibility ({round(worst[1], 1)} pts).",
             })
 
-    # Sentimiento negativo en LLMs
+    # LLMs: dónde te citan más y sentimiento
     llm = channels.get('llm') or {}
+    by_llm = (llm.get('extras') or {}).get('by_llm') or {}
+    rates = [(data['label'], data['mention_rate']) for data in by_llm.values()
+             if data.get('mention_rate') is not None]
+    if rates:
+        strongest = max(rates, key=lambda r: r[1])
+        highlights.append({
+            'type': 'llm_top',
+            'severity': 'positive' if strongest[1] >= 50 else 'neutral',
+            'text': f"{strongest[0]} is where your brand gets cited the most ({strongest[1]}% of prompts).",
+        })
+        if len(rates) >= 2:
+            weakest = min(rates, key=lambda r: r[1])
+            if strongest[1] - weakest[1] >= 20:
+                highlights.append({
+                    'type': 'llm_gap',
+                    'severity': 'neutral',
+                    'text': (f"Your brand is strong on {strongest[0]} ({strongest[1]}%) but weak on "
+                             f"{weakest[0]} ({weakest[1]}%)."),
+                })
+
     sentiment = (llm.get('extras') or {}).get('sentiment') or {}
     if (sentiment.get('negative') or 0) >= 15:
         highlights.append({
@@ -227,21 +247,12 @@ def _build_highlights(channels: Dict, score: Dict) -> List[Dict]:
             'severity': 'negative',
             'text': f"{sentiment['negative']}% of your LLM mentions carry negative sentiment — review the responses tab.",
         })
-
-    # LLM más débil (dónde reforzar)
-    by_llm = (llm.get('extras') or {}).get('by_llm') or {}
-    rates = [(data['label'], data['mention_rate']) for data in by_llm.values()
-             if data.get('mention_rate') is not None]
-    if len(rates) >= 2:
-        weakest = min(rates, key=lambda r: r[1])
-        strongest = max(rates, key=lambda r: r[1])
-        if strongest[1] - weakest[1] >= 20:
-            highlights.append({
-                'type': 'llm_gap',
-                'severity': 'neutral',
-                'text': (f"Your brand is strong on {strongest[0]} ({strongest[1]}%) but weak on "
-                         f"{weakest[0]} ({weakest[1]}%)."),
-            })
+    elif (sentiment.get('positive') or 0) >= 60:
+        highlights.append({
+            'type': 'sentiment_positive',
+            'severity': 'positive',
+            'text': f"Sentiment is mostly positive ({sentiment['positive']}%) when LLMs mention your brand.",
+        })
 
     # Canales sin monitorizar (informativo, nunca penaliza el score)
     for name in score.get('channels_missing') or []:

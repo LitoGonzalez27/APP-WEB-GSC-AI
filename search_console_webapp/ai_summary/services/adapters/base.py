@@ -30,15 +30,37 @@ def empty_channel(channel: str, reason: str = 'not_linked') -> Dict:
     }
 
 
-def window_bounds(days: int):
+def window_bounds(period: str = '30'):
     """
     Ventana actual y ventana anterior del mismo tamaño para calcular deltas.
-    current: (today - days, today]  |  previous: (today - 2*days, today - days]
+
+    period: número de días como string ('7', '14', '28', '30', '90', '180')
+    o 'last_month' (el mes natural anterior completo, comparado con el mes
+    natural previo a ese).
+
+    Devuelve (previous_start, current_start, end), con ventana actual
+    = (current_start, end] y ventana anterior = (previous_start, current_start].
     """
     today = date.today()
+    if period == 'last_month':
+        end = today.replace(day=1) - timedelta(days=1)              # último día del mes anterior
+        current_start = end.replace(day=1) - timedelta(days=1)      # último día de hace 2 meses
+        previous_start = current_start.replace(day=1) - timedelta(days=1)
+        return previous_start, current_start, end
+
+    days = int(period)
     current_start = today - timedelta(days=days)
     previous_start = today - timedelta(days=days * 2)
     return previous_start, current_start, today
+
+
+def ranking_days(current_start: date) -> int:
+    """
+    Días aproximados para los rankings de competidores de StatisticsService
+    (que siempre trabajan en "últimos N días desde hoy"): cubre desde el
+    inicio de la ventana actual hasta hoy.
+    """
+    return max((date.today() - current_start).days, 1)
 
 
 def split_windows(rows: List[Dict], date_key: str, current_start: date):

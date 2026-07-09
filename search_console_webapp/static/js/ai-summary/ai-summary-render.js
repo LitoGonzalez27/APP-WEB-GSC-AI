@@ -34,7 +34,7 @@ export async function loadSummary() {
     let data;
     try {
         data = await this.fetchJson(
-            `${this.apiBase}/brands/${this.currentBrandId}/summary?days=${this.days}`
+            `${this.apiBase}/brands/${this.currentBrandId}/summary?period=${this.period}`
         );
     } catch (error) {
         console.error('❌ Error loading summary:', error);
@@ -127,6 +127,12 @@ export function renderChannelCards(channels) {
 }
 
 export function renderChannelCard(channel, meta, summary) {
+    // Deep link al proyecto concreto dentro de su módulo (no al listado
+    // genérico): cada dashboard lee ?open_project=<id> al inicializarse.
+    const projectLink = summary?.project_id
+        ? `${meta.link}${meta.link.includes('?') ? '&' : '?'}open_project=${summary.project_id}`
+        : meta.link;
+
     if (!summary || (!summary.available && !summary.project_id)) {
         return `
             <div class="channel-card channel-missing">
@@ -148,7 +154,7 @@ export function renderChannelCard(channel, meta, summary) {
             <div class="channel-card channel-missing">
                 <div class="channel-card-header">
                     <h4><i class="fas ${meta.icon}"></i> ${meta.label}</h4>
-                    <a href="${meta.link}" class="channel-card-link">Open <i class="fas fa-arrow-right"></i></a>
+                    <a href="${projectLink}" class="channel-card-link">Open <i class="fas fa-arrow-right"></i></a>
                 </div>
                 <p class="channel-missing-text">No data yet in this period.</p>
             </div>
@@ -194,7 +200,7 @@ export function renderChannelCard(channel, meta, summary) {
         <div class="channel-card ${trendClass}">
             <div class="channel-card-header">
                 <h4><i class="fas ${meta.icon}"></i> ${meta.label}</h4>
-                <a href="${meta.link}" class="channel-card-link">Open <i class="fas fa-arrow-right"></i></a>
+                <a href="${projectLink}" class="channel-card-link">Open <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="channel-metric-main">
                 <span class="channel-metric-value">${summary.visibility_pct.toFixed(1)}%</span>
@@ -224,6 +230,7 @@ export function renderCompetitorsTable(competitors) {
                 <td>${c.rank}</td>
                 <td>
                     <div class="domain-cell">
+                        <img class="domain-logo" src="${this.getDomainLogoUrl(c.domain)}" alt="" loading="lazy" onerror="this.style.display='none'">
                         ${this.escapeHtml(c.domain)}
                         ${c.is_brand ? '<span class="brand-badge">YOU</span>' : ''}
                     </div>
