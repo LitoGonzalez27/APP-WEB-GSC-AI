@@ -57,6 +57,12 @@ export function renderBrandsGrid() {
                     <h3>${this.escapeHtml(brand.brand_name)}</h3>
                     <span class="brand-card-domain">${this.escapeHtml(brand.brand_domain)}</span>
                 </div>
+                ${brand.is_owner ? '' : '<span class="brand-card-shared">Shared</span>'}
+            </div>
+            <div class="brand-card-score" data-score-slot>
+                <span class="brand-score-value">–</span>
+                <span class="brand-score-delta"></span>
+                <span class="brand-score-label">AI Visibility Score</span>
             </div>
             <div class="brand-card-channels">
                 ${CHANNEL_LINKS.map(([field, label]) => `
@@ -82,6 +88,37 @@ export function showBrandsList() {
     if (this.elements.brandsView) {
         this.elements.brandsView.style.display = 'block';
     }
+    // Los scores llegan en segundo plano y se pintan sobre las tarjetas
+    this.loadBrandScores();
+}
+
+export async function loadBrandScores() {
+    if (!this.brands.length) return;
+    try {
+        const data = await this.fetchJson(`${this.apiBase}/brands/scores`);
+        this.brandScores = data.scores || {};
+        this.patchBrandScores();
+    } catch (error) {
+        console.warn('⚠️ Brand scores unavailable:', error.message);
+    }
+}
+
+export function patchBrandScores() {
+    this.elements.brandsGrid?.querySelectorAll('.brand-card').forEach(card => {
+        const slot = card.querySelector('[data-score-slot]');
+        const info = this.brandScores?.[card.dataset.brandId];
+        if (!slot || !info) return;
+        slot.querySelector('.brand-score-value').textContent = info.score.toFixed(1);
+        const deltaEl = slot.querySelector('.brand-score-delta');
+        if (info.delta == null || Math.abs(info.delta) < 0.05) {
+            deltaEl.innerHTML = '<i class="fas fa-equals"></i>';
+            deltaEl.className = 'brand-score-delta delta-flat';
+        } else {
+            const up = info.delta > 0;
+            deltaEl.innerHTML = `<i class="fas fa-arrow-${up ? 'up' : 'down'}"></i> ${up ? '+' : ''}${info.delta.toFixed(1)}`;
+            deltaEl.className = `brand-score-delta ${up ? 'delta-up' : 'delta-down'}`;
+        }
+    });
 }
 
 export async function openBrand(brandId) {

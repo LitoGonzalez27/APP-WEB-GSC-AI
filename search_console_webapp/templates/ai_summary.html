@@ -396,6 +396,12 @@
                                 <option value="90">Last 3 months</option>
                                 <option value="180">Last 6 months</option>
                             </select>
+                            <button type="button" id="downloadPdfBtn" class="ai-summary-back-btn" title="Download executive PDF report">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
+                            <button type="button" id="shareBrandBtn" class="ai-summary-back-btn" title="Share read-only access" style="display: none;">
+                                <i class="fas fa-user-plus"></i> Share
+                            </button>
                         </div>
                     </div>
 
@@ -427,7 +433,17 @@
                         </div>
                     </div>
 
-                    <!-- Bloque 4: Competidores -->
+                    <!-- Bloque 4: Histórico del score (visible cuando hay >= 2 snapshots) -->
+                    <div class="ai-summary-panel" id="scoreHistoryPanel" style="display: none;">
+                        <div class="ai-summary-panel-header">
+                            <h3><i class="fas fa-wave-square"></i> AI Visibility Score over time</h3>
+                        </div>
+                        <div class="ai-summary-chart-container ai-summary-chart-container--short">
+                            <canvas id="scoreHistoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Bloque 5: Competidores -->
                     <div class="ai-summary-panel">
                         <div class="ai-summary-panel-header">
                             <h3><i class="fas fa-trophy"></i> Who owns AI visibility in your market</h3>
@@ -449,6 +465,23 @@
                         </div>
                     </div>
 
+                    <!-- Bloque 6: Oportunidades -->
+                    <div class="ai-summary-panel" id="opportunitiesPanel" style="display: none;">
+                        <div class="ai-summary-panel-header">
+                            <h3><i class="fas fa-bullseye"></i> Top opportunities — where competitors show up and you don't</h3>
+                        </div>
+                        <div class="ai-summary-opportunities">
+                            <div class="opportunities-column" id="opportunitiesAioColumn" style="display: none;">
+                                <h4>Google AI Overview · keywords you're missing</h4>
+                                <ul id="opportunitiesAioList"></ul>
+                            </div>
+                            <div class="opportunities-column" id="opportunitiesLlmColumn" style="display: none;">
+                                <h4>LLMs · prompts where only competitors are mentioned</h4>
+                                <ul id="opportunitiesLlmList"></ul>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="ai-summary-footer-actions">
                         <button type="button" id="deleteBrandBtn" class="ai-summary-btn-danger-link">
                             <i class="fas fa-unlink"></i> Unlink this brand
@@ -462,6 +495,36 @@
                 </div>
 
                 </main>
+
+                <!-- Modal: compartir acceso de solo lectura (infra project_collaborators) -->
+                <div id="shareModal" class="ai-summary-modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+                    <div class="ai-summary-modal">
+                        <div class="ai-summary-modal-header">
+                            <h3 id="shareModalTitle"><i class="fas fa-user-plus"></i> Share read-only access</h3>
+                            <button type="button" id="shareModalCloseBtn" class="ai-summary-modal-close" aria-label="Close">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="ai-summary-modal-body">
+                            <p class="ai-summary-modal-intro">Invite someone (e.g. your client) to view this brand's summary. They get read-only access: no editing, no unlinking.</p>
+                            <div class="share-invite-row">
+                                <input type="email" id="shareEmailInput" placeholder="client@company.com" maxlength="255">
+                                <button type="button" id="shareSendBtn" class="ai-summary-btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Invite
+                                </button>
+                            </div>
+                            <p id="shareError" class="ai-summary-form-error" style="display: none;"></p>
+                            <div class="share-section">
+                                <h4>People with access</h4>
+                                <ul id="shareMembersList" class="share-list"></ul>
+                            </div>
+                            <div class="share-section">
+                                <h4>Pending invitations</h4>
+                                <ul id="shareInvitationsList" class="share-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </main>

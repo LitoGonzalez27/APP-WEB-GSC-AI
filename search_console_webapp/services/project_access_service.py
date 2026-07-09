@@ -39,6 +39,14 @@ MODULE_CONFIG = {
         "label": "AI Mode Monitoring",
         "path": "/ai-mode-projects/",
     },
+    # Las "marcas" de AI Visibility Summary se comparten con la misma
+    # infraestructura que los proyectos de los demás módulos.
+    "ai_summary": {
+        "table": "ai_brand_links",
+        "label": "AI Visibility Summary",
+        "path": "/ai-summary/",
+        "name_column": "brand_name",
+    },
 }
 
 ALLOWED_ROLES = {"viewer"}
@@ -79,6 +87,7 @@ def get_project_owner(module_name: str, project_id: int) -> Optional[Dict]:
         return None
 
     table = MODULE_CONFIG[module_name]["table"]
+    name_column = MODULE_CONFIG[module_name].get("name_column", "name")
     conn = get_db_connection()
     if not conn:
         return None
@@ -88,7 +97,7 @@ def get_project_owner(module_name: str, project_id: int) -> Optional[Dict]:
         cur = conn.cursor()
         cur.execute(
             f"""
-            SELECT id, user_id, name
+            SELECT id, user_id, {name_column} AS name
             FROM {table}
             WHERE id = %s
             """,

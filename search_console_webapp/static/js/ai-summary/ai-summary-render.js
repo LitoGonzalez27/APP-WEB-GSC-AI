@@ -51,6 +51,7 @@ export async function loadSummary() {
     }
     this.renderBrandIdentity();
     this.renderSummary(data);
+    this.loadScoreHistory();
 }
 
 export function renderBrandIdentity() {
@@ -68,6 +69,71 @@ export function renderBrandIdentity() {
         logo.style.display = 'block';
         logo.onerror = () => { logo.style.display = 'none'; };
     }
+    // Acciones de dueño: compartir y desvincular no aplican a viewers
+    if (this.elements.shareBrandBtn) {
+        this.elements.shareBrandBtn.style.display = brand.is_owner ? 'inline-flex' : 'none';
+    }
+    if (this.elements.deleteBrandBtn) {
+        this.elements.deleteBrandBtn.style.display = brand.is_owner ? 'inline-flex' : 'none';
+    }
+}
+
+export async function loadScoreHistory() {
+    const panel = this.elements.scoreHistoryPanel;
+    if (!panel || !this.currentBrandId) return;
+    try {
+        const data = await this.fetchJson(
+            `${this.apiBase}/brands/${this.currentBrandId}/score-history?months=6`
+        );
+        const history = data.history || [];
+        if (history.length < 2) {
+            panel.style.display = 'none';
+            return;
+        }
+        panel.style.display = 'block';
+        this.renderScoreHistoryChart(history);
+    } catch (error) {
+        console.warn('⚠️ Score history unavailable:', error.message);
+        panel.style.display = 'none';
+    }
+}
+
+export function renderOpportunities(opportunities) {
+    const panel = this.elements.opportunitiesPanel;
+    if (!panel) return;
+    const aio = opportunities?.aio || [];
+    const llm = opportunities?.llm || [];
+
+    if (!aio.length && !llm.length) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = 'block';
+
+    const fillColumn = (columnEl, listEl, items, renderItem) => {
+        if (!columnEl || !listEl) return;
+        columnEl.style.display = items.length ? 'block' : 'none';
+        listEl.innerHTML = items.map(renderItem).join('');
+    };
+
+    fillColumn(this.elements.opportunitiesAioColumn, this.elements.opportunitiesAioList, aio, item => `
+        <li>
+            <strong>"${this.escapeHtml(item.keyword)}"</strong>
+            <span class="opportunity-competitors">cited: ${item.competitors.map(c => this.escapeHtml(c)).join(', ')}</span>
+            <span class="opportunity-meta">missed ${item.times_missed}×</span>
+        </li>
+    `);
+
+    fillColumn(this.elements.opportunitiesLlmColumn, this.elements.opportunitiesLlmList, llm, item => {
+        const prompt = item.prompt.length > 90 ? `${item.prompt.slice(0, 90)}…` : item.prompt;
+        return `
+        <li>
+            <strong>"${this.escapeHtml(prompt)}"</strong>
+            <span class="opportunity-competitors">mentioned: ${item.competitors.map(c => this.escapeHtml(c)).join(', ')}</span>
+            <span class="opportunity-meta">missed ${item.times_missed}×</span>
+        </li>
+    `;
+    });
 }
 
 export function renderSummary(data) {
@@ -76,6 +142,7 @@ export function renderSummary(data) {
     this.renderChannelCards(data.channels || {});
     this.renderTrendChart(data.channels || {});
     this.renderCompetitorsTable(data.competitors_unified || []);
+    this.renderOpportunities(data.opportunities);
 }
 
 export function renderScore(score) {

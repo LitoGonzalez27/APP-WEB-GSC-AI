@@ -800,3 +800,228 @@
   color: var(--ais-text-secondary);
   line-height: 1.55;
 }
+
+/* ---------- Score en las tarjetas de marca ---------- */
+
+.brand-card-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.brand-score-value {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ais-text);
+  box-shadow: inset 0 -0.28em 0 var(--ais-accent);
+}
+
+.brand-score-delta {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.brand-score-delta.delta-up { color: var(--ais-success); }
+.brand-score-delta.delta-down { color: var(--ais-error); }
+.brand-score-delta.delta-flat { color: var(--ais-text-tertiary); }
+
+.brand-score-label {
+  font-size: 0.72rem;
+  color: var(--ais-text-secondary);
+  margin-left: auto;
+}
+
+.brand-card-shared {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--ais-text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ---------- Gráfico del histórico del score ---------- */
+
+.ai-summary-chart-container--short {
+  height: 220px;
+}
+
+/* ---------- Oportunidades ---------- */
+
+.ai-summary-opportunities {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.opportunities-column h4 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ais-text-secondary);
+  margin: 0 0 10px;
+}
+
+.opportunities-column ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.opportunities-column li {
+  padding: 10px 12px;
+  background: var(--ais-bg-subtle);
+  border-radius: var(--ais-radius-sm);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ais-text);
+}
+
+.opportunity-competitors {
+  display: block;
+  color: var(--ais-text-secondary);
+  font-size: 0.8rem;
+}
+
+.opportunity-meta {
+  color: var(--ais-text-tertiary);
+  font-size: 0.75rem;
+}
+
+/* ---------- Modal de compartir ---------- */
+
+.ai-summary-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 20px;
+}
+
+.ai-summary-modal {
+  font-family: var(--ais-font, 'Inter Tight', sans-serif);
+  background: #fff;
+  border-radius: 20px;
+  width: min(480px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.04), 0 20px 50px rgba(15, 23, 42, 0.12);
+}
+
+.ai-summary-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid #EEF2F7;
+}
+
+.ai-summary-modal-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.ai-summary-modal-header h3 i {
+  color: #64748B;
+  margin-right: 6px;
+}
+
+.ai-summary-modal-close {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.ai-summary-modal-close:hover { color: #0F172A; }
+
+.ai-summary-modal-body {
+  padding: 18px 22px 22px;
+}
+
+.ai-summary-modal-intro {
+  color: #64748B;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+.share-invite-row {
+  display: flex;
+  gap: 10px;
+}
+
+.share-invite-row input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.share-section {
+  margin-top: 18px;
+}
+
+.share-section h4 {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748B;
+  margin: 0 0 8px;
+}
+
+.share-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.share-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #F1F5F9;
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.share-role {
+  color: #94A3B8;
+  font-size: 0.75rem;
+  margin-left: 8px;
+}
+
+.share-empty {
+  color: #94A3B8;
+  background: none !important;
+  padding-left: 0 !important;
+}
+
+.share-remove-btn {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.share-remove-btn:hover { color: #E05252; }

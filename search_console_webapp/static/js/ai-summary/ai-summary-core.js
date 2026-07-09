@@ -39,10 +39,15 @@ export class AISummarySystem {
             'createBrandBtn', 'brandFormError',
             'summaryContent', 'summaryLoading',
             'backToBrandsBtn', 'summaryBrandTitle', 'summaryBrandDomain', 'summaryBrandLogo',
-            'daysSelect',
+            'daysSelect', 'downloadPdfBtn', 'shareBrandBtn',
             'scoreValue', 'scoreDelta', 'scoreCoverage',
             'highlightsList', 'channelCards',
             'trendChart', 'competitorsTableBody',
+            'scoreHistoryPanel', 'scoreHistoryChart',
+            'opportunitiesPanel', 'opportunitiesAioColumn', 'opportunitiesAioList',
+            'opportunitiesLlmColumn', 'opportunitiesLlmList',
+            'shareModal', 'shareModalCloseBtn', 'shareEmailInput', 'shareSendBtn',
+            'shareError', 'shareMembersList', 'shareInvitationsList',
             'deleteBrandBtn'
         ];
         ids.forEach(id => {
@@ -78,6 +83,26 @@ export class AISummarySystem {
         this.elements.newBrandBtn?.addEventListener('click', () => this.showSetup());
         this.elements.createBrandBtn?.addEventListener('click', () => this.handleCreateBrand());
         this.elements.deleteBrandBtn?.addEventListener('click', () => this.handleDeleteBrand());
+
+        // Export PDF del resumen actual
+        this.elements.downloadPdfBtn?.addEventListener('click', () => {
+            if (!this.currentBrandId) return;
+            window.open(
+                `${this.apiBase}/brands/${this.currentBrandId}/export/pdf?period=${this.period}`,
+                '_blank'
+            );
+        });
+
+        // Compartir acceso de solo lectura
+        this.elements.shareBrandBtn?.addEventListener('click', () => this.openShareModal());
+        this.elements.shareModalCloseBtn?.addEventListener('click', () => this.closeShareModal());
+        this.elements.shareModal?.addEventListener('click', (e) => {
+            if (e.target === this.elements.shareModal) this.closeShareModal();
+        });
+        this.elements.shareSendBtn?.addEventListener('click', () => this.sendShareInvitation());
+        this.elements.shareEmailInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.sendShareInvitation();
+        });
     }
 
     getCurrentBrand() {

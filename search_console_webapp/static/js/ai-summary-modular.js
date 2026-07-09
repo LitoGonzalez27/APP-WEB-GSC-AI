@@ -13,6 +13,8 @@ import {
     renderBrandsGrid,
     showBrandsList,
     openBrand,
+    loadBrandScores,
+    patchBrandScores,
     populateLinkSelects,
     renderSuggestions,
     confirmSuggestion,
@@ -26,6 +28,8 @@ import {
 import {
     loadSummary,
     renderBrandIdentity,
+    loadScoreHistory,
+    renderOpportunities,
     renderSummary,
     renderScore,
     renderHighlights,
@@ -34,7 +38,22 @@ import {
     renderCompetitorsTable
 } from './ai-summary/ai-summary-render.js';
 
-import { renderTrendChart } from './ai-summary/ai-summary-charts.js';
+import {
+    renderTrendChart,
+    renderScoreHistoryChart
+} from './ai-summary/ai-summary-charts.js';
+
+import {
+    openShareModal,
+    closeShareModal,
+    showShareError,
+    loadShareData,
+    renderShareMembers,
+    renderShareInvitations,
+    sendShareInvitation,
+    revokeShareInvitation,
+    removeShareMember
+} from './ai-summary/ai-summary-share.js';
 
 Object.assign(AISummarySystem.prototype, {
     // Utils
@@ -46,6 +65,8 @@ Object.assign(AISummarySystem.prototype, {
     renderBrandsGrid,
     showBrandsList,
     openBrand,
+    loadBrandScores,
+    patchBrandScores,
     populateLinkSelects,
     renderSuggestions,
     confirmSuggestion,
@@ -58,6 +79,8 @@ Object.assign(AISummarySystem.prototype, {
     // Render
     loadSummary,
     renderBrandIdentity,
+    loadScoreHistory,
+    renderOpportunities,
     renderSummary,
     renderScore,
     renderHighlights,
@@ -66,7 +89,19 @@ Object.assign(AISummarySystem.prototype, {
     renderCompetitorsTable,
 
     // Charts
-    renderTrendChart
+    renderTrendChart,
+    renderScoreHistoryChart,
+
+    // Share (acceso de solo lectura)
+    openShareModal,
+    closeShareModal,
+    showShareError,
+    loadShareData,
+    renderShareMembers,
+    renderShareInvitations,
+    sendShareInvitation,
+    revokeShareInvitation,
+    removeShareMember
 });
 
 window.AISummarySystem = AISummarySystem;
