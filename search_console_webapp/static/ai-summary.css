@@ -318,6 +318,13 @@
   gap: 10px;
 }
 
+/* Altura única para que select y pills queden alineados en línea */
+.detail-bar-actions select.ai-summary-select,
+.detail-bar-actions .ai-summary-back-btn {
+  height: 44px;
+  margin: 0;
+}
+
 /* ---------- Setup / vinculación ---------- */
 
 .ai-summary-setup {
