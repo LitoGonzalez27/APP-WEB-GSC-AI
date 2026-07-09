@@ -38,10 +38,18 @@
 /* ---------- Header (estructura .manual-ai-header compartida) ---------- */
 
 /* Los controles viven en .header-right del header estándar; permitir
-   que envuelvan en pantallas estrechas sin romper la fila del título */
+   que envuelvan en pantallas estrechas sin romper la fila del título.
+   Altura única en selects y botón para que queden alineados en línea. */
 .ai-summary-app .header-right {
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
+}
+
+.ai-summary-app .header-right select.ai-summary-select,
+.ai-summary-app .header-right .ai-summary-btn-secondary {
+  height: 44px;
+  margin: 0;
 }
 
 /* La regla global `select:not(.search-form select) { width: 100% }` de
@@ -88,16 +96,23 @@
   color: #F8FAFC;
 }
 
+/* CTA de vinculación: Bio-Lime para que destaque (petición de Carlos) */
 .ai-summary-btn-secondary {
-  background: var(--ais-bg);
+  background: var(--ais-accent);
   color: var(--ais-text);
-  border-color: var(--ais-border);
+  border-color: transparent;
+  font-weight: 700;
 }
 
-.ai-summary-btn-primary:hover,
-.ai-summary-btn-secondary:hover {
+.ai-summary-btn-primary:hover {
   opacity: 0.88;
   transform: translateY(-1px);
+}
+
+.ai-summary-btn-secondary:hover {
+  background: #c9f39a;
+  transform: translateY(-1px);
+  box-shadow: var(--ais-shadow-sm);
 }
 
 .ai-summary-btn-primary:disabled {
