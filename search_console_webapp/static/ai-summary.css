@@ -142,16 +142,21 @@
   box-shadow: var(--ais-shadow-sm);
 }
 
+.ai-summary-setup-intro {
+  text-align: center;
+}
+
 .ai-summary-setup-intro h2 {
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   margin: 0 0 6px;
+  justify-content: center;
 }
 
 .ai-summary-setup-intro p {
   color: var(--ais-text-secondary);
-  margin: 0 0 20px;
+  margin: 0 auto 24px;
   max-width: 720px;
   line-height: 1.55;
 }
