@@ -31,12 +31,11 @@ export async function loadSummary() {
     this.hideSetup();
     this.showLoading(true);
 
+    let data;
     try {
-        const data = await this.fetchJson(
+        data = await this.fetchJson(
             `${this.apiBase}/brands/${this.currentBrandId}/summary?days=${this.days}`
         );
-        this.currentSummary = data;
-        this.renderSummary(data);
     } catch (error) {
         console.error('❌ Error loading summary:', error);
         this.showLoading(false);
@@ -44,10 +43,14 @@ export async function loadSummary() {
         return;
     }
 
+    // Mostrar el contenedor ANTES de renderizar: Chart.js no pinta los
+    // datasets si el canvas se crea dentro de un contenedor display:none.
     this.showLoading(false);
     if (this.elements.summaryContent) {
         this.elements.summaryContent.style.display = 'block';
     }
+    this.currentSummary = data;
+    this.renderSummary(data);
 }
 
 export function renderSummary(data) {
