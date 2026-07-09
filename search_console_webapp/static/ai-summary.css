@@ -33,60 +33,15 @@
 
   font-family: var(--ais-font);
   color: var(--ais-text);
-  padding: 28px 24px 40px;
-  max-width: 1280px;
-  margin: 0 auto;
 }
 
-/* ---------- Header ---------- */
+/* ---------- Header (estructura .manual-ai-header compartida) ---------- */
 
-.ai-summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
+/* Los controles viven en .header-right del header estándar; permitir
+   que envuelvan en pantallas estrechas sin romper la fila del título */
+.ai-summary-app .header-right {
   flex-wrap: wrap;
-  margin-bottom: 28px;
-}
-
-.ai-summary-header h1 {
-  font-family: var(--ais-font);
-  font-size: 1.7rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin: 0;
-  color: var(--ais-text);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.ai-summary-header h1 i {
-  color: var(--ais-text);
-  font-size: 1.3rem;
-}
-
-/* Subrayado de acento Bio-Lime bajo el título (patrón brandbook) */
-.ai-summary-header h1 span.accent-underline {
-  box-shadow: inset 0 -0.35em 0 var(--ais-accent);
-}
-
-.ai-summary-subtitle {
-  margin: 6px 0 0;
-  color: var(--ais-text-secondary);
-  font-size: 0.95rem;
-}
-
-.ai-summary-subtitle em {
-  font-family: var(--ais-font-serif);
-  font-style: italic;
-}
-
-.ai-summary-header-controls {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .ai-summary-select {
