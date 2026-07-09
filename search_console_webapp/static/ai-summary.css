@@ -1,0 +1,626 @@
+/* ============================================================
+   AI Visibility Summary — Panel unificado de visibilidad IA
+   ESTILO SEGÚN BRANDBOOK CLICANDSEO v1.1:
+   - Inter Tight; Libre Baskerville itálica solo en palabras acento.
+   - Bio-Lime (#d9f9b8) solo como acento (subrayados, dots, o sobre
+     panel oscuro). Nunca fondo pleno ni texto sobre blanco.
+   - Sin gradientes ni glassmorphism. Formas ultra soft (radius 20px
+   en tarjetas, 8px en inputs). Pill solo en botones.
+   - Panel oscuro (#0A0A0B) como énfasis puntual → score hero.
+   ============================================================ */
+
+.ai-summary-app {
+  --ais-text: #0F172A;
+  --ais-text-secondary: #64748B;
+  --ais-text-tertiary: #94A3B8;
+  --ais-bg: #FFFFFF;
+  --ais-bg-subtle: #F1F5F9;
+  --ais-bg-dark: #0A0A0B;
+  --ais-border: #E2E8F0;
+  --ais-border-subtle: #EEF2F7;
+  --ais-accent: #d9f9b8;
+  --ais-accent-subtle: rgba(217, 249, 184, 0.2);
+  --ais-success: #3CB371;
+  --ais-error: #E05252;
+  --ais-radius-sm: 8px;
+  --ais-radius-md: 20px;
+  --ais-radius-full: 9999px;
+  --ais-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.06);
+  --ais-shadow-md: 0 2px 4px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --ais-font: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ais-font-serif: 'Libre Baskerville', 'Georgia', serif;
+  --ais-transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  font-family: var(--ais-font);
+  color: var(--ais-text);
+  padding: 28px 24px 40px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* ---------- Header ---------- */
+
+.ai-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.ai-summary-header h1 {
+  font-family: var(--ais-font);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--ais-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-summary-header h1 i {
+  color: var(--ais-text);
+  font-size: 1.3rem;
+}
+
+/* Subrayado de acento Bio-Lime bajo el título (patrón brandbook) */
+.ai-summary-header h1 span.accent-underline {
+  box-shadow: inset 0 -0.35em 0 var(--ais-accent);
+}
+
+.ai-summary-subtitle {
+  margin: 6px 0 0;
+  color: var(--ais-text-secondary);
+  font-size: 0.95rem;
+}
+
+.ai-summary-subtitle em {
+  font-family: var(--ais-font-serif);
+  font-style: italic;
+}
+
+.ai-summary-header-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ai-summary-select {
+  font-family: var(--ais-font);
+  padding: 9px 14px;
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-sm);
+  background: var(--ais-bg);
+  color: var(--ais-text);
+  font-size: 0.9rem;
+  min-width: 160px;
+  transition: border-color var(--ais-transition);
+}
+
+.ai-summary-select:focus {
+  outline: none;
+  border-color: var(--ais-text-tertiary);
+}
+
+/* Botones: pill (permitido solo en botones) */
+.ai-summary-btn-primary,
+.ai-summary-btn-secondary {
+  font-family: var(--ais-font);
+  font-weight: 600;
+  padding: 9px 20px;
+  border-radius: var(--ais-radius-full);
+  font-size: 0.88rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform var(--ais-transition), opacity var(--ais-transition);
+}
+
+.ai-summary-btn-primary {
+  background: var(--ais-bg-dark);
+  color: #F8FAFC;
+}
+
+.ai-summary-btn-secondary {
+  background: var(--ais-bg);
+  color: var(--ais-text);
+  border-color: var(--ais-border);
+}
+
+.ai-summary-btn-primary:hover,
+.ai-summary-btn-secondary:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.ai-summary-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ai-summary-btn-danger-link {
+  font-family: var(--ais-font);
+  background: none;
+  border: none;
+  color: var(--ais-error);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* ---------- Setup / vinculación ---------- */
+
+.ai-summary-setup {
+  background: var(--ais-bg);
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-md);
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--ais-shadow-sm);
+}
+
+.ai-summary-setup-intro h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+}
+
+.ai-summary-setup-intro p {
+  color: var(--ais-text-secondary);
+  margin: 0 0 20px;
+  max-width: 720px;
+  line-height: 1.55;
+}
+
+.ai-summary-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Sugerencia: fondo blanco + barra de acento Bio-Lime (nunca fondo lime) */
+.ai-summary-suggestion-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--ais-border);
+  border-left: 4px solid var(--ais-accent);
+  background: var(--ais-bg);
+  border-radius: var(--ais-radius-md);
+  flex-wrap: wrap;
+  box-shadow: var(--ais-shadow-sm);
+}
+
+.suggestion-info strong {
+  display: block;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.suggestion-modules {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+/* Sin pills informativos (brandbook): texto plano con separador */
+.suggestion-module-tag {
+  font-size: 0.8rem;
+  color: var(--ais-text-secondary);
+}
+
+.ai-summary-manual-link h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+
+.ai-summary-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.form-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: var(--ais-text-secondary);
+}
+
+.form-field input,
+.form-field select {
+  font-family: var(--ais-font);
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-sm);
+  font-size: 0.9rem;
+  background: var(--ais-bg);
+  color: var(--ais-text);
+  transition: border-color var(--ais-transition);
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: var(--ais-text-tertiary);
+}
+
+.ai-summary-form-error {
+  color: var(--ais-error);
+  font-size: 0.85rem;
+  margin-top: 10px;
+}
+
+/* ---------- Score hero + highlights ---------- */
+
+.ai-summary-score-row {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .ai-summary-score-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Panel oscuro = énfasis puntual (brandbook). Bio-Lime permitido sobre oscuro. */
+.ai-summary-score-card {
+  background: var(--ais-bg-dark);
+  color: #F8FAFC;
+  border-radius: var(--ais-radius-md);
+  padding: 28px;
+  display: flex;
+  align-items: center;
+  box-shadow: var(--ais-shadow-md);
+}
+
+.score-main {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.score-value {
+  font-size: 3.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--ais-accent);
+}
+
+.score-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.score-delta {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+.score-delta.delta-up { color: #8fd9ad; }
+.score-delta.delta-down { color: #eb9a9a; }
+.score-delta.delta-flat { color: #94A3B8; }
+
+.score-coverage {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  margin-top: 7px;
+}
+
+.ai-summary-highlights {
+  background: var(--ais-bg);
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-md);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  justify-content: center;
+  box-shadow: var(--ais-shadow-sm);
+}
+
+.highlight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--ais-text);
+  line-height: 1.45;
+}
+
+.highlight-item i {
+  margin-top: 2px;
+  font-size: 0.85rem;
+}
+
+.highlight-positive i { color: var(--ais-success); }
+.highlight-negative i { color: var(--ais-error); }
+.highlight-neutral i { color: var(--ais-text-secondary); }
+.highlight-info i { color: var(--ais-text-tertiary); }
+
+/* ---------- Tarjetas por canal ---------- */
+
+.ai-summary-channels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.channel-card {
+  background: var(--ais-bg);
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-md);
+  padding: 20px 22px;
+  box-shadow: var(--ais-shadow-sm);
+  transition: box-shadow var(--ais-transition);
+}
+
+.channel-card:hover {
+  box-shadow: var(--ais-shadow-md);
+}
+
+.channel-card.channel-missing {
+  background: var(--ais-bg-subtle);
+  box-shadow: none;
+}
+
+.channel-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.channel-card-header h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.channel-card-header h4 i {
+  color: var(--ais-text-secondary);
+  font-size: 0.85rem;
+}
+
+.channel-card-link {
+  font-size: 0.78rem;
+  color: var(--ais-text-tertiary);
+  text-decoration: none;
+  transition: color var(--ais-transition);
+}
+
+.channel-card-link:hover {
+  color: var(--ais-text);
+}
+
+.channel-metric-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.channel-metric-value {
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ais-text);
+  /* Subrayado de acento Bio-Lime (acento permitido sobre blanco) */
+  box-shadow: inset 0 -0.28em 0 var(--ais-accent);
+}
+
+.channel-metric-label {
+  font-size: 0.78rem;
+  color: var(--ais-text-secondary);
+  margin-top: 6px;
+}
+
+.channel-delta {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.channel-delta.delta-up { color: var(--ais-success); }
+.channel-delta.delta-down { color: var(--ais-error); }
+.channel-delta.delta-flat { color: var(--ais-text-tertiary); }
+
+.channel-secondary-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ais-border-subtle);
+}
+
+.channel-secondary-metric {
+  font-size: 0.78rem;
+  color: var(--ais-text-secondary);
+}
+
+.channel-secondary-metric strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--ais-text);
+  margin-top: 2px;
+}
+
+.channel-missing-text {
+  color: var(--ais-text-tertiary);
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+
+.sentiment-dots {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.sentiment-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.sentiment-dot.positive { background: var(--ais-success); }
+.sentiment-dot.neutral { background: var(--ais-border); }
+.sentiment-dot.negative { background: var(--ais-error); }
+
+/* ---------- Paneles (tendencia, competidores) ---------- */
+
+.ai-summary-panel {
+  background: var(--ais-bg);
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-md);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--ais-shadow-sm);
+}
+
+.ai-summary-panel-header h3 {
+  margin: 0 0 18px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.ai-summary-panel-header h3 i {
+  color: var(--ais-text-secondary);
+  font-size: 0.9rem;
+}
+
+.ai-summary-chart-container {
+  position: relative;
+  height: 320px;
+}
+
+.ai-summary-table-wrapper {
+  overflow-x: auto;
+}
+
+.ai-summary-table {
+  font-family: var(--ais-font);
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.ai-summary-table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--ais-border);
+  color: var(--ais-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-summary-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--ais-border-subtle);
+  color: var(--ais-text);
+}
+
+/* Fila de la marca: tinte de acento sutil (token accent-subtle) */
+.ai-summary-table tr.row-brand {
+  background: var(--ais-accent-subtle);
+  font-weight: 700;
+}
+
+.ai-summary-table .domain-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Marcador "you": texto plano con subrayado de acento (sin pill) */
+.brand-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ais-text);
+  box-shadow: inset 0 -0.4em 0 var(--ais-accent);
+}
+
+.metric-na {
+  color: var(--ais-text-tertiary);
+}
+
+/* ---------- Estados ---------- */
+
+.ai-summary-loading {
+  font-family: var(--ais-font);
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ais-text-secondary);
+  font-size: 1rem;
+}
+
+.ai-summary-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 40px;
+}
+
+/* ---------- Paywall ---------- */
+
+.ai-summary-paywall {
+  display: flex;
+  justify-content: center;
+  padding: 80px 20px;
+}
+
+.ai-summary-paywall-card {
+  font-family: var(--ais-font);
+  text-align: center;
+  max-width: 460px;
+  background: var(--ais-bg);
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-md);
+  padding: 44px 40px;
+  box-shadow: var(--ais-shadow-md);
+}
+
+.ai-summary-paywall-card i {
+  font-size: 1.8rem;
+  color: var(--ais-text-tertiary);
+  margin-bottom: 12px;
+}
+
+.ai-summary-paywall-card p {
+  color: var(--ais-text-secondary);
+  line-height: 1.55;
+}
