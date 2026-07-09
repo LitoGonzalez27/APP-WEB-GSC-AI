@@ -389,6 +389,29 @@ export class ManualAISystem {
         }
         
         this.populateAnalyticsProjectSelect();
+        this.handleOpenProjectFromUrl();
+    }
+
+    /**
+     * Deep link desde AI Visibility Summary: /manual-ai/?open_project=<id>
+     * abre directamente el tab Analytics con ese proyecto seleccionado.
+     */
+    handleOpenProjectFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const openProjectId = Number(params.get('open_project') || 0);
+        if (!openProjectId) return;
+
+        params.delete('open_project');
+        const nextQuery = params.toString();
+        window.history.replaceState({}, '',
+            nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname);
+
+        const select = this.elements.analyticsProjectSelect;
+        if (!select) return;
+        select.value = String(openProjectId);
+        // Si el proyecto no pertenece al usuario, el value no casa con
+        // ninguna option y Analytics carga su selección por defecto.
+        this.switchTab('analytics');
     }
 
     handleInvitationFeedbackFromUrl() {

@@ -12,7 +12,7 @@ export class AISummarySystem {
         this.suggestions = [];
         this.moduleProjects = { manual_ai: [], ai_mode: [], llm: [] };
         this.currentBrandId = null;
-        this.days = 30;
+        this.period = '30';
         this.charts = {};
 
         this.elements = {};
@@ -60,7 +60,7 @@ export class AISummarySystem {
         });
 
         this.elements.daysSelect?.addEventListener('change', () => {
-            this.days = Number(this.elements.daysSelect.value) || 30;
+            this.period = this.elements.daysSelect.value || '30';
             if (this.currentBrandId) {
                 this.loadSummary();
             }

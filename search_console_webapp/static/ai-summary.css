@@ -545,6 +545,14 @@
   gap: 8px;
 }
 
+.ai-summary-table .domain-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
 /* Marcador "you": texto plano con subrayado de acento (sin pill) */
 .brand-badge {
   font-size: 0.7rem;

@@ -9,8 +9,20 @@ init() {
 
         this.handleInvitationFeedbackFromUrl();
 
-        // Load projects
-        this.loadProjects();
+        // Deep link desde AI Visibility Summary: /llm-monitoring?open_project=<id>
+        // abre directamente ese proyecto tras cargar la lista.
+        const params = new URLSearchParams(window.location.search);
+        const openProjectId = Number(params.get('open_project') || 0);
+        if (openProjectId) {
+            params.delete('open_project');
+            const nextQuery = params.toString();
+            window.history.replaceState({}, '',
+                nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname);
+            Promise.resolve(this.loadProjects()).then(() => this.viewProject(openProjectId));
+        } else {
+            // Load projects
+            this.loadProjects();
+        }
 
         // Load plan limits/usage
         this.loadPlanLimits();
