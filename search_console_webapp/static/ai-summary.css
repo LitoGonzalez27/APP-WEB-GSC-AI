@@ -130,6 +130,194 @@
   padding: 4px;
 }
 
+/* ---------- Vista 1: listado de marcas (patrón LLM Visibility Monitor) ---------- */
+
+.ai-summary-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.ai-summary-section-header h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--ais-text);
+}
+
+.ai-summary-brands-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.brand-card {
+  background: var(--ais-bg);
+  border: 1px solid var(--ais-border);
+  border-radius: var(--ais-radius-md);
+  padding: 20px 22px;
+  cursor: pointer;
+  box-shadow: var(--ais-shadow-sm);
+  transition: box-shadow var(--ais-transition), transform var(--ais-transition);
+}
+
+.brand-card:hover,
+.brand-card:focus-visible {
+  box-shadow: var(--ais-shadow-md);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.brand-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.brand-card-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.brand-card-identity h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ais-text);
+}
+
+.brand-card-domain {
+  font-size: 0.82rem;
+  color: var(--ais-text-secondary);
+}
+
+.brand-card-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--ais-border-subtle);
+}
+
+.brand-card-channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--ais-text-tertiary);
+}
+
+.brand-card-channel.linked {
+  color: var(--ais-text);
+}
+
+.brand-card-channel .channel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ais-border);
+}
+
+.brand-card-channel.linked .channel-dot {
+  background: var(--ais-success);
+}
+
+.brand-card-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--ais-border-subtle);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ais-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-card:hover .brand-card-footer {
+  color: var(--ais-text);
+}
+
+/* ---------- Navegación entre vistas ---------- */
+
+.ai-summary-back-btn {
+  font-family: var(--ais-font);
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: var(--ais-radius-full);
+  border: 1.5px solid var(--ais-border);
+  background: var(--ais-bg);
+  color: var(--ais-text);
+  cursor: pointer;
+  transition: transform var(--ais-transition), box-shadow var(--ais-transition);
+}
+
+.ai-summary-back-btn:hover {
+  transform: translateY(-1px);
+  background: var(--ais-bg-subtle);
+  box-shadow: var(--ais-shadow-sm);
+}
+
+.ai-summary-setup .ai-summary-back-btn {
+  margin-bottom: 18px;
+}
+
+/* Barra superior del panel de marca: volver + identidad + periodo */
+.ai-summary-detail-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.detail-brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.detail-brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.detail-brand-identity h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--ais-text);
+}
+
+.detail-brand-domain {
+  font-size: 0.82rem;
+  color: var(--ais-text-secondary);
+}
+
+.detail-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ---------- Setup / vinculación ---------- */
 
 .ai-summary-setup {

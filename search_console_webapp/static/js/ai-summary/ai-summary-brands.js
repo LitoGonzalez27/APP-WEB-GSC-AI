@@ -1,26 +1,34 @@
 /**
  * AI Summary - Brands
- * Carga de marcas, sugerencias de vinculación y CRUD de marcas.
+ * Listado de marcas en tarjetas (mismo patrón que LLM Visibility Monitor),
+ * sugerencias de vinculación y CRUD de marcas.
+ *
+ * Tres vistas excluyentes: brandsView (tarjetas) → summaryContent (panel de
+ * una marca, con "Back to brands") → brandSetupSection (crear/vincular).
  */
 
-export async function loadBrands() {
+const CHANNEL_LINKS = [
+    ['manual_ai_project_id', 'AI Overview'],
+    ['ai_mode_project_id', 'AI Mode'],
+    ['llm_project_id', 'LLMs'],
+];
+
+export async function loadBrands(options = {}) {
     try {
         const data = await this.fetchJson(`${this.apiBase}/brands`);
         this.brands = data.brands || [];
         this.suggestions = data.suggestions || [];
         this.moduleProjects = data.projects || { manual_ai: [], ai_mode: [], llm: [] };
 
-        this.renderBrandSelect();
+        this.renderBrandsGrid();
         this.populateLinkSelects();
         this.renderSuggestions();
 
-        if (this.brands.length > 0) {
-            // Conservar la marca que el usuario estaba viendo (o la recién
-            // creada); solo caer a la primera si ya no existe.
-            const preferred = this.brands.find(b => b.id === this.currentBrandId) || this.brands[0];
-            this.currentBrandId = preferred.id;
-            this.elements.brandSelect.value = String(this.currentBrandId);
-            await this.loadSummary();
+        const openId = options.openBrandId;
+        if (openId && this.brands.some(b => b.id === openId)) {
+            await this.openBrand(openId);
+        } else if (this.brands.length > 0) {
+            this.showBrandsList();
         } else {
             this.currentBrandId = null;
             this.showSetup();
@@ -31,18 +39,96 @@ export async function loadBrands() {
     }
 }
 
-export function renderBrandSelect() {
-    const select = this.elements.brandSelect;
-    if (!select) return;
+// ----------------------------------------------------------------------
+// Vista 1: listado de marcas
+// ----------------------------------------------------------------------
 
-    select.innerHTML = '<option value="">Select a brand...</option>';
-    this.brands.forEach(brand => {
-        const option = document.createElement('option');
-        option.value = String(brand.id);
-        option.textContent = `${brand.brand_name} — ${brand.brand_domain}`;
-        select.appendChild(option);
-    });
+export function renderBrandsGrid() {
+    const grid = this.elements.brandsGrid;
+    if (!grid) return;
+
+    grid.innerHTML = this.brands.map(brand => `
+        <div class="brand-card" data-brand-id="${brand.id}" role="button" tabindex="0"
+             aria-label="Open ${this.escapeHtml(brand.brand_name)} summary">
+            <div class="brand-card-header">
+                <img class="brand-card-logo" src="${this.getDomainLogoUrl(brand.brand_domain)}"
+                     alt="" loading="lazy" onerror="this.style.display='none'">
+                <div class="brand-card-identity">
+                    <h3>${this.escapeHtml(brand.brand_name)}</h3>
+                    <span class="brand-card-domain">${this.escapeHtml(brand.brand_domain)}</span>
+                </div>
+            </div>
+            <div class="brand-card-channels">
+                ${CHANNEL_LINKS.map(([field, label]) => `
+                    <span class="brand-card-channel ${brand[field] ? 'linked' : ''}">
+                        <span class="channel-dot"></span> ${label}
+                    </span>
+                `).join('')}
+            </div>
+            <div class="brand-card-footer">
+                View summary <i class="fas fa-arrow-right"></i>
+            </div>
+        </div>
+    `).join('');
 }
+
+export function showBrandsList() {
+    this.currentBrandId = null;
+    this.showLoading(false);
+    this.hideSetup();
+    if (this.elements.summaryContent) {
+        this.elements.summaryContent.style.display = 'none';
+    }
+    if (this.elements.brandsView) {
+        this.elements.brandsView.style.display = 'block';
+    }
+}
+
+export async function openBrand(brandId) {
+    this.currentBrandId = brandId;
+    if (this.elements.brandsView) {
+        this.elements.brandsView.style.display = 'none';
+    }
+    await this.loadSummary();
+}
+
+// ----------------------------------------------------------------------
+// Vista 2: setup / vinculación
+// ----------------------------------------------------------------------
+
+export function showSetup() {
+    if (this.elements.brandsView) {
+        this.elements.brandsView.style.display = 'none';
+    }
+    if (this.elements.summaryContent) {
+        this.elements.summaryContent.style.display = 'none';
+    }
+    if (this.elements.brandSetupSection) {
+        this.elements.brandSetupSection.style.display = 'block';
+    }
+    // Solo se puede "volver a las marcas" si existen
+    if (this.elements.setupBackBtn) {
+        this.elements.setupBackBtn.style.display = this.brands.length ? 'inline-flex' : 'none';
+    }
+    this.showLoading(false);
+}
+
+export function hideSetup() {
+    if (this.elements.brandSetupSection) {
+        this.elements.brandSetupSection.style.display = 'none';
+    }
+}
+
+export function showFormError(message) {
+    const el = this.elements.brandFormError;
+    if (!el) return;
+    el.textContent = message || '';
+    el.style.display = message ? 'block' : 'none';
+}
+
+// ----------------------------------------------------------------------
+// Formulario y sugerencias
+// ----------------------------------------------------------------------
 
 export function populateLinkSelects() {
     const mapping = [
@@ -123,8 +209,7 @@ export async function confirmSuggestion(suggestion, button) {
             })
         });
         console.log('✅ Brand linked:', data.brand);
-        this.currentBrandId = data.brand?.id || this.currentBrandId;
-        await this.loadBrands();
+        await this.loadBrands({ openBrandId: data.brand?.id });
     } catch (error) {
         console.error('❌ Error confirming suggestion:', error);
         if (button) button.disabled = false;
@@ -164,8 +249,7 @@ export async function handleCreateBrand() {
         });
         this.elements.brandNameInput.value = '';
         this.elements.brandDomainInput.value = '';
-        this.currentBrandId = data.brand?.id || this.currentBrandId;
-        await this.loadBrands();
+        await this.loadBrands({ openBrandId: data.brand?.id });
     } catch (error) {
         console.error('❌ Error creating brand:', error);
         this.showFormError(error.message);
@@ -188,27 +272,4 @@ export async function handleDeleteBrand() {
         console.error('❌ Error deleting brand:', error);
         alert(error.message);
     }
-}
-
-export function showSetup() {
-    if (this.elements.brandSetupSection) {
-        this.elements.brandSetupSection.style.display = 'block';
-    }
-    if (this.elements.summaryContent) {
-        this.elements.summaryContent.style.display = 'none';
-    }
-    this.showLoading(false);
-}
-
-export function hideSetup() {
-    if (this.elements.brandSetupSection) {
-        this.elements.brandSetupSection.style.display = 'none';
-    }
-}
-
-export function showFormError(message) {
-    const el = this.elements.brandFormError;
-    if (!el) return;
-    el.textContent = message || '';
-    el.style.display = message ? 'block' : 'none';
 }

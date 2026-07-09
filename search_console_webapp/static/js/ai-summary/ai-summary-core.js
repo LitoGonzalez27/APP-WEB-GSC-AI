@@ -32,12 +32,14 @@ export class AISummarySystem {
 
     cacheElements() {
         const ids = [
-            'brandSelect', 'daysSelect', 'newBrandBtn',
-            'brandSetupSection', 'suggestionsList',
+            'brandsView', 'brandsGrid', 'newBrandBtn',
+            'brandSetupSection', 'setupBackBtn', 'suggestionsList',
             'brandNameInput', 'brandDomainInput',
             'linkManualAI', 'linkAIMode', 'linkLLM',
             'createBrandBtn', 'brandFormError',
             'summaryContent', 'summaryLoading',
+            'backToBrandsBtn', 'summaryBrandTitle', 'summaryBrandDomain', 'summaryBrandLogo',
+            'daysSelect',
             'scoreValue', 'scoreDelta', 'scoreCoverage',
             'highlightsList', 'channelCards',
             'trendChart', 'competitorsTableBody',
@@ -49,15 +51,22 @@ export class AISummarySystem {
     }
 
     setupEventListeners() {
-        this.elements.brandSelect?.addEventListener('change', () => {
-            const brandId = Number(this.elements.brandSelect.value || 0);
-            this.currentBrandId = brandId || null;
-            if (this.currentBrandId) {
-                this.loadSummary();
-            } else {
-                this.showSetup();
+        // Abrir una marca desde su tarjeta (delegación en el grid)
+        this.elements.brandsGrid?.addEventListener('click', (e) => {
+            const card = e.target.closest('.brand-card');
+            if (card) this.openBrand(Number(card.dataset.brandId));
+        });
+        this.elements.brandsGrid?.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const card = e.target.closest('.brand-card');
+            if (card) {
+                e.preventDefault();
+                this.openBrand(Number(card.dataset.brandId));
             }
         });
+
+        this.elements.backToBrandsBtn?.addEventListener('click', () => this.showBrandsList());
+        this.elements.setupBackBtn?.addEventListener('click', () => this.showBrandsList());
 
         this.elements.daysSelect?.addEventListener('change', () => {
             this.period = this.elements.daysSelect.value || '30';

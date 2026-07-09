@@ -49,7 +49,25 @@ export async function loadSummary() {
     if (this.elements.summaryContent) {
         this.elements.summaryContent.style.display = 'block';
     }
+    this.renderBrandIdentity();
     this.renderSummary(data);
+}
+
+export function renderBrandIdentity() {
+    const brand = this.getCurrentBrand();
+    if (!brand) return;
+    if (this.elements.summaryBrandTitle) {
+        this.elements.summaryBrandTitle.textContent = brand.brand_name;
+    }
+    if (this.elements.summaryBrandDomain) {
+        this.elements.summaryBrandDomain.textContent = brand.brand_domain;
+    }
+    const logo = this.elements.summaryBrandLogo;
+    if (logo) {
+        logo.src = this.getDomainLogoUrl(brand.brand_domain);
+        logo.style.display = 'block';
+        logo.onerror = () => { logo.style.display = 'none'; };
+    }
 }
 
 export function renderSummary(data) {
