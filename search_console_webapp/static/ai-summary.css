@@ -44,10 +44,10 @@
   justify-content: flex-end;
 }
 
-/* select.ai-summary-select iguala la especificidad (0,1,1) de la regla
-   global `select:not(.search-form select) { width: 100% }` de
-   base-y-componentes.css; al cargar esta hoja después, gana width:auto */
-select.ai-summary-select {
+/* La regla global `select:not(.search-form select) { width: 100% }` de
+   base-y-componentes.css tiene especificidad (0,1,2) — el :not() aporta
+   la de su argumento. Este selector (0,2,1) la supera para width:auto */
+.ai-summary-app select.ai-summary-select {
   font-family: var(--ais-font);
   padding: 9px 14px;
   border: 1px solid var(--ais-border);
