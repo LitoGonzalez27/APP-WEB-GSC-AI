@@ -297,30 +297,28 @@
                             </h1>
                             <p class="header-subtitle">How visible is your brand across AI search, in one glance</p>
                         </div>
-                        <div class="header-right">
-                            <select id="brandSelect" class="ai-summary-select" aria-label="Select brand">
-                                <option value="">Select a brand...</option>
-                            </select>
-                            <select id="daysSelect" class="ai-summary-select" aria-label="Select period">
-                                <option value="7">Last 7 days</option>
-                                <option value="14">Last 14 days</option>
-                                <option value="28">Last 28 days</option>
-                                <option value="30" selected>Last 30 days</option>
-                                <option value="last_month">Last full month</option>
-                                <option value="90">Last 3 months</option>
-                                <option value="180">Last 6 months</option>
-                            </select>
-                            <button type="button" id="newBrandBtn" class="ai-summary-btn-secondary" title="Link projects into a new brand">
-                                <i class="fas fa-link"></i> Link brand
-                            </button>
-                        </div>
+                        <div class="header-right"></div>
                     </div>
                 </header>
 
                 <main class="manual-ai-main">
 
-                <!-- Setup / vinculación de marcas -->
+                <!-- Vista 1: listado de marcas (mismo patrón que LLM Visibility Monitor) -->
+                <section id="brandsView" class="ai-summary-brands-view" style="display: none;">
+                    <div class="ai-summary-section-header">
+                        <h2>Your brands</h2>
+                        <button type="button" id="newBrandBtn" class="ai-summary-btn-secondary" title="Link projects into a new brand">
+                            <i class="fas fa-plus"></i> Link new brand
+                        </button>
+                    </div>
+                    <div id="brandsGrid" class="ai-summary-brands-grid"></div>
+                </section>
+
+                <!-- Vista 2: setup / vinculación de marcas -->
                 <section id="brandSetupSection" class="ai-summary-setup" style="display: none;">
+                    <button type="button" id="setupBackBtn" class="ai-summary-back-btn" style="display: none;">
+                        <i class="fas fa-arrow-left"></i> Back to brands
+                    </button>
                     <div class="ai-summary-setup-intro">
                         <h2>Link your AI projects into a brand
                             <span class="cg-info-tooltip">
@@ -373,8 +371,33 @@
                     </div>
                 </section>
 
-                <!-- Contenido del resumen -->
+                <!-- Vista 3: panel de resumen de una marca -->
                 <section id="summaryContent" class="ai-summary-content" style="display: none;">
+
+                    <!-- Barra superior: volver + identidad + periodo -->
+                    <div class="ai-summary-detail-bar">
+                        <button type="button" id="backToBrandsBtn" class="ai-summary-back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to brands
+                        </button>
+                        <div class="detail-brand-identity">
+                            <img id="summaryBrandLogo" class="detail-brand-logo" src="" alt="" style="display: none;">
+                            <div>
+                                <h2 id="summaryBrandTitle"></h2>
+                                <span id="summaryBrandDomain" class="detail-brand-domain"></span>
+                            </div>
+                        </div>
+                        <div class="detail-bar-actions">
+                            <select id="daysSelect" class="ai-summary-select" aria-label="Select period">
+                                <option value="7">Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="28">Last 28 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="last_month">Last full month</option>
+                                <option value="90">Last 3 months</option>
+                                <option value="180">Last 6 months</option>
+                            </select>
+                        </div>
+                    </div>
 
                     <!-- Bloque 1: Score -->
                     <div class="ai-summary-score-row">

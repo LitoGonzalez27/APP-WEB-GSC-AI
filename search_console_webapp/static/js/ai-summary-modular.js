@@ -10,7 +10,9 @@ import { escapeHtml, getDomainLogoUrl } from './manual-ai/manual-ai-utils.js';
 
 import {
     loadBrands,
-    renderBrandSelect,
+    renderBrandsGrid,
+    showBrandsList,
+    openBrand,
     populateLinkSelects,
     renderSuggestions,
     confirmSuggestion,
@@ -23,6 +25,7 @@ import {
 
 import {
     loadSummary,
+    renderBrandIdentity,
     renderSummary,
     renderScore,
     renderHighlights,
@@ -40,7 +43,9 @@ Object.assign(AISummarySystem.prototype, {
 
     // Brands
     loadBrands,
-    renderBrandSelect,
+    renderBrandsGrid,
+    showBrandsList,
+    openBrand,
     populateLinkSelects,
     renderSuggestions,
     confirmSuggestion,
@@ -52,6 +57,7 @@ Object.assign(AISummarySystem.prototype, {
 
     // Render
     loadSummary,
+    renderBrandIdentity,
     renderSummary,
     renderScore,
     renderHighlights,
