@@ -97,7 +97,12 @@
   background: var(--ais-bg);
   color: var(--ais-text);
   font-size: 0.9rem;
+  /* width explícito: estilos globales estiran los select al 100% y
+     apilaban los controles del header en columna */
+  width: auto;
   min-width: 160px;
+  max-width: 280px;
+  flex: 0 0 auto;
   transition: border-color var(--ais-transition);
 }
 

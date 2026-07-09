@@ -50,6 +50,7 @@ export function renderTrendChart(channels) {
                 tension: 0.3,
                 spanGaps: true,
                 fill: false,
+                clip: false,
             };
         });
 

@@ -35,7 +35,7 @@ export function renderBrandSelect() {
     this.brands.forEach(brand => {
         const option = document.createElement('option');
         option.value = String(brand.id);
-        option.textContent = `${brand.brand_name} (${brand.brand_domain})`;
+        option.textContent = `${brand.brand_name} — ${brand.brand_domain}`;
         select.appendChild(option);
     });
 }
