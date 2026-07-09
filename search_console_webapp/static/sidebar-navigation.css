@@ -469,3 +469,14 @@
   background: var(--sidebar-hover-bg);
   color: var(--sidebar-text-active);
 } 
+/* ── Badge "new" para items del sidebar (azul complementario al Bio-Lime) ── */
+.nav-text .nav-badge-new {
+  font-style: italic;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #3b82f6;
+  margin-left: 4px;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  vertical-align: super;
+}
