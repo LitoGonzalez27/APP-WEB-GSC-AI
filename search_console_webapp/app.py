@@ -3839,6 +3839,31 @@ def register_ai_mode_system():
         logger.error(f"❌ Error registering AI Mode Monitoring system: {e}", exc_info=True)
         return False
 
+def register_ai_summary_system():
+    """Register AI Visibility Summary Blueprint safely"""
+    try:
+        logger.info("📊 Intentando importar AI Visibility Summary system...")
+        from ai_summary import ai_summary_bp
+
+        logger.info("📦 Registrando AI Summary blueprint...")
+        app.register_blueprint(ai_summary_bp)
+
+        # Crear tabla ai_brand_links si no existe (idempotente, no toca nada más)
+        try:
+            from create_ai_summary_tables import create_ai_summary_tables
+            create_ai_summary_tables()
+        except Exception as table_err:
+            logger.warning(f"⚠️ AI Summary tables check failed (non-fatal): {table_err}")
+
+        logger.info("✅ AI Visibility Summary system registered successfully")
+        return True
+    except ImportError as e:
+        logger.warning(f"⚠️ AI Visibility Summary system not available: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error registering AI Visibility Summary system: {e}", exc_info=True)
+        return False
+
 def initialize_database_on_startup():
     """Initialize database on application startup"""
     try:
@@ -3860,6 +3885,9 @@ register_manual_ai_system()
 
 # Registrar AI Mode Monitoring System
 register_ai_mode_system()
+
+# Registrar AI Visibility Summary (panel de resumen unificado de IA)
+register_ai_summary_system()
 
 # Registrar endpoint de diagnóstico
 try:

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Visibility Summary - ClicAndSEO</title>
+
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
+    <!-- End Google Tag Manager -->
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+
+    <!-- Reutilizar estilos existentes para consistencia -->
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
+
+    <!-- Tipografías de marca (brandbook clicandseo v1.1) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <!-- CSS específico del panel AI Summary -->
+    <link href="{{ url_for('static', filename='ai-summary.css') }}" rel="stylesheet">
+
+    <!-- CSS para navbar principal -->
+    <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
+
+    <!-- CSS para sidebar navigation -->
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
+
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Paywall Styles -->
+    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
+</head>
+<body data-authenticated="{{ 'true' if user else 'false' }}">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+    <nav class="navbar" id="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" alt="Clicandseo Logo" class="logo-image">
+            </div>
+
+            <div class="navbar-desktop-actions">
+                <div class="navbar-user-dropdown" id="userDropdown" style="display: block;">
+                    <button class="user-dropdown-btn" id="userDropdownBtn" aria-expanded="false">
+                        <div class="user-avatar-small" id="userAvatarSmall">
+                            {% if user.picture %}
+                                <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                            {% else %}
+                                <i class="fas fa-user-circle"></i>
+                            {% endif %}
+                        </div>
+                        <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
+                        <i class="fas fa-chevron-down dropdown-chevron"></i>
+                    </button>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <div class="user-dropdown-header">
+                            <div class="user-avatar-large" id="userAvatarLarge">
+                                {% if user.picture %}
+                                    <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                                {% else %}
+                                    <i class="fas fa-user-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="user-details">
+                                <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
+                                <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profile" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i>
+                            <span>Mi Perfil</span>
+                        </a>
+                        <a href="/dashboard" class="dropdown-item">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
+                            <i class="fas fa-moon" id="dropdownThemeIcon"></i>
+                            <span id="dropdownThemeText">Modo Oscuro</span>
+                        </button>
+                        <div class="dropdown-divider" style="display: none;"></div>
+                        <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="auth-buttons" id="authButtons" style="display: none;">
+                    <button type="button" class="btn-auth btn-login" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Iniciar Sesión</span>
+                    </button>
+
+                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar a modo oscuro" style="display: none;">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+
+            <div class="navbar-mobile-menu" id="navbarMenu">
+                <div class="mobile-menu-header">
+                    <div class="mobile-brand">
+                        <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" alt="Clicandseo Logo" class="logo-image">
+                        <span>Clicandseo</span>
+                    </div>
+                    <button class="mobile-menu-close" id="mobileMenuClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="mobile-menu-content">
+                    <div class="mobile-user-section">
+                        <div class="mobile-user-info" id="mobileUserInfo" style="display: flex;">
+                            <div class="mobile-user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="mobile-user-details">
+                                <span class="mobile-user-name" id="mobileUserName">{{ user.name or user.email }}</span>
+                                <span class="mobile-user-email" id="mobileUserEmail">{{ user.email }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mobile-auth-section">
+                        <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn" style="display: none;">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Iniciar Sesión con Google</span>
+                        </button>
+
+                        <button type="button" class="mobile-btn mobile-btn-logout" id="mobileLogoutBtn" style="display: flex;">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="navbar-overlay" id="navbarOverlay"></div>
+    </nav>
+
+    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
+
+    <div class="app-layout">
+        <aside class="sidebar-container" id="sidebarContainer">
+            <div class="sidebar-header">
+            </div>
+
+            <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
+                <div class="nav-section nav-section-analysis">
+                    <div class="nav-section-title">Análisis</div>
+
+                    <button type="button" class="nav-item active" id="navAISummary">
+                        <div class="nav-icon">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="nav-text">AI Visibility Summary</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusAISummary"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
+                        <div class="nav-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div class="nav-text">AI Overview Monitoring</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusManualAI"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
+                        <div class="nav-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="nav-text">AI Mode Monitoring</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusAIMode"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item" id="navLLMMonitoring" onclick="openLLMMonitoring()">
+                        <div class="nav-icon">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="nav-text">LLM Visibility Monitor</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusLLMMonitoring"></div>
+                        </div>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content-area">
+            <div class="ai-summary-app">
+                {% if access_blocked %}
+                <div class="ai-summary-paywall">
+                    <div class="ai-summary-paywall-card">
+                        <i class="fas fa-lock"></i>
+                        <h2>AI Visibility Summary</h2>
+                        <p>This panel aggregates your AI Overview, AI Mode and LLM visibility in one place. Upgrade your plan to unlock it.</p>
+                        <a href="/billing" class="btn-primary">View plans</a>
+                    </div>
+                </div>
+                {% else %}
+
+                <!-- Header -->
+                <header class="ai-summary-header">
+                    <div class="ai-summary-header-left">
+                        <h1><i class="fas fa-chart-pie"></i> AI Visibility <span class="accent-underline">Summary</span></h1>
+                        <p class="ai-summary-subtitle">How visible is your brand across AI search, <em>in one glance</em></p>
+                    </div>
+                    <div class="ai-summary-header-controls">
+                        <select id="brandSelect" class="ai-summary-select" aria-label="Select brand">
+                            <option value="">Select a brand...</option>
+                        </select>
+                        <select id="daysSelect" class="ai-summary-select" aria-label="Select period">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <button type="button" id="newBrandBtn" class="ai-summary-btn-secondary" title="Link projects into a new brand">
+                            <i class="fas fa-link"></i> Link brand
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Setup / vinculación de marcas -->
+                <section id="brandSetupSection" class="ai-summary-setup" style="display: none;">
+                    <div class="ai-summary-setup-intro">
+                        <h2><i class="fas fa-link"></i> Link your AI projects into a brand</h2>
+                        <p>A brand groups your AI Overview, AI Mode and LLM Monitoring projects so we can build a unified visibility summary. You don't need all three — the score adapts to the channels you monitor.</p>
+                    </div>
+
+                    <div id="suggestionsList" class="ai-summary-suggestions"></div>
+
+                    <div class="ai-summary-manual-link">
+                        <h3>Or link manually</h3>
+                        <div class="ai-summary-form-grid">
+                            <div class="form-field">
+                                <label for="brandNameInput">Brand name</label>
+                                <input type="text" id="brandNameInput" placeholder="e.g. Láserum" maxlength="255">
+                            </div>
+                            <div class="form-field">
+                                <label for="brandDomainInput">Brand domain</label>
+                                <input type="text" id="brandDomainInput" placeholder="e.g. laserum.com" maxlength="255">
+                            </div>
+                            <div class="form-field">
+                                <label for="linkManualAI">AI Overview project</label>
+                                <select id="linkManualAI"><option value="">— Not monitored —</option></select>
+                            </div>
+                            <div class="form-field">
+                                <label for="linkAIMode">AI Mode project</label>
+                                <select id="linkAIMode"><option value="">— Not monitored —</option></select>
+                            </div>
+                            <div class="form-field">
+                                <label for="linkLLM">LLM Monitoring project</label>
+                                <select id="linkLLM"><option value="">— Not monitored —</option></select>
+                            </div>
+                            <div class="form-field form-field-action">
+                                <button type="button" id="createBrandBtn" class="ai-summary-btn-primary">
+                                    <i class="fas fa-plus"></i> Create brand
+                                </button>
+                            </div>
+                        </div>
+                        <p id="brandFormError" class="ai-summary-form-error" style="display: none;"></p>
+                    </div>
+                </section>
+
+                <!-- Contenido del resumen -->
+                <section id="summaryContent" class="ai-summary-content" style="display: none;">
+
+                    <!-- Bloque 1: Score -->
+                    <div class="ai-summary-score-row">
+                        <div class="ai-summary-score-card" id="scoreCard">
+                            <div class="score-main">
+                                <div class="score-value" id="scoreValue">–</div>
+                                <div class="score-meta">
+                                    <div class="score-title">AI Visibility Score</div>
+                                    <div class="score-delta" id="scoreDelta"></div>
+                                    <div class="score-coverage" id="scoreCoverage"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ai-summary-highlights" id="highlightsList"></div>
+                    </div>
+
+                    <!-- Bloque 2: Tarjetas por canal -->
+                    <div class="ai-summary-channels" id="channelCards"></div>
+
+                    <!-- Bloque 3: Tendencia -->
+                    <div class="ai-summary-panel">
+                        <div class="ai-summary-panel-header">
+                            <h3><i class="fas fa-chart-line"></i> Visibility trend by channel</h3>
+                        </div>
+                        <div class="ai-summary-chart-container">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Bloque 4: Competidores -->
+                    <div class="ai-summary-panel">
+                        <div class="ai-summary-panel-header">
+                            <h3><i class="fas fa-trophy"></i> Who owns AI visibility in your market</h3>
+                        </div>
+                        <div class="ai-summary-table-wrapper">
+                            <table class="ai-summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Domain</th>
+                                        <th>AI Overview</th>
+                                        <th>AI Mode</th>
+                                        <th>LLMs (SoV)</th>
+                                        <th>Avg</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="competitorsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="ai-summary-footer-actions">
+                        <button type="button" id="deleteBrandBtn" class="ai-summary-btn-danger-link">
+                            <i class="fas fa-unlink"></i> Unlink this brand
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Estado vacío / cargando -->
+                <div id="summaryLoading" class="ai-summary-loading" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Building your AI visibility summary...
+                </div>
+
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ai-summary-modular.js') }}"></script>
+    <script>
+        window.DISABLE_SIDEBAR_NAVIGATION = true;
+
+        window.currentUser = {
+            email: '{{ user.email }}',
+            plan: '{{ user.plan }}',
+            role: '{{ user.role }}'
+        };
+
+        window.initAISummaryComponents = function() {
+            if (typeof Navbar !== 'undefined') {
+                window.navbar = new Navbar();
+            }
+        };
+
+        function openManualAI() {
+            window.location.href = '/manual-ai/';
+        }
+        function openAIMode() {
+            window.location.href = '/ai-mode-projects/';
+        }
+        function openLLMMonitoring() {
+            window.location.href = '/llm-monitoring';
+        }
+    </script>
+</body>
+</html>
