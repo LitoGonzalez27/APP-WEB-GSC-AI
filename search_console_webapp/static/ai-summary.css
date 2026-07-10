@@ -1183,3 +1183,62 @@
 .ai-summary-score-card .score-how .cg-info-tooltip-content {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
+
+/* ---------- Ponderaciones personalizadas (modal de edición) ---------- */
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0F172A;
+  cursor: pointer;
+}
+
+.form-hint {
+  font-size: 0.78rem;
+  color: #94A3B8;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
+.edit-weights-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 12px;
+  padding: 12px;
+  background: #F1F5F9;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.weight-field label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748B;
+  margin-bottom: 3px;
+}
+
+.weight-field input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  background: #fff;
+}
+
+.edit-weights-sum {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #3CB371;
+  text-align: right;
+}
+
+.edit-weights-sum.invalid {
+  color: #E05252;
+}

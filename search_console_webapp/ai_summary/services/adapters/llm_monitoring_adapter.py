@@ -87,6 +87,9 @@ def get_channel_summary(project_id: int, period: str = '30') -> Dict:
             'sov_delta': delta(sov, _weighted_rate(previous, 'share_of_voice')),
             'sentiment': _sentiment_distribution(current),
             'by_llm': _by_llm(current),
+            # Ventana anterior por proveedor: necesaria para calcular el
+            # delta del score cuando la marca pondera LLMs individualmente
+            'by_llm_previous': _by_llm(previous) if previous else {},
         },
     })
     return summary

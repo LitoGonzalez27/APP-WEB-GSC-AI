@@ -27,6 +27,37 @@ MODULE_LINK_FIELDS = {
     'llm': 'llm_project_id',
 }
 
+WEIGHTS_SUM_TOLERANCE = 0.5
+
+
+def _validated_score_weights(raw):
+    """
+    Validar las ponderaciones personalizadas: dict plano con claves de
+    WEIGHT_COMPONENTS, valores numéricos 0-100 que suman 100 (±0.5).
+    Devuelve (weights|None, error_response|None). None = usar defaults.
+    """
+    from ai_summary.services.summary_service import WEIGHT_COMPONENTS
+
+    if raw is None:
+        return None, None
+    if not isinstance(raw, dict) or not raw:
+        return None, (jsonify({'success': False, 'error': 'score_weights must be an object or null'}), 400)
+
+    weights = {}
+    for key, value in raw.items():
+        if key not in WEIGHT_COMPONENTS:
+            return None, (jsonify({'success': False, 'error': f'Unknown weight component: {key}'}), 400)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0 or value > 100:
+            return None, (jsonify({'success': False, 'error': f'Weight for {key} must be between 0 and 100'}), 400)
+        weights[key] = round(float(value), 1)
+
+    total = sum(weights.values())
+    if abs(total - 100) > WEIGHTS_SUM_TOLERANCE:
+        return None, (jsonify({'success': False, 'error': f'Weights must sum 100 (got {total:g})'}), 400)
+    if not any(weights.values()):
+        return None, (jsonify({'success': False, 'error': 'At least one weight must be greater than 0'}), 400)
+    return weights, None
+
 
 def _check_access(user):
     """
@@ -193,6 +224,12 @@ def update_brand(brand_id):
             if not BrandLinkRepository.verify_project_ownership(user['id'], module, project_id):
                 return jsonify({'success': False, 'error': f'Invalid {field}'}), 403
         updates[field] = project_id
+
+    if 'score_weights' in data:
+        weights, error = _validated_score_weights(data['score_weights'])
+        if error:
+            return error
+        updates['score_weights'] = weights
 
     if not updates:
         return jsonify({'success': False, 'error': 'Nothing to update'}), 400

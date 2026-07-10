@@ -418,7 +418,7 @@
                                         <em>How we measure this</em>
                                         <span class="cg-info-tooltip-content">
                                             <strong>The formula</strong>
-                                            A weighted average of the channels linked to this brand: AI Overview visibility (weight 40%), AI Mode visibility (20%) and LLM mention rate (40%). Weights are re-scaled to the channels you actually monitor, so an unmonitored channel never lowers the score.
+                                            A weighted average of the channels linked to this brand: AI Overview visibility (weight 40%), AI Mode visibility (20%) and LLM mention rate (40%). Weights are re-scaled to the channels you actually monitor, so an unmonitored channel never lowers the score. If you set custom weights for this brand (Edit brand), those replace the default split — including per-LLM weighting.
                                             <strong>The data behind it</strong>
                                             Each channel metric is the average of its daily analysis snapshots over the selected period. The delta compares it against the previous period of the same length.
                                             <strong>Honest caveat</strong>
@@ -539,6 +539,42 @@
                                 <label for="editLinkLLM">LLM Monitoring project</label>
                                 <select id="editLinkLLM"><option value="">— Not monitored —</option></select>
                             </div>
+
+                            <div class="form-field edit-weights-toggle">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="editCustomWeightsToggle">
+                                    Custom score weights
+                                </label>
+                                <p class="form-hint">Decide how much each channel matters for this brand's score (must sum 100). Components without data are re-scaled automatically and never lower the score.</p>
+                            </div>
+                            <div id="editWeightsGrid" class="edit-weights-grid" style="display: none;">
+                                <div class="weight-field">
+                                    <label>AI Overview</label>
+                                    <input type="number" min="0" max="100" step="5" data-weight-key="ai_overview">
+                                </div>
+                                <div class="weight-field">
+                                    <label>AI Mode</label>
+                                    <input type="number" min="0" max="100" step="5" data-weight-key="ai_mode">
+                                </div>
+                                <div class="weight-field">
+                                    <label>ChatGPT</label>
+                                    <input type="number" min="0" max="100" step="5" data-weight-key="llm:openai">
+                                </div>
+                                <div class="weight-field">
+                                    <label>Claude</label>
+                                    <input type="number" min="0" max="100" step="5" data-weight-key="llm:anthropic">
+                                </div>
+                                <div class="weight-field">
+                                    <label>Gemini</label>
+                                    <input type="number" min="0" max="100" step="5" data-weight-key="llm:google">
+                                </div>
+                                <div class="weight-field">
+                                    <label>Perplexity</label>
+                                    <input type="number" min="0" max="100" step="5" data-weight-key="llm:perplexity">
+                                </div>
+                                <div id="editWeightsSum" class="edit-weights-sum">Total: 100</div>
+                            </div>
+
                             <p id="editBrandError" class="ai-summary-form-error" style="display: none;"></p>
                             <div class="ai-summary-modal-actions">
                                 <button type="button" id="editBrandSaveBtn" class="ai-summary-btn-primary">

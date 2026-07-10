@@ -32,6 +32,14 @@ CHANNEL_WEIGHTS = {
     'llm': 0.4,
 }
 
+# Componentes admitidos en las ponderaciones personalizadas por marca
+# (score_weights JSONB): plano, en porcentajes que suman 100. Los LLMs se
+# ponderan individualmente por su mention rate.
+WEIGHT_COMPONENTS = (
+    'ai_overview', 'ai_mode',
+    'llm:openai', 'llm:anthropic', 'llm:google', 'llm:perplexity',
+)
+
 CHANNEL_ADAPTERS = {
     'ai_overview': ('manual_ai_project_id', manual_ai_adapter),
     'ai_mode': ('ai_mode_project_id', ai_mode_adapter),
@@ -87,7 +95,7 @@ class SummaryService:
                 channels[channel] = future.result()
             opportunities = opportunities_future.result()
 
-        score = _composite_score(channels)
+        score = _composite_score(channels, brand.get('score_weights'))
         return {
             'brand': brand,
             'period': period,
@@ -114,7 +122,8 @@ def snapshot_all_brands() -> Dict:
         cur = conn.cursor()
         cur.execute("""
             SELECT id, user_id, brand_name, brand_domain,
-                   manual_ai_project_id, ai_mode_project_id, llm_project_id
+                   manual_ai_project_id, ai_mode_project_id, llm_project_id,
+                   score_weights
             FROM ai_brand_links
             ORDER BY id
         """)
@@ -137,7 +146,10 @@ def snapshot_all_brands() -> Dict:
 # Score compuesto
 # ----------------------------------------------------------------------
 
-def _composite_score(channels: Dict) -> Dict:
+def _composite_score(channels: Dict, custom_weights: Dict = None) -> Dict:
+    if custom_weights:
+        return _composite_score_custom(channels, custom_weights)
+
     used = {
         name: ch for name, ch in channels.items()
         if ch['available'] and ch['visibility_pct'] is not None
@@ -146,7 +158,7 @@ def _composite_score(channels: Dict) -> Dict:
 
     if not used:
         return {
-            'value': None, 'previous': None, 'delta': None,
+            'value': None, 'previous': None, 'delta': None, 'custom': False,
             'channels_used': [], 'channels_missing': missing, 'weights': {},
         }
 
@@ -168,8 +180,77 @@ def _composite_score(channels: Dict) -> Dict:
         'value': round(value, 1),
         'previous': round(previous, 1) if previous is not None else None,
         'delta': round(value - previous, 1) if previous is not None else None,
+        'custom': False,
         'channels_used': list(used.keys()),
         'channels_missing': missing,
+        'weights': weights,
+    }
+
+
+def _component_metrics(channels: Dict) -> Dict:
+    """
+    Valor actual y anterior de cada componente ponderable:
+    canales por su visibilidad; LLMs individuales por su mention rate.
+    Devuelve {component: (value, previous|None)} solo para los que tienen dato.
+    """
+    metrics = {}
+    for name in ('ai_overview', 'ai_mode'):
+        ch = channels.get(name) or {}
+        if ch.get('available') and ch.get('visibility_pct') is not None:
+            previous = (ch['visibility_pct'] - ch['visibility_delta']
+                        if ch.get('visibility_delta') is not None else None)
+            metrics[name] = (ch['visibility_pct'], previous)
+
+    llm = channels.get('llm') or {}
+    if llm.get('available'):
+        by_llm = (llm.get('extras') or {}).get('by_llm') or {}
+        by_llm_prev = (llm.get('extras') or {}).get('by_llm_previous') or {}
+        for provider, data in by_llm.items():
+            if data.get('mention_rate') is None:
+                continue
+            prev = (by_llm_prev.get(provider) or {}).get('mention_rate')
+            metrics[f'llm:{provider}'] = (data['mention_rate'], prev)
+    return metrics
+
+
+def _composite_score_custom(channels: Dict, raw_weights: Dict) -> Dict:
+    """
+    Score con ponderaciones por marca: componentes planos que suman 100.
+    La regla de siempre se mantiene: los componentes sin datos (canal no
+    vinculado, LLM no habilitado...) se excluyen y el resto se renormaliza,
+    nunca penalizan.
+    """
+    metrics = _component_metrics(channels)
+    used = {
+        component: float(weight)
+        for component, weight in raw_weights.items()
+        if component in WEIGHT_COMPONENTS and float(weight) > 0 and component in metrics
+    }
+
+    channels_used = sorted({c.split(':')[0] for c in used})
+    channels_missing = [name for name in CHANNEL_WEIGHTS if name not in channels_used]
+
+    if not used:
+        return {
+            'value': None, 'previous': None, 'delta': None, 'custom': True,
+            'channels_used': [], 'channels_missing': channels_missing, 'weights': {},
+        }
+
+    total = sum(used.values())
+    weights = {component: round(weight / total, 3) for component, weight in used.items()}
+
+    value = sum(metrics[c][0] * weights[c] for c in used)
+    previous = None
+    if all(metrics[c][1] is not None for c in used):
+        previous = sum(metrics[c][1] * weights[c] for c in used)
+
+    return {
+        'value': round(value, 1),
+        'previous': round(previous, 1) if previous is not None else None,
+        'delta': round(value - previous, 1) if previous is not None else None,
+        'custom': True,
+        'channels_used': channels_used,
+        'channels_missing': channels_missing,
         'weights': weights,
     }
 
