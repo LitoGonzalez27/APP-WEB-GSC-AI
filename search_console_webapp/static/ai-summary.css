@@ -1032,3 +1032,58 @@
 }
 
 .share-remove-btn:hover { color: #E05252; }
+
+/* ---------- Edición de marca ---------- */
+
+.detail-edit-btn {
+  background: none;
+  border: none;
+  color: var(--ais-text-tertiary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: var(--ais-radius-sm);
+  transition: color var(--ais-transition), background var(--ais-transition);
+}
+
+.detail-edit-btn:hover {
+  color: var(--ais-text);
+  background: var(--ais-bg-subtle);
+}
+
+.ai-summary-modal-body .form-field {
+  margin-bottom: 12px;
+}
+
+.ai-summary-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ---------- Quick-link de canal ---------- */
+
+.channel-missing-action {
+  margin-top: 10px;
+}
+
+.channel-quick-link {
+  font-family: var(--ais-font);
+  font-weight: 700;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: var(--ais-radius-full);
+  border: 1px solid transparent;
+  background: var(--ais-accent);
+  color: var(--ais-text);
+  cursor: pointer;
+  transition: transform var(--ais-transition), background var(--ais-transition);
+}
+
+.channel-quick-link:hover {
+  background: #c9f39a;
+  transform: translateY(-1px);
+}
