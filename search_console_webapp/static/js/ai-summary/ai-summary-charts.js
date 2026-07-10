@@ -16,6 +16,72 @@ const CHANNEL_LABELS = {
     llm: 'LLMs (mention rate)',
 };
 
+/**
+ * Tooltip externo enriquecido (mismo componente visual que las gráficas de
+ * LLM Monitoring): tarjeta oscura con título en mayúsculas y filas con dot
+ * de color por dataset. Chart.js lo invoca con enabled:false + external.
+ */
+export function renderRichChartTooltip(context) {
+    let tooltipEl = document.getElementById('ais-chart-tooltip');
+    if (!tooltipEl) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.id = 'ais-chart-tooltip';
+        tooltipEl.className = 'ais-chart-tooltip';
+        document.body.appendChild(tooltipEl);
+    }
+
+    const tooltipModel = context.tooltip;
+    if (tooltipModel.opacity === 0) {
+        tooltipEl.classList.remove('active');
+        return;
+    }
+
+    if (tooltipModel.body) {
+        const dataIndex = tooltipModel.dataPoints[0].dataIndex;
+        const chart = context.chart;
+        const titleText = tooltipModel.title[0] || '';
+        // El histórico del score va en puntos (0-100); el resto, en %
+        const suffix = chart.canvas.id === 'scoreHistoryChart' ? '' : '%';
+
+        let rows = '';
+        chart.data.datasets.forEach((ds, i) => {
+            const meta = chart.getDatasetMeta(i);
+            if (meta.hidden) return;
+            const value = ds.data[dataIndex];
+            if (value === null || value === undefined) return;
+            const color = ds.borderColor || ds.backgroundColor || '#888';
+            rows += `<div class="ais-chart-tooltip__row">
+                <span class="ais-chart-tooltip__dot" style="background:${color}"></span>
+                <span class="ais-chart-tooltip__label">${this.escapeHtml(ds.label)}</span>
+                <span class="ais-chart-tooltip__value">${Number(value).toFixed(1)}${suffix}</span>
+            </div>`;
+        });
+
+        tooltipEl.innerHTML = `<div class="ais-chart-tooltip__title">${this.escapeHtml(titleText)}</div>${rows}`;
+    }
+
+    // Posicionamiento con flip en bordes (mismo comportamiento que LLM)
+    const position = context.chart.canvas.getBoundingClientRect();
+    const tooltipWidth = tooltipEl.offsetWidth || 200;
+    const tooltipHeight = tooltipEl.offsetHeight || 100;
+    const caretAbsX = position.left + window.scrollX + tooltipModel.caretX;
+    const caretAbsY = position.top + window.scrollY + tooltipModel.caretY;
+    const viewportRight = window.innerWidth + window.scrollX;
+    const viewportBottom = window.innerHeight + window.scrollY;
+
+    let leftPos = caretAbsX + 12;
+    if (leftPos + tooltipWidth > viewportRight - 16) {
+        leftPos = caretAbsX - tooltipWidth - 12;
+    }
+    let topPos = caretAbsY - 10;
+    if (topPos + tooltipHeight > viewportBottom - 16) {
+        topPos = caretAbsY - tooltipHeight + 10;
+    }
+    tooltipEl.style.left = Math.max(8, leftPos) + 'px';
+    tooltipEl.style.top = Math.max(8, topPos) + 'px';
+    tooltipEl.classList.add('active');
+}
+
 export function renderScoreHistoryChart(history) {
     const canvas = this.elements.scoreHistoryChart;
     if (!canvas || typeof Chart === 'undefined') return;
@@ -45,12 +111,12 @@ export function renderScoreHistoryChart(history) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    callbacks: {
-                        label: ctx => `Score: ${ctx.parsed.y.toFixed(1)}`
-                    }
+                    enabled: false,
+                    external: (context) => this.renderRichChartTooltip(context)
                 }
             },
             scales: {
@@ -119,9 +185,8 @@ export function renderTrendChart(channels) {
                     labels: { usePointStyle: true, boxWidth: 8, padding: 16 }
                 },
                 tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + '%' : 'n/a'}`
-                    }
+                    enabled: false,
+                    external: (context) => this.renderRichChartTooltip(context)
                 }
             },
             scales: {

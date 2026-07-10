@@ -47,7 +47,8 @@ import {
 
 import {
     renderTrendChart,
-    renderScoreHistoryChart
+    renderScoreHistoryChart,
+    renderRichChartTooltip
 } from './ai-summary/ai-summary-charts.js';
 
 import {
@@ -105,6 +106,7 @@ Object.assign(AISummarySystem.prototype, {
     // Charts
     renderTrendChart,
     renderScoreHistoryChart,
+    renderRichChartTooltip,
 
     // Share (acceso de solo lectura)
     openShareModal,
