@@ -82,6 +82,20 @@ def create_ai_summary_tables():
         """)
         logger.info("✅ Tabla ai_brand_score_snapshots creada")
 
+        # Las marcas se comparten con la infraestructura común de
+        # colaboradores: ampliar el CHECK de module_name para admitir
+        # 'ai_summary' en entornos donde las tablas ya existían con la
+        # lista original de 3 módulos. Idempotente (DROP IF EXISTS + ADD).
+        cur.execute("SELECT to_regclass('project_collaborators'), to_regclass('project_invitations')")
+        if all(cur.fetchone()):
+            for table in ('project_collaborators', 'project_invitations'):
+                cur.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {table}_module_name_check")
+                cur.execute(f"""
+                    ALTER TABLE {table} ADD CONSTRAINT {table}_module_name_check
+                    CHECK (module_name IN ('llm_monitoring', 'manual_ai', 'ai_mode', 'ai_summary'))
+                """)
+            logger.info("✅ CHECK de module_name ampliado con 'ai_summary'")
+
         # Migraciones idempotentes para entornos donde la tabla ya existía
         # con el esquema inicial (2026-07-09):
         # 1. El CHECK "al menos un módulo" rompía el borrado de proyectos en

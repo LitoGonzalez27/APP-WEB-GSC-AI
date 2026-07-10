@@ -31,7 +31,7 @@ def run_migration() -> bool:
             """
             CREATE TABLE IF NOT EXISTS project_collaborators (
                 id SERIAL PRIMARY KEY,
-                module_name VARCHAR(32) NOT NULL CHECK (module_name IN ('llm_monitoring', 'manual_ai', 'ai_mode')),
+                module_name VARCHAR(32) NOT NULL CHECK (module_name IN ('llm_monitoring', 'manual_ai', 'ai_mode', 'ai_summary')),
                 project_id INTEGER NOT NULL,
                 owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -49,7 +49,7 @@ def run_migration() -> bool:
             """
             CREATE TABLE IF NOT EXISTS project_invitations (
                 id SERIAL PRIMARY KEY,
-                module_name VARCHAR(32) NOT NULL CHECK (module_name IN ('llm_monitoring', 'manual_ai', 'ai_mode')),
+                module_name VARCHAR(32) NOT NULL CHECK (module_name IN ('llm_monitoring', 'manual_ai', 'ai_mode', 'ai_summary')),
                 project_id INTEGER NOT NULL,
                 owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 inviter_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

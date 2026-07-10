@@ -66,10 +66,13 @@ def _token_hash(token: str) -> str:
 def _is_missing_table_error(exc: Exception) -> bool:
     if isinstance(exc, psycopg2.errors.UndefinedTable):
         return True
+    # Solo tratar como "tabla ausente" los errores que realmente lo dicen:
+    # un CheckViolation u otro error también menciona el nombre de la tabla
+    # y antes se clasificaba mal (mensaje "not initialized" engañoso).
     message = str(exc).lower()
     return (
-        "project_collaborators" in message
-        or "project_invitations" in message
+        ("project_collaborators" in message or "project_invitations" in message)
+        and "does not exist" in message
     )
 
 
