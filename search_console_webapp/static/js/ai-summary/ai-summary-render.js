@@ -136,8 +136,45 @@ export function renderOpportunities(opportunities) {
     });
 }
 
+const WEIGHT_LABELS = {
+    ai_overview: 'AI Overview',
+    ai_mode: 'AI Mode',
+    'llm:openai': 'ChatGPT',
+    'llm:anthropic': 'Claude',
+    'llm:google': 'Gemini',
+    'llm:perplexity': 'Perplexity',
+};
+
+export function renderScoreHowTooltip() {
+    const el = this.elements.scoreHowContent;
+    if (!el) return;
+
+    const custom = this.getCurrentBrand()?.score_weights || null;
+    let formula;
+    if (custom) {
+        const parts = Object.entries(custom)
+            .filter(([, weight]) => Number(weight) > 0)
+            .map(([key, weight]) => `${WEIGHT_LABELS[key] || this.escapeHtml(key)} ${this.escapeHtml(String(weight))}%`)
+            .join(' · ');
+        formula = `
+            <strong>The formula (custom weights)</strong>
+            You set the weights for this brand: ${parts}. Components without data are re-scaled proportionally and never lower the score. You can change or reset them anytime from Edit brand (pencil icon).`;
+    } else {
+        formula = `
+            <strong>The formula</strong>
+            A weighted average of the channels linked to this brand: AI Overview visibility (weight 40%), AI Mode visibility (20%) and LLM mention rate (40%). Weights are re-scaled to the channels you actually monitor, so an unmonitored channel never lowers the score. Tip: you can customize these weights per brand — even per individual LLM — from Edit brand (pencil icon).`;
+    }
+
+    el.innerHTML = `${formula}
+        <strong>The data behind it</strong>
+        Each channel metric is the average of its daily analysis snapshots over the selected period. The delta compares it against the previous period of the same length.
+        <strong>Honest caveat</strong>
+        The channels measure different things (share of your keywords with AI Overview vs. share of prompts that mention you), so treat the score as a directional index to track over time — not an absolute market share.`;
+}
+
 export function renderSummary(data) {
     this.renderScore(data.score);
+    this.renderScoreHowTooltip();
     this.renderHighlights(data.highlights || []);
     this.renderChannelCards(data.channels || {});
     this.renderTrendChart(data.channels || {});
