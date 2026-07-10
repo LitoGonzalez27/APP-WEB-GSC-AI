@@ -1187,12 +1187,23 @@
 /* ---------- Ponderaciones personalizadas (modal de edición) ---------- */
 
 .checkbox-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 0.9rem;
   font-weight: 600;
   color: #0F172A;
+  cursor: pointer;
+}
+
+/* El reset global de inputs estira los checkbox al 100% y los descoloca:
+   tamaño explícito (y algo más grande), alineado en línea con el texto */
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #0A0A0B;
   cursor: pointer;
 }
 
