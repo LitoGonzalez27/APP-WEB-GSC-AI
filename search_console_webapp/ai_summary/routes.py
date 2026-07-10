@@ -156,6 +156,56 @@ def create_brand():
     return (jsonify(result), 201) if result.get('success') else (jsonify(result), 400)
 
 
+@ai_summary_bp.route('/api/brands/<int:brand_id>', methods=['PUT'])
+@auth_required
+def update_brand(brand_id):
+    """
+    Editar una marca (solo el dueño): nombre identificativo y/o proyectos
+    vinculados. Campos ausentes del body no se tocan; un campo de vínculo
+    a null lo desvincula. Siempre debe quedar al menos un vínculo.
+    """
+    user = get_current_user()
+    if not _check_access(user):
+        return _payment_required_response()
+
+    brand = BrandLinkRepository.get_brand(brand_id, user['id'])
+    if not brand:
+        return jsonify({'success': False, 'error': 'Brand not found'}), 404
+    if not brand['is_owner']:
+        return jsonify({'success': False, 'error': 'Only the owner can edit a brand'}), 403
+
+    data = request.get_json() or {}
+    updates = {}
+
+    if 'brand_name' in data:
+        brand_name = str(data.get('brand_name') or '').strip()
+        if not brand_name or len(brand_name) > MAX_NAME_LENGTH:
+            return jsonify({'success': False, 'error': 'brand_name is required (max 255 chars)'}), 400
+        updates['brand_name'] = brand_name
+
+    for module, field in MODULE_LINK_FIELDS.items():
+        if field not in data:
+            continue
+        project_id = data[field]
+        if project_id is not None:
+            if not isinstance(project_id, int) or isinstance(project_id, bool):
+                return jsonify({'success': False, 'error': f'{field} must be an integer'}), 400
+            if not BrandLinkRepository.verify_project_ownership(user['id'], module, project_id):
+                return jsonify({'success': False, 'error': f'Invalid {field}'}), 403
+        updates[field] = project_id
+
+    if not updates:
+        return jsonify({'success': False, 'error': 'Nothing to update'}), 400
+
+    # La marca resultante debe conservar al menos un proyecto vinculado
+    merged = {field: updates.get(field, brand[field]) for field in MODULE_LINK_FIELDS.values()}
+    if not any(merged.values()):
+        return jsonify({'success': False, 'error': 'Link at least one project'}), 400
+
+    result = BrandLinkRepository.update_brand(brand_id, user['id'], updates)
+    return jsonify(result), (200 if result.get('success') else 400)
+
+
 @ai_summary_bp.route('/api/brands/<int:brand_id>', methods=['DELETE'])
 @auth_required
 def delete_brand(brand_id):

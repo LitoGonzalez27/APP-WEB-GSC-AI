@@ -69,7 +69,10 @@ export function renderBrandIdentity() {
         logo.style.display = 'block';
         logo.onerror = () => { logo.style.display = 'none'; };
     }
-    // Acciones de dueño: compartir y desvincular no aplican a viewers
+    // Acciones de dueño: editar, compartir y desvincular no aplican a viewers
+    if (this.elements.editBrandBtn) {
+        this.elements.editBrandBtn.style.display = brand.is_owner ? 'inline-flex' : 'none';
+    }
     if (this.elements.shareBrandBtn) {
         this.elements.shareBrandBtn.style.display = brand.is_owner ? 'inline-flex' : 'none';
     }
@@ -219,6 +222,14 @@ export function renderChannelCard(channel, meta, summary) {
         : meta.link;
 
     if (!summary || (!summary.available && !summary.project_id)) {
+        // Si el usuario ya tiene un proyecto propio cuyo dominio coincide con
+        // la marca, ofrecer vincularlo con un clic en vez del alta genérica.
+        const linkable = this.findLinkableProject(channel);
+        const action = linkable
+            ? `<button type="button" class="channel-quick-link" data-channel="${channel}" data-project-id="${linkable.id}">
+                   <i class="fas fa-link"></i> Link "${this.escapeHtml(linkable.name)}"
+               </button>`
+            : `<a href="${meta.link}" class="channel-card-link">Set it up →</a>`;
         return `
             <div class="channel-card channel-missing">
                 <div class="channel-card-header">
@@ -226,8 +237,8 @@ export function renderChannelCard(channel, meta, summary) {
                 </div>
                 <p class="channel-missing-text">
                     Not monitored for this brand.
-                    <a href="${meta.link}" class="channel-card-link">Set it up →</a>
                 </p>
+                <div class="channel-missing-action">${action}</div>
             </div>
         `;
     }

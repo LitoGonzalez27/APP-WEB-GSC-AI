@@ -138,6 +138,40 @@ class BrandLinkRepository:
                 return {'success': False, 'error': 'Could not create the brand'}
 
     @staticmethod
+    def update_brand(brand_id: int, user_id: int, updates: Dict) -> Dict:
+        """
+        Actualizar nombre identificativo y/o vínculos de una marca (solo el
+        dueño: el WHERE por user_id lo garantiza). `updates` viene ya
+        validado por la ruta; aquí solo se aplica la allowlist de columnas.
+        """
+        allowed = {'brand_name', 'manual_ai_project_id', 'ai_mode_project_id', 'llm_project_id'}
+        fields = {k: v for k, v in updates.items() if k in allowed}
+        if not fields:
+            return {'success': False, 'error': 'No valid fields to update'}
+
+        set_clause = ', '.join(f"{column} = %s" for column in fields)
+        with db_conn() as conn:
+            if not conn:
+                return {'success': False, 'error': 'Database connection failed'}
+            try:
+                cur = conn.cursor()
+                cur.execute(f"""
+                    UPDATE ai_brand_links
+                    SET {set_clause}, updated_at = NOW()
+                    WHERE id = %s AND user_id = %s
+                    RETURNING {BRAND_LINK_FIELDS}
+                """, (*fields.values(), brand_id, user_id))
+                row = cur.fetchone()
+                conn.commit()
+                if not row:
+                    return {'success': False, 'error': 'Brand not found'}
+                return {'success': True, 'brand': _row_to_brand(row, viewer_user_id=user_id)}
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Error updating brand link {brand_id}: {e}")
+                return {'success': False, 'error': 'Could not update the brand'}
+
+    @staticmethod
     def delete_brand(brand_id: int, user_id: int) -> bool:
         with db_conn() as conn:
             if not conn:

@@ -48,6 +48,9 @@ export class AISummarySystem {
             'opportunitiesLlmColumn', 'opportunitiesLlmList',
             'shareModal', 'shareModalCloseBtn', 'shareEmailInput', 'shareSendBtn',
             'shareError', 'shareMembersList', 'shareInvitationsList',
+            'editBrandBtn', 'editBrandModal', 'editBrandCloseBtn', 'editBrandNameInput',
+            'editLinkManualAI', 'editLinkAIMode', 'editLinkLLM',
+            'editBrandSaveBtn', 'editBrandError',
             'deleteBrandBtn'
         ];
         ids.forEach(id => {
@@ -91,6 +94,21 @@ export class AISummarySystem {
                 `${this.apiBase}/brands/${this.currentBrandId}/export/pdf?period=${this.period}`,
                 '_blank'
             );
+        });
+
+        // Editar marca (nombre identificativo + vínculos)
+        this.elements.editBrandBtn?.addEventListener('click', () => this.openEditModal());
+        this.elements.editBrandCloseBtn?.addEventListener('click', () => this.closeEditModal());
+        this.elements.editBrandModal?.addEventListener('click', (e) => {
+            if (e.target === this.elements.editBrandModal) this.closeEditModal();
+        });
+        this.elements.editBrandSaveBtn?.addEventListener('click', () => this.saveBrandEdits());
+
+        // Quick-link de un canal desde su tarjeta (delegación)
+        this.elements.channelCards?.addEventListener('click', (e) => {
+            const button = e.target.closest('.channel-quick-link');
+            if (!button) return;
+            this.quickLinkChannel(button.dataset.channel, Number(button.dataset.projectId));
         });
 
         // Compartir acceso de solo lectura
