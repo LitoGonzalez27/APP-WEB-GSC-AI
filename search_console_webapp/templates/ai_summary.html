@@ -426,23 +426,23 @@
                     <!-- Bloque 2: Tarjetas por canal -->
                     <div class="ai-summary-channels" id="channelCards"></div>
 
-                    <!-- Bloque 3: Tendencia -->
-                    <div class="ai-summary-panel">
-                        <div class="ai-summary-panel-header">
-                            <h3><i class="fas fa-chart-line"></i> Visibility trend by channel</h3>
-                        </div>
-                        <div class="ai-summary-chart-container">
-                            <canvas id="trendChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Bloque 4: Histórico del score (visible cuando hay >= 2 snapshots) -->
+                    <!-- Bloque 3: Histórico del score (visible cuando hay >= 2 snapshots) -->
                     <div class="ai-summary-panel" id="scoreHistoryPanel" style="display: none;">
                         <div class="ai-summary-panel-header">
                             <h3><i class="fas fa-wave-square"></i> AI Visibility Score over time</h3>
                         </div>
                         <div class="ai-summary-chart-container ai-summary-chart-container--short">
                             <canvas id="scoreHistoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Bloque 4: Tendencia por canal -->
+                    <div class="ai-summary-panel">
+                        <div class="ai-summary-panel-header">
+                            <h3><i class="fas fa-chart-line"></i> Visibility trend by channel</h3>
+                        </div>
+                        <div class="ai-summary-chart-container">
+                            <canvas id="trendChart"></canvas>
                         </div>
                     </div>
 
