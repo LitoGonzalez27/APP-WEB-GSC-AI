@@ -38,6 +38,7 @@ import {
 import {
     loadSummary,
     renderBrandIdentity,
+    renderScoreHowTooltip,
     loadScoreHistory,
     renderOpportunities,
     renderSummary,
@@ -100,6 +101,7 @@ Object.assign(AISummarySystem.prototype, {
     // Render
     loadSummary,
     renderBrandIdentity,
+    renderScoreHowTooltip,
     loadScoreHistory,
     renderOpportunities,
     renderSummary,

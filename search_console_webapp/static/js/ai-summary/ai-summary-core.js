@@ -40,7 +40,7 @@ export class AISummarySystem {
             'summaryContent', 'summaryLoading',
             'backToBrandsBtn', 'summaryBrandTitle', 'summaryBrandDomain', 'summaryBrandLogo',
             'daysSelect', 'downloadPdfBtn', 'shareBrandBtn',
-            'scoreValue', 'scoreDelta', 'scoreCoverage',
+            'scoreValue', 'scoreDelta', 'scoreCoverage', 'scoreHowContent',
             'highlightsList', 'channelCards',
             'trendChart', 'competitorsTableBody',
             'scoreHistoryPanel', 'scoreHistoryChart',

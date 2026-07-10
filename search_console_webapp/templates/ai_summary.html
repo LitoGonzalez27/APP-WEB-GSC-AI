@@ -416,14 +416,9 @@
                                     <div class="score-value" id="scoreValue">–</div>
                                     <span class="cg-info-tooltip score-how">
                                         <em>How we measure this</em>
-                                        <span class="cg-info-tooltip-content">
-                                            <strong>The formula</strong>
-                                            A weighted average of the channels linked to this brand: AI Overview visibility (weight 40%), AI Mode visibility (20%) and LLM mention rate (40%). Weights are re-scaled to the channels you actually monitor, so an unmonitored channel never lowers the score. If you set custom weights for this brand (Edit brand), those replace the default split — including per-LLM weighting.
-                                            <strong>The data behind it</strong>
-                                            Each channel metric is the average of its daily analysis snapshots over the selected period. The delta compares it against the previous period of the same length.
-                                            <strong>Honest caveat</strong>
-                                            The three channels measure different things (share of your keywords with AI Overview vs. share of prompts that mention you), so treat the score as a directional index to track over time — not an absolute market share.
-                                        </span>
+                                        <!-- Contenido renderizado por renderScoreHowTooltip() según la
+                                             marca tenga pesos personalizados o los defaults -->
+                                        <span class="cg-info-tooltip-content" id="scoreHowContent"></span>
                                     </span>
                                 </div>
                                 <div class="score-meta">
