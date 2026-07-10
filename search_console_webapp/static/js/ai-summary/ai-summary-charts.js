@@ -17,6 +17,20 @@ const CHANNEL_LABELS = {
 };
 
 /**
+ * El tooltip tiene fondo oscuro (#0A0A0B): los dots de series oscuras
+ * (p.ej. la línea slate #0F172A de AI Overview o el score) no tendrían
+ * contraste, así que se sustituyen por el acento Bio-Lime.
+ */
+function contrastSafeDotColor(color) {
+    const hex = /^#([0-9a-f]{6})$/i.exec(String(color).trim());
+    if (!hex) return color;
+    const value = parseInt(hex[1], 16);
+    const r = (value >> 16) & 255, g = (value >> 8) & 255, b = value & 255;
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    return luminance < 80 ? '#d9f9b8' : color;
+}
+
+/**
  * Tooltip externo enriquecido (mismo componente visual que las gráficas de
  * LLM Monitoring): tarjeta oscura con título en mayúsculas y filas con dot
  * de color por dataset. Chart.js lo invoca con enabled:false + external.
@@ -49,7 +63,7 @@ export function renderRichChartTooltip(context) {
             if (meta.hidden) return;
             const value = ds.data[dataIndex];
             if (value === null || value === undefined) return;
-            const color = ds.borderColor || ds.backgroundColor || '#888';
+            const color = contrastSafeDotColor(ds.borderColor || ds.backgroundColor || '#888');
             rows += `<div class="ais-chart-tooltip__row">
                 <span class="ais-chart-tooltip__dot" style="background:${color}"></span>
                 <span class="ais-chart-tooltip__label">${this.escapeHtml(ds.label)}</span>

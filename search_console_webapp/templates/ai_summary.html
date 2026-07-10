@@ -412,7 +412,20 @@
                     <div class="ai-summary-score-row">
                         <div class="ai-summary-score-card" id="scoreCard">
                             <div class="score-main">
-                                <div class="score-value" id="scoreValue">–</div>
+                                <div class="score-value-block">
+                                    <div class="score-value" id="scoreValue">–</div>
+                                    <span class="cg-info-tooltip score-how">
+                                        <em>How we measure this</em>
+                                        <span class="cg-info-tooltip-content">
+                                            <strong>The formula</strong>
+                                            A weighted average of the channels linked to this brand: AI Overview visibility (weight 40%), AI Mode visibility (20%) and LLM mention rate (40%). Weights are re-scaled to the channels you actually monitor, so an unmonitored channel never lowers the score.
+                                            <strong>The data behind it</strong>
+                                            Each channel metric is the average of its daily analysis snapshots over the selected period. The delta compares it against the previous period of the same length.
+                                            <strong>Honest caveat</strong>
+                                            The three channels measure different things (share of your keywords with AI Overview vs. share of prompts that mention you), so treat the score as a directional index to track over time — not an absolute market share.
+                                        </span>
+                                    </span>
+                                </div>
                                 <div class="score-meta">
                                     <div class="score-title">AI Visibility Score</div>
                                     <div class="score-delta" id="scoreDelta"></div>
@@ -429,7 +442,7 @@
                     <!-- Bloque 3: Histórico del score (visible cuando hay >= 2 snapshots) -->
                     <div class="ai-summary-panel" id="scoreHistoryPanel" style="display: none;">
                         <div class="ai-summary-panel-header">
-                            <h3><i class="fas fa-wave-square"></i> AI Visibility Score over time</h3>
+                            <h3>AI Visibility Score over time</h3>
                         </div>
                         <div class="ai-summary-chart-container ai-summary-chart-container--short">
                             <canvas id="scoreHistoryChart"></canvas>
@@ -439,7 +452,7 @@
                     <!-- Bloque 4: Tendencia por canal -->
                     <div class="ai-summary-panel">
                         <div class="ai-summary-panel-header">
-                            <h3><i class="fas fa-chart-line"></i> Visibility trend by channel</h3>
+                            <h3>Visibility trend by channel</h3>
                         </div>
                         <div class="ai-summary-chart-container">
                             <canvas id="trendChart"></canvas>
@@ -449,7 +462,7 @@
                     <!-- Bloque 5: Competidores -->
                     <div class="ai-summary-panel">
                         <div class="ai-summary-panel-header">
-                            <h3><i class="fas fa-trophy"></i> Who owns AI visibility in your market</h3>
+                            <h3>Who owns AI visibility in your market</h3>
                         </div>
                         <div class="ai-summary-table-wrapper">
                             <table class="ai-summary-table">
@@ -471,7 +484,7 @@
                     <!-- Bloque 6: Oportunidades -->
                     <div class="ai-summary-panel" id="opportunitiesPanel" style="display: none;">
                         <div class="ai-summary-panel-header">
-                            <h3><i class="fas fa-bullseye"></i> Top opportunities — where competitors show up and you don't</h3>
+                            <h3>Top opportunities — where competitors show up and you don't</h3>
                         </div>
                         <div class="ai-summary-opportunities">
                             <div class="opportunities-column" id="opportunitiesAioColumn" style="display: none;">

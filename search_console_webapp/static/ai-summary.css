@@ -1150,3 +1150,36 @@
   font-size: 13px;
   color: #F8FAFC;
 }
+
+/* ---------- "How we measure this" bajo el score ---------- */
+
+.score-value-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* Trigger en cursiva sobre el panel oscuro; el contenido del tooltip ya es
+   el componente estándar cg-info-tooltip (tarjeta oscura con títulos lime) */
+.ai-summary-score-card .score-how {
+  margin-left: 0;
+  font-size: 0.72rem;
+  color: rgba(248, 250, 252, 0.55);
+  border-bottom: 1px dashed rgba(248, 250, 252, 0.35);
+  padding-bottom: 1px;
+  transition: color 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ai-summary-score-card .score-how em {
+  font-style: italic;
+}
+
+.ai-summary-score-card .score-how:hover {
+  color: #F8FAFC;
+}
+
+/* El contenido del tooltip abre hacia abajo-izquierda desde el trigger */
+.ai-summary-score-card .score-how .cg-info-tooltip-content {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
