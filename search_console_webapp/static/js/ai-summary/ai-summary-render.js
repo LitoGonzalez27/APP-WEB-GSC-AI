@@ -174,8 +174,9 @@ export function renderScore(score) {
 
     const used = score.channels_used || [];
     const total = used.length + (score.channels_missing || []).length;
+    const customSuffix = score.custom ? ' · custom weights' : '';
     scoreCoverage.textContent =
-        `Based on ${used.length} of ${total} channels: ${used.map(c => CHANNEL_META[c]?.label || c).join(', ')}`;
+        `Based on ${used.length} of ${total} channels: ${used.map(c => CHANNEL_META[c]?.label || c).join(', ')}${customSuffix}`;
 }
 
 export function renderHighlights(highlights) {

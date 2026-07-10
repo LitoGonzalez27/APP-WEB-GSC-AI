@@ -50,6 +50,7 @@ export class AISummarySystem {
             'shareError', 'shareMembersList', 'shareInvitationsList',
             'editBrandBtn', 'editBrandModal', 'editBrandCloseBtn', 'editBrandNameInput',
             'editLinkManualAI', 'editLinkAIMode', 'editLinkLLM',
+            'editCustomWeightsToggle', 'editWeightsGrid', 'editWeightsSum',
             'editBrandSaveBtn', 'editBrandError',
             'deleteBrandBtn'
         ];
@@ -103,6 +104,11 @@ export class AISummarySystem {
             if (e.target === this.elements.editBrandModal) this.closeEditModal();
         });
         this.elements.editBrandSaveBtn?.addEventListener('click', () => this.saveBrandEdits());
+        this.elements.editCustomWeightsToggle?.addEventListener('change', () => {
+            const grid = this.elements.editWeightsGrid;
+            if (grid) grid.style.display = this.elements.editCustomWeightsToggle.checked ? 'grid' : 'none';
+        });
+        this.elements.editWeightsGrid?.addEventListener('input', () => this.updateEditWeightsSum());
 
         // Quick-link de un canal desde su tarjeta (delegación)
         this.elements.channelCards?.addEventListener('click', (e) => {

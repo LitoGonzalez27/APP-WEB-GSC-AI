@@ -82,6 +82,16 @@ def create_ai_summary_tables():
         """)
         logger.info("✅ Tabla ai_brand_score_snapshots creada")
 
+        # Ponderaciones personalizadas del score por marca (2026-07-10):
+        # JSONB plano de componentes que suman 100, p.ej.
+        # {"ai_overview": 20, "ai_mode": 20, "llm:openai": 30, ...}.
+        # NULL = ponderación por defecto (40/20/40 por canal).
+        cur.execute("""
+            ALTER TABLE ai_brand_links
+            ADD COLUMN IF NOT EXISTS score_weights JSONB
+        """)
+        logger.info("✅ Columna score_weights disponible")
+
         # Las marcas se comparten con la infraestructura común de
         # colaboradores: ampliar el CHECK de module_name para admitir
         # 'ai_summary' en entornos donde las tablas ya existían con la

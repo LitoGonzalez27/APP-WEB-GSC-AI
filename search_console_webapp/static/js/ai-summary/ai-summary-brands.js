@@ -305,6 +305,13 @@ const CHANNEL_TO_MODULE = {
     llm: ['llm', 'llm_project_id'],
 };
 
+// Punto de partida al activar ponderación personalizada: equivalente al
+// reparto por defecto (40/20/40 con el 40 de LLMs dividido entre los 4)
+const DEFAULT_CUSTOM_WEIGHTS = {
+    ai_overview: 40, ai_mode: 20,
+    'llm:openai': 10, 'llm:anthropic': 10, 'llm:google': 10, 'llm:perplexity': 10,
+};
+
 export function openEditModal() {
     const brand = this.getCurrentBrand();
     if (!brand?.is_owner) return;
@@ -313,9 +320,44 @@ export function openEditModal() {
         this.elements.editBrandNameInput.value = brand.brand_name;
     }
     this.populateEditSelects(brand);
+    this.populateEditWeights(brand);
     if (this.elements.editBrandModal) {
         this.elements.editBrandModal.style.display = 'flex';
     }
+}
+
+export function populateEditWeights(brand) {
+    const toggle = this.elements.editCustomWeightsToggle;
+    const grid = this.elements.editWeightsGrid;
+    if (!toggle || !grid) return;
+
+    const custom = brand.score_weights || null;
+    toggle.checked = !!custom;
+    grid.style.display = custom ? 'grid' : 'none';
+
+    const source = custom || DEFAULT_CUSTOM_WEIGHTS;
+    grid.querySelectorAll('[data-weight-key]').forEach(input => {
+        input.value = source[input.dataset.weightKey] ?? 0;
+    });
+    this.updateEditWeightsSum();
+}
+
+export function collectEditWeights() {
+    const weights = {};
+    this.elements.editWeightsGrid?.querySelectorAll('[data-weight-key]').forEach(input => {
+        weights[input.dataset.weightKey] = Number(input.value) || 0;
+    });
+    return weights;
+}
+
+export function updateEditWeightsSum() {
+    const sumEl = this.elements.editWeightsSum;
+    if (!sumEl) return;
+    const total = Object.values(this.collectEditWeights()).reduce((a, b) => a + b, 0);
+    const valid = Math.abs(total - 100) <= 0.5;
+    sumEl.textContent = `Total: ${Math.round(total * 10) / 10}${valid ? '' : ' — must sum 100'}`;
+    sumEl.classList.toggle('invalid', !valid);
+    return valid;
 }
 
 export function closeEditModal() {
@@ -376,6 +418,16 @@ export async function saveBrandEdits() {
     if (!payload.manual_ai_project_id && !payload.ai_mode_project_id && !payload.llm_project_id) {
         this.showEditError('Link at least one project.');
         return;
+    }
+
+    if (this.elements.editCustomWeightsToggle?.checked) {
+        if (!this.updateEditWeightsSum()) {
+            this.showEditError('Score weights must sum 100.');
+            return;
+        }
+        payload.score_weights = this.collectEditWeights();
+    } else {
+        payload.score_weights = null;
     }
 
     try {

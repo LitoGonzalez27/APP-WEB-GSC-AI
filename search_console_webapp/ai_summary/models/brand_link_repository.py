@@ -7,6 +7,7 @@ import logging
 from typing import Dict, List, Optional
 
 import psycopg2
+from psycopg2.extras import Json
 
 from database import db_conn
 from services.utils import normalize_search_console_url
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 BRAND_LINK_FIELDS = """
     id, user_id, brand_name, brand_domain,
     manual_ai_project_id, ai_mode_project_id, llm_project_id,
-    created_at, updated_at
+    score_weights, created_at, updated_at
 """
 
 # Cláusula de acceso: dueño o colaborador viewer (misma infraestructura de
@@ -47,6 +48,7 @@ def _row_to_brand(row, viewer_user_id: Optional[int] = None) -> Dict:
         'manual_ai_project_id': row['manual_ai_project_id'],
         'ai_mode_project_id': row['ai_mode_project_id'],
         'llm_project_id': row['llm_project_id'],
+        'score_weights': row['score_weights'],
         'created_at': row['created_at'].isoformat() if row['created_at'] else None,
         'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None,
         'is_owner': is_owner,
@@ -144,8 +146,10 @@ class BrandLinkRepository:
         dueño: el WHERE por user_id lo garantiza). `updates` viene ya
         validado por la ruta; aquí solo se aplica la allowlist de columnas.
         """
-        allowed = {'brand_name', 'manual_ai_project_id', 'ai_mode_project_id', 'llm_project_id'}
+        allowed = {'brand_name', 'manual_ai_project_id', 'ai_mode_project_id', 'llm_project_id', 'score_weights'}
         fields = {k: v for k, v in updates.items() if k in allowed}
+        if 'score_weights' in fields and fields['score_weights'] is not None:
+            fields['score_weights'] = Json(fields['score_weights'])
         if not fields:
             return {'success': False, 'error': 'No valid fields to update'}
 
