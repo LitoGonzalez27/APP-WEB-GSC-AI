@@ -7,19 +7,16 @@
 const CHANNEL_META = {
     ai_overview: {
         label: 'Google AI Overview',
-        icon: 'fa-cogs',
         link: '/manual-ai/',
         metricLabel: 'AIO visibility',
     },
     ai_mode: {
         label: 'Google AI Mode',
-        icon: 'fa-brain',
         link: '/ai-mode-projects/',
         metricLabel: 'Brand visibility',
     },
     llm: {
         label: 'LLMs (ChatGPT, Gemini...)',
-        icon: 'fa-eye',
         link: '/llm-monitoring',
         metricLabel: 'Mention rate',
     },
@@ -233,7 +230,7 @@ export function renderChannelCard(channel, meta, summary) {
         return `
             <div class="channel-card channel-missing">
                 <div class="channel-card-header">
-                    <h4><i class="fas ${meta.icon}"></i> ${meta.label}</h4>
+                    <h4>${meta.label}</h4>
                 </div>
                 <p class="channel-missing-text">
                     Not monitored for this brand.
@@ -249,7 +246,7 @@ export function renderChannelCard(channel, meta, summary) {
         return `
             <div class="channel-card channel-missing">
                 <div class="channel-card-header">
-                    <h4><i class="fas ${meta.icon}"></i> ${meta.label}</h4>
+                    <h4>${meta.label}</h4>
                     <a href="${projectLink}" class="channel-card-link">Open <i class="fas fa-arrow-right"></i></a>
                 </div>
                 <p class="channel-missing-text">No data yet in this period.</p>
@@ -295,7 +292,7 @@ export function renderChannelCard(channel, meta, summary) {
     return `
         <div class="channel-card ${trendClass}">
             <div class="channel-card-header">
-                <h4><i class="fas ${meta.icon}"></i> ${meta.label}</h4>
+                <h4>${meta.label}</h4>
                 <a href="${projectLink}" class="channel-card-link">Open <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="channel-metric-main">
