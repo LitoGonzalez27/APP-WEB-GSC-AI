@@ -152,9 +152,10 @@ export function renderScoreHowTooltip() {
     const custom = this.getCurrentBrand()?.score_weights || null;
     let formula;
     if (custom) {
-        const parts = Object.entries(custom)
-            .filter(([, weight]) => Number(weight) > 0)
-            .map(([key, weight]) => `${WEIGHT_LABELS[key] || this.escapeHtml(key)} ${this.escapeHtml(String(weight))}%`)
+        // Orden canónico de componentes (no el orden de claves del JSON)
+        const parts = Object.keys(WEIGHT_LABELS)
+            .filter(key => Number(custom[key]) > 0)
+            .map(key => `${WEIGHT_LABELS[key]} ${this.escapeHtml(String(custom[key]))}%`)
             .join(' · ');
         formula = `
             <strong>The formula (custom weights)</strong>
