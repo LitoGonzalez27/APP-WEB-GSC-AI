@@ -3,7 +3,7 @@
  * Gestión completa de proyectos (CRUD, renderizado, validación)
  */
 
-import { escapeHtml, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './ai-mode-utils.js';
+import { escapeHtml, sanitizeUrlForJsString, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './ai-mode-utils.js';
 
 // ================================
 // PROJECTS MANAGEMENT
@@ -324,7 +324,8 @@ export function renderProjectCompetitorsHorizontal(project) {
         const firstLetter = escapeHtml(domain.charAt(0).toUpperCase());
         const safeDomain = escapeHtml(domain);
         const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
-        const websiteUrl = domain.startsWith('http') ? domain : `https://${domain}`;
+        // sanitize: se interpola dentro del string JS del onclick (escapeHtml no protege ahí)
+        const websiteUrl = sanitizeUrlForJsString(domain.startsWith('http') ? domain : `https://${domain}`);
         
         return `
             <div class="competitor-horizontal-item" title="Click to visit ${safeDomain}" onclick="window.open('${websiteUrl}', '_blank')" style="cursor: pointer;">

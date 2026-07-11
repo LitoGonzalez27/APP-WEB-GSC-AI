@@ -155,11 +155,12 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
             })
             logger.info(f"[SCREENSHOT] Usando configuración para {country_config['name']}") # type: ignore
     
-    # 🔍 DEBUGGING: Log parámetros exactos
+    # 🔍 DEBUGGING: Log parámetros exactos (sin exponer la SERPAPI_KEY en logs)
+    _loggable_params = {k: ('***REDACTED***' if k == 'api_key' else v) for k, v in params.items()}
     logger.info(f"=== SCREENSHOT PARAMS ===")
     logger.info(f"Keyword: {keyword}")
     logger.info(f"Country: {country}")
-    logger.info(f"Params: {json.dumps(params, indent=2)}")
+    logger.info(f"Params: {json.dumps(_loggable_params, indent=2)}")
     logger.info(f"========================")
 
     # Crear cache key que incluya el país y site_url (para cache dinámico)

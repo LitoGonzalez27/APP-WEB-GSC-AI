@@ -87,11 +87,15 @@ def _rate_limit_key():
 
 default_limits_env = os.getenv('RATE_LIMIT_DEFAULT', '200 per hour;50 per minute')
 default_limits = [item.strip() for item in default_limits_env.split(';') if item.strip()]
+# storage_uri: usa RATE_LIMIT_STORAGE_URL si está definido; si no, cae al mismo Redis
+# de la caché (REDIS_URL) para que los límites sean coherentes entre workers.
+# 'memory://' queda solo como último recurso (dev local; NO válido en multi-worker).
+_rate_limit_storage = os.getenv('RATE_LIMIT_STORAGE_URL') or os.getenv('REDIS_URL') or 'memory://'
 limiter = Limiter(
     key_func=_rate_limit_key,
     app=app,
     default_limits=default_limits,
-    storage_uri=os.getenv('RATE_LIMIT_STORAGE_URL', 'memory://')
+    storage_uri=_rate_limit_storage
 )
 
 # Configuración automática según entorno
@@ -217,8 +221,9 @@ def _block_mobile_globally_except_login_signup():
         logger.warning(f"Mobile gate error: {_e_mobile_gate}")
         return None
 
-# --- Ruta de diagnóstico para inspeccionar rutas registradas ---
+# --- Ruta de diagnóstico para inspeccionar rutas registradas (solo admin) ---
 @app.route('/__routes')
+@admin_required
 def __list_routes():
     try:
         routes = []
@@ -1454,8 +1459,10 @@ def download_excel():
         logger.error(f"Error general en download_excel: {e}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
-# --- Las rutas de SERP no requieren autenticación (son públicas) ---
+# --- Rutas de SERP: requieren autenticación (consumen la SERPAPI_KEY de pago) ---
 @app.route('/api/serp')
+@auth_required
+@limiter.limit("30 per minute")
 def get_serp_raw_json():
     keyword_query = request.args.get('keyword')
     country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
@@ -1501,6 +1508,8 @@ def get_serp_raw_json():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/serp/position')
+@auth_required
+@limiter.limit("30 per minute")
 def get_serp_position():
     keyword_val = request.args.get('keyword')
     site_url_val = request.args.get('site_url', '')
@@ -1602,6 +1611,8 @@ def get_serp_position():
         }), 500
 
 @app.route('/api/serp/screenshot')
+@auth_required
+@limiter.limit("30 per minute")
 def get_serp_screenshot_route():
     keyword_param = request.args.get('keyword')
     site_url_param = request.args.get('site_url', '')
@@ -2735,6 +2746,7 @@ def get_available_countries():
         return jsonify({'error': 'Internal server error'}), 500
     
 @app.route('/debug-serp-params')
+@admin_required
 def debug_serp_params():
     keyword = request.args.get('keyword', 'test')
     country = request.args.get('country', '')  # Puede estar vacío
@@ -2750,6 +2762,8 @@ def debug_serp_params():
     
     # Parámetros para AI Analysis (con nueva lógica)
     ai_params = get_serp_params_with_location(keyword, serpapi_key, country_to_use, site_url)
+    # 🔒 Nunca devolver la SERPAPI_KEY en la respuesta (aunque la ruta sea solo-admin)
+    ai_params = {k: ('***REDACTED***' if k == 'api_key' else v) for k, v in ai_params.items()}
     
     # Información adicional para debug
     debug_info = {
@@ -3226,10 +3240,12 @@ def ai_recommendations_route():
 @app.route('/api/ai-overview-stats', methods=['GET'])
 @auth_required
 def get_ai_overview_stats_route():
-    """Obtiene estadísticas generales de AI Overview"""
+    """Obtiene estadísticas generales de AI Overview (restringidas al usuario)"""
     try:
-        stats = get_ai_overview_stats()
-        
+        user = get_current_user()
+        scope_user_id = None if (user and user.get('role') == 'admin') else user['id']
+        stats = get_ai_overview_stats(user_id=scope_user_id)
+
         # Añadir estadísticas del caché
         try:
             cache_stats = ai_cache.get_cache_stats()
@@ -3254,9 +3270,11 @@ def get_ai_overview_stats_route():
 @app.route('/api/ai-overview-typology', methods=['GET'])
 @auth_required  
 def get_ai_overview_typology_route():
-    """Obtiene datos de tipología de consultas para el gráfico de barras"""
+    """Obtiene datos de tipología de consultas para el gráfico de barras (por usuario)"""
     try:
-        stats = get_ai_overview_stats()
+        user = get_current_user()
+        scope_user_id = None if (user and user.get('role') == 'admin') else user['id']
+        stats = get_ai_overview_stats(user_id=scope_user_id)
         word_count_stats = stats.get('word_count_stats', [])
         
         # Transformar datos para el gráfico
@@ -3313,12 +3331,17 @@ def get_ai_overview_history_route():
         keyword = request.args.get('keyword')
         days = int(request.args.get('days', 30))
         limit = int(request.args.get('limit', 100))
-        if site_url:
-            user = get_current_user()
-            if not user_owns_site_url(user['id'], site_url) and user.get('role') != 'admin':
-                return jsonify({'error': 'No tienes acceso a este site_url'}), 403
-        
-        history = get_ai_overview_history(site_url, keyword, days, limit)
+        user = get_current_user()
+        is_admin = bool(user and user.get('role') == 'admin')
+
+        # 🔒 Si se pide un site_url concreto, verificar ownership (salvo admin).
+        if site_url and not is_admin and not user_owns_site_url(user['id'], site_url):
+            return jsonify({'error': 'No tienes acceso a este site_url'}), 403
+
+        # 🔒 Scoping por usuario: los no-admin solo ven su propio historial
+        # (evita la fuga cross-tenant cuando se omite site_url).
+        scope_user_id = None if is_admin else user['id']
+        history = get_ai_overview_history(site_url, keyword, days, limit, user_id=scope_user_id)
         
         return jsonify({
             'success': True,

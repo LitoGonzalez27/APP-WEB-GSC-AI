@@ -52,9 +52,17 @@ class CronService:
             if not lock_conn:
                 logger.error("❌ No se pudo conectar a la base de datos para adquirir el lock")
                 return {"success": False, "error": "DB connection failed for lock"}
-            
+
+            # ✨ Las advisory locks de Postgres son session-level, no transaction-level.
+            # Activando autocommit evitamos que lock_conn quede idle-in-transaction
+            # durante el procesamiento, lo que eliminaría el riesgo de que
+            # idle_in_transaction_session_timeout (15 min) mate la conn a mitad de tanda
+            # y libere la advisory lock, permitiendo que otro cron arranque en paralelo.
+            # Tandas con muchos proyectos pueden durar >15 min. (Portado de manual_ai.)
+            lock_conn.autocommit = True
+
             lock_cur = lock_conn.cursor()
-            lock_cur.execute("SELECT pg_try_advisory_lock(%s, %s) as lock_acquired", 
+            lock_cur.execute("SELECT pg_try_advisory_lock(%s, %s) as lock_acquired",
                            (lock_class_id, lock_object_id))
             result = lock_cur.fetchone()
             lock_acquired = bool(result['lock_acquired']) if result else False
@@ -86,6 +94,13 @@ class CronService:
             
             if not projects:
                 logger.info("⏭️ No active projects found for daily analysis")
+                # Liberar el advisory lock y devolver la conexión al pool también en
+                # este early-return: la conexión es pooled (close() no cierra la sesión),
+                # así que sin unlock explícito el lock quedaría retenido indefinidamente.
+                lock_cur.execute("SELECT pg_advisory_unlock(%s, %s)", (lock_class_id, lock_object_id))
+                lock_acquired = False
+                lock_cur.close()
+                lock_conn.close()
                 result = {"success": True, "message": "No active projects", "processed": 0,
                           "job_id": job_id}
                 self._send_completion_email(result)

@@ -1,5 +1,6 @@
 # services/ai_cache.py - Sistema de caché inteligente para análisis AI Overview
 
+import os
 import redis
 import json
 import logging
@@ -13,24 +14,41 @@ class AIOverviewCache:
     """Sistema de caché inteligente para análisis de AI Overview"""
     
     def __init__(self):
-        """Inicializa el cliente Redis con configuración robusta"""
+        """Inicializa el cliente Redis leyendo REDIS_URL (Railway) con fallback local.
+
+        🔧 Antes el host estaba hardcodeado a 'localhost', por lo que en Railway el
+        ping fallaba y la caché quedaba DESACTIVADA en producción (cada análisis
+        re-consultaba SerpAPI, coste de pago duplicado). Ahora se usa REDIS_URL si
+        está definida; si no, se cae a localhost para desarrollo local.
+        """
         try:
-            # Configuración con fallback para desarrollo local
-            self.redis_client = redis.Redis(
-                host='localhost',
-                port=6379,
-                db=0,
+            common_kwargs = dict(
                 decode_responses=True,
                 socket_timeout=5,
                 socket_connect_timeout=5,
                 retry_on_timeout=True,
-                health_check_interval=30
+                health_check_interval=30,
             )
-            
+
+            redis_url = os.getenv('REDIS_URL', '').strip()
+            if redis_url:
+                # Producción/staging (Railway) o cualquier entorno con REDIS_URL.
+                self.redis_client = redis.Redis.from_url(redis_url, **common_kwargs)
+                logger.info("🔧 Redis configurado desde REDIS_URL")
+            else:
+                # Fallback para desarrollo local sin REDIS_URL.
+                self.redis_client = redis.Redis(
+                    host=os.getenv('REDIS_HOST', 'localhost'),
+                    port=int(os.getenv('REDIS_PORT', '6379')),
+                    db=int(os.getenv('REDIS_DB', '0')),
+                    **common_kwargs
+                )
+                logger.info("🔧 Redis configurado en localhost (sin REDIS_URL)")
+
             # Configuraciones de caché
             self.cache_duration = timedelta(hours=24)  # Caché de 24 horas
             self.short_cache_duration = timedelta(hours=6)  # Para errores/fallos
-            
+
             # Verificar conexión
             self.redis_client.ping()
             self.cache_available = True

@@ -121,7 +121,76 @@ class MultiLLMMonitoringService(_HelpersMixin, _GenerationMixin, _DetectionMixin
 # HELPER FUNCTION
 # =====================================================
 
+# Advisory lock class_id para el cron diario de LLM Monitoring.
+# Namespacing consistente con los otros crons: manual_ai=4242, ai_mode=4243, llm=4244.
+LLM_CRON_LOCK_CLASS_ID = 4244
+
+
 def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: int = 8) -> List[Dict]:
+    """
+    Ejecuta el análisis de todos los proyectos activos bajo un advisory lock por-día.
+
+    🔒 El advisory lock (session-level, con autocommit) garantiza que solo una tanda
+    completa se ejecute a la vez a través de TODOS los puntos de entrada (endpoint HTTP
+    del cron Bun, el script daily_llm_monitoring_cron.py y disparos manuales) y de
+    cualquier proceso. Evita el doble gasto de APIs LLM de pago si dos disparos se
+    solapan. Es independiente del lock de fila `acquire_analysis_lock` que ya usa el
+    endpoint HTTP (misma protección, distinta capa). Si el lock está ocupado, devuelve
+    una lista vacía (otra tanda ya está en curso).
+    """
+    lock_conn = None
+    lock_cur = None
+    lock_acquired = False
+    lock_object_id = int(date.today().strftime('%Y%m%d'))
+    try:
+        lock_conn = get_db_connection()
+        if not lock_conn:
+            raise Exception("No se pudo conectar a BD para adquirir el advisory lock del cron LLM")
+
+        # session-level lock → autocommit para no quedar idle-in-transaction en tandas largas.
+        lock_conn.autocommit = True
+        lock_cur = lock_conn.cursor()
+        lock_cur.execute(
+            "SELECT pg_try_advisory_lock(%s, %s) AS acquired",
+            (LLM_CRON_LOCK_CLASS_ID, lock_object_id)
+        )
+        row = lock_cur.fetchone()
+        lock_acquired = bool(row['acquired']) if row else False
+        logger.info(
+            f"🔐 LLM cron advisory lock: class_id={LLM_CRON_LOCK_CLASS_ID}, "
+            f"object_id={lock_object_id}, acquired={lock_acquired}"
+        )
+
+        if not lock_acquired:
+            logger.warning("⏭️ Otra tanda de análisis LLM ya está en curso (advisory lock ocupado) — omitiendo")
+            return []
+
+        return _analyze_all_active_projects_locked(api_keys=api_keys, max_workers=max_workers)
+
+    finally:
+        # Liberar el advisory lock y cerrar su conexión SIEMPRE.
+        try:
+            if lock_acquired and lock_cur is not None:
+                lock_cur.execute(
+                    "SELECT pg_advisory_unlock(%s, %s)",
+                    (LLM_CRON_LOCK_CLASS_ID, lock_object_id)
+                )
+        except Exception as _unlock_err:
+            logger.warning(f"No se pudo liberar el advisory lock del cron LLM: {_unlock_err}")
+        finally:
+            if lock_cur is not None:
+                try:
+                    lock_cur.close()
+                except Exception:
+                    pass
+            if lock_conn is not None:
+                try:
+                    lock_conn.close()
+                except Exception:
+                    pass
+
+
+def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_workers: int = 8) -> List[Dict]:
     """
     Analiza todos los proyectos activos
     

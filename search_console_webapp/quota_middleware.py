@@ -20,7 +20,7 @@ import hashlib
 from collections import OrderedDict
 from typing import Dict, Any, Tuple, Optional
 from datetime import datetime, timezone
-from flask import g, session
+from flask import g, session, has_request_context
 from serpapi import GoogleSearch
 from quota_manager import (
     get_user_quota_status, 
@@ -30,6 +30,9 @@ from quota_manager import (
 from database import track_quota_consumption
 
 logger = logging.getLogger(__name__)
+
+# Detección de entorno desplegado (para gates de seguridad).
+_IS_DEPLOYED = os.getenv('RAILWAY_ENVIRONMENT', '') in ('production', 'staging')
 
 # Cache para detectar si una llamada es repetida (mismos parámetros) - LRU + TTL
 CALL_CACHE = OrderedDict()
@@ -219,9 +222,22 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
         Tuple[bool, dict]: (success, data_or_error)
     """
     
+    # 🔒 SEGURIDAD (independiente de ENFORCE_QUOTAS): en entornos desplegados nunca
+    # se ejecuta una llamada SerpAPI a partir de una petición HTTP sin usuario
+    # autenticado. Esto evita el abuso anónimo de la SERPAPI_KEY de pago. Los
+    # procesos server-side (crons/scripts) no tienen contexto de request y sí
+    # pueden ejecutar la llamada.
+    if _IS_DEPLOYED and has_request_context() and not get_current_user_id():
+        logger.warning("🚫 Llamada SerpAPI bloqueada: petición HTTP sin usuario autenticado")
+        return False, {
+            'error': 'Authentication required',
+            'message': 'Debes iniciar sesión para realizar esta operación.',
+            'blocked': True
+        }
+
     # ✅ FEATURE FLAG: Verificar si enforcement está activado
     enforce_quotas = os.getenv('ENFORCE_QUOTAS', 'false').lower() == 'true'
-    
+
     if not enforce_quotas:
         logger.info("🔓 ENFORCE_QUOTAS=false - Ejecutando sin control de quotas")
         return _execute_serp_call(params, call_type)
@@ -231,7 +247,10 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
     # 🔍 PASO 1: Obtener usuario actual
     user_id = get_current_user_id()
     if not user_id:
-        logger.warning("Llamada SerpAPI sin usuario autenticado - permitiendo (modo desarrollo)")
+        # Llegados aquí (tras el gate de seguridad anterior) solo puede ser un
+        # contexto server-side (cron/script) o desarrollo local: se permite sin
+        # descontar cuota porque no hay un usuario al que atribuírsela.
+        logger.info("Llamada SerpAPI sin usuario (contexto server-side/desarrollo) - permitiendo sin cuota")
         return _execute_serp_call(params, call_type)
     
     # 🔍 PASO 2: Verificar si es llamada cacheada (0 RU)

@@ -95,6 +95,13 @@ class CronService:
             
             if not projects:
                 logger.info("⏭️ No active projects found for daily analysis")
+                # Liberar el advisory lock y devolver la conexión al pool también en
+                # este early-return: la conexión es pooled (close() no cierra la sesión),
+                # así que sin unlock explícito el lock quedaría retenido indefinidamente.
+                lock_cur.execute("SELECT pg_advisory_unlock(%s, %s)", (lock_class_id, lock_object_id))
+                lock_acquired = False
+                lock_cur.close()
+                lock_conn.close()
                 result = {"success": True, "message": "No active projects", "processed": 0,
                           "job_id": job_id}
                 self._send_completion_email(result)
