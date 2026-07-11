@@ -2117,14 +2117,7 @@ def get_ai_overview_stats(user_id=None):
             FROM ai_overview_analysis
             WHERE keyword_word_count > 0''' + uf_and + '''
             GROUP BY categoria
-            ORDER BY
-                CASE categoria
-                    WHEN '1_termino' THEN 1
-                    WHEN '2_5_terminos' THEN 2
-                    WHEN '6_10_terminos' THEN 3
-                    WHEN '11_20_terminos' THEN 4
-                    ELSE 5
-                END
+            ORDER BY MIN(keyword_word_count)
         ''', uid)
         word_count_stats = cur.fetchall()
 
@@ -2157,21 +2150,22 @@ def get_ai_overview_stats(user_id=None):
             'with_ai_overview': with_ai_overview,
             'as_ai_source': as_ai_source,
             'ai_overview_percentage': round((with_ai_overview / total_analyses * 100), 2) if total_analyses > 0 else 0,
+            # Filas como dicts (RealDictCursor): acceso por clave, no por índice
             'word_count_stats': [
                 {
-                    'categoria': row[0],
-                    'total': row[1],
-                    'con_ai_overview': row[2],
-                    'porcentaje_ai': round((row[2] / row[1] * 100), 2) if row[1] > 0 else 0
+                    'categoria': row['categoria'],
+                    'total': row['total'],
+                    'con_ai_overview': row['con_ai_overview'],
+                    'porcentaje_ai': round((row['con_ai_overview'] / row['total'] * 100), 2) if row['total'] > 0 else 0
                 }
                 for row in word_count_stats
             ],
-            'country_stats': [{'country': row[0], 'total': row[1]} for row in country_stats],
+            'country_stats': [{'country': row['country_code'], 'total': row['total']} for row in country_stats],
             'daily_stats': [
                 {
-                    'fecha': row[0].strftime('%Y-%m-%d'),
-                    'total_analisis': row[1],
-                    'con_ai_overview': row[2]
+                    'fecha': row['fecha'].strftime('%Y-%m-%d'),
+                    'total_analisis': row['total_analisis'],
+                    'con_ai_overview': row['con_ai_overview']
                 }
                 for row in daily_stats
             ]
