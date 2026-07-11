@@ -380,7 +380,9 @@ def get_quota_statistics():
             WHERE custom_quota_limit IS NOT NULL
         ''')
         
-        custom_count = cur.fetchone()[0]
+        _row = cur.fetchone()
+        # RealDictCursor: las filas son dicts, [0] lanzaría KeyError
+        custom_count = _row['custom_quota_users'] if _row else 0
         
         return {
             'plan_statistics': plan_stats,
