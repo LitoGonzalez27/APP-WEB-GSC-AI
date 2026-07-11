@@ -3965,6 +3965,14 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Could not register admin fix endpoint: {e}")
 
+# 💰 Panel de costes reales (LLM + SerpAPI) del admin
+try:
+    from admin_cost_panel import admin_costs_bp
+    app.register_blueprint(admin_costs_bp)
+    logger.info("✅ Admin costs endpoint registered at /admin/api/costs")
+except Exception as e:
+    logger.warning(f"⚠️ Could not register admin costs endpoint: {e}")
+
 # ✅ NUEVO: Ruta para LLM Monitoring Dashboard
 @app.route('/llm-monitoring')
 @login_required

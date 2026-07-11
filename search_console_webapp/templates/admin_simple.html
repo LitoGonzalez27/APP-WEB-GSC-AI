@@ -3,854 +3,458 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Simple & Clean</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
+    <title>Panel de Administración · Clicandseo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
-        /* ========== RESET Y BASE ========== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* ================================================================
+           Clicandseo Admin Panel — Brandbook v1.1
+           Bio-Lime #d9f9b8 · Inter Tight + Libre Baskerville · Ultra Soft
+           ================================================================ */
+        :root {
+            --color-accent: #d9f9b8;
+            --color-text-primary: #0F172A;
+            --color-text-secondary: #64748B;
+            --color-text-tertiary: #94A3B8;
+            --color-text-inverse: #F8FAFC;
+            --color-bg-paper: #FFFFFF;
+            --color-bg-subtle: #F1F5F9;
+            --color-bg-dark: #0A0A0B;
+            --color-border: #E2E8F0;
+            --color-border-subtle: #EEF2F7;
+            --color-success: #3CB371;
+            --color-error: #E05252;
+            --font-sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-serif: 'Libre Baskerville', 'Georgia', serif;
+            --radius-sm: 8px;
+            --radius-md: 20px;
+            --radius-lg: 30px;
+            --radius-full: 9999px;
+            --shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+            --shadow-md: 0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+            --shadow-lg: 0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+            --space-xs: 0.25rem; --space-sm: 0.5rem; --space-md: 1rem; --space-lg: 2rem; --space-xl: 4rem;
+            --transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8f9fa;
-            color: #333;
+            font-family: var(--font-sans);
+            background: var(--color-bg-subtle);
+            color: var(--color-text-primary);
             line-height: 1.6;
+            font-size: 16px;
         }
-        
-        /* ========== NAVBAR ========== */
+
+        /* Iconos Lucide */
+        svg.lucide { width: 18px; height: 18px; stroke-width: 2; vertical-align: middle; flex-shrink: 0; }
+        .btn svg.lucide, button svg.lucide { width: 16px; height: 16px; }
+
+        /* ---------- Navbar ---------- */
         .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: var(--color-bg-paper);
+            border-bottom: 1px solid var(--color-border-subtle);
+            height: 80px;
+            position: sticky; top: 0; z-index: 50;
         }
-        
         .nav-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .nav-title {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .nav-logo-link {
-            display: inline-flex;
-            align-items: center;
-        }
-
-        .nav-logo-image {
-            height: 32px;
-            width: auto;
-            display: block;
-        }
-        
-        .nav-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-        
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-        
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        
-        .btn-secondary:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        /* ========== MAIN CONTENT ========== */
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
+            max-width: 1400px; margin: 0 auto; height: 100%;
             padding: 0 2rem;
+            display: flex; align-items: center; justify-content: space-between; gap: 1rem;
         }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
+        .nav-title { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+        .nav-logo-image { height: 26px; display: block; }
+        .nav-section-label {
+            font-size: 0.85rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--color-text-tertiary);
+            border-left: 1px solid var(--color-border); padding-left: 1rem;
+            white-space: nowrap;
         }
-        
-        .header h1 {
-            color: #333;
-            margin-bottom: 0.5rem;
-        }
-        
-        .header p {
-            color: #666;
-            font-size: 1.1rem;
-        }
-        
-        /* ========== STATS ========== */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
+        .nav-actions { display: flex; gap: 0.5rem; align-items: center; }
 
+        /* ---------- Botones (pill, brandbook §09) ---------- */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 22px;
+            border-radius: var(--radius-full);
+            font-family: var(--font-sans); font-size: 0.875rem; font-weight: 600;
+            border: none; cursor: pointer; text-decoration: none;
+            transition: var(--transition);
+            line-height: 1.2; white-space: nowrap;
+        }
+        .btn-primary { background: var(--color-text-primary); color: var(--color-text-inverse); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .btn-accent { background: var(--color-accent); color: var(--color-text-primary); }
+        .btn-accent:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .btn-secondary, .btn-info {
+            background: transparent; color: var(--color-text-primary);
+            border: 1.5px solid var(--color-border);
+        }
+        .btn-secondary:hover, .btn-info:hover { transform: translateY(-2px); border-color: var(--color-text-primary); }
+        .btn-danger { background: transparent; color: var(--color-error); border: 1.5px solid var(--color-border); }
+        .btn-danger:hover { border-color: var(--color-error); transform: translateY(-2px); }
+        .btn-warning { background: transparent; color: var(--color-text-primary); border: 1.5px solid var(--color-border); }
+        .btn-warning:hover { border-color: var(--color-text-primary); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+        /* Botones de acción compactos de la tabla (icónicos, ghost) */
+        .btn-role-edit, .btn-status-edit, .btn-plan-change,
+        .btn-custom-quota, .btn-remove-custom, .btn-reset-quota {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px;
+            border-radius: var(--radius-full);
+            background: transparent; border: 1.5px solid var(--color-border);
+            color: var(--color-text-secondary); cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-role-edit:hover, .btn-status-edit:hover, .btn-plan-change:hover,
+        .btn-custom-quota:hover, .btn-remove-custom:hover, .btn-reset-quota:hover {
+            border-color: var(--color-text-primary); color: var(--color-text-primary);
+            transform: translateY(-1px);
+        }
+        .btn-remove-custom:hover { border-color: var(--color-error); color: var(--color-error); }
+        .btn-role-edit svg.lucide, .btn-status-edit svg.lucide, .btn-plan-change svg.lucide,
+        .btn-custom-quota svg.lucide, .btn-remove-custom svg.lucide, .btn-reset-quota svg.lucide { width: 14px; height: 14px; }
+
+        /* ---------- Layout ---------- */
+        .container { max-width: 1400px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+        .page-header { margin: 1.5rem 0 2.5rem; position: relative; }
+        .eyebrow {
+            font-size: 0.85rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--color-text-tertiary); margin-bottom: 0.75rem;
+        }
+        .page-header h1 {
+            font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 800; letter-spacing: -0.04em;
+            line-height: 1.15;
+        }
+        .accent-word { position: relative; font-family: var(--font-serif); font-style: italic; font-weight: 400; }
+        .accent-word::after {
+            content: ''; position: absolute; bottom: 0.08em; left: -6px; right: -6px; height: 0.4em;
+            background: var(--color-accent); opacity: 0.85; transform: rotate(-1.5deg); z-index: -1;
+        }
+        .page-header p { color: var(--color-text-secondary); margin-top: 0.75rem; max-width: 60ch; }
+
+        .section-title { display: flex; align-items: baseline; gap: 0.75rem; margin: 3rem 0 1.25rem; }
+        .section-title h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+        .section-title .section-note { font-size: 0.8rem; color: var(--color-text-tertiary); }
+
+        /* ---------- Cards ---------- */
+        .card {
+            background: var(--color-bg-paper);
+            border: 1px solid var(--color-border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.75rem;
+            transition: var(--transition);
+        }
+        .card:hover { border-color: var(--color-accent); box-shadow: var(--shadow-md); }
+        .card-eyebrow {
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--color-text-tertiary); margin-bottom: 0.6rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .card-eyebrow svg.lucide { width: 14px; height: 14px; }
+
+        /* Stat cards */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
         .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
+            background: var(--color-bg-paper); border: 1px solid var(--color-border-subtle);
+            border-radius: var(--radius-md); padding: 1.5rem 1.75rem; transition: var(--transition);
         }
-
-        .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #007bff;
-        }
-
+        .stat-card:hover { border-color: var(--color-accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .stat-number { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+        .stat-sub { font-size: 0.78rem; color: var(--color-text-tertiary); margin-top: 2px; }
         .stat-label {
-            color: #666;
-            margin-top: 0.5rem;
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--color-text-tertiary); margin-top: 0.5rem;
         }
 
-        /* ========== TIME-SEGMENTED STATS ========== */
-        .time-stats-container {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1.2rem;
-            margin-bottom: 1.5rem;
-        }
-        @media (max-width: 1024px) {
-            .time-stats-container { grid-template-columns: 1fr; }
-        }
+        /* Time blocks (Hoy / 7 días / Mes) */
+        .time-stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem; }
         .time-block {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-            overflow: hidden;
+            background: var(--color-bg-paper); border: 1px solid var(--color-border-subtle);
+            border-radius: var(--radius-md); overflow: hidden; transition: var(--transition);
         }
+        .time-block:hover { border-color: var(--color-accent); box-shadow: var(--shadow-md); }
         .time-block-header {
-            padding: 0.75rem 1.2rem;
-            font-weight: 700;
-            font-size: 0.95rem;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            display: flex; align-items: center; gap: 8px;
+            padding: 0.9rem 1.5rem;
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--color-text-secondary);
+            border-bottom: 1px solid var(--color-border-subtle);
         }
-        .time-block-header.today   { background: #2563eb; }
-        .time-block-header.week    { background: #7c3aed; }
-        .time-block-header.month   { background: #0891b2; }
-        .time-block-body {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0;
-        }
-        .time-metric {
-            padding: 0.9rem 0.6rem;
-            text-align: center;
-            border-bottom: 1px solid #f1f5f9;
-            border-right: 1px solid #f1f5f9;
-        }
-        .time-metric:nth-child(3n) { border-right: none; }
-        .time-metric:nth-last-child(-n+3) { border-bottom: none; }
-        .time-metric-value {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #1e293b;
-            line-height: 1.2;
-        }
-        .time-metric-label {
-            font-size: 0.72rem;
-            color: #94a3b8;
-            margin-top: 0.2rem;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        /* Revenue block */
+        .time-block-header svg.lucide { width: 15px; height: 15px; }
+        .time-block-body { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem 0.5rem; padding: 1.25rem 1.5rem; }
+        .time-metric-value { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+        .time-metric-label { font-size: 0.7rem; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        /* Revenue */
         .revenue-block {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-            padding: 1.2rem 1.5rem;
-            margin-bottom: 1.5rem;
+            background: var(--color-bg-dark); color: var(--color-text-inverse);
+            border-radius: var(--radius-md); padding: 1.75rem; margin-top: 1rem;
+            position: relative; overflow: hidden;
         }
+        .revenue-block::before {
+            content: ''; position: absolute; inset: 0;
+            background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.14) 1px, transparent 0);
+            background-size: 24px 24px; pointer-events: none;
+        }
+        .revenue-inner { position: relative; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2.5rem; }
         .revenue-header {
-            font-weight: 700;
-            font-size: 0.95rem;
-            color: #16a34a;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.8rem;
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: rgba(255,255,255,0.6); margin-bottom: 0.6rem;
+            display: flex; align-items: center; gap: 8px;
         }
-        .revenue-grid {
-            display: flex;
-            gap: 1.5rem;
-            align-items: center;
-            flex-wrap: wrap;
+        .revenue-total { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+        .revenue-total small { font-size: 0.9rem; font-weight: 400; color: rgba(255,255,255,0.6); }
+        .revenue-sub { color: rgba(255,255,255,0.6); font-size: 0.85rem; }
+        .revenue-plans { display: flex; gap: 2rem; margin-left: auto; }
+        .revenue-plan-item { text-align: left; }
+        .revenue-plan-count { font-size: 1.3rem; font-weight: 700; }
+        .revenue-plan-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.6); }
+        .revenue-plan-rev { font-size: 0.85rem; color: var(--color-accent); font-weight: 600; }
+
+        /* ---------- Sección Costes ---------- */
+        .costs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
+        .costs-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+        @media (max-width: 900px) { .costs-two-col { grid-template-columns: 1fr; } }
+        .cost-big { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+        .cost-big small { font-size: 0.85rem; font-weight: 500; color: var(--color-text-tertiary); }
+        .cost-positive { color: var(--color-success); }
+        .cost-negative { color: var(--color-error); }
+
+        .kv-list { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.75rem; }
+        .kv-row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; font-size: 0.875rem; }
+        .kv-row .k { color: var(--color-text-secondary); }
+        .kv-row .v { font-weight: 600; text-align: right; }
+
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table th {
+            text-align: left; padding: 0.6rem 0.75rem;
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--color-text-tertiary); border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
         }
-        .revenue-total {
-            font-size: 2.2rem;
-            font-weight: 800;
-            color: #16a34a;
-            line-height: 1;
+        .data-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--color-border-subtle); vertical-align: top; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table td.num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .table-scroll { overflow-x: auto; }
+
+        .method-note {
+            font-size: 0.78rem; color: var(--color-text-secondary);
+            border-left: 3px solid var(--color-accent); padding-left: 1rem; margin-top: 1rem; line-height: 1.55;
         }
-        .revenue-total small {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #94a3b8;
+
+        /* Simulador */
+        .simulator-controls { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 0.75rem; }
+        .simulator-controls label { font-size: 0.8rem; color: var(--color-text-secondary); font-weight: 500; }
+        .simulator-controls input[type="number"] {
+            width: 110px; padding: 8px 12px; border: 1.5px solid var(--color-border);
+            border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 0.875rem;
         }
-        .revenue-plans {
-            display: flex;
-            gap: 1.2rem;
-            flex-wrap: wrap;
+        .simulator-controls input[type="number"]:focus { outline: none; border-color: var(--color-text-primary); }
+        .sim-providers { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; margin-top: 0.5rem; }
+        .sim-providers label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--color-text-primary); cursor: pointer; }
+        .sim-result { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border-subtle); }
+        .sim-result .cost-big { font-size: 1.5rem; }
+
+        /* Mini gráficas SVG */
+        .chart-wrap { margin-top: 0.75rem; }
+        .chart-bar { fill: var(--color-text-primary); }
+        .chart-bar:hover { fill: var(--color-success); }
+        .chart-axis-label { font-size: 10px; fill: var(--color-text-tertiary); font-family: var(--font-sans); }
+
+        /* ---------- Controles de tabla ---------- */
+        .table-controls { display: flex; gap: 0.75rem; align-items: center; margin: 0 0 1rem; flex-wrap: wrap; }
+        .table-controls input[type="text"], .table-controls select {
+            padding: 10px 16px; border: 1.5px solid var(--color-border);
+            border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 0.875rem;
+            color: var(--color-text-primary); background: var(--color-bg-paper);
         }
-        .revenue-plan-item {
-            text-align: center;
-            padding: 0.5rem 0.8rem;
-            background: #f8fafc;
-            border-radius: 8px;
-            min-width: 90px;
-        }
-        .revenue-plan-count {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #334155;
-        }
-        .revenue-plan-label {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            text-transform: uppercase;
-        }
-        .revenue-plan-rev {
-            font-size: 0.8rem;
-            color: #16a34a;
-            font-weight: 600;
-        }
-        
-        /* ========== TABLE ========== */
+        .table-controls input[type="text"] { flex: 1; min-width: 220px; }
+        .table-controls input:focus, .table-controls select:focus { outline: none; border-color: var(--color-text-primary); }
+
+        /* ---------- Tabla de usuarios ---------- */
         .table-container {
-            position: relative;
-            background: white;
-            border-radius: 14px;
-            overflow-x: auto;
-            overflow-y: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            border: 1px solid #e9ecef;
-            -webkit-overflow-scrolling: touch;
+            background: var(--color-bg-paper); border: 1px solid var(--color-border-subtle);
+            border-radius: var(--radius-md); overflow-x: auto;
         }
-
-        /* Sombras laterales que indican scroll disponible */
-        .table-container::before,
-        .table-container::after {
-            content: "";
-            position: sticky;
-            top: 0;
-            width: 24px;
-            height: 100%;
-            pointer-events: none;
-            z-index: 3;
-            opacity: 0;
-            transition: opacity 0.25s ease;
-        }
-        .table-container::before {
-            left: 0;
-            background: linear-gradient(to right, rgba(0,0,0,0.08), rgba(0,0,0,0));
-            border-top-left-radius: 14px;
-            border-bottom-left-radius: 14px;
-        }
-        .table-container::after {
-            right: 0;
-            background: linear-gradient(to left, rgba(0,0,0,0.08), rgba(0,0,0,0));
-            border-top-right-radius: 14px;
-            border-bottom-right-radius: 14px;
-        }
-        .table-container.has-left-shadow::before { opacity: 1; }
-        .table-container.has-right-shadow::after { opacity: 1; }
-
-        /* Scrollbar sutil */
-        .table-container::-webkit-scrollbar {
-            height: 10px;
-        }
-        .table-container::-webkit-scrollbar-track {
-            background: #f1f3f5;
-            border-bottom-left-radius: 14px;
-            border-bottom-right-radius: 14px;
-        }
-        .table-container::-webkit-scrollbar-thumb {
-            background: #ced4da;
-            border-radius: 10px;
-        }
-        .table-container::-webkit-scrollbar-thumb:hover {
-            background: #adb5bd;
-        }
-        
-        .table {
-            width: 100%;
-            min-width: 1200px; /* Fuerza scroll horizontal cuando no hay espacio */
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-        
-        .table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            background: #f8f9fb;
-            backdrop-filter: blur(6px);
-            padding: 1rem;
-            text-align: left;
-            font-weight: 700;
-            color: #3a3f45;
-            border-bottom: 2px solid #e9ecef;
+        .table { width: 100%; border-collapse: collapse; }
+        .table th {
+            text-align: left; padding: 0.9rem 1rem;
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--color-text-tertiary);
+            border-bottom: 1px solid var(--color-border);
             white-space: nowrap;
+            position: sticky; top: 0; background: var(--color-bg-paper);
         }
-        
-        .table td {
-            padding: 0.9rem 1rem;
-            border-bottom: 1px solid #edf0f2;
-            vertical-align: middle;
-            white-space: nowrap;
-        }
-        
-        .table tbody tr:nth-child(even) { background: #fcfdff; }
-        .table tbody tr:hover { background: #f3f6ff; }
-        
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
+        .table td { padding: 1rem; border-bottom: 1px solid var(--color-border-subtle); font-size: 0.875rem; vertical-align: top; }
+        .table tbody tr { transition: background 0.15s ease; }
+        .table tbody tr:hover { background: var(--color-bg-subtle); }
+        .table tbody tr:last-child td { border-bottom: none; }
+
+        .user-info { display: flex; align-items: center; gap: 0.75rem; }
         .user-avatar {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.1rem;
-            box-shadow: 0 4px 12px rgba(102,126,234,0.25);
+            width: 38px; height: 38px; border-radius: 50%;
+            background: var(--color-bg-subtle); border: 1px solid var(--color-border-subtle);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--color-text-tertiary); overflow: hidden; flex-shrink: 0;
         }
-        
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-        }
-        
-        .user-details h4 {
-            margin: 0;
-            color: #333;
-        }
-        
-        .user-details small {
-            color: #666;
-        }
-        
+        .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .user-details h4 { font-size: 0.9rem; font-weight: 600; line-height: 1.3; }
+        .user-details small { color: var(--color-text-tertiary); font-size: 0.72rem; }
+
+        /* Estados y roles: texto plano + punto de color (sin pills, brandbook §15) */
         .badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; font-weight: 600; color: var(--color-text-primary);
+            background: none; border: none; padding: 0;
         }
-        
-        .badge.admin {
-            background: #ffc107;
-            color: #212529;
-        }
-        
-        .badge.user {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .badge.ai-user {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-        }
-        
-        .badge.active {
-            background: #28a745;
-            color: white;
-        }
-        
-        .badge.inactive {
-            background: #dc3545;
-            color: white;
-        }
-        
-        /* Plan badges */
-        .badge.free {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .badge.basic {
-            background: #007bff;
-            color: white;
-        }
-        
-        .badge.premium {
-            background: #28a745;
-            color: white;
-        }
-        
-        .badge.business {
-            background: #fd7e14;
-            color: white;
-        }
-        
-        .badge.enterprise {
-            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
-            color: white;
-            font-weight: 600;
-        }
-        
-        /* Plan & Quota container */
-        .plan-quota-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-        
-        .plan-info {
-            display: flex;
-            flex-direction: column;
-            gap: 0.125rem;
-        }
-        
-        .plan-info small {
-            color: #666;
-            font-size: 0.7rem;
-        }
-        
-        /* 🚀 NUEVO: Barra progresiva de cuotas */
-        .quota-progress-container {
-            margin-top: 0.25rem;
-            width: 100%;
-        }
-        
+        .badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--color-text-tertiary); flex-shrink: 0; }
+        .badge.admin::before { background: var(--color-text-primary); }
+        .badge.active::before { background: var(--color-success); }
+        .badge.inactive { color: var(--color-text-secondary); }
+        .badge.inactive::before { background: var(--color-error); }
+        .badge.free { color: var(--color-text-secondary); }
+        .badge.basic::before, .badge.premium::before, .badge.business::before { background: var(--color-success); }
+        .badge.enterprise::before { background: var(--color-text-primary); }
+
+        .role-container, .status-container { display: flex; align-items: center; gap: 0.5rem; }
+
+        /* Plan & quota */
+        .plan-quota-container { display: flex; flex-direction: column; gap: 4px; min-width: 190px; }
+        .plan-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .plan-info small { color: var(--color-text-secondary); font-size: 0.75rem; }
+        .plan-quota-container > small { color: var(--color-text-tertiary) !important; font-size: 0.72rem !important; }
+        .custom-note { color: var(--color-text-tertiary); font-style: italic; }
+        .plan-actions { display: flex; gap: 6px; margin-top: 6px; }
+
+        .quota-progress-container { margin: 4px 0; }
         .quota-progress-bar {
-            width: 100%;
-            height: 8px;
-            background-color: #eef2ff;
-            border-radius: 999px;
-            overflow: hidden;
-            position: relative;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+            height: 6px; background: var(--color-bg-subtle); border-radius: var(--radius-sm); overflow: hidden;
         }
-        
-        .quota-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #22d3ee);
-            border-radius: 999px;
-            transition: width 0.6s ease;
-            position: relative;
+        .quota-progress-fill { height: 100%; border-radius: var(--radius-sm); background: var(--color-success); transition: width 0.4s ease; }
+        .quota-progress-fill.warning { background: var(--color-text-secondary); }
+        .quota-progress-fill.danger { background: var(--color-error); }
+        .quota-progress-text { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--color-text-tertiary); margin-top: 2px; }
+        .quota-percentage { font-weight: 600; }
+
+        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        /* Paginación */
+        .pagination-bar { display: flex; justify-content: space-between; align-items: center; margin: 1rem 0; }
+        .pagination-bar .page-info { color: var(--color-text-tertiary); font-size: 0.85rem; }
+        .pagination-bar .page-links { display: flex; gap: 0.5rem; }
+
+        /* Audit */
+        .audit-details {
+            margin: 1.5rem 0; background: var(--color-bg-paper);
+            border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); overflow: hidden;
         }
-        
-        .quota-progress-fill.danger {
-            background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+        .audit-details summary {
+            padding: 1.1rem 1.75rem; cursor: pointer; font-weight: 600; font-size: 0.95rem;
+            user-select: none; list-style: none; display: flex; align-items: center; gap: 0.6rem;
         }
-        
-        .quota-progress-fill.warning {
-            background: linear-gradient(90deg, #ffc107 0%, #f39c12 100%);
-        }
-        
-        .quota-progress-fill.success {
-            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
-        }
-        
-        .quota-progress-text {
-            font-size: 0.65rem;
-            color: #666;
-            margin-top: 0.125rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .quota-percentage {
-            font-weight: 600;
-        }
-        
-        .quota-percentage.danger {
-            color: #dc3545;
-        }
-        
-        .quota-percentage.warning {
-            color: #ffc107;
-        }
-        
-        .quota-percentage.success {
-            color: #28a745;
-        }
-        
-        .custom-note {
-            color: #6f42c1;
-            font-style: italic;
-            font-size: 0.65rem;
-        }
-        
-        /* Plan actions buttons */
-        .plan-actions {
-            display: flex;
-            gap: 0.25rem;
-            margin-top: 0.25rem;
-        }
-        
-        .btn-plan-change, .btn-custom-quota, .btn-remove-custom, .btn-reset-quota {
-            padding: 0.125rem 0.25rem;
-            border: none;
-            border-radius: 3px;
-            font-size: 0.7rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .btn-plan-change {
-            background: #007bff;
-            color: white;
-        }
-        
-        .btn-plan-change:hover {
-            background: #0056b3;
-        }
-        
-        .btn-custom-quota {
-            background: #6f42c1;
-            color: white;
-        }
-        
-        .btn-custom-quota:hover {
-            background: #5a32a3;
-        }
-        
-        .btn-remove-custom {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn-remove-custom:hover {
-            background: #c82333;
-        }
-        
-        .btn-reset-quota {
-            background: #ffc107;
-            color: #212529;
-        }
-        
-        .btn-reset-quota:hover {
-            background: #e0a800;
-        }
-        
-        .actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.8rem;
-            border-radius: 5px;
-        }
-        
-        .btn-info {
-            background: #17a2b8;
-            color: white;
-        }
-        
-        .btn-info:hover {
-            background: #138496;
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-        }
-        
-        /* ========== ROLE MANAGEMENT ========== */
-        .role-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .btn-role-edit {
-            background: #ffc107;
-            color: #212529;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.75rem;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .btn-role-edit:hover {
-            background: #e0a800;
-            transform: scale(1.05);
-        }
-        
-        .role-select {
-            width: 100%;
-            padding: 0.5rem;
-            border: 2px solid #dee2e6;
-            border-radius: 5px;
-            font-size: 1rem;
-            background: white;
-        }
-        
-        .role-select:focus {
-            border-color: #007bff;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
-        }
-        
-        /* ========== MODALES - INLINE CRÍTICO ========== */
+        .audit-details summary::-webkit-details-marker { display: none; }
+        .audit-count { color: var(--color-text-tertiary); font-size: 0.78rem; font-weight: 500; }
+        .audit-body { padding: 0 1.75rem 1.5rem; overflow-x: auto; }
+
+        /* ---------- Modales ---------- */
         .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 99999;
-            padding: 2rem;
+            display: none; position: fixed; inset: 0; z-index: 1000;
+            background: rgba(15, 23, 42, 0.45);
+            padding: 1.5rem;
         }
-        
-        .modal.show {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-        
         .modal-content {
-            background: white;
-            border-radius: 10px;
-            max-width: 500px;
-            width: 100%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: var(--color-bg-paper); border-radius: var(--radius-md);
+            width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto;
+            box-shadow: var(--shadow-lg);
         }
-        
         .modal-header {
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px 10px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1.5rem 1.75rem 1rem; border-bottom: 1px solid var(--color-border-subtle);
         }
-        
-        .modal-header h3 {
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
+        .modal-header h3 { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; }
         .modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: background 0.3s;
+            background: none; border: none; cursor: pointer; color: var(--color-text-tertiary);
+            font-size: 1.4rem; line-height: 1; padding: 4px; border-radius: var(--radius-full);
+            transition: var(--transition);
         }
-        
-        .modal-close:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .modal-body {
-            padding: 1.5rem;
-        }
-        
+        .modal-close:hover { color: var(--color-text-primary); }
+        .modal-body { padding: 1.5rem 1.75rem; }
         .modal-footer {
-            padding: 1rem 1.5rem;
-            background: #f8f9fa;
-            border-radius: 0 0 10px 10px;
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
+            display: flex; justify-content: flex-end; gap: 0.75rem;
+            padding: 1rem 1.75rem 1.5rem; border-top: 1px solid var(--color-border-subtle);
         }
-        
-        .detail-grid {
-            display: grid;
-            gap: 1rem;
+        .modal-body label { font-size: 0.82rem; font-weight: 600; color: var(--color-text-secondary); display: block; margin: 0.75rem 0 0.3rem; }
+        .modal-body input[type="text"], .modal-body input[type="number"], .modal-body input[type="email"],
+        .modal-body select, .modal-body textarea {
+            width: 100%; padding: 10px 14px; border: 1.5px solid var(--color-border);
+            border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 0.9rem;
         }
-        
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .detail-item:last-child {
-            border-bottom: none;
-        }
-        
-        .detail-label {
-            font-weight: 600;
-            color: #333;
-        }
-        
-        .detail-value {
-            color: #666;
-        }
-        
-        /* ========== STATUS MANAGEMENT ========== */
-        .status-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        .modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus {
+            outline: none; border-color: var(--color-text-primary);
         }
 
-        .btn-status-edit {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.75rem;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* Detalles de usuario (modal Ver) */
+        .detail-section { margin-bottom: 1.5rem; }
+        .detail-section h4 {
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--color-text-tertiary); margin-bottom: 0.75rem;
+            display: flex; align-items: center; gap: 8px;
+            border-bottom: 1px solid var(--color-border-subtle); padding-bottom: 0.5rem;
+        }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; }
+        @media (max-width: 640px) { .detail-grid { grid-template-columns: 1fr; } }
+        .detail-item { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.85rem; }
+        .detail-label { color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
+        .detail-value { font-weight: 600; text-align: right; }
+
+        /* Notificaciones toast simples */
+        .admin-toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 2000;
+            background: var(--color-bg-dark); color: var(--color-text-inverse);
+            padding: 0.9rem 1.4rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+            font-size: 0.875rem; max-width: 380px;
         }
 
-        .btn-status-edit:hover {
-            background: #218838;
-            transform: scale(1.05);
-        }
-
-        .btn-status-edit.inactive {
-            background: #dc3545;
-        }
-
-        .btn-status-edit.inactive:hover {
-            background: #c82333;
-        }
-
-        .status-select {
-            width: 100%;
-            padding: 0.5rem;
-            border: 2px solid #dee2e6;
-            border-radius: 5px;
-            font-size: 1rem;
-            background: white;
-        }
-
-        .status-select:focus {
-            border-color: #007bff;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
-        }
-        
-        /* ========== RESPONSIVE ========== */
+        /* Responsive */
         @media (max-width: 768px) {
-            .container {
-                padding: 0 1rem;
-            }
-            
-            .nav-content {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            
-            .stats {
-                grid-template-columns: 1fr;
-            }
-            
-            .table-container {
-                overflow-x: auto;
-            }
-            
-            .modal {
-                padding: 1rem;
-            }
+            .nav-content { padding: 0 1rem; }
+            .nav-section-label { display: none; }
+            .container { padding: 1.5rem 1rem 3rem; }
+            .revenue-plans { margin-left: 0; }
         }
     </style>
 </head>
+
 <body>
     <!-- Navbar -->
     <nav class="navbar">
         <div class="nav-content">
             <div class="nav-title">
-                <a href="https://app.clicandseo.com/dashboard" class="nav-logo-link" aria-label="Go to Dashboard">
-                    <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}"
-                         alt="Clicandseo Logo"
+                <a href="/dashboard" class="nav-logo-link" aria-label="Ir al Dashboard">
+                    <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-dark.svg') }}"
+                         alt="Clicandseo"
                          class="nav-logo-image">
                 </a>
-                <i class="fas fa-users-cog"></i>
-                Panel de Administración
+                <span class="nav-section-label">Administración</span>
             </div>
             <div class="nav-actions">
-                <a href="/" class="btn btn-secondary">
-                    <i class="fas fa-home"></i>
+                <a href="/" class="btn btn-secondary btn-sm">
+                    <i data-lucide="house"></i>
                     Inicio
                 </a>
-                <button class="btn btn-secondary" id="clearCacheBtn">
-                    <i class="fas fa-broom"></i>
-                    Vaciar Caché
+                <button class="btn btn-secondary btn-sm" id="clearCacheBtn">
+                    <i data-lucide="eraser"></i>
+                    Vaciar caché
                 </button>
-                <a href="/auth/logout" class="btn btn-secondary">
-                    <i class="fas fa-sign-out-alt"></i>
+                <a href="/auth/logout" class="btn btn-primary btn-sm">
+                    <i data-lucide="log-out"></i>
                     Salir
                 </a>
             </div>
@@ -860,16 +464,17 @@
     <!-- Main Content -->
     <div class="container">
         <!-- Header -->
-        <div class="header">
-            <h1>Gestión de Usuarios</h1>
-            <p>Administra los usuarios del sistema de forma sencilla</p>
+        <div class="page-header">
+            <div class="eyebrow">Panel de administración</div>
+            <h1>Tu plataforma, <span class="accent-word">bajo control</span>.</h1>
+            <p>Usuarios, consumo y costes reales de Clicandseo — datos directos de base de datos y proveedores.</p>
         </div>
 
         <!-- Resumen rápido -->
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-number">{{ stats.total_users if stats else 0 }}</div>
-                <div class="stat-label">Total Usuarios</div>
+                <div class="stat-label">Total usuarios</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number">{{ stats.active_users if stats else 0 }}</div>
@@ -880,9 +485,9 @@
                 <div class="stat-label">Inactivos</div>
             </div>
             {% set ubp = stats.users_by_plan if stats and stats.users_by_plan else {} %}
-            <div class="stat-card" style="border-left: 3px solid #007bff;">
+            <div class="stat-card">
                 <div class="stat-number">{{ (ubp.get('basic', 0)|int + ubp.get('premium', 0)|int + ubp.get('business', 0)|int + ubp.get('enterprise', 0)|int) if ubp else 0 }}</div>
-                <div class="stat-label">De Pago</div>
+                <div class="stat-label">De pago</div>
             </div>
         </div>
 
@@ -894,7 +499,7 @@
         <div class="time-stats-container">
             <!-- HOY -->
             <div class="time-block">
-                <div class="time-block-header today"><i class="fas fa-sun"></i> Hoy</div>
+                <div class="time-block-header"><i data-lucide="sun"></i> Hoy</div>
                 <div class="time-block-body">
                     <div class="time-metric">
                         <div class="time-metric-value">{{ t_today.get('active_users', 0) }}</div>
@@ -910,21 +515,21 @@
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">{{ "{:,}".format(t_today.get('ru_consumed', 0)) }}</div>
-                        <div class="time-metric-label">RU Gastadas</div>
+                        <div class="time-metric-label">RU gastadas</div>
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">{{ "{:,}".format(t_today.get('llm_units', 0)) }}</div>
-                        <div class="time-metric-label">LLM Unidades</div>
+                        <div class="time-metric-label">LLM unidades</div>
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">${{ "%.2f"|format(t_today.get('llm_cost', 0)) }}</div>
-                        <div class="time-metric-label">LLM Coste</div>
+                        <div class="time-metric-label">LLM coste</div>
                     </div>
                 </div>
             </div>
             <!-- ÚLTIMOS 7 DÍAS -->
             <div class="time-block">
-                <div class="time-block-header week"><i class="fas fa-calendar-week"></i> Últimos 7 días</div>
+                <div class="time-block-header"><i data-lucide="calendar-days"></i> Últimos 7 días</div>
                 <div class="time-block-body">
                     <div class="time-metric">
                         <div class="time-metric-value">{{ t_week.get('active_users', 0) }}</div>
@@ -940,21 +545,21 @@
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">{{ "{:,}".format(t_week.get('ru_consumed', 0)) }}</div>
-                        <div class="time-metric-label">RU Gastadas</div>
+                        <div class="time-metric-label">RU gastadas</div>
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">{{ "{:,}".format(t_week.get('llm_units', 0)) }}</div>
-                        <div class="time-metric-label">LLM Unidades</div>
+                        <div class="time-metric-label">LLM unidades</div>
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">${{ "%.2f"|format(t_week.get('llm_cost', 0)) }}</div>
-                        <div class="time-metric-label">LLM Coste</div>
+                        <div class="time-metric-label">LLM coste</div>
                     </div>
                 </div>
             </div>
-            <!-- ÚLTIMO MES -->
+            <!-- ESTE MES -->
             <div class="time-block">
-                <div class="time-block-header month"><i class="fas fa-calendar-alt"></i> Este mes</div>
+                <div class="time-block-header"><i data-lucide="calendar"></i> Este mes</div>
                 <div class="time-block-body">
                     <div class="time-metric">
                         <div class="time-metric-value">{{ t_month.get('active_users', 0) }}</div>
@@ -970,15 +575,15 @@
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">{{ "{:,}".format(t_month.get('ru_consumed', 0)) }}</div>
-                        <div class="time-metric-label">RU Gastadas</div>
+                        <div class="time-metric-label">RU gastadas</div>
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">{{ "{:,}".format(t_month.get('llm_units', 0)) }}</div>
-                        <div class="time-metric-label">LLM Unidades</div>
+                        <div class="time-metric-label">LLM unidades</div>
                     </div>
                     <div class="time-metric">
                         <div class="time-metric-value">${{ "%.2f"|format(t_month.get('llm_cost', 0)) }}</div>
-                        <div class="time-metric-label">LLM Coste</div>
+                        <div class="time-metric-label">LLM coste</div>
                     </div>
                 </div>
             </div>
@@ -988,13 +593,11 @@
         {% set rev = revenue_stats if revenue_stats else {} %}
         {% set rev_plans = rev.get('by_plan', {}) if rev else {} %}
         <div class="revenue-block">
-            <div class="revenue-header"><i class="fas fa-coins"></i> Ingresos Estimados /mes <span style="font-weight:400; font-size:0.8rem; color:#94a3b8;">(admin excluido)</span></div>
-            <div class="revenue-grid">
-                <div class="revenue-total">
-                    €{{ "%.2f"|format(rev.get('total_revenue', 0)) }} <small>/ mes</small>
-                </div>
-                <div style="color:#64748b; font-size:0.85rem; align-self:center;">
-                    {{ rev.get('paying_users', 0) }} usuarios de pago
+            <div class="revenue-inner">
+                <div>
+                    <div class="revenue-header"><i data-lucide="coins"></i> Ingresos estimados / mes · admin excluido</div>
+                    <div class="revenue-total">€{{ "%.2f"|format(rev.get('total_revenue', 0)) }} <small>/ mes</small></div>
+                    <div class="revenue-sub">{{ rev.get('paying_users', 0) }} usuarios de pago</div>
                 </div>
                 <div class="revenue-plans">
                     {% if rev_plans.get('basic') %}
@@ -1022,10 +625,150 @@
             </div>
         </div>
 
+        <!-- ============================================================
+             COSTES REALES — LLM + SerpAPI (datos de BD y del proveedor)
+             ============================================================ -->
+        <div class="section-title">
+            <h2>Costes <span class="accent-word">reales</span></h2>
+            <span class="section-note" id="costsMonthLabel">cargando…</span>
+        </div>
+
+        <div id="costsLoading" style="color: var(--color-text-tertiary); font-size: 0.9rem;">
+            Calculando costes desde base de datos y SerpAPI…
+        </div>
+
+        <div id="costsContent" style="display:none;">
+            <!-- Tarjetas resumen -->
+            <div class="costs-grid">
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="wallet"></i> Coste total · mes</div>
+                    <div class="cost-big" id="costTotalMonth">—</div>
+                    <div class="stat-sub" id="costTotalMonthEur">—</div>
+                </div>
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="bot"></i> LLMs · mes</div>
+                    <div class="cost-big" id="costLlmMonth">—</div>
+                    <div class="stat-sub" id="costLlmMonthUnits">—</div>
+                </div>
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="search"></i> SerpAPI · mes</div>
+                    <div class="cost-big" id="costSerpMonth">—</div>
+                    <div class="stat-sub" id="costSerpMonthDetail">—</div>
+                </div>
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="trending-up"></i> Margen bruto · mes</div>
+                    <div class="cost-big" id="costMargin">—</div>
+                    <div class="stat-sub" id="costMarginDetail">—</div>
+                </div>
+            </div>
+
+            <div class="costs-two-col">
+                <!-- SerpAPI: dato oficial del proveedor -->
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="shield-check"></i> SerpAPI · dato oficial del proveedor</div>
+                    <div class="kv-list" id="serpAccountList"></div>
+                    <div class="method-note" id="serpMethodNote"></div>
+                </div>
+
+                <!-- Coste por prompt + simulador -->
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="calculator"></i> Coste por prompt · simulador de presupuesto</div>
+                    <div class="kv-list" id="promptCostList"></div>
+                    <div class="simulator-controls">
+                        <label for="simPrompts">Prompts</label>
+                        <input type="number" id="simPrompts" value="1000" min="1" step="100">
+                        <label for="simMargin">Margen %</label>
+                        <input type="number" id="simMargin" value="60" min="0" step="5">
+                    </div>
+                    <div class="sim-providers" id="simProviders"></div>
+                    <div class="sim-result">
+                        <div class="cost-big" id="simCost">—</div>
+                        <div class="stat-sub" id="simPrice">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="costs-two-col">
+                <!-- Desglose por modelo -->
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="layers"></i> Desglose LLM por modelo</div>
+                    <div class="table-scroll">
+                        <table class="data-table" id="llmModelsTable">
+                            <thead>
+                                <tr>
+                                    <th>Proveedor / Modelo</th>
+                                    <th class="num">Prompts mes</th>
+                                    <th class="num">Prompts total</th>
+                                    <th class="num">Tokens in/out</th>
+                                    <th class="num">Coste total</th>
+                                    <th class="num">$ / prompt</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="method-note" id="llmQualityNote"></div>
+                </div>
+
+                <!-- Atribución interna + series -->
+                <div class="card">
+                    <div class="card-eyebrow"><i data-lucide="chart-column"></i> Actividad · últimos 30 días</div>
+                    <div class="chart-wrap">
+                        <div style="font-size:0.72rem; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.08em;">Coste LLM diario (USD)</div>
+                        <div id="chartLlmDaily"></div>
+                    </div>
+                    <div class="chart-wrap">
+                        <div style="font-size:0.72rem; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.08em;">Búsquedas SerpAPI diarias</div>
+                        <div id="chartSerpDaily"></div>
+                    </div>
+                    <div class="table-scroll" style="margin-top:1rem;">
+                        <table class="data-table" id="serpSourcesTable">
+                            <thead>
+                                <tr><th>Módulo (mes)</th><th class="num">Eventos</th><th class="num">RU internas</th></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coste por usuario -->
+            <div class="card" style="margin-top:1rem;">
+                <div class="card-eyebrow"><i data-lucide="users"></i> Coste por usuario · mes actual</div>
+                <div class="table-scroll">
+                    <table class="data-table" id="costPerUserTable">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Plan</th>
+                                <th class="num">LLM prompts</th>
+                                <th class="num">LLM $</th>
+                                <th class="num">Búsquedas SERP</th>
+                                <th class="num">SERP $</th>
+                                <th class="num">Coste total $</th>
+                                <th class="num">Ingreso €</th>
+                                <th class="num">Margen €</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="method-note" id="costsMethodNote"></div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             GESTIÓN DE USUARIOS
+             ============================================================ -->
+        <div class="section-title">
+            <h2>Gestión de usuarios</h2>
+            <span class="section-note">página {{ page }} de {{ total_pages }} · {{ per_page }} por página</span>
+        </div>
+
         <!-- Controles de UX: búsqueda, filtros y ordenación -->
-        <div class="table-controls" style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
-            <input id="filterSearch" type="text" placeholder="Buscar por nombre o email" style="flex:1; padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
-            <select id="filterPlan" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+        <div class="table-controls">
+            <input id="filterSearch" type="text" placeholder="Buscar por nombre o email">
+            <select id="filterPlan">
                 <option value="">Plan: Todos</option>
                 <option value="free">Free</option>
                 <option value="basic">Basic</option>
@@ -1033,12 +776,12 @@
                 <option value="business">Business</option>
                 <option value="enterprise">Enterprise</option>
             </select>
-            <select id="filterStatus" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+            <select id="filterStatus">
                 <option value="">Estado: Todos</option>
                 <option value="active">Activo</option>
                 <option value="inactive">Inactivo</option>
             </select>
-            <select id="sortBy" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+            <select id="sortBy">
                 <option value="created_desc">Orden: Registro ↓</option>
                 <option value="created_asc">Registro ↑</option>
                 <option value="last_login_desc">Último acceso ↓</option>
@@ -1075,7 +818,7 @@
                                         {% if user.picture %}
                                             <img src="{{ user.picture }}" alt="Avatar">
                                         {% else %}
-                                            <i class="fas fa-user"></i>
+                                            <i data-lucide="user"></i>
                                         {% endif %}
                                     </div>
                                     <div class="user-details">
@@ -1099,7 +842,7 @@
                                             data-user-id="{{ user.id }}"
                                             data-user-name="{{ user.name or user.email }}"
                                             data-user-role="{{ user.role }}">
-                                        <i class="fas fa-edit"></i>
+                                        <i data-lucide="pencil"></i>
                                     </button>
                                     {% endif %}
                                 </div>
@@ -1143,22 +886,22 @@
                                         </div>
                                     {% endif %}
                                     
-                                    <small style="color:#666; font-size:0.7rem;">RU mes: {{ user.ru_month or 0 }} RU</small>
-                                    <small style="color:#666; font-size:0.7rem;">
+                                    <small style="color:var(--color-text-secondary); font-size:0.7rem;">RU mes: {{ user.ru_month or 0 }} RU</small>
+                                    <small style="color:var(--color-text-secondary); font-size:0.7rem;">
                                         LLM mes: {{ user.llm_units_month or 0 }} u
                                         {% if user.llm_cost_month %}
                                             (${{ "%.2f"|format(user.llm_cost_month) }})
                                         {% endif %}
                                     </small>
-                                    <small style="color:#666; font-size:0.7rem;">LLM proyectos: {{ user.llm_active_projects or 0 }}</small>
+                                    <small style="color:var(--color-text-secondary); font-size:0.7rem;">LLM proyectos: {{ user.llm_active_projects or 0 }}</small>
                                     {% if user.ai_overview_paused_until %}
-                                        <small style="color:#c0392b; font-size:0.7rem;">AI Overview en pausa</small>
+                                        <small style="color:var(--color-error); font-size:0.7rem;">AI Overview en pausa</small>
                                     {% endif %}
                                     {% if user.ai_mode_paused_projects and user.ai_mode_paused_projects > 0 %}
-                                        <small style="color:#c0392b; font-size:0.7rem;">AI Mode pausados: {{ user.ai_mode_paused_projects }}</small>
+                                        <small style="color:var(--color-error); font-size:0.7rem;">AI Mode pausados: {{ user.ai_mode_paused_projects }}</small>
                                     {% endif %}
                                     {% if user.llm_paused_projects and user.llm_paused_projects > 0 %}
-                                        <small style="color:#c0392b; font-size:0.7rem;">LLM pausados: {{ user.llm_paused_projects }}</small>
+                                        <small style="color:var(--color-error); font-size:0.7rem;">LLM pausados: {{ user.llm_paused_projects }}</small>
                                     {% endif %}
                                     
                                     {% if user.custom_quota_assigned_by %}
@@ -1171,21 +914,21 @@
                                                 data-user-name="{{ user.name or user.email }}"
                                                 data-user-plan="{{ user.plan or 'free' }}"
                                                 title="Change Plan">
-                                            <i class="fas fa-exchange-alt"></i>
+                                            <i data-lucide="arrow-left-right"></i>
                                         </button>
                                         {% if not user.custom_quota_limit %}
                                         <button class="btn-custom-quota btn-sm" 
                                                 data-user-id="{{ user.id }}"
                                                 data-user-name="{{ user.name or user.email }}"
                                                 title="Assign Custom Quota">
-                                            <i class="fas fa-crown"></i>
+                                            <i data-lucide="crown"></i>
                                         </button>
                                         {% else %}
                                         <button class="btn-remove-custom btn-sm" 
                                                 data-user-id="{{ user.id }}"
                                                 data-user-name="{{ user.name or user.email }}"
                                                 title="Remove Custom Quota">
-                                            <i class="fas fa-times"></i>
+                                            <i data-lucide="x"></i>
                                         </button>
                                         {% endif %}
                                         
@@ -1196,7 +939,7 @@
                                                 data-user-name="{{ user.name or user.email }}"
                                                 data-quota-used="{{ user.quota_used }}"
                                                 title="Reset Quota Usage">
-                                            <i class="fas fa-undo"></i>
+                                            <i data-lucide="undo-2"></i>
                                         </button>
                                         {% endif %}
                                     </div>
@@ -1212,7 +955,7 @@
                                             data-user-id="{{ user.id }}"
                                             data-user-name="{{ user.name or user.email }}"
                                             data-user-status="{{ 'true' if user.is_active else 'false' }}">
-                                        <i class="fas fa-toggle-on"></i>
+                                        <i data-lucide="toggle-right"></i>
                                     </button>
                                     {% endif %}
                                 </div>
@@ -1243,14 +986,14 @@
                                             data-user-status="{{ 'Activo' if user.is_active else 'Inactivo' }}"
                                             data-user-created="{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'Sin fecha' }}"
                                             data-user-auth="{{ 'Google' if user.google_id else 'Email' }}">
-                                        <i class="fas fa-eye"></i>
+                                        <i data-lucide="eye"></i>
                                         Ver
                                     </button>
                                     {% if user.id != current_user.id %}
                                     <button class="btn btn-danger btn-sm btn-delete-user"
                                             data-user-id="{{ user.id }}"
                                             data-user-name="{{ user.name or user.email }}">
-                                        <i class="fas fa-trash"></i>
+                                        <i data-lucide="trash-2"></i>
                                         Eliminar
                                     </button>
                                     {% endif %}
@@ -1260,8 +1003,8 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
-                                <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                            <td colspan="8" style="text-align: center; padding: 2rem; color: var(--color-text-secondary);">
+                                <i data-lucide="users"></i>
                                 No hay usuarios registrados
                             </td>
                         </tr>
@@ -1273,7 +1016,7 @@
 
         <!-- Paginación -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin: 0.75rem 0 1rem 0;">
-            <div style="color:#666; font-size:0.85rem;">
+            <div style="color:var(--color-text-secondary); font-size:0.85rem;">
                 Página {{ page }} de {{ total_pages }} · {{ per_page }} usuarios por página
             </div>
             <div style="display:flex; gap:0.5rem;">
@@ -1286,25 +1029,26 @@
             </div>
         </div>
 
-    <!-- 📋 Audit Log Section -->
-    <details style="margin: 1.5rem 0; background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); overflow: hidden;">
-        <summary style="padding: 1rem 1.5rem; cursor: pointer; font-weight: 600; font-size: 1rem; color: #333; user-select: none; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
-            <i class="fas fa-clipboard-list"></i> Últimas Acciones Admin
-            <span id="auditBadge" style="background: #667eea; color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 500;">cargando…</span>
+
+    <!-- 📋 Audit Log -->
+    <details class="audit-details">
+        <summary>
+            <i data-lucide="clipboard-list"></i> Últimas acciones admin
+            <span id="auditBadge" class="audit-count">cargando…</span>
         </summary>
-        <div style="padding: 0 1.5rem 1.5rem;">
-            <table id="auditLogTable" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+        <div class="audit-body">
+            <table id="auditLogTable" class="data-table">
                 <thead>
-                    <tr style="border-bottom: 2px solid #e2e8f0; text-align: left;">
-                        <th style="padding: 0.5rem 0.5rem;">Fecha</th>
-                        <th style="padding: 0.5rem 0.5rem;">Admin</th>
-                        <th style="padding: 0.5rem 0.5rem;">Acción</th>
-                        <th style="padding: 0.5rem 0.5rem;">Usuario Objetivo</th>
-                        <th style="padding: 0.5rem 0.5rem;">Detalles</th>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Admin</th>
+                        <th>Acción</th>
+                        <th>Usuario objetivo</th>
+                        <th>Detalles</th>
                     </tr>
                 </thead>
                 <tbody id="auditLogBody">
-                    <tr><td colspan="5" style="padding: 1rem; text-align: center; color: #999;">Cargando…</td></tr>
+                    <tr><td colspan="5" style="padding: 1rem; text-align: center; color: var(--color-text-tertiary);">Cargando…</td></tr>
                 </tbody>
             </table>
         </div>
@@ -1327,7 +1071,7 @@
             const badge = document.getElementById('auditBadge');
 
             if (!data.success || !data.actions || data.actions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:#999;">Sin acciones registradas</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:var(--color-text-tertiary);">Sin acciones registradas</td></tr>';
                 badge.textContent = '0';
                 return;
             }
@@ -1361,17 +1105,17 @@
                     if (d.deleted_email) parts.push(d.deleted_email);
                     if (parts.length > 0) details = parts.join(', ');
                 }
-                return `<tr style="border-bottom:1px solid #f0f0f0;">
+                return `<tr style="border-bottom:1px solid var(--color-bg-subtle);">
                     <td style="padding:0.4rem 0.5rem; white-space:nowrap;">${date}</td>
                     <td style="padding:0.4rem 0.5rem;">${admin}</td>
                     <td style="padding:0.4rem 0.5rem;">${label}</td>
                     <td style="padding:0.4rem 0.5rem;">${target}</td>
-                    <td style="padding:0.4rem 0.5rem; font-size:0.8rem; color:#666;">${details}</td>
+                    <td style="padding:0.4rem 0.5rem; font-size:0.8rem; color:var(--color-text-secondary);">${details}</td>
                 </tr>`;
             }).join('');
         } catch (e) {
             console.error('Error cargando audit log:', e);
-            document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:#dc3545;">Error cargando audit log</td></tr>';
+            document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:var(--color-error);">Error cargando audit log</td></tr>';
             document.getElementById('auditBadge').textContent = '!';
         }
     }
@@ -1381,14 +1125,14 @@
     <div id="userModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h3><i class="fas fa-user-circle"></i> Detalles Completos del Usuario</h3>
+                <h3><i data-lucide="circle-user"></i> Detalles Completos del Usuario</h3>
                 <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <!-- Sección: Información Básica -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-user"></i> Información Básica
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="user"></i> Información Básica
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1424,8 +1168,8 @@
 
                 <!-- 🚀 NUEVA: Sección Plan y Facturación -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-credit-card"></i> Plan y Facturación
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="credit-card"></i> Plan y Facturación
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1453,8 +1197,8 @@
 
                 <!-- 🚀 NUEVA: Sección Cuotas y Uso -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-tachometer-alt"></i> Cuotas y Uso
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="gauge"></i> Cuotas y Uso
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1477,7 +1221,7 @@
                     
                     <!-- Barra de progreso en modal -->
                     <div id="detailProgressContainer" style="margin-top: 1rem; display: none;">
-                        <div style="margin-bottom: 0.25rem; font-size: 0.8rem; color: #666;">Progreso de Uso:</div>
+                        <div style="margin-bottom: 0.25rem; font-size: 0.8rem; color: var(--color-text-secondary);">Progreso de Uso:</div>
                         <div class="quota-progress-bar">
                             <div id="detailProgressFill" class="quota-progress-fill" style="width: 0%"></div>
                         </div>
@@ -1486,8 +1230,8 @@
 
                 <!-- 📊 Sección SERP & LLM -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-chart-line"></i> Uso SERP & LLM (Mes actual)
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="trending-up"></i> Uso SERP & LLM (Mes actual)
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1511,8 +1255,8 @@
 
                 <!-- ⏸️ Sección Pausas por cuota -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-pause-circle"></i> Pausas por cuota
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="circle-pause"></i> Pausas por cuota
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1540,8 +1284,8 @@
 
                 <!-- 🚀 NUEVA: Sección Custom Quota (Enterprise) -->
                 <div id="detailCustomQuotaSection" style="margin-bottom: 1.5rem; display: none;">
-                    <h4 style="color: #6f42c1; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-crown"></i> Custom Quota (Enterprise)
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="crown"></i> Custom Quota (Enterprise)
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1553,11 +1297,11 @@
                             <span class="detail-value" id="detailCustomNotes">-</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label"><i class="fas fa-robot"></i> LLM Prompts/Proyecto:</span>
+                            <span class="detail-label"><i data-lucide="bot"></i> LLM Prompts/Proyecto:</span>
                             <span class="detail-value" id="detailCustomLlmPrompts">-</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label"><i class="fas fa-robot"></i> LLM Units/Mes:</span>
+                            <span class="detail-label"><i data-lucide="bot"></i> LLM Units/Mes:</span>
                             <span class="detail-value" id="detailCustomLlmUnits">-</span>
                         </div>
                         <div class="detail-item">
@@ -1573,8 +1317,8 @@
 
                 <!-- 📁 Sección Proyectos por módulo -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-folder-open"></i> Proyectos por Módulo
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="folder-open"></i> Proyectos por Módulo
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1594,8 +1338,8 @@
 
                 <!-- ✉️ Sección Invitaciones -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
-                        <i class="fas fa-paper-plane"></i> Invitaciones
+                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
+                        <i data-lucide="send"></i> Invitaciones
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -1616,7 +1360,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('userModal')">Cerrar</button>
                 <button class="btn btn-primary" id="refreshUserDetails" style="display: none;">
-                    <i class="fas fa-sync"></i> Actualizar
+                    <i data-lucide="refresh-cw"></i> Actualizar
                 </button>
             </div>
         </div>
@@ -1626,20 +1370,20 @@
     <div id="deleteModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h3>
+                <h3><i data-lucide="triangle-alert"></i> Confirmar Eliminación</h3>
                 <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <p>¿Estás seguro de que quieres eliminar al usuario <strong id="deleteUserName">-</strong>?</p>
-                <p style="color: #dc3545; margin-top: 1rem;">
-                    <i class="fas fa-warning"></i>
+                <p style="color: var(--color-error); margin-top: 1rem;">
+                    <i data-lucide="triangle-alert"></i>
                     Esta acción no se puede deshacer.
                 </p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('deleteModal')">Cancelar</button>
                 <button class="btn btn-danger" id="confirmDeleteBtn">
-                    <i class="fas fa-trash"></i>
+                    <i data-lucide="trash-2"></i>
                     Eliminar Usuario
                 </button>
             </div>
@@ -1650,7 +1394,7 @@
     <div id="roleModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-user-tag"></i> Cambiar Rol de Usuario</h3>
+                <h3><i data-lucide="user-pen"></i> Cambiar Rol de Usuario</h3>
                 <button class="modal-close" onclick="closeModal('roleModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -1662,9 +1406,9 @@
                         <option value="admin">Administrador</option>
                     </select>
                 </div>
-                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--color-bg-subtle); border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Nota:</strong></p>
-                    <p style="margin: 0.5rem 0 0 0; color: #666;">
+                    <p style="margin: 0.5rem 0 0 0; color: var(--color-text-secondary);">
                         • <strong>Usuario:</strong> Acceso básico - funcionalidades AI según plan de pago<br>
                         • <strong>Administrador:</strong> Acceso completo y gestión de usuarios
                     </p>
@@ -1673,7 +1417,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('roleModal')">Cancelar</button>
                 <button class="btn btn-primary" id="confirmRoleBtn">
-                    <i class="fas fa-save"></i>
+                    <i data-lucide="save"></i>
                     Cambiar Rol
                 </button>
             </div>
@@ -1684,7 +1428,7 @@
     <div id="statusModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-toggle-on"></i> Cambiar Estado de Usuario</h3>
+                <h3><i data-lucide="toggle-right"></i> Cambiar Estado de Usuario</h3>
                 <button class="modal-close" onclick="closeModal('statusModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -1696,9 +1440,9 @@
                         <option value="false">Inactivo</option>
                     </select>
                 </div>
-                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--color-bg-subtle); border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Nota:</strong></p>
-                    <p style="margin: 0.5rem 0 0 0; color: #666;">
+                    <p style="margin: 0.5rem 0 0 0; color: var(--color-text-secondary);">
                         • <strong>Activo:</strong> El usuario puede acceder al sistema<br>
                         • <strong>Inactivo:</strong> El usuario no puede iniciar sesión
                     </p>
@@ -1707,7 +1451,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('statusModal')">Cancelar</button>
                 <button class="btn btn-primary" id="confirmStatusBtn">
-                    <i class="fas fa-save"></i>
+                    <i data-lucide="save"></i>
                     Cambiar Estado
                 </button>
             </div>
@@ -1718,7 +1462,7 @@
     <div id="planModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-exchange-alt"></i> Cambiar Plan de Usuario</h3>
+                <h3><i data-lucide="arrow-left-right"></i> Cambiar Plan de Usuario</h3>
                 <button class="modal-close" onclick="closeModal('planModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -1732,9 +1476,9 @@
                         <option value="business">Business (139,99€ - 8.000 RU/month)</option>
                     </select>
                 </div>
-                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--color-bg-subtle); border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Nota:</strong></p>
-                    <p style="margin: 0.5rem 0 0 0; color: #666;">
+                    <p style="margin: 0.5rem 0 0 0; color: var(--color-text-secondary);">
                         • Para Enterprise use "Assign Custom Quota"<br>
                         • El cambio aplicará en el próximo ciclo de facturación<br>
                         • Los usuarios beta pueden requerir configuración manual
@@ -1744,7 +1488,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('planModal')">Cancelar</button>
                 <button class="btn btn-primary" id="confirmPlanBtn">
-                    <i class="fas fa-save"></i>
+                    <i data-lucide="save"></i>
                     Cambiar Plan
                 </button>
             </div>
@@ -1755,7 +1499,7 @@
     <div id="customQuotaModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-crown"></i> Assign Custom Quota (Enterprise)</h3>
+                <h3><i data-lucide="crown"></i> Assign Custom Quota (Enterprise)</h3>
                 <button class="modal-close" onclick="closeModal('customQuotaModal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -1770,25 +1514,25 @@
                     <textarea id="customQuotaNotes" placeholder="e.g., Special agreement with Agency XYZ"
                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px; min-height: 60px; resize: vertical;"></textarea>
                 </div>
-                <div style="margin-top: 1.5rem; padding: 1rem; background: #f3e8ff; border: 1px solid #d4b5ff; border-radius: 5px;">
-                    <p style="margin: 0; font-weight: 600; color: #6f42c1;"><i class="fas fa-robot"></i> LLM Monitoring Limits</p>
+                <div style="margin-top: 1.5rem; padding: 1rem; background: var(--color-bg-subtle); border: 1px solid var(--color-border); border-radius: 5px;">
+                    <p style="margin: 0; font-weight: 600; color: var(--color-text-primary);"><i data-lucide="bot"></i> LLM Monitoring Limits</p>
                     <div style="margin-top: 0.75rem;">
                         <label for="customLlmPromptsLimit" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">Max prompts per project:</label>
                         <input type="number" id="customLlmPromptsLimit" min="1" max="10000" step="100" placeholder="e.g., 3000 (empty = unlimited)"
-                               style="width: 100%; padding: 0.5rem; border: 1px solid #d4b5ff; border-radius: 5px;">
+                               style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px;">
                     </div>
                     <div style="margin-top: 0.75rem;">
                         <label for="customLlmMonthlyUnits" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">Max LLM units per month <small>(1 prompt x 1 LLM = 1 unit)</small>:</label>
                         <input type="number" id="customLlmMonthlyUnits" min="1" max="500000" step="1000" placeholder="e.g., 120000 (empty = unlimited)"
-                               style="width: 100%; padding: 0.5rem; border: 1px solid #d4b5ff; border-radius: 5px;">
+                               style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px;">
                     </div>
-                    <p style="margin: 0.5rem 0 0; font-size: 0.8rem; color: #7c3aed;">
+                    <p style="margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--color-text-primary);">
                         Example: 3000 prompts x 4 LLMs x 30 days = 360,000 units/month
                     </p>
                 </div>
-                <div style="margin-top: 1rem; padding: 1rem; background: #e8f4fd; border-radius: 5px; font-size: 0.9rem;">
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--color-bg-subtle); border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Enterprise Features:</strong></p>
-                    <p style="margin: 0.5rem 0 0 0; color: #0066cc;">
+                    <p style="margin: 0.5rem 0 0 0; color: var(--color-text-primary);">
                         • Plan will automatically change to "Enterprise"<br>
                         • User will bypass standard plan limits<br>
                         • Custom quota takes priority over plan quotas<br>
@@ -1799,7 +1543,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('customQuotaModal')">Cancelar</button>
                 <button class="btn btn-primary" id="confirmCustomQuotaBtn">
-                    <i class="fas fa-crown"></i>
+                    <i data-lucide="crown"></i>
                     Assign Custom Quota
                 </button>
             </div>
@@ -2690,5 +2434,192 @@
         }
         
     </script>
+
+    <script>
+        // =====================================================================
+        // COSTES REALES — consume /admin/api/costs (BD + SerpAPI /account)
+        // =====================================================================
+        (function() {
+            const $ = (id) => document.getElementById(id);
+            const fmtUsd = (v, dec) => '$' + Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec ?? 2, maximumFractionDigits: dec ?? 2 });
+            const fmtEur = (v, dec) => Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec ?? 2, maximumFractionDigits: dec ?? 2 }) + ' €';
+            const fmtInt = (v) => Number(v || 0).toLocaleString('es-ES');
+            const esc = (t) => { const d = document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; };
+
+            let COSTS = null;
+
+            function renderKv(el, rows) {
+                el.innerHTML = rows.map(([k, v, strong]) =>
+                    `<div class="kv-row"><span class="k">${esc(k)}</span><span class="v"${strong ? ' style="font-weight:800;"' : ''}>${v}</span></div>`
+                ).join('');
+            }
+
+            function barChart(containerId, points, valueKey, fmt) {
+                const el = $(containerId);
+                if (!points || !points.length) {
+                    el.innerHTML = '<div style="color:var(--color-text-tertiary); font-size:0.8rem; padding:0.5rem 0;">Sin actividad en los últimos 30 días</div>';
+                    return;
+                }
+                const W = 560, H = 90, PAD = 4;
+                const n = points.length;
+                const bw = Math.max(4, Math.floor((W - PAD * 2) / n) - 2);
+                const max = Math.max(...points.map(p => Number(p[valueKey]) || 0), 0.000001);
+                let bars = '';
+                points.forEach((p, i) => {
+                    const v = Number(p[valueKey]) || 0;
+                    const h = Math.max(v > 0 ? 3 : 1, Math.round((v / max) * (H - 22)));
+                    const x = PAD + i * ((W - PAD * 2) / n);
+                    bars += `<rect class="chart-bar" x="${x.toFixed(1)}" y="${H - 14 - h}" width="${bw}" height="${h}" rx="2"><title>${esc(p.day)} · ${fmt(v)}</title></rect>`;
+                });
+                const first = points[0].day.slice(5), last = points[n - 1].day.slice(5);
+                el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto;" role="img">
+                    ${bars}
+                    <text class="chart-axis-label" x="${PAD}" y="${H - 2}">${esc(first)}</text>
+                    <text class="chart-axis-label" x="${W - PAD}" y="${H - 2}" text-anchor="end">${esc(last)}</text>
+                </svg>`;
+            }
+
+            function renderCosts(d) {
+                $('costsMonthLabel').textContent = d.month_label + ' · actualizado ahora';
+
+                // --- Tarjetas resumen ---
+                const s = d.summary;
+                $('costTotalMonth').textContent = fmtUsd(s.total_cost_month_usd);
+                $('costTotalMonthEur').textContent = '≈ ' + fmtEur(s.total_cost_month_eur) + ' (LLM + SerpAPI interno)';
+                $('costLlmMonth').textContent = fmtUsd(s.llm_cost_month_usd);
+                $('costLlmMonthUnits').textContent = fmtInt(d.llm.totals.units_month) + ' prompts este mes · ' + fmtInt(d.llm.totals.units_today) + ' hoy';
+                $('costSerpMonth').textContent = fmtUsd(s.serp_cost_month_usd);
+                $('costSerpMonthDetail').textContent = fmtInt(d.serp.totals.searches_month) + ' búsquedas atribuidas' +
+                    (s.serp_cost_month_official_usd != null ? ' · oficial: ' + fmtUsd(s.serp_cost_month_official_usd) : '');
+                const margin = s.margin_month_eur;
+                const marginEl = $('costMargin');
+                marginEl.textContent = fmtEur(margin);
+                marginEl.classList.add(margin >= 0 ? 'cost-positive' : 'cost-negative');
+                $('costMarginDetail').textContent = 'ingresos ' + fmtEur(s.revenue_month_eur) + ' − costes ' + fmtEur(s.total_cost_month_eur) +
+                    ' · tipo de cambio ' + d.exchange.usd_eur + ' €/$';
+
+                // --- SerpAPI oficial ---
+                const a = d.serp.account;
+                if (a) {
+                    const overage = a.searches_per_month && a.this_month_usage >= a.searches_per_month;
+                    renderKv($('serpAccountList'), [
+                        ['Plan', esc(a.plan_name || '—')],
+                        ['Precio del plan', fmtUsd(a.plan_monthly_price) + ' / mes'],
+                        ['Búsquedas incluidas', fmtInt(a.searches_per_month)],
+                        ['Usadas este mes (oficial)', fmtInt(a.this_month_usage) + (overage ? ' — plan agotado' : ''), true],
+                        ['Restantes del plan', fmtInt(a.plan_searches_left)],
+                        ['Créditos extra', fmtInt(a.extra_credits)],
+                        ['Renovación', esc(a.plan_renewal_date || '—')],
+                        ['Coste por búsqueda', fmtUsd(d.serp.cost_per_search, 4), true],
+                    ]);
+                } else {
+                    $('serpAccountList').innerHTML = '<div style="color:var(--color-text-tertiary); font-size:0.85rem;">No se pudo consultar la cuenta de SerpAPI (¿SERPAPI_KEY?)</div>';
+                }
+                $('serpMethodNote').textContent = 'Coste por búsqueda: ' + d.serp.cost_per_search_source + '. ' + d.serp.note;
+
+                // --- Coste por prompt + simulador ---
+                const provs = d.llm.by_provider;
+                renderKv($('promptCostList'),
+                    provs.map(p => [p.provider + ' (' + fmtInt(p.units) + ' prompts)', fmtUsd(p.avg_cost_per_prompt, 4) + ' / prompt'])
+                    .concat([[ 'Promedio global', fmtUsd(d.llm.avg_cost_per_prompt_global, 4) + ' / prompt', true ],
+                             [ 'Búsqueda SerpAPI', fmtUsd(d.serp.cost_per_search, 4) + ' / búsqueda' ]])
+                );
+                $('simProviders').innerHTML = provs.map(p =>
+                    `<label><input type="checkbox" class="sim-prov" data-cost="${p.avg_cost_per_prompt}" data-name="${esc(p.provider)}" checked> ${esc(p.provider)}</label>`
+                ).join('') + `<label><input type="checkbox" id="simSerp" data-cost="${d.serp.cost_per_search}"> + búsqueda SERP por prompt</label>`;
+                ['simPrompts', 'simMargin'].forEach(id => $(id).addEventListener('input', simulate));
+                document.querySelectorAll('.sim-prov, #simSerp').forEach(cb => cb.addEventListener('change', simulate));
+                simulate();
+
+                // --- Desglose por modelo ---
+                const tbody = $('llmModelsTable').querySelector('tbody');
+                tbody.innerHTML = d.llm.by_model.map(m => `
+                    <tr>
+                        <td><strong>${esc(m.provider)}</strong><br><span style="color:var(--color-text-secondary); font-size:0.78rem;">${esc(m.model)}</span></td>
+                        <td class="num">${fmtInt(m.units_month)}</td>
+                        <td class="num">${fmtInt(m.units)}</td>
+                        <td class="num">${fmtInt(m.input_tokens)} / ${fmtInt(m.output_tokens)}</td>
+                        <td class="num">${fmtUsd(m.cost, 4)}</td>
+                        <td class="num"><strong>${fmtUsd(m.avg_cost_per_unit, 4)}</strong></td>
+                    </tr>`).join('');
+                const zq = d.llm.data_quality;
+                $('llmQualityNote').textContent = zq.zero_cost_units > 0
+                    ? zq.zero_cost_units + ' de ' + fmtInt(d.llm.totals.units_total) + ' prompts históricos sin coste calculado. ' + zq.note
+                    : 'Todos los prompts tienen coste real calculado a partir de tokens del proveedor.';
+
+                // --- Series + atribución ---
+                barChart('chartLlmDaily', d.llm.daily, 'cost', v => fmtUsd(v, 4));
+                barChart('chartSerpDaily', d.serp.daily, 'searches', v => fmtInt(v) + ' búsquedas');
+                $('serpSourcesTable').querySelector('tbody').innerHTML =
+                    (d.serp.by_source_month.length ? d.serp.by_source_month : [{source: 'sin actividad', events: 0, ru: 0}])
+                    .map(r => {
+                        const billable = d.serp.billable_sources.includes(r.source);
+                        return `<tr>
+                            <td>${esc(r.source)}${billable ? ' <span style="color:var(--color-success); font-size:0.72rem; font-weight:600;">· facturable</span>' : ''}</td>
+                            <td class="num">${fmtInt(r.events)}</td>
+                            <td class="num">${fmtInt(r.ru)}</td>
+                        </tr>`;
+                    }).join('');
+
+                // --- Coste por usuario ---
+                $('costPerUserTable').querySelector('tbody').innerHTML = (d.per_user.length ? d.per_user.map(u => `
+                    <tr>
+                        <td><strong>${esc(u.name)}</strong><br><span style="color:var(--color-text-secondary); font-size:0.78rem;">${esc(u.email)}${u.role === 'admin' ? ' · admin' : ''}</span></td>
+                        <td>${esc(u.plan)}</td>
+                        <td class="num">${fmtInt(u.llm_units)}</td>
+                        <td class="num">${fmtUsd(u.llm_cost_usd, 4)}</td>
+                        <td class="num">${fmtInt(u.serp_searches)}</td>
+                        <td class="num">${fmtUsd(u.serp_cost_usd, 4)}</td>
+                        <td class="num"><strong>${fmtUsd(u.total_cost_usd, 4)}</strong></td>
+                        <td class="num">${fmtEur(u.revenue_eur)}</td>
+                        <td class="num" style="color:${u.margin_eur >= 0 ? 'var(--color-success)' : 'var(--color-error)'}; font-weight:700;">${fmtEur(u.margin_eur)}</td>
+                    </tr>`).join('') : '<tr><td colspan="9" style="text-align:center; color:var(--color-text-tertiary); padding:1.5rem;">Sin consumo este mes</td></tr>');
+
+                $('costsMethodNote').textContent = 'Coste LLM: suma de cost_usd por prompt (tokens reales del proveedor × pricing del modelo, congelado al ejecutar). ' +
+                    'Coste SerpAPI: búsquedas atribuidas (serp_api + ai_mode) × ' + fmtUsd(d.serp.cost_per_search, 4) + '. ' +
+                    'Margen: precio del plan (€) − coste (convertido a €).';
+
+                $('costsLoading').style.display = 'none';
+                $('costsContent').style.display = 'block';
+            }
+
+            function simulate() {
+                if (!COSTS) return;
+                const n = Math.max(1, parseInt($('simPrompts').value) || 0);
+                const marginPct = Math.max(0, parseFloat($('simMargin').value) || 0);
+                let costPerPrompt = 0;
+                const names = [];
+                document.querySelectorAll('.sim-prov:checked').forEach(cb => {
+                    costPerPrompt += parseFloat(cb.dataset.cost) || 0;
+                    names.push(cb.dataset.name);
+                });
+                const serpCb = document.getElementById('simSerp');
+                if (serpCb && serpCb.checked) costPerPrompt += parseFloat(serpCb.dataset.cost) || 0;
+                const total = n * costPerPrompt;
+                const price = total * (1 + marginPct / 100);
+                $('simCost').textContent = fmtUsd(total);
+                $('simPrice').textContent = names.length
+                    ? `${fmtInt(n)} prompts × ${names.length} LLM${serpCb && serpCb.checked ? ' + SERP' : ''} = ${fmtUsd(costPerPrompt, 4)}/prompt · precio con margen: ${fmtUsd(price)}`
+                    : 'Selecciona al menos un proveedor';
+            }
+
+            fetch('/admin/api/costs')
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) throw new Error(res.error || 'error');
+                    COSTS = res.data;
+                    renderCosts(COSTS);
+                })
+                .catch(err => {
+                    console.error('Error cargando costes:', err);
+                    $('costsLoading').textContent = 'No se pudieron cargar los costes. Revisa los logs del servidor.';
+                });
+        })();
+
+        // Iconos Lucide
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.lucide) lucide.createIcons();
+        });
+    </script>
 </body>
-</html> 
+</html>
