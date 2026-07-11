@@ -101,9 +101,22 @@ export const htmlLegendPlugin = {
 // ================================
 
 export function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Escapa también comillas (attr-safe): la variante basada en textContent no
+    // las escapaba, permitiendo romper atributos title="..." con datos de usuario.
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Sanea un dominio/URL para interpolarlo dentro de un string JS en un atributo
+// onclick (contexto donde escapeHtml NO protege: el navegador decodifica las
+// entidades antes de ejecutar el JS). encodeURI codifica " < > \ y espacios;
+// el replace cubre la comilla simple, que encodeURI deja pasar.
+export function sanitizeUrlForJsString(url) {
+    return encodeURI(String(url ?? '')).replace(/'/g, '%27');
 }
 
 export function debounce(func, wait) {

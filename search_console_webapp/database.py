@@ -129,6 +129,14 @@ class _PooledConnection:
                     self._conn.rollback()
                 except Exception:
                     pass
+                # Restore transactional mode: borrowers that enable autocommit
+                # (e.g. cron advisory-lock connections) must not leak that mode
+                # to the next borrower, which expects rollback-on-error semantics.
+                try:
+                    if self._conn.autocommit:
+                        self._conn.autocommit = False
+                except Exception:
+                    pass
                 self._pool.putconn(self._conn)
             else:
                 # Underlying conn is already closed (e.g. server killed it).
@@ -1746,93 +1754,108 @@ def migrate_user_timestamps():
             conn.close()
 
 def ensure_sample_data():
-    """Asegurar que hay datos de prueba si la base de datos está vacía"""
+    """Crear datos de prueba únicamente en desarrollo local y de forma explícita.
+
+    🔒 Seguridad: esta función NUNCA siembra usuarios en producción o staging.
+    Antes creaba una cuenta admin (admin@clicandseo.com) con una contraseña fija
+    hardcodeada cuando la BD arrancaba con menos de 3 usuarios, lo que suponía un
+    backdoor latente en cualquier entorno desplegado con la BD casi vacía.
+
+    En desarrollo el sembrado es opt-in y sin credenciales hardcodeadas:
+      - SEED_SAMPLE_DATA=true  activa la creación de usuarios de prueba.
+      - DEV_ADMIN_PASSWORD     contraseña del admin de prueba; si no está
+                               definida, NO se crea ninguna cuenta admin.
+      - DEV_USER_PASSWORD      (opcional) contraseña de los usuarios normales;
+                               si falta, se genera una aleatoria por arranque.
+    """
+    # 🔒 Nunca sembrar datos de prueba en entornos desplegados.
+    if is_production or is_staging:
+        logger.info("ensure_sample_data: entorno desplegado — no se crean datos de prueba")
+        return True
+
+    # En desarrollo el sembrado debe activarse explícitamente.
+    if os.getenv('SEED_SAMPLE_DATA', '').strip().lower() not in ('1', 'true', 'yes', 'on'):
+        logger.info("ensure_sample_data: SEED_SAMPLE_DATA no activado — no se crean datos de prueba")
+        return True
+
     try:
         # Verificar si ya hay suficientes usuarios
         users = get_all_users()
         if len(users) >= 3:
             logger.info(f"Base de datos tiene {len(users)} usuarios - datos suficientes")
             return True
-        
-        logger.info("Base de datos con pocos usuarios - creando datos de prueba...")
-        
-        # Crear usuarios de prueba
-        sample_users = [
-            {
+
+        logger.info("Base de datos con pocos usuarios - creando datos de prueba (desarrollo)...")
+
+        # Las contraseñas se toman del entorno; nunca se hardcodean en el código.
+        sample_users = []
+
+        admin_password = os.getenv('DEV_ADMIN_PASSWORD', '').strip()
+        if admin_password:
+            sample_users.append({
                 'email': 'admin@clicandseo.com',
                 'name': 'Administrador Principal',
-                'password': 'admin123456',
+                'password': admin_password,
                 'role': 'admin',
-                'is_active': True
-            },
-            {
-                'email': 'usuario1@ejemplo.com',
-                'name': 'María García',
-                'password': 'usuario123',
-                'role': 'user',
-                'is_active': True
-            },
-            {
-                'email': 'usuario2@ejemplo.com',
-                'name': 'Carlos López',
-                'password': 'usuario123',
-                'role': 'user',
-                'is_active': True
-            },
-            {
-                'email': 'usuario3@ejemplo.com',
-                'name': 'Ana Martínez',
-                'password': 'usuario123',
-                'role': 'user',
-                'is_active': False  # Usuario inactivo para testing
-            }
-        ]
-        
+                'is_active': True,
+            })
+        else:
+            logger.info("ensure_sample_data: DEV_ADMIN_PASSWORD no definido — no se crea usuario admin de prueba")
+
+        # Usuarios normales de prueba: contraseña del entorno o aleatoria por arranque.
+        user_password = os.getenv('DEV_USER_PASSWORD', '').strip() or secrets.token_urlsafe(16)
+        sample_users.extend([
+            {'email': 'usuario1@ejemplo.com', 'name': 'María García',  'password': user_password, 'role': 'user', 'is_active': True},
+            {'email': 'usuario2@ejemplo.com', 'name': 'Carlos López',  'password': user_password, 'role': 'user', 'is_active': True},
+            {'email': 'usuario3@ejemplo.com', 'name': 'Ana Martínez',  'password': user_password, 'role': 'user', 'is_active': False},
+        ])
+
         conn = get_db_connection()
         if not conn:
             return False
-            
-        cur = conn.cursor()
-        created_count = 0
-        
-        for user_data in sample_users:
-            # Verificar si ya existe
-            cur.execute('SELECT id FROM users WHERE email = %s', (user_data['email'],))
-            if cur.fetchone():
-                continue
-            
-            # Crear usuario
-            try:
-                password_hash = hash_password(user_data['password'])
-                
-                cur.execute('''
-                    INSERT INTO users (email, name, password_hash, role, is_active, created_at)
-                    VALUES (%s, %s, %s, %s, %s, NOW() - INTERVAL '%s days')
-                ''', (
-                    user_data['email'],
-                    user_data['name'],
-                    password_hash,
-                    user_data['role'],
-                    user_data['is_active'],
-                    created_count  # Distribuir fechas
-                ))
-                
-                created_count += 1
-                logger.info(f"Usuario de prueba creado: {user_data['name']}")
-                
-            except Exception as e:
-                logger.error(f"Error creando usuario {user_data['email']}: {e}")
-                continue
-        
-        conn.commit()
-        conn.close()
-        
-        logger.info(f"✅ Se crearon {created_count} usuarios de prueba")
-        return True
-        
+
+        try:
+            cur = conn.cursor()
+            created_count = 0
+
+            for user_data in sample_users:
+                # Verificar si ya existe
+                cur.execute('SELECT id FROM users WHERE email = %s', (user_data['email'],))
+                if cur.fetchone():
+                    continue
+
+                # Crear usuario
+                try:
+                    password_hash = hash_password(user_data['password'])
+
+                    cur.execute('''
+                        INSERT INTO users (email, name, password_hash, role, is_active, created_at)
+                        VALUES (%s, %s, %s, %s, %s, NOW() - INTERVAL '%s days')
+                    ''', (
+                        user_data['email'],
+                        user_data['name'],
+                        password_hash,
+                        user_data['role'],
+                        user_data['is_active'],
+                        created_count  # Distribuir fechas
+                    ))
+
+                    created_count += 1
+                    logger.info(f"Usuario de prueba creado: {user_data['name']}")
+
+                except Exception as e:
+                    logger.error(f"Error creando usuario {user_data['email']}: {e}")
+                    continue
+
+            conn.commit()
+            logger.info(f"✅ Se crearon {created_count} usuarios de prueba")
+            return True
+        finally:
+            conn.close()
+
     except Exception as e:
         logger.error(f"Error creando datos de prueba: {e}")
-        return False 
+        return False
 
 # ====================================
 # 💾 SISTEMA AI OVERVIEW ANALYSIS
@@ -2034,29 +2057,40 @@ def save_ai_overview_analysis(analysis_data, user_id=None):
         if conn:
             conn.close()
 
-def get_ai_overview_stats():
-    """Obtiene estadísticas generales de análisis de AI Overview"""
+def get_ai_overview_stats(user_id=None):
+    """Obtiene estadísticas generales de análisis de AI Overview.
+
+    🔒 Si user_id no es None, todas las estadísticas se restringen a ese usuario
+    (evita exponer datos agregados de todos los tenants). None = global (uso admin
+    o diagnóstico interno de arranque).
+    """
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
             return {}
-            
+
         cur = conn.cursor()
-        
+
+        # 🔒 Fragmentos de filtrado por usuario (scoping multi-tenant).
+        uf_where = ' WHERE user_id = %s' if user_id is not None else ''
+        uf_and = ' AND user_id = %s' if user_id is not None else ''
+        uid = (user_id,) if user_id is not None else ()
+
         # Estadísticas básicas
-        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis')
+        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis' + uf_where, uid)
         total_analyses = cur.fetchone()[0]
-        
-        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE has_ai_overview = true')
+
+        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE has_ai_overview = true' + uf_and, uid)
         with_ai_overview = cur.fetchone()[0]
-        
-        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE domain_is_ai_source = true')
+
+        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE domain_is_ai_source = true' + uf_and, uid)
         as_ai_source = cur.fetchone()[0]
-        
+
         # Análisis por tipología de palabras
         cur.execute('''
-            SELECT 
-                CASE 
+            SELECT
+                CASE
                     WHEN keyword_word_count = 1 THEN '1_termino'
                     WHEN keyword_word_count BETWEEN 2 AND 5 THEN '2_5_terminos'
                     WHEN keyword_word_count BETWEEN 6 AND 10 THEN '6_10_terminos'
@@ -2065,10 +2099,10 @@ def get_ai_overview_stats():
                 END as categoria,
                 COUNT(*) as total,
                 SUM(CASE WHEN has_ai_overview THEN 1 ELSE 0 END) as con_ai_overview
-            FROM ai_overview_analysis 
-            WHERE keyword_word_count > 0
+            FROM ai_overview_analysis
+            WHERE keyword_word_count > 0''' + uf_and + '''
             GROUP BY categoria
-            ORDER BY 
+            ORDER BY
                 CASE categoria
                     WHEN '1_termino' THEN 1
                     WHEN '2_5_terminos' THEN 2
@@ -2076,31 +2110,31 @@ def get_ai_overview_stats():
                     WHEN '11_20_terminos' THEN 4
                     ELSE 5
                 END
-        ''')
+        ''', uid)
         word_count_stats = cur.fetchall()
-        
+
         # Países más analizados
         cur.execute('''
             SELECT country_code, COUNT(*) as total
-            FROM ai_overview_analysis 
-            WHERE country_code IS NOT NULL
+            FROM ai_overview_analysis
+            WHERE country_code IS NOT NULL''' + uf_and + '''
             GROUP BY country_code
             ORDER BY total DESC
             LIMIT 10
-        ''')
+        ''', uid)
         country_stats = cur.fetchall()
-        
+
         # Análisis por fecha (últimos 30 días)
         cur.execute('''
-            SELECT 
+            SELECT
                 DATE(analysis_date) as fecha,
                 COUNT(*) as total_analisis,
                 SUM(CASE WHEN has_ai_overview THEN 1 ELSE 0 END) as con_ai_overview
-            FROM ai_overview_analysis 
-            WHERE analysis_date >= NOW() - INTERVAL '30 days'
+            FROM ai_overview_analysis
+            WHERE analysis_date >= NOW() - INTERVAL '30 days' ''' + uf_and + '''
             GROUP BY DATE(analysis_date)
             ORDER BY fecha DESC
-        ''')
+        ''', uid)
         daily_stats = cur.fetchall()
         
         return {
@@ -2135,33 +2169,43 @@ def get_ai_overview_stats():
         if conn:
             conn.close()
 
-def get_ai_overview_history(site_url=None, keyword=None, days=30, limit=100):
-    """Obtiene el historial de análisis de AI Overview"""
+def get_ai_overview_history(site_url=None, keyword=None, days=30, limit=100, user_id=None):
+    """Obtiene el historial de análisis de AI Overview.
+
+    🔒 Si user_id no es None, el historial se restringe a ese usuario (evita fuga
+    cross-tenant cuando no se especifica site_url). None = global (uso admin).
+    """
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
             return []
-            
+
         cur = conn.cursor()
-        
+
         query = '''
-            SELECT 
+            SELECT
                 id, site_url, keyword, analysis_date, has_ai_overview,
                 domain_is_ai_source, impact_score, country_code, keyword_word_count,
                 clicks_m1, clicks_m2, delta_clicks_absolute, ai_elements_count
-            FROM ai_overview_analysis 
+            FROM ai_overview_analysis
             WHERE analysis_date >= NOW() - INTERVAL '%s days'
         '''
         params = [days]
-        
+
         if site_url:
             query += ' AND site_url = %s'
             params.append(site_url)
-            
+
         if keyword:
             query += ' AND keyword ILIKE %s'
             params.append(f'%{keyword}%')
-        
+
+        # 🔒 Scoping por usuario (evita fuga cross-tenant). None = sin filtro (admin).
+        if user_id is not None:
+            query += ' AND user_id = %s'
+            params.append(user_id)
+
         query += ' ORDER BY analysis_date DESC LIMIT %s'
         params.append(limit)
         

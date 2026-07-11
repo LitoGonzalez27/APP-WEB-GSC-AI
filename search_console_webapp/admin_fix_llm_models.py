@@ -3,6 +3,7 @@ Endpoint de administración para corregir modelos LLM
 """
 from flask import Blueprint, jsonify
 from database import get_db_connection
+from auth import admin_required
 import logging
 
 admin_fix_bp = Blueprint('admin_fix', __name__)
@@ -10,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @admin_fix_bp.route('/admin/fix-llm-models', methods=['POST'])
+@admin_required
 def fix_llm_models_endpoint():
     """
     Endpoint para corregir los modelos LLM en la base de datos
