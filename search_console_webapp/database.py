@@ -253,6 +253,21 @@ def get_db_connection():
             return None
 
 
+def _fetch_scalar(cur):
+    """Primer valor de la fila actual, compatible con RealDictCursor.
+
+    Con el pool global (cursor_factory=RealDictCursor) las filas son dicts, por
+    lo que el patrón clásico `_fetch_scalar(cur)` lanza KeyError(0) en cualquier
+    `SELECT COUNT(*)` sin alias. Este helper funciona con ambos tipos de fila.
+    """
+    row = cur.fetchone()
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return next(iter(row.values()))
+    return row[0]
+
+
 def close_db_pool():
     """Close the global pool. Useful in tests and graceful shutdown.
 
@@ -1423,15 +1438,15 @@ def get_user_stats():
         
         # Total de usuarios
         cur.execute('SELECT COUNT(*) FROM users')
-        total_users = cur.fetchone()[0]
+        total_users = _fetch_scalar(cur)
         logger.info(f"✅ Total usuarios: {total_users}")
         
         # Usuarios activos e inactivos (tratar NULL como TRUE para compatibilidad)
         cur.execute('SELECT COUNT(*) FROM users WHERE COALESCE(is_active, TRUE) = TRUE')
-        active_users = cur.fetchone()[0]
+        active_users = _fetch_scalar(cur)
         
         cur.execute('SELECT COUNT(*) FROM users WHERE COALESCE(is_active, TRUE) = FALSE')
-        inactive_users = cur.fetchone()[0]
+        inactive_users = _fetch_scalar(cur)
         
         logger.info(f"✅ Usuarios activos: {active_users}, inactivos: {inactive_users}")
         
@@ -1441,7 +1456,7 @@ def get_user_stats():
             WHERE created_at IS NOT NULL 
             AND created_at::date = CURRENT_DATE
         ''')
-        today_registrations = cur.fetchone()[0]
+        today_registrations = _fetch_scalar(cur)
         
         # Registros de esta semana
         cur.execute('''
@@ -1449,7 +1464,7 @@ def get_user_stats():
             WHERE created_at IS NOT NULL 
             AND created_at >= CURRENT_DATE - INTERVAL '7 days'
         ''')
-        week_registrations = cur.fetchone()[0]
+        week_registrations = _fetch_scalar(cur)
         
         logger.info(f"✅ Registros hoy: {today_registrations}, esta semana: {week_registrations}")
         
@@ -1656,10 +1671,10 @@ def get_detailed_user_stats():
         
         # Usuarios con Google OAuth vs password
         cur.execute('SELECT COUNT(*) FROM users WHERE google_id IS NOT NULL')
-        google_users = cur.fetchone()[0]
+        google_users = _fetch_scalar(cur)
         
         cur.execute('SELECT COUNT(*) FROM users WHERE password_hash IS NOT NULL')
-        password_users = cur.fetchone()[0]
+        password_users = _fetch_scalar(cur)
         
         # Usuarios por rol
         cur.execute('SELECT role, COUNT(*) FROM users GROUP BY role')
@@ -1710,7 +1725,7 @@ def migrate_user_timestamps():
         
         # Verificar si existen usuarios sin created_at
         cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NULL')
-        users_without_created_at = cur.fetchone()[0]
+        users_without_created_at = _fetch_scalar(cur)
         
         if users_without_created_at > 0:
             logger.info(f"Migrando {users_without_created_at} usuarios sin fecha de creación")
@@ -1727,7 +1742,7 @@ def migrate_user_timestamps():
         
         # Verificar si existen usuarios sin updated_at
         cur.execute('SELECT COUNT(*) FROM users WHERE updated_at IS NULL')
-        users_without_updated_at = cur.fetchone()[0]
+        users_without_updated_at = _fetch_scalar(cur)
         
         if users_without_updated_at > 0:
             logger.info(f"Migrando {users_without_updated_at} usuarios sin fecha de actualización")
@@ -2079,13 +2094,13 @@ def get_ai_overview_stats(user_id=None):
 
         # Estadísticas básicas
         cur.execute('SELECT COUNT(*) FROM ai_overview_analysis' + uf_where, uid)
-        total_analyses = cur.fetchone()[0]
+        total_analyses = _fetch_scalar(cur)
 
         cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE has_ai_overview = true' + uf_and, uid)
-        with_ai_overview = cur.fetchone()[0]
+        with_ai_overview = _fetch_scalar(cur)
 
         cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE domain_is_ai_source = true' + uf_and, uid)
-        as_ai_source = cur.fetchone()[0]
+        as_ai_source = _fetch_scalar(cur)
 
         # Análisis por tipología de palabras
         cur.execute('''
