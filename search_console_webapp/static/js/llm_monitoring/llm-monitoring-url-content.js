@@ -147,19 +147,41 @@ updateAnalyzeUrlContentButton() {
         const btn = document.getElementById('btnAnalyzeUrlContent');
         if (!btn) return;
 
-        const running = Boolean(this.urlContentData?.progress?.running);
-        btn.disabled = running;
-
+        const data = this.urlContentData;
+        const running = Boolean(data?.progress?.running);
         const label = btn.querySelector('span');
         const icon = btn.querySelector('i');
+
         if (running) {
-            const { done = 0, total = 0 } = this.urlContentData?.progress || {};
+            const { done = 0, total = 0 } = data.progress || {};
+            btn.disabled = true;
             if (label) label.textContent = total > 0 ? `Analyzing ${done}/${total}...` : 'Analyzing...';
             if (icon) icon.className = 'fas fa-spinner fa-spin';
-        } else {
-            if (label) label.textContent = 'Analyze Top 30 Content';
-            if (icon) icon.className = 'fas fa-search-plus';
+            return;
         }
+
+        // Todo el top analizado con caché vigente y sin errores pendientes:
+        // no hay trabajo que hacer → botón desactivado hasta que caduque la
+        // caché o entren URLs nuevas en el top.
+        const analyzed = data?.summary?.analyzed || 0;
+        const upToDate = data?.stale_count === 0 && analyzed > 0;
+
+        if (upToDate) {
+            btn.disabled = true;
+            if (label) label.textContent = 'Content Up to Date';
+            if (icon) icon.className = 'fas fa-check-circle';
+            const nextRefresh = data.next_refresh_available_at
+                ? new Date(data.next_refresh_available_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                : null;
+            btn.title = `All top ${data.top_limit || 30} cited pages are already analyzed (cache: ${data.cache_ttl_days || 7} days).`
+                + (nextRefresh ? ` Re-analysis available on ${nextRefresh}, or sooner if new URLs enter the top.` : '');
+            return;
+        }
+
+        btn.disabled = false;
+        if (label) label.textContent = 'Analyze Top 30 Content';
+        if (icon) icon.className = 'fas fa-search-plus';
+        btn.title = 'Fetch the top 30 cited pages and detect brand & competitor mentions in their content';
     },
 
 rerenderTopUrlsLLMCurrentPage() {

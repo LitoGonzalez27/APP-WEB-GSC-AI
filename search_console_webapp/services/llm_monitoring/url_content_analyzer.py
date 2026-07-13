@@ -657,6 +657,34 @@ def _needs_refresh(row: Optional[Dict]) -> bool:
     return fetched_at < datetime.now() - timedelta(days=CACHE_TTL_DAYS)
 
 
+def compute_staleness(urls: List[str], existing: Dict[str, Dict]) -> Dict:
+    """
+    Calcula cuántas URLs del top tendrían trabajo real si se lanza un análisis
+    (sin caché vigente: nuevas en el top, con error, o caducadas) y, si no hay
+    ninguna, cuándo caduca la primera (momento en que el botón debe reactivarse).
+
+    Returns:
+        {'stale_count': int, 'next_refresh_available_at': iso str | None}
+    """
+    stale_count = 0
+    oldest_fresh_fetch = None
+
+    for url in urls:
+        row = existing.get(url)
+        if _needs_refresh(row):
+            stale_count += 1
+        else:
+            fetched_at = row.get('fetched_at')
+            if oldest_fresh_fetch is None or fetched_at < oldest_fresh_fetch:
+                oldest_fresh_fetch = fetched_at
+
+    next_refresh = None
+    if stale_count == 0 and oldest_fresh_fetch:
+        next_refresh = (oldest_fresh_fetch + timedelta(days=CACHE_TTL_DAYS)).isoformat()
+
+    return {'stale_count': stale_count, 'next_refresh_available_at': next_refresh}
+
+
 # ---------------------------------------------------------------------------
 # Progreso en memoria
 # ---------------------------------------------------------------------------
@@ -874,11 +902,16 @@ def get_analysis_overview(project_id: int, days: int = 30) -> Dict:
 
         results.append({'url': item['url'], 'rank': item.get('rank'), 'analysis': serialized})
 
+    staleness = compute_staleness(urls, existing)
+
     return {
         'success': True,
         'project_id': project_id,
         'days': days,
         'top_limit': TOP_URLS_LIMIT,
+        'cache_ttl_days': CACHE_TTL_DAYS,
+        'stale_count': staleness['stale_count'],
+        'next_refresh_available_at': staleness['next_refresh_available_at'],
         'progress': get_progress(project_id),
         'summary': summary,
         'results': results,
