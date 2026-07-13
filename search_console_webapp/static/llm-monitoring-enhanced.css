@@ -957,3 +957,189 @@
     font-size: 11px;
     color: var(--llm-gray-400);
 }
+
+/* ============================================================
+   ✨ LLM Responses Inspector — rediseño brandbook
+   ============================================================ */
+
+/* --- Panel de filtros --- */
+.responses-filters-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px 16px;
+    padding: 16px 20px;
+    margin-bottom: 1.5rem;
+    background: var(--llm-gray-50);
+    border: 1px solid var(--llm-gray-200);
+    border-radius: 12px;
+}
+
+.responses-filter--wide {
+    grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+    .responses-filter--wide {
+        grid-column: span 1;
+    }
+}
+
+.responses-filter label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--llm-gray-500);
+}
+
+.responses-filter label i {
+    margin-right: 6px;
+    color: var(--llm-gray-400);
+}
+
+.responses-filter .form-control {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid var(--llm-gray-200);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: var(--llm-primary-dark);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.responses-filter .form-control:focus {
+    border-color: var(--llm-primary-dark);
+    box-shadow: 0 0 0 3px var(--llm-accent-green);
+    outline: none;
+}
+
+/* Flash al llegar desde el rosco de sentimiento */
+@keyframes responsesFiltersFlash {
+    0%   { box-shadow: 0 0 0 0 var(--llm-accent-green); border-color: var(--llm-accent-green-dark); }
+    50%  { box-shadow: 0 0 0 6px var(--llm-accent-green); border-color: var(--llm-accent-green-dark); }
+    100% { box-shadow: 0 0 0 0 rgba(216, 249, 184, 0); }
+}
+
+.responses-filters-panel.filters-flash {
+    animation: responsesFiltersFlash 1.2s ease-out 1;
+}
+
+/* --- Quick stats --- */
+.responses-quick-stats {
+    background: var(--llm-primary-dark);
+    border: none;
+    border-radius: 14px;
+    padding: 14px 18px;
+    gap: 12px;
+}
+
+.responses-quick-stats .quick-stat-item {
+    background: var(--llm-primary-light);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.responses-quick-stats .quick-stat-item:hover {
+    border-color: var(--llm-accent-green);
+    box-shadow: none;
+}
+
+.responses-quick-stats .quick-stat-item i {
+    color: var(--llm-accent-green);
+}
+
+.responses-quick-stats .quick-stat-value {
+    color: #ffffff;
+}
+
+.responses-quick-stats .quick-stat-label {
+    color: var(--llm-gray-400);
+}
+
+/* --- Cards de respuesta --- */
+.response-item {
+    background: #ffffff;
+    border: 1px solid var(--llm-gray-200);
+    border-radius: 14px;
+    padding: 1.5rem;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.response-item:hover {
+    border-color: var(--llm-gray-300);
+    box-shadow: var(--llm-shadow-lg);
+    transform: translateY(-2px);
+}
+
+.response-header {
+    border-bottom: 1px solid var(--llm-gray-100);
+}
+
+/* Badges de estado alineados con los colores del rosco de sentimiento */
+.status-badge.mentioned {
+    background: var(--llm-accent-green);
+    color: var(--llm-primary-dark);
+}
+
+.status-badge.positive {
+    background: rgba(34, 197, 94, 0.15);
+    color: #15803d;
+}
+
+.status-badge.neutral {
+    background: rgba(245, 158, 11, 0.15);
+    color: #b45309;
+}
+
+.status-badge.negative {
+    background: rgba(239, 68, 68, 0.12);
+    color: #b91c1c;
+}
+
+/* --- Contextos de mención como citas --- */
+.mention-contexts {
+    background: var(--llm-gray-50);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.mention-contexts h5 {
+    color: var(--llm-gray-600);
+}
+
+.mention-contexts h5 i {
+    color: var(--llm-accent-green-dark);
+}
+
+.context-item {
+    background: #ffffff;
+    border: 1px solid var(--llm-gray-200);
+    border-left: 3px solid var(--llm-accent-green);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: var(--llm-gray-700);
+}
+
+/* --- Botón "Show Full Response" --- */
+.btn-view-full-response {
+    background: var(--llm-primary-dark);
+    color: var(--llm-accent-green);
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-view-full-response:hover {
+    background: var(--llm-accent-green);
+    color: var(--llm-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--llm-shadow);
+}

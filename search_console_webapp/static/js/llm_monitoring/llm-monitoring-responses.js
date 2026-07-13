@@ -122,6 +122,37 @@ async loadResponses() {
         }
     },
 
+async goToResponsesWithSentiment(sentiment) {
+        const validSentiments = ['positive', 'neutral', 'negative'];
+        if (!validSentiments.includes(sentiment)) return;
+
+        const card = document.getElementById('responsesInspectorCard');
+        const select = document.getElementById('responsesSentimentFilter');
+
+        card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        if (this.allResponses && this.allResponses.length > 0) {
+            if (select) select.value = sentiment;
+            this.applyClientSideFilters();
+        } else if (this.currentProject?.id) {
+            // loadResponses() resetea los filtros client-side al terminar,
+            // así que hay que fijar el sentimiento DESPUÉS de cargar.
+            await this.loadResponses();
+            if (select) select.value = sentiment;
+            if (this.allResponses && this.allResponses.length > 0) {
+                this.applyClientSideFilters();
+            }
+        }
+
+        // Feedback visual: destacar brevemente el panel de filtros
+        const filtersPanel = document.getElementById('responsesFiltersPanel');
+        if (filtersPanel) {
+            filtersPanel.classList.remove('filters-flash');
+            void filtersPanel.offsetWidth; // reiniciar la animación
+            filtersPanel.classList.add('filters-flash');
+        }
+    },
+
 getDisplayResponses() {
         const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
         const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';

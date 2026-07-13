@@ -768,6 +768,18 @@ async renderSentimentDistributionChart() {
                     responsive: true,
                     maintainAspectRatio: false,
                     cutout: '65%',
+                    // ✨ Click en un segmento → LLM Responses Inspector con el
+                    // filtro de sentimiento correspondiente activo
+                    onHover: (event, elements) => {
+                        const target = event?.native?.target;
+                        if (target) target.style.cursor = elements.length ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements) => {
+                        if (!elements || elements.length === 0) return;
+                        const label = this.charts.sentimentDistribution?.data?.labels?.[elements[0].index];
+                        if (!label) return;
+                        this.goToResponsesWithSentiment(String(label).toLowerCase());
+                    },
                     plugins: {
                         legend: {
                             position: 'bottom',
@@ -796,12 +808,19 @@ async renderSentimentDistributionChart() {
                             bodyFont: {
                                 size: 12
                             },
+                            footerFont: {
+                                size: 11,
+                                style: 'italic',
+                                weight: '400'
+                            },
+                            footerColor: '#D8F9B8',
                             callbacks: {
                                 label: context => {
                                     const label = context.label || '';
                                     const value = context.parsed || 0;
                                     return `${label}: ${value}%`;
-                                }
+                                },
+                                footer: () => 'Click to inspect these responses'
                             }
                         }
                     }

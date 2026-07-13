@@ -33,7 +33,7 @@
     
     <!-- CSS específico para LLM Monitoring -->
     <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=8" rel="stylesheet">
-    <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=1" rel="stylesheet">
+    <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=2" rel="stylesheet">
     
     <!-- ✨ NEW: Share of Voice Metrics UI -->
     <link href="{{ url_for('static', filename='sov-metrics-ui.css') }}?v=1" rel="stylesheet">
@@ -958,46 +958,46 @@
                         </div>
                     </div>
                     
-                    <!-- Filters Row -->
-                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
-                        <div style="flex: 1; min-width: 250px;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                <i class="fas fa-search" style="margin-right: 0.5rem;"></i>
+                    <!-- Filters Panel (brandbook) -->
+                    <div class="responses-filters-panel" id="responsesFiltersPanel">
+                        <div class="responses-filter responses-filter--wide">
+                            <label for="responsesQueryFilter">
+                                <i class="fas fa-search"></i>
                                 Prompt
                             </label>
-                            <select id="responsesQueryFilter" class="form-control" style="width: 100%;">
+                            <select id="responsesQueryFilter" class="form-control">
                                 <option value="">All Prompts</option>
                             </select>
                         </div>
-                        
-                        <div style="flex: 0 0 200px;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                <i class="fas fa-robot" style="margin-right: 0.5rem;"></i>
+
+                        <div class="responses-filter">
+                            <label for="responsesLLMFilter">
+                                <i class="fas fa-robot"></i>
                                 LLM
                             </label>
-                            <select id="responsesLLMFilter" class="form-control" style="width: 100%;">
+                            <select id="responsesLLMFilter" class="form-control">
                                 <option value="">All Active LLMs</option>
                             </select>
                         </div>
-                        
-                        <div style="flex: 0 0 180px;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                <i class="fas fa-check-circle" style="margin-right: 0.5rem;"></i>
+
+                        <div class="responses-filter">
+                            <label for="responsesMentionFilter">
+                                <i class="fas fa-check-circle"></i>
                                 Mention
                             </label>
-                            <select id="responsesMentionFilter" class="form-control" style="width: 100%;">
+                            <select id="responsesMentionFilter" class="form-control">
                                 <option value="">All</option>
                                 <option value="mentioned">Mentioned</option>
                                 <option value="not-mentioned">Not Mentioned</option>
                             </select>
                         </div>
-                        
-                        <div style="flex: 0 0 180px;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                <i class="fas fa-heart" style="margin-right: 0.5rem;"></i>
+
+                        <div class="responses-filter">
+                            <label for="responsesSentimentFilter">
+                                <i class="fas fa-heart"></i>
                                 Sentiment
                             </label>
-                            <select id="responsesSentimentFilter" class="form-control" style="width: 100%;">
+                            <select id="responsesSentimentFilter" class="form-control">
                                 <option value="">All</option>
                                 <option value="positive">Positive</option>
                                 <option value="neutral">Neutral</option>
@@ -1005,24 +1005,23 @@
                             </select>
                         </div>
 
-                        <!-- ✨ NEW: Cluster filter -->
-                        <div style="flex: 0 0 200px;" id="responsesClusterFilterWrapper">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                <i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i>
+                        <div class="responses-filter" id="responsesClusterFilterWrapper">
+                            <label for="responsesClusterFilter">
+                                <i class="fas fa-layer-group"></i>
                                 Cluster
                             </label>
-                            <select id="responsesClusterFilter" class="form-control" style="width: 100%;">
+                            <select id="responsesClusterFilter" class="form-control">
                                 <option value="">All Clusters</option>
                                 <!-- populated dynamically -->
                             </select>
                         </div>
 
-                        <div style="flex: 0 0 180px;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                <i class="fas fa-tag" style="margin-right: 0.5rem;"></i>
+                        <div class="responses-filter">
+                            <label for="responsesQueryTypeFilter">
+                                <i class="fas fa-tag"></i>
                                 Prompt Type
                             </label>
-                            <select id="responsesQueryTypeFilter" class="form-control" style="width: 100%;">
+                            <select id="responsesQueryTypeFilter" class="form-control">
                                 <option value="">All Prompts</option>
                                 <option value="branded">Branded</option>
                                 <option value="non-branded">Non-Branded</option>
@@ -1824,10 +1823,10 @@
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-prompts.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-queries.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-metrics.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v=13"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v=13"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v=1"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v=13"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-models.js') }}?v=12"></script>
