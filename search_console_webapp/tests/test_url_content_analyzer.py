@@ -249,6 +249,38 @@ class TestHelpers:
         assert normalize_domain('') == ''
         assert normalize_domain(None) == ''
 
+    def test_compute_staleness_all_fresh(self):
+        now = datetime.now()
+        urls = ['https://a.com/1', 'https://a.com/2']
+        existing = {
+            'https://a.com/1': {'status': 'completed', 'fetched_at': now - timedelta(days=2)},
+            'https://a.com/2': {'status': 'completed', 'fetched_at': now - timedelta(days=1)},
+        }
+        result = analyzer.compute_staleness(urls, existing)
+        assert result['stale_count'] == 0
+        # Se reactiva cuando caduque la MÁS antigua (2 días → quedan TTL-2)
+        expected = (now - timedelta(days=2) + timedelta(days=analyzer.CACHE_TTL_DAYS))
+        assert result['next_refresh_available_at'] == expected.isoformat()
+
+    def test_compute_staleness_counts_new_errored_and_expired(self):
+        now = datetime.now()
+        urls = ['https://new.com/', 'https://err.com/', 'https://old.com/', 'https://ok.com/']
+        existing = {
+            'https://err.com/': {'status': 'error', 'fetched_at': now},
+            'https://old.com/': {'status': 'completed',
+                                 'fetched_at': now - timedelta(days=analyzer.CACHE_TTL_DAYS + 1)},
+            'https://ok.com/': {'status': 'completed', 'fetched_at': now},
+        }
+        result = analyzer.compute_staleness(urls, existing)
+        # nueva + error + caducada = 3; con trabajo pendiente no hay next_refresh
+        assert result['stale_count'] == 3
+        assert result['next_refresh_available_at'] is None
+
+    def test_compute_staleness_empty_top(self):
+        result = analyzer.compute_staleness([], {})
+        assert result['stale_count'] == 0
+        assert result['next_refresh_available_at'] is None
+
     def test_needs_refresh(self):
         assert _needs_refresh(None) is True
         assert _needs_refresh({'status': 'error', 'fetched_at': datetime.now()}) is True
