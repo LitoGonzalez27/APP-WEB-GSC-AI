@@ -1124,8 +1124,10 @@
     color: var(--llm-gray-700);
 }
 
-/* --- Botón "Show Full Response" --- */
-.btn-view-full-response {
+/* --- Botón "Show Full Response" ---
+   Doble clase para ganar a response-modal.css (azul), que se carga después
+   de este archivo y empataría en especificidad con una sola clase. */
+.response-item .btn-view-full-response {
     background: var(--llm-primary-dark);
     color: var(--llm-accent-green);
     border: none;
@@ -1137,7 +1139,7 @@
     transition: all 0.2s ease;
 }
 
-.btn-view-full-response:hover {
+.response-item .btn-view-full-response:hover {
     background: var(--llm-accent-green);
     color: var(--llm-primary-dark);
     transform: translateY(-1px);
