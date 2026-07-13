@@ -862,6 +862,14 @@
                         <h3>
                             Top Mentioned URLs by LLMs
                         </h3>
+                        <div class="chart-actions">
+                            <button class="btn btn-primary" id="btnAnalyzeUrlContent"
+                                    onclick="window.llmMonitoring.startUrlContentAnalysis()"
+                                    title="Fetch the top 30 cited pages and detect brand & competitor mentions in their content">
+                                <i class="fas fa-search-plus"></i>
+                                <span>Analyze Top 30 Content</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- URL Filters Row -->
@@ -875,6 +883,11 @@
                             <button class="url-filter-chip" id="showTopDomainsLLM" data-active="false">
                                 <i class="fas fa-sitemap"></i>
                                 <span>Show Top Domains</span>
+                            </button>
+                            <button class="url-filter-chip" id="filterQuickWinsLLM" data-active="false" style="display: none;"
+                                    title="Pages that mention your competitors but not your brand">
+                                <i class="fas fa-bolt"></i>
+                                <span>Quick Wins Only</span>
                             </button>
                         </div>
                         
@@ -890,15 +903,19 @@
                         </div>
                     </div>
                     
+                    <!-- ✨ Resumen del análisis de contenido (mixin url-content) -->
+                    <div id="urlContentSummary" class="url-content-summary" style="display: none;"></div>
+
                     <div id="urlsContainerLLM" class="urls-container">
                         <div class="urls-table-wrapper">
                             <table class="urls-table" id="topUrlsLLMTable">
                                 <thead>
                                     <tr>
                                         <th style="width: 60px;">#</th>
-                                        <th style="width: 60%;">URL</th>
-                                        <th style="width: 120px;">Citations</th>
-                                        <th style="width: 120px;">% of Total</th>
+                                        <th style="width: 45%;">URL</th>
+                                        <th style="width: 110px;">Citations</th>
+                                        <th style="width: 110px;">% of Total</th>
+                                        <th style="width: 170px;">Brand Presence</th>
                                     </tr>
                                 </thead>
                                 <tbody id="topUrlsLLMBody">
@@ -1808,7 +1825,8 @@
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-queries.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-metrics.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v=13"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v=1"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v=12"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v=12"></script>

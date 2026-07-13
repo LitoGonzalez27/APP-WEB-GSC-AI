@@ -59,6 +59,7 @@ from services.project_access_service import (
 from database import get_db_connection, acquire_analysis_lock, release_analysis_lock, get_latest_analysis_run
 from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
 from services.llm_monitoring_stats import LLMMonitoringStatsService
+from services.llm_monitoring import url_content_analyzer
 from services.country_config import get_default_language_for_country
 
 # Configurar logging
@@ -3636,6 +3637,92 @@ def get_urls_ranking(project_id):
             conn.close()
         except Exception:
             pass
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/url-content-analysis', methods=['POST'])
+@login_required
+@validate_project_ownership
+def start_url_content_analysis(project_id):
+    """
+    Lanza en background el análisis de contenido del Top 30 de URLs citadas
+    (Fase 1 determinista: menciones/enlaces de marca y competidores, sin LLM).
+
+    Body JSON opcional:
+        days: rango del ranking (default: 30)
+        force: re-analizar aunque haya caché vigente (default: false)
+
+    Returns:
+        202 si el análisis arrancó, 409 si ya hay uno en curso
+    """
+    data = request.get_json(silent=True) or {}
+    days = _normalize_days_param(data.get('days'), default=30)
+    force = bool(data.get('force', False))
+
+    if not url_content_analyzer.try_begin_analysis(project_id):
+        return jsonify({
+            'error': 'url_analysis_in_progress',
+            'message': 'A content analysis is already running for this project'
+        }), 409
+
+    def run_url_analysis_in_background():
+        try:
+            result = url_content_analyzer.run_analysis_for_project(
+                project_id=project_id, days=days, force=force
+            )
+            if result.get('success'):
+                logger.info(
+                    f"✅ URL content analysis finished for project {project_id}: "
+                    f"{result.get('processed', 0)} processed, {result.get('skipped', 0)} cached"
+                )
+            else:
+                logger.warning(
+                    f"⚠️ URL content analysis failed for project {project_id}: "
+                    f"{result.get('error', 'unknown_error')}"
+                )
+        except Exception as e:
+            logger.error(f"❌ Error in URL content analysis for project {project_id}: {e}", exc_info=True)
+
+    try:
+        thread = threading.Thread(target=run_url_analysis_in_background, daemon=True)
+        thread.start()
+    except Exception as e:
+        # Si el thread no llegó a arrancar, liberar el guard para no bloquear reintentos
+        url_content_analyzer.release_analysis_guard(project_id)
+        logger.error(f"Error starting URL content analysis for project {project_id}: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to start analysis. Please try again.'}), 500
+
+    return jsonify({
+        'success': True,
+        'project_id': project_id,
+        'message': 'URL content analysis started in background',
+        'days': days,
+        'force': force
+    }), 202
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/url-content-analysis', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_url_content_analysis(project_id):
+    """
+    Estado y resultados del análisis de contenido para el Top 30 actual.
+
+    Query params opcionales:
+        days: rango del ranking (default: 30, debe coincidir con la tabla)
+
+    Returns:
+        JSON con progress (running/done/total), summary y results por URL
+    """
+    days = _normalize_days_param(request.args.get('days'), default=30)
+
+    try:
+        overview = url_content_analyzer.get_analysis_overview(project_id, days=days)
+        if not overview.get('success'):
+            return jsonify({'error': 'Project not found'}), 404
+        return jsonify(overview), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo análisis de contenido de URLs: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/comparison', methods=['GET'])
