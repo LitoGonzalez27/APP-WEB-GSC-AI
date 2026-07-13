@@ -138,6 +138,15 @@ async loadTopUrlsRanking(projectId) {
                 this.renderTopUrlsLLMPaginator();
             }
 
+            // ✨ Análisis de contenido (mixin url-content): cablear UI y
+            // cargar resultados cacheados para pintar los badges de presencia.
+            if (typeof this.initUrlContentUi === 'function') {
+                this.initUrlContentUi();
+                this.loadUrlContentAnalysis(projectId).catch(err =>
+                    console.error('❌ Error loading URL content analysis:', err)
+                );
+            }
+
         } catch (error) {
             console.error('❌ Error loading URLs ranking:', error);
             this._topUrlsLLMState = { page: 1, totalPages: 1, fullList: [], isDomainView: false };
@@ -276,6 +285,11 @@ renderTopUrlsRankingLLM(urls) {
                 domainBadge = '<span class="domain-badge competitor">Competitor</span>';
             }
 
+            // Badge de presencia de marca (mixin url-content; tolerante si no cargó)
+            const presenceCell = typeof this.renderUrlPresenceCell === 'function'
+                ? this.renderUrlPresenceCell(url)
+                : '';
+
             const row = document.createElement('tr');
             row.className = rowClass;
             row.innerHTML = `
@@ -292,6 +306,7 @@ renderTopUrlsRankingLLM(urls) {
                 </td>
                 <td class="mentions-cell">${urlData.mentions}</td>
                 <td class="percentage-cell">${urlData.percentage.toFixed(1)}%</td>
+                <td class="presence-cell">${presenceCell}</td>
             `;
 
             tableBody.appendChild(row);
@@ -377,9 +392,10 @@ updateTableHeaderForUrls() {
         thead.innerHTML = `
             <tr>
                 <th style="width: 60px;">#</th>
-                <th style="width: 60%;">URL</th>
-                <th style="width: 120px;">Mentions</th>
-                <th style="width: 120px;">% of Total</th>
+                <th style="width: 45%;">URL</th>
+                <th style="width: 110px;">Mentions</th>
+                <th style="width: 110px;">% of Total</th>
+                <th style="width: 170px;">Brand Presence</th>
             </tr>
         `;
     },
