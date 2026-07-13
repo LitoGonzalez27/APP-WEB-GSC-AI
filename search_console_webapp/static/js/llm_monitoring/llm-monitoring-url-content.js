@@ -321,6 +321,7 @@ buildUrlAnalysisDetailHtml(analysis) {
         const fetchedDate = analysis.fetched_at
             ? new Date(analysis.fetched_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
             : '—';
+        const fetchMethodNote = analysis.fetch_method === 'jina' ? ' &middot; via reader proxy' : '';
 
         return `
             <div class="url-analysis-detail">
@@ -335,7 +336,7 @@ buildUrlAnalysisDetailHtml(analysis) {
                         ${competitorsBlock}
                     </div>
                 </div>
-                <div class="detail-footer">Content analyzed on ${esc(fetchedDate)}</div>
+                <div class="detail-footer">Content analyzed on ${esc(fetchedDate)}${fetchMethodNote}</div>
             </div>
         `;
     },

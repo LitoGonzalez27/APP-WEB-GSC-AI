@@ -74,11 +74,20 @@
     cursor: pointer;
 }
 
-.btn-primary:hover {
+/* :not(:disabled) iguala la especificidad del hover azul legacy de
+   llm-monitoring.css (.btn-primary:hover:not(:disabled)), que si no gana
+   y rompe el brandbook (fondo azul #2563eb). */
+.btn-primary:hover:not(:disabled) {
     background: var(--llm-accent-green);
     color: var(--llm-primary-dark);
     transform: translateY(-2px);
     box-shadow: var(--llm-shadow-lg);
+}
+
+.btn-primary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .btn-secondary {

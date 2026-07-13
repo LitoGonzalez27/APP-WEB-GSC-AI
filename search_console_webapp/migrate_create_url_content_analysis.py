@@ -61,6 +61,9 @@ def migrate():
                 opportunity VARCHAR(20),
                 error_reason TEXT,
 
+                -- Cómo se obtuvo el contenido: direct | jina (fallback Reader)
+                fetch_method VARCHAR(20) NOT NULL DEFAULT 'direct',
+
                 fetched_at TIMESTAMP,
                 created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
