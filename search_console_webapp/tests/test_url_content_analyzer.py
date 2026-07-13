@@ -164,6 +164,79 @@ class TestAnalyzeHtml:
 
 
 # ---------------------------------------------------------------------------
+# Fallback Jina Reader
+# ---------------------------------------------------------------------------
+
+class TestJinaFallback:
+
+    def test_should_fallback_on_bot_protection_and_network_errors(self):
+        for reason in ('http_403', 'http_429', 'http_503', 'timeout',
+                       'ssl_error', 'fetch_error', 'empty_content'):
+            assert analyzer._should_fallback_to_jina(reason) is True
+
+    def test_should_not_fallback_on_unsafe_or_non_html(self):
+        for reason in ('unsafe_url', 'not_html', 'too_large', None):
+            assert analyzer._should_fallback_to_jina(reason) is False
+
+    def test_fetch_via_jina_builds_request_correctly(self, monkeypatch):
+        captured = {}
+
+        class FakeResponse:
+            status_code = 200
+            def iter_content(self, chunk_size):
+                yield b'<html><body>Semrush</body></html>'
+            def close(self):
+                pass
+
+        def fake_get(url, headers=None, timeout=None, stream=None):
+            captured.update({'url': url, 'headers': headers, 'timeout': timeout})
+            return FakeResponse()
+
+        monkeypatch.delenv('JINA_API_KEY', raising=False)
+        monkeypatch.setattr(analyzer.requests, 'get', fake_get)
+
+        result = analyzer.fetch_url_via_jina('https://blocked.example.com/page')
+
+        assert result['ok'] is True
+        assert b'Semrush' in result['content']
+        assert captured['url'] == 'https://r.jina.ai/https://blocked.example.com/page'
+        assert captured['headers']['X-Return-Format'] == 'html'
+        # Sin JINA_API_KEY no debe enviarse Authorization
+        assert 'Authorization' not in captured['headers']
+
+    def test_fetch_via_jina_uses_api_key_when_present(self, monkeypatch):
+        captured = {}
+
+        class FakeResponse:
+            status_code = 200
+            def iter_content(self, chunk_size):
+                yield b'<html></html>'
+            def close(self):
+                pass
+
+        monkeypatch.setenv('JINA_API_KEY', 'jina_test_key')
+        monkeypatch.setattr(analyzer.requests, 'get',
+                            lambda url, **kw: captured.update(kw) or FakeResponse())
+
+        result = analyzer.fetch_url_via_jina('https://blocked.example.com/')
+        assert result['ok'] is True
+        assert captured['headers']['Authorization'] == 'Bearer jina_test_key'
+
+    def test_fetch_via_jina_propagates_http_error(self, monkeypatch):
+        class FakeResponse:
+            status_code = 451
+            def iter_content(self, chunk_size):
+                return iter(())
+            def close(self):
+                pass
+
+        monkeypatch.setattr(analyzer.requests, 'get', lambda url, **kw: FakeResponse())
+        result = analyzer.fetch_url_via_jina('https://blocked.example.com/')
+        assert result['ok'] is False
+        assert result['error_reason'] == 'jina_http_451'
+
+
+# ---------------------------------------------------------------------------
 # Utilidades
 # ---------------------------------------------------------------------------
 

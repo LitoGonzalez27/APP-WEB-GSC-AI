@@ -25,6 +25,7 @@ import hashlib
 import ipaddress
 import json
 import logging
+import os
 import re
 import socket
 import threading
@@ -56,6 +57,15 @@ ALLOWED_PORTS = (None, 80, 443)
 CACHE_TTL_DAYS = 7
 TOP_URLS_LIMIT = 30
 MAX_WORKERS = 4
+
+# Fallback de fetch vía Jina Reader (r.jina.ai) cuando el fetch directo falla
+# (típicamente 403/429 por protección anti-bot). JINA_API_KEY es opcional:
+# sin key funciona con rate limit reducido, suficiente para el fallback.
+JINA_READER_ENDPOINT = 'https://r.jina.ai/'
+JINA_TIMEOUT_SECONDS = 30  # Jina renderiza la página, tarda más que un GET
+# Errores del fetch directo que NO tiene sentido reintentar vía Jina:
+# unsafe_url (bloqueado por SSRF-guard), not_html (PDFs etc.), too_large.
+JINA_NON_FALLBACK_REASONS = ('unsafe_url', 'not_html', 'too_large')
 
 _CGNAT_NET = ipaddress.ip_network('100.64.0.0/10')
 
@@ -242,6 +252,74 @@ def fetch_url_safely(url: str) -> Dict:
     except requests.exceptions.RequestException as e:
         logger.info(f"⚠️ Error de red descargando {url}: {e}")
         result['error_reason'] = 'fetch_error'
+        return result
+
+
+def _should_fallback_to_jina(error_reason: Optional[str]) -> bool:
+    """True si merece la pena reintentar el fetch a través de Jina Reader"""
+    if not error_reason:
+        return False
+    return error_reason not in JINA_NON_FALLBACK_REASONS
+
+
+def fetch_url_via_jina(url: str) -> Dict:
+    """
+    Fetch a través de Jina Reader (r.jina.ai) con X-Return-Format: html.
+
+    Jina renderiza la página (incluido JS) y suele superar las protecciones
+    anti-bot que bloquean el fetch directo. La URL ya pasó el SSRF-guard en
+    el intento directo (los 'unsafe_url' nunca llegan aquí).
+    """
+    headers = {
+        'X-Return-Format': 'html',
+        'Accept': 'text/html',
+        'User-Agent': USER_AGENT,
+    }
+    api_key = os.getenv('JINA_API_KEY')
+    if api_key:
+        headers['Authorization'] = f'Bearer {api_key}'
+
+    result = {'ok': False, 'http_status': None, 'content': None,
+              'final_url': url, 'error_reason': None}
+
+    try:
+        response = requests.get(
+            f'{JINA_READER_ENDPOINT}{url}',
+            headers=headers,
+            timeout=JINA_TIMEOUT_SECONDS,
+            stream=True,
+        )
+        try:
+            result['http_status'] = response.status_code
+            if response.status_code != 200:
+                result['error_reason'] = f'jina_http_{response.status_code}'
+                return result
+
+            chunks = []
+            total = 0
+            for chunk in response.iter_content(chunk_size=65536):
+                chunks.append(chunk)
+                total += len(chunk)
+                if total >= MAX_CONTENT_BYTES:
+                    break
+
+            content = b''.join(chunks)[:MAX_CONTENT_BYTES]
+            if not content:
+                result['error_reason'] = 'jina_empty_content'
+                return result
+
+            result['ok'] = True
+            result['content'] = content
+            return result
+        finally:
+            response.close()
+
+    except requests.exceptions.Timeout:
+        result['error_reason'] = 'jina_timeout'
+        return result
+    except requests.exceptions.RequestException as e:
+        logger.info(f"⚠️ Error de red en Jina Reader para {url}: {e}")
+        result['error_reason'] = 'jina_fetch_error'
         return result
 
 
@@ -494,11 +572,13 @@ def _upsert_analysis(project_id: int, url: str, fields: Dict) -> None:
             INSERT INTO llm_url_content_analysis (
                 project_id, url, url_hash, status, http_status, page_title,
                 brand_mentioned, brand_mention_count, brand_linked, brand_anchor_texts,
-                competitors_found, opportunity, error_reason, fetched_at, updated_at
+                competitors_found, opportunity, error_reason, fetch_method,
+                fetched_at, updated_at
             ) VALUES (
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s::jsonb,
-                %s::jsonb, %s, %s, NOW(), NOW()
+                %s::jsonb, %s, %s, %s,
+                NOW(), NOW()
             )
             ON CONFLICT (project_id, url_hash) DO UPDATE SET
                 status = EXCLUDED.status,
@@ -511,6 +591,7 @@ def _upsert_analysis(project_id: int, url: str, fields: Dict) -> None:
                 competitors_found = EXCLUDED.competitors_found,
                 opportunity = EXCLUDED.opportunity,
                 error_reason = EXCLUDED.error_reason,
+                fetch_method = EXCLUDED.fetch_method,
                 fetched_at = EXCLUDED.fetched_at,
                 updated_at = NOW()
         """, (
@@ -525,6 +606,7 @@ def _upsert_analysis(project_id: int, url: str, fields: Dict) -> None:
             json.dumps(fields.get('competitors_found') or []),
             fields.get('opportunity'),
             fields.get('error_reason'),
+            fields.get('fetch_method', 'direct'),
         ))
         conn.commit()
         cur.close()
@@ -549,7 +631,7 @@ def _load_existing_analyses(project_id: int, urls: List[str]) -> Dict[str, Dict]
             SELECT url, url_hash, status, http_status, page_title,
                    brand_mentioned, brand_mention_count, brand_linked,
                    brand_anchor_texts, competitors_found, opportunity,
-                   error_reason, fetched_at
+                   error_reason, fetch_method, fetched_at
             FROM llm_url_content_analysis
             WHERE project_id = %s AND url_hash = ANY(%s)
         """, (project_id, hashes))
@@ -631,17 +713,37 @@ def _analyze_single_url(project_id: int, url: str, brand_config: Dict) -> None:
     """Descarga, analiza y persiste una URL. Nunca lanza (guarda el error)."""
     try:
         fetch = fetch_url_safely(url)
+        fetch_method = 'direct'
+
+        # Fallback: si el fetch directo falla (anti-bot, timeout...), reintentar
+        # vía Jina Reader antes de dar la URL por perdida.
+        if not fetch['ok'] and _should_fallback_to_jina(fetch['error_reason']):
+            direct_error = fetch['error_reason']
+            jina_fetch = fetch_url_via_jina(url)
+            if jina_fetch['ok']:
+                fetch = jina_fetch
+                fetch_method = 'jina'
+                logger.info(f"🔁 Fetch recuperado vía Jina Reader ({direct_error}): {url}")
+            else:
+                # Conservar el error directo (más diagnóstico) y anotar el de Jina
+                fetch['error_reason'] = f"{direct_error},{jina_fetch['error_reason']}"
+
         if not fetch['ok']:
             _upsert_analysis(project_id, url, {
                 'status': 'error',
                 'http_status': fetch['http_status'],
                 'opportunity': 'error',
                 'error_reason': fetch['error_reason'],
+                'fetch_method': fetch_method,
             })
             return
 
         analysis = analyze_html(fetch['content'], fetch['final_url'], brand_config)
-        analysis.update({'status': 'completed', 'http_status': fetch['http_status']})
+        analysis.update({
+            'status': 'completed',
+            'http_status': fetch['http_status'],
+            'fetch_method': fetch_method,
+        })
         _upsert_analysis(project_id, url, analysis)
     except Exception as e:
         logger.error(f"❌ Error analizando {url}: {e}", exc_info=True)
@@ -722,6 +824,7 @@ def _serialize_row(row: Dict) -> Dict:
         'competitors_found': row.get('competitors_found') or [],
         'opportunity': row.get('opportunity'),
         'error_reason': row.get('error_reason'),
+        'fetch_method': row.get('fetch_method') or 'direct',
         'fetched_at': fetched_at.isoformat() if fetched_at else None,
     }
 
