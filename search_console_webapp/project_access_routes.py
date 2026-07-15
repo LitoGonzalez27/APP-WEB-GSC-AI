@@ -15,6 +15,7 @@ from services.project_access_service import (
     list_project_invitations,
     list_project_members,
     remove_project_member,
+    resend_invitation_to_self,
     revoke_project_invitation,
     user_can_manage_project_access,
     user_can_view_project,
@@ -175,3 +176,21 @@ def my_invitations():
 
     invitations = get_user_pending_invitations(user["id"])
     return jsonify({"success": True, "invitations": invitations})
+
+
+@project_access_bp.route("/my-invitations/<int:invitation_id>/resend", methods=["POST"])
+@auth_required
+def resend_my_invitation(invitation_id: int):
+    """Reenvía el email de una invitación pendiente al propio invitado.
+
+    Seguro por diseño: solo funciona si el email del usuario logueado
+    coincide con el de la invitación, y el correo solo va a ese buzón.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    ok, payload = resend_invitation_to_self(invitation_id, user["id"])
+    if not ok:
+        return jsonify({"success": False, **payload}), 400
+    return jsonify({"success": True, **payload})
