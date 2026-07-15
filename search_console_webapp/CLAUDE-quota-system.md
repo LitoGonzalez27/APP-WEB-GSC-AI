@@ -117,8 +117,8 @@ PLAN_LIMITS = {
 PLAN_PRICES = {
     'free': 0,
     'basic': 29.99,
-    'premium': 49.99,
-    'business': 139.99
+    'premium': 79.99,   # subida 2026-07 (grandfathering vía PRICE_ID_LEGACY_MAP)
+    'business': 229.99  # subida 2026-07
 }
 ```
 

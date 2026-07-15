@@ -51,8 +51,8 @@ Los análisis diarios los ejecuta un **cron en Railway** (servicios "Bun functio
 |------------|----------------|------------------|-------|
 | Free       | 0              | Limitada (test)  | Modelos LLM gratuitos solamente |
 | Basic      | 29,99          | Estándar         | |
-| Premium    | 49,99          | Estándar mayor   | |
-| Business   | 139,99         | Estándar grande  | |
+| Premium    | 79,99 (49,99 grandfathered) | Estándar mayor   | |
+| Business   | 229,99 (139,99 grandfathered) | Estándar grande  | |
 | Enterprise | Custom (B2B)   | `custom_quota_limit` | Sin Stripe; gestión manual |
 
 - Los precios y cuotas concretas viven en `stripe_config.py` (`PLAN_FEATURES`) y en la columna `users.quota_limit`.

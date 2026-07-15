@@ -278,7 +278,8 @@ def get_admin_dashboard_stats():
     Devuelve { stats: {...}, time_stats: {...}, revenue_stats: {...} }.
     Reemplaza a get_billing_stats + get_user_stats + get_time_segmented_stats + get_revenue_stats.
     """
-    _PLAN_PRICES = {'basic': 29.99, 'premium': 49.99, 'business': 139.99}
+    # Precios de venta actuales (estimación: los grandfathered pagan menos)
+    _PLAN_PRICES = {'basic': 29.99, 'premium': 79.99, 'business': 229.99}
 
     empty_period = {
         'active_users': 0, 'cancellations': 0, 'registrations': 0,
@@ -833,14 +834,14 @@ def get_plan_display_info(plan):
             'name': 'Premium',
             'badge_class': 'badge-premium',
             'ru_limit': 2950, 
-            'price': '€49.99',
+            'price': '€79.99',
             'color': '#28a745'
         },
         'business': {
             'name': 'Business',
             'badge_class': 'badge-business',
             'ru_limit': 8000,
-            'price': '€139.99',
+            'price': '€229.99',
             'color': '#17a2b8'
         },
         'enterprise': {
@@ -1405,10 +1406,11 @@ def get_revenue_stats():
     Devuelve ingresos estimados mensuales EXCLUYENDO admins.
     Incluye desglose por plan y total.
     """
+    # Precios de venta actuales (estimación: los grandfathered pagan menos)
     PLAN_PRICES = {
         'basic': 29.99,
-        'premium': 49.99,
-        'business': 139.99,
+        'premium': 79.99,
+        'business': 229.99,
     }
     empty = {
         'total_revenue': 0.0,
