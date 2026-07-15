@@ -7,6 +7,7 @@ Centraliza la configuración de Stripe y billing para ClicandSEO.
 Lee variables de entorno y proporciona configuración consistente.
 """
 
+import json
 import os
 import logging
 from typing import Dict, Optional
@@ -42,6 +43,32 @@ class StripeConfig:
         self.price_id_premium_annual = os.getenv('PRICE_ID_PREMIUM_ANNUAL')
         self.price_id_business_monthly = os.getenv('PRICE_ID_BUSINESS_MONTHLY')
         self.price_id_business_annual = os.getenv('PRICE_ID_BUSINESS_ANNUAL')
+
+        # ✨ Grandfathering: precios antiguos que ya no se venden pero que los
+        # clientes existentes conservan de por vida. JSON {price_id: plan}.
+        # Ejemplo: PRICE_ID_LEGACY_MAP='{"price_1ABC": "basic", "price_1DEF": "premium"}'
+        # Sin esto, al rotar los PRICE_ID_* a los precios nuevos, el webhook
+        # dejaría de reconocer los price IDs antiguos y degradaría a 'free' a
+        # los clientes actuales en su siguiente renovación.
+        self.price_id_legacy_map: Dict[str, str] = {}
+        _raw_legacy = (os.getenv('PRICE_ID_LEGACY_MAP') or '').strip()
+        if _raw_legacy:
+            try:
+                _parsed = json.loads(_raw_legacy)
+                if isinstance(_parsed, dict):
+                    _valid_plans = {'basic', 'premium', 'business', 'enterprise'}
+                    self.price_id_legacy_map = {
+                        str(pid): str(plan)
+                        for pid, plan in _parsed.items()
+                        if str(plan) in _valid_plans and str(pid).strip()
+                    }
+                    _dropped = len(_parsed) - len(self.price_id_legacy_map)
+                    if _dropped:
+                        logger.warning(f"PRICE_ID_LEGACY_MAP: {_dropped} entrada(s) ignoradas (plan no válido)")
+                else:
+                    logger.error("PRICE_ID_LEGACY_MAP debe ser un objeto JSON {price_id: plan} — ignorado")
+            except json.JSONDecodeError as _e_legacy:
+                logger.error(f"PRICE_ID_LEGACY_MAP no es JSON válido — ignorado: {_e_legacy}")
         
         # Enterprise
         self.enterprise_product_id = os.getenv('STRIPE_ENTERPRISE_PRODUCT_ID')
@@ -131,8 +158,13 @@ class StripeConfig:
         return mapping.get(key)
 
     def get_price_to_plan_map(self) -> Dict[str, str]:
-        """Mapa inverso price_id → plan (cubre mensual y anual). Ignora None."""
-        mapping: Dict[str, str] = {}
+        """Mapa inverso price_id → plan (cubre mensual y anual). Ignora None.
+
+        Incluye los precios legacy (PRICE_ID_LEGACY_MAP) para que los clientes
+        grandfathered sigan resolviendo su plan; los price IDs actuales tienen
+        prioridad si hubiera colisión.
+        """
+        mapping: Dict[str, str] = dict(self.price_id_legacy_map)
         for pid in [
             self.price_id_basic,  # legacy
             self.price_id_premium,  # legacy
