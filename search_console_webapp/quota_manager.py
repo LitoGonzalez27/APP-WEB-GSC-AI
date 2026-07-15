@@ -26,12 +26,13 @@ PLAN_LIMITS = {
     'enterprise': 0  # Enterprise usa custom_quota_limit
 }
 
-# Precios para estadísticas
+# Precios para estadísticas (precios de VENTA actuales; los clientes
+# grandfathered pagan su precio antiguo — ver PRICE_ID_LEGACY_MAP)
 PLAN_PRICES = {
     'free': 0,
     'basic': 29.99,
-    'premium': 49.99,
-    'business': 139.99,
+    'premium': 79.99,
+    'business': 229.99,
     'enterprise': 0  # Custom pricing
 }
 
