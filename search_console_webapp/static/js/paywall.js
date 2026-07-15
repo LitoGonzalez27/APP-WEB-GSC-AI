@@ -40,7 +40,7 @@ class PaywallManager {
             },
             premium: {
                 name: 'Premium Plan',
-                price: '€49.99',
+                price: '€79.99',
                 period: '/month',
                 quota: '2,950 RU/month',
                 description: 'Perfect for agencies',
@@ -49,7 +49,7 @@ class PaywallManager {
             },
             business: {
                 name: 'Business Plan',
-                price: '€139.99',
+                price: '€229.99',
                 period: '/month',
                 quota: '8,000 RU/month',
                 description: 'For high-volume teams',
@@ -225,7 +225,7 @@ class PaywallManager {
                         <div class="pw-upgrade-info">
                             <h4>Premium Plan</h4>
                             <div class="pw-upgrade-price">
-                                <span class="pw-price-amount">€49.99</span>
+                                <span class="pw-price-amount">€79.99</span>
                                 <span class="pw-price-period">/month</span>
                             </div>
                             <div class="pw-upgrade-quota">2,950 RU/month</div>

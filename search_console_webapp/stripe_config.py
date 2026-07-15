@@ -200,8 +200,8 @@ class StripeConfig:
         return {
             'free': 0.0,
             'basic': 29.99,
-            'premium': 49.99,
-            'business': 139.99,
+            'premium': 79.99,
+            'business': 229.99,
             'enterprise': None  # Enterprise precio custom
         }
     
