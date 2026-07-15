@@ -273,7 +273,7 @@ def get_costs_dashboard():
     margin_month_eur = _f(float(revenue.get('total_revenue', 0)) - total_cost_month_eur)
 
     # Tabla combinada de coste por usuario (mes actual)
-    plan_prices = {'basic': 29.99, 'premium': 49.99, 'business': 139.99}
+    plan_prices = {'basic': 29.99, 'premium': 79.99, 'business': 229.99}
     user_ids = set(llm_by_user) | set(serp_by_user)
     per_user = []
     for uid in user_ids:
