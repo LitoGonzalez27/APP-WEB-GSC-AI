@@ -625,6 +625,34 @@ def _is_invitation_next_url(value: str) -> bool:
     """True when URL points to the invitation accept flow."""
     return isinstance(value, str) and '/project-invitations/accept' in value
 
+
+def _auto_accept_invitations_after_google_auth(user_id: int, email: str):
+    """
+    Auto-acepta las invitaciones pendientes dirigidas a `email` tras un
+    login/registro vía Google OAuth (email verificado por Google — por eso
+    aquí no hace falta el token del correo).
+
+    Returns:
+        URL de redirección al módulo del primer proyecto aceptado (con los
+        params del toast de éxito), o None si no se aceptó nada.
+    """
+    try:
+        from services.project_access_service import auto_accept_pending_invitations_for_email
+        accepted = auto_accept_pending_invitations_for_email(user_id, email)
+    except Exception as e:
+        logger.warning(f"Auto-accept de invitaciones falló para user {user_id}: {e}")
+        return None
+
+    if not accepted:
+        return None
+
+    first = accepted[0]
+    from urllib.parse import quote as _quote
+    return (
+        f"{first['redirect_path']}?invitation=accepted&auto_accepted={len(accepted)}"
+        f"&project_id={first['project_id']}&project_name={_quote(str(first['project_name']))}"
+    )
+
 def _safe_next_url(value):
     """Devuelve `value` si es una ruta relativa segura del propio sitio; si no, None.
 
@@ -1362,6 +1390,9 @@ def setup_auth_routes(app):
                                 extra_qs = '&' + urlencode(signup_tracking)
                         except Exception:
                             extra_qs = ''
+                        # ✨ Auto-aceptar invitaciones pendientes también en el alta con plan
+                        # de pago (silencioso: el destino sigue siendo el checkout)
+                        _auto_accept_invitations_after_google_auth(new_user['id'], new_user['email'])
                         return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true{extra_qs}")
                     else:
                         # Auto-login after Google signup — direct to dashboard
@@ -1388,8 +1419,18 @@ def setup_auth_routes(app):
                                 except Exception:
                                     pass
 
+                        # ✨ Auto-aceptar invitaciones pendientes (email verificado por Google)
+                        auto_redirect = _auto_accept_invitations_after_google_auth(
+                            new_user['id'], new_user['email']
+                        )
+
                         next_url = '/dashboard?auth_success=true&action=signup'
-                        if _is_invitation_next_url(session.get('auth_next')):
+                        if auto_redirect:
+                            # Ya aceptadas: el token del correo deja de ser necesario
+                            if _is_invitation_next_url(session.get('auth_next')):
+                                session.pop('auth_next', None)
+                            next_url = auto_redirect
+                        elif _is_invitation_next_url(session.get('auth_next')):
                             next_url = session.pop('auth_next')
 
                         logger.info(f"✅ User registered and auto-logged in (free): {user_info['email']}")
@@ -1515,6 +1556,16 @@ def setup_auth_routes(app):
                 except Exception as e:
                     logger.warning(f"No se pudo crear conexión persistida en login: {e}")
                 
+                # ✨ Auto-aceptar invitaciones pendientes (email verificado por Google)
+                auto_redirect = _auto_accept_invitations_after_google_auth(
+                    existing_user['id'], existing_user['email']
+                )
+                if auto_redirect:
+                    if _is_invitation_next_url(session.get('auth_next')):
+                        session.pop('auth_next', None)
+                    _clear_signup_intent()
+                    return redirect(auto_redirect)
+
                 # ✅ NUEVO: Verificar si hay plan para checkout automático
                 if _is_invitation_next_url(session.get('auth_next')):
                     _clear_signup_intent()

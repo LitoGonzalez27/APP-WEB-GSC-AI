@@ -614,6 +614,193 @@ def create_project_invitation(
         conn.close()
 
 
+def auto_accept_pending_invitations_for_email(user_id: int, email: str) -> List[Dict]:
+    """
+    Acepta automáticamente todas las invitaciones pendientes (no caducadas)
+    dirigidas a `email`, en nombre de `user_id`.
+
+    SEGURIDAD: llamar SOLO cuando la propiedad del email esté verificada
+    (login/registro vía Google OAuth). El flujo por token del email sigue
+    siendo la vía para cuentas de email+contraseña sin verificación.
+
+    Returns:
+        Lista de invitaciones aceptadas: [{module_name, module_label,
+        project_id, project_name, redirect_path}]
+    """
+    normalized = (email or "").strip().lower()
+    if not normalized or not user_id:
+        return []
+
+    conn = get_db_connection()
+    if not conn:
+        return []
+
+    accepted: List[Dict] = []
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT *
+            FROM project_invitations
+            WHERE lower(invitee_email) = %s
+              AND status = 'pending'
+              AND (expires_at IS NULL OR expires_at > NOW())
+            ORDER BY created_at ASC
+            """,
+            (normalized,),
+        )
+        pending = cur.fetchall() or []
+
+        for invitation in pending:
+            module_name = invitation.get("module_name")
+            project_id = invitation.get("project_id")
+            owner = get_project_owner(module_name, project_id)
+            if not owner:
+                continue  # el proyecto ya no existe; dejar la invitación intacta
+
+            role = invitation.get("role") or "viewer"
+            if role not in ALLOWED_ROLES:
+                role = "viewer"
+
+            # Mismo núcleo que accept_project_invitation (upsert + accepted)
+            cur.execute(
+                """
+                INSERT INTO project_collaborators (
+                    module_name, project_id, owner_user_id, user_id, role,
+                    invited_by_user_id, created_at, updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (module_name, project_id, user_id)
+                DO UPDATE SET
+                    role = EXCLUDED.role,
+                    owner_user_id = EXCLUDED.owner_user_id,
+                    invited_by_user_id = EXCLUDED.invited_by_user_id,
+                    updated_at = NOW()
+                """,
+                (
+                    module_name,
+                    project_id,
+                    owner["user_id"],
+                    user_id,
+                    role,
+                    invitation.get("inviter_user_id"),
+                ),
+            )
+            cur.execute(
+                """
+                UPDATE project_invitations
+                SET status = 'accepted', accepted_by_user_id = %s,
+                    accepted_at = NOW(), updated_at = NOW()
+                WHERE id = %s AND status = 'pending'
+                """,
+                (user_id, invitation["id"]),
+            )
+            accepted.append(
+                {
+                    "module_name": module_name,
+                    "module_label": get_module_label(module_name),
+                    "project_id": project_id,
+                    "project_name": owner.get("name") or f"Project {project_id}",
+                    "redirect_path": get_module_path(module_name),
+                }
+            )
+
+        conn.commit()
+        if accepted:
+            logger.info(
+                "Auto-accepted %s invitation(s) for user=%s email=%s",
+                len(accepted), user_id, normalized,
+            )
+        return accepted
+
+    except Exception as exc:
+        conn.rollback()
+        if not _is_missing_table_error(exc):
+            logger.error("Error auto-accepting invitations for user=%s: %s", user_id, exc)
+        return []
+    finally:
+        if cur:
+            cur.close()
+        conn.close()
+
+
+def resend_invitation_to_self(invitation_id: int, user_id: int) -> Tuple[bool, Dict]:
+    """
+    Reenvía el email de una invitación pendiente AL PROPIO invitado.
+
+    Seguro por diseño: solo el usuario logueado cuyo email coincide con el de
+    la invitación puede pedir el reenvío, y el email solo va a ese buzón
+    (probar el clic en el enlace sigue demostrando control del correo).
+    Regenera el token e (implícitamente) extiende la caducidad.
+    """
+    user = get_user_by_id(user_id)
+    if not user:
+        return False, {"error": "User not found"}
+    current_email = (user.get("email") or "").strip().lower()
+
+    conn = get_db_connection()
+    if not conn:
+        return False, {"error": "Database connection error"}
+
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM project_invitations WHERE id = %s", (invitation_id,))
+        invitation = cur.fetchone()
+        if not invitation:
+            return False, {"error": "Invitation not found"}
+        if (invitation.get("invitee_email") or "").strip().lower() != current_email:
+            return False, {"error": "This invitation belongs to another email"}
+        if invitation.get("status") != "pending":
+            return False, {"error": f"Invitation is {invitation.get('status')}"}
+
+        raw_token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(days=INVITATION_EXPIRY_DAYS)
+        cur.execute(
+            """
+            UPDATE project_invitations
+            SET token_hash = %s, expires_at = %s, updated_at = NOW()
+            WHERE id = %s
+            """,
+            (_token_hash(raw_token), expires_at, invitation_id),
+        )
+        conn.commit()
+
+        module_name = invitation.get("module_name")
+        owner = get_project_owner(module_name, invitation.get("project_id")) or {}
+        inviter = get_user_by_id(invitation.get("inviter_user_id")) or {}
+
+        email_sent = False
+        try:
+            email_sent = _send_project_invitation_email(
+                to_email=current_email,
+                to_name=(invitation.get("invitee_name") or "").strip() or None,
+                inviter_name=inviter.get("name") or inviter.get("email") or "ClicandSEO",
+                project_name=owner.get("name") or f"Project {invitation.get('project_id')}",
+                module_name=module_name,
+                invitation_link=_build_invitation_link(raw_token),
+            )
+        except Exception as email_exc:
+            logger.error(
+                "Self-resend email failed invitation=%s email=%s: %s",
+                invitation_id, current_email, email_exc,
+            )
+
+        return True, {"email_sent": email_sent, "expires_at": expires_at.isoformat()}
+
+    except Exception as exc:
+        conn.rollback()
+        if _is_missing_table_error(exc):
+            return False, {"error": "Project access tables are not initialized yet"}
+        logger.error("Error resending invitation=%s to self: %s", invitation_id, exc)
+        return False, {"error": "Could not resend invitation"}
+    finally:
+        if cur:
+            cur.close()
+        conn.close()
+
+
 def accept_project_invitation(token: str, user_id: int) -> Tuple[bool, Dict]:
     raw_token = (token or "").strip()
     if not raw_token:
