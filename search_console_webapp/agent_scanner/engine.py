@@ -226,11 +226,33 @@ CAT_NAMES = {
 
 
 def audit_domain(base, typology_override=None, skip_render=False, with_psi=False,
-                 categories=None):
+                 categories=None, with_agents=False, allow_submit=False):
     """Audita un dominio y devuelve el dict de resultados (apto para JSON/UI)."""
     base = discovery.normalize(base)
     assert_public_url(base)  # anti-SSRF antes de nada
     ctx = gather_context(base, typology_override, skip_render, with_psi)
+
+    if with_agents:
+        _log("pruebas agénticas reales (varios minutos)…")
+        try:
+            from .agents import run_agent_tests
+            ctx["agent_tests"] = run_agent_tests(
+                base, ctx["typology"], allow_submit=allow_submit, log=LOG_SINK)
+            agents = ctx["agent_tests"].get("agents", {})
+            ran = [k for k, v in agents.items() if v.get("outcome") != "no_disponible"]
+            det = f"agentes ejecutados: {', '.join(ran) or 'ninguno'}"
+            if allow_submit:
+                det += " [envío de formularios AUTORIZADO en este dominio]"
+            ctx["trail"].append({"step": "pruebas agénticas (6.3)",
+                                 "status": "ok" if ran else "fail", "detail": det})
+        except Exception as exc:
+            ctx["agent_tests"] = None
+            ctx["trail"].append({"step": "pruebas agénticas (6.3)", "status": "fail",
+                                 "detail": str(exc)[:200]})
+    else:
+        ctx["trail"].append({"step": "pruebas agénticas (6.3)", "status": "skipped",
+                             "detail": "desactivadas: el check 6.3 queda como manual"})
+
     results = checks_mod.run_all(ctx)
     if categories:
         results = [r for r in results if r["cat"] in categories]

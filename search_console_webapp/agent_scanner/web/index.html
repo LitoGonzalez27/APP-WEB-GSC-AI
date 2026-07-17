@@ -339,6 +339,13 @@ summary:hover{color:var(--text-2)}
         <div class="switch-row"><div><div class="t">Render JavaScript</div>
           <div class="d">Compara lo que ven los bots vs un navegador real. +2 min.</div></div>
           <label class="switch"><input type="checkbox" id="opt-render" checked><i></i></label></div>
+        <div class="switch-row"><div><div class="t">Pruebas agénticas reales (check 6.3)</div>
+          <div class="d">ChatGPT, Gemini y Claude pilotan un navegador real e intentan una tarea
+          en tu web (carrito→checkout / formulario / plan más barato). Solo dominio cliente. +5-10 min.</div></div>
+          <label class="switch"><input type="checkbox" id="opt-agents"><i></i></label></div>
+        <div class="switch-row" id="row-submit" style="display:none"><div><div class="t">Autorizo el envío de formularios de prueba</div>
+          <div class="d">Solo en tu dominio y con tu permiso. Nunca en competidores, nunca pagos, nunca cuentas.</div></div>
+          <label class="switch"><input type="checkbox" id="opt-submit"><i></i></label></div>
       </div>
       <div class="panel">
         <div class="label">Qué mide este scanner</div>
@@ -450,6 +457,10 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 /* setup: chips de categorías */
 $("#cats").innerHTML=Object.entries(CATS).map(([k,v])=>
   `<label class="chip-check"><input type="checkbox" value="${k}" checked><span>${k} · ${v}</span></label>`).join("");
+$("#opt-agents").addEventListener("change",e=>{
+  $("#row-submit").style.display=e.target.checked?"flex":"none";
+  if(!e.target.checked)$("#opt-submit").checked=false;
+});
 
 function show(view){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$(view).classList.add("active")}
 
@@ -460,7 +471,8 @@ $("#go").addEventListener("click",async()=>{
   const cats=[...document.querySelectorAll("#cats input:checked")].map(i=>i.value);
   if(!cats.length){$("#err").textContent="Marca al menos una categoría de checks.";return}
   $("#go").disabled=true;$("#err").textContent="";
-  const payload={urls,cats,render:$("#opt-render").checked,type:$("#typ").value||null};
+  const payload={urls,cats,render:$("#opt-render").checked,type:$("#typ").value||null,
+    agents:$("#opt-agents").checked,allow_submit:$("#opt-agents").checked&&$("#opt-submit").checked};
   try{
     const r=await fetch("/agent/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     const j=await r.json();
