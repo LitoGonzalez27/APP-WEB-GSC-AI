@@ -81,8 +81,7 @@ renderQueriesTable(queries) {
 
         // Formatear datos para la tabla
         const rows = queries.map((q, idx) => {
-            const visibilityPct = q.visibility_pct != null ? q.visibility_pct : 0;
-            const visibilityStr = visibilityPct.toFixed(1);
+            const visibilityPct = q.visibility_pct != null ? Number(q.visibility_pct) || 0 : 0;
 
             // ✨ NUEVO: Botón que abre modal con análisis detallado
             const viewDetailsBtn = gridjs.html(`
@@ -113,18 +112,23 @@ renderQueriesTable(queries) {
                 q.prompt,
                 q.country,
                 q.language ? q.language.toUpperCase() : 'N/A',
-                q.total_mentions || 0,
-                // Visibility con barra de progreso
-                gridjs.html(`
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
-                            <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${visibilityPct}%, transparent ${visibilityPct}%); width: 100%; border-radius: 9999px;"></div>
-                        </div>
-                        <span style="font-weight: 600; min-width: 45px;">${visibilityStr}%</span>
-                    </div>
-                `)
+                // Number() defensivo: la API puede devolver el SUM como string
+                Number(q.total_mentions) || 0,
+                // Dato crudo numérico (la barra se pinta en el formatter) para que ordene bien
+                visibilityPct
             ];
         });
+
+        // Comparador numérico explícito: sin él Grid.js ordena "31" < "4" (alfabético).
+        // OJO: debe devolver -1/0/1 — Grid.js acumula el resultado con OR bitwise (int32),
+        // así que restas con decimales, Infinity o valores grandes rompen el orden.
+        const numericSort = {
+            compare: (a, b) => {
+                const x = Number(a) || 0;
+                const y = Number(b) || 0;
+                return x > y ? 1 : (x < y ? -1 : 0);
+            }
+        };
 
         // Create grid
         this.queriesGrid = new gridjs.Grid({
@@ -133,8 +137,25 @@ renderQueriesTable(queries) {
                 { id: 'prompt', name: 'Prompt', width: '45%' },
                 { id: 'country', name: 'Country', width: '80px' },
                 { id: 'language', name: 'Language', width: '80px' },
-                { id: 'mentions', name: `Total Mentions (${this.globalTimeRange}d)`, width: '130px', sort: true },
-                { id: 'visibility', name: `Avg Visibility % (${this.globalTimeRange}d)`, width: '150px', sort: true }
+                { id: 'mentions', name: `Total Mentions (${this.globalTimeRange}d)`, width: '130px', sort: numericSort },
+                {
+                    id: 'visibility',
+                    name: `Avg Visibility % (${this.globalTimeRange}d)`,
+                    width: '150px',
+                    sort: numericSort,
+                    // Visibility con barra de progreso (el dato de la celda es el % numérico)
+                    formatter: (cell) => {
+                        const pct = Number(cell) || 0;
+                        return gridjs.html(`
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
+                                    <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${pct}%, transparent ${pct}%); width: 100%; border-radius: 9999px;"></div>
+                                </div>
+                                <span style="font-weight: 600; min-width: 45px;">${pct.toFixed(1)}%</span>
+                            </div>
+                        `);
+                    }
+                }
             ],
             data: rows,
             sort: true,

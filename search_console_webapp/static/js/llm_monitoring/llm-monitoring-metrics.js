@@ -164,32 +164,82 @@ renderComparisonTable(data, previousPeriod) {
             previousPeriod.forEach(p => { prevByProvider[p.llm_provider] = p; });
         }
 
-        // Prepare data
+        // Prepare data. Las celdas guardan el valor crudo (numérico/ISO) para que
+        // Grid.js ordene bien; el HTML (deltas, badges, %) se pinta en formatters.
+        // Metadata extra por fila, indexada por LLM+fecha (única por snapshot).
+        const rowMeta = {};
         const rows = data.map(item => {
             const prev = prevByProvider[item.llm_provider];
-            const mrDelta = prev ? this.formatDelta(item.mention_rate, prev.mention_rate) : '';
-            const sovDelta = prev ? this.formatDelta(item.share_of_voice, prev.share_of_voice) : '';
+            const llmName = this.getLLMDisplayName(item.llm_provider);
+            const snapshotDate = item.snapshot_date || '';
+            rowMeta[`${llmName}|${snapshotDate}`] = {
+                mrDelta: prev ? this.formatDelta(item.mention_rate, prev.mention_rate) : '',
+                sovDelta: prev ? this.formatDelta(item.share_of_voice, prev.share_of_voice) : '',
+                totalMentions: Number(item.total_mentions) || 0,
+                totalQueries: Number(item.total_queries) || 0,
+                positionSource: item.position_source,
+                positionDetails: item.position_source_details
+            };
             return [
-                this.getLLMDisplayName(item.llm_provider),
-                this.formatDate(item.snapshot_date),
-                gridjs.html(`${item.mention_rate.toFixed(1)}% (${(item.total_mentions || 0)}/${(item.total_queries || 0)}) ${mrDelta}`),
-                this.formatPositionWithBadge(item.avg_position, item.position_source, item.position_source_details),
-                gridjs.html(`${item.share_of_voice.toFixed(1)}% ${sovDelta}`),
+                llmName,
+                snapshotDate,
+                Number(item.mention_rate) || 0,
+                item.avg_position != null ? Number(item.avg_position) : null,
+                Number(item.share_of_voice) || 0,
                 this.getSentimentLabel(item.sentiment),
-                item.total_queries
+                Number(item.total_queries) || 0
             ];
         });
+
+        const metaForRow = (row) => rowMeta[`${row.cells[0].data}|${row.cells[1].data}`] || {};
+        // OJO: los compare deben devolver -1/0/1 — Grid.js acumula el resultado con OR
+        // bitwise (int32), así que restas con decimales, Infinity o ms de fechas rompen el orden.
+        const signCompare = (x, y) => (x > y ? 1 : (x < y ? -1 : 0));
+        const numericSort = { compare: (a, b) => signCompare(Number(a) || 0, Number(b) || 0) };
+        // null (N/A) siempre al final en orden ascendente
+        const positionSort = {
+            compare: (a, b) => signCompare(
+                a == null ? Number.POSITIVE_INFINITY : Number(a),
+                b == null ? Number.POSITIVE_INFINITY : Number(b)
+            )
+        };
 
         // Create grid
         this.comparisonGrid = new gridjs.Grid({
             columns: [
                 { name: 'LLM', width: '120px' },
-                { name: 'Date', width: '100px' },
-                { name: 'Mention Rate', width: '100px' },
-                { name: 'Avg Position', width: '100px' },
-                { name: 'Share of Voice', width: '120px' },
+                {
+                    name: 'Date',
+                    width: '100px',
+                    formatter: (cell) => this.formatDate(cell),
+                    sort: { compare: (a, b) => signCompare(new Date(a || 0).getTime() || 0, new Date(b || 0).getTime() || 0) }
+                },
+                {
+                    name: 'Mention Rate',
+                    width: '100px',
+                    sort: numericSort,
+                    formatter: (cell, row) => {
+                        const meta = metaForRow(row);
+                        return gridjs.html(`${(Number(cell) || 0).toFixed(1)}% (${meta.totalMentions || 0}/${meta.totalQueries || 0}) ${meta.mrDelta || ''}`);
+                    }
+                },
+                {
+                    name: 'Avg Position',
+                    width: '100px',
+                    sort: positionSort,
+                    formatter: (cell, row) => {
+                        const meta = metaForRow(row);
+                        return this.formatPositionWithBadge(cell, meta.positionSource, meta.positionDetails);
+                    }
+                },
+                {
+                    name: 'Share of Voice',
+                    width: '120px',
+                    sort: numericSort,
+                    formatter: (cell, row) => gridjs.html(`${(Number(cell) || 0).toFixed(1)}% ${metaForRow(row).sovDelta || ''}`)
+                },
                 { name: 'Sentiment', width: '100px' },
-                { name: 'Prompts', width: '80px' }
+                { name: 'Prompts', width: '80px', sort: numericSort }
             ],
             data: rows,
             sort: true,

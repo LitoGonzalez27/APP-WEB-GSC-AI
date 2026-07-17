@@ -651,6 +651,9 @@ setupEventListeners() {
                 } else if (chart === 'sov') {
                     this.sovScope = scope;
                     this.renderShareOfVoiceChart();
+                } else if (chart === 'mentions') {
+                    this.mentionsScope = scope;
+                    this.renderMentionsTimelineChart();
                 }
             });
         });

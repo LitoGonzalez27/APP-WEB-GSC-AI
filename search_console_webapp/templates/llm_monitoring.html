@@ -779,10 +779,17 @@
                 <!-- Total Mentions Timeline (Full Width) -->
                 <div class="chart-card chart-card-full-width">
                     <div class="chart-header">
-                        <h3>
-                            Total Mentions Over Time
-                        </h3>
-                        <div class="chart-subtitle">Track total brand mentions across all LLMs over time</div>
+                        <div class="chart-header-left">
+                            <h3>
+                                Total Mentions Over Time
+                            </h3>
+                            <div class="chart-subtitle">Track total brand mentions across all LLMs over time</div>
+                        </div>
+                        <div class="chart-scope-chips" data-chart="mentions">
+                            <button class="scope-chip scope-chip--active" data-scope="all" title="Show all queries">All</button>
+                            <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">Non-Branded</button>
+                            <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">Branded</button>
+                        </div>
                     </div>
                     <div class="chart-container chart-container-timeline">
                         <canvas id="chartMentionsTimeline"></canvas>

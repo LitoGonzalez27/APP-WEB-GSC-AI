@@ -428,7 +428,7 @@ async renderMentionsTimelineChart() {
             // Una mención es una mención - el weighted solo aplica a Share of Voice
             const metricType = 'normal';
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.mentionsScope || 'all'}`);
             if (!response.ok) {
                 console.warn('Could not load mentions timeline data');
                 return;
