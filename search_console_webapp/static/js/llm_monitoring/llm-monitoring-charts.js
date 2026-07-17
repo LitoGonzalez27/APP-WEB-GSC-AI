@@ -290,9 +290,12 @@ async renderShareOfVoiceChart() {
             // Store previous period averages for tooltip use
             this.sovPreviousPeriodAvg = result.previous_period_avg || {};
 
-            // Si no hay datos, simplemente retornar sin renderizar
+            // Si no hay datos, limpiar la leyenda (el chart ya se destruyó arriba)
+            // para no dejar la del render anterior colgada, y mostrar aviso
             if (!dates || dates.length === 0 || !datasets || datasets.length === 0) {
                 console.warn('⚠️ No data available for Share of Voice chart');
+                const emptyLegend = document.getElementById('shareOfVoiceLegend');
+                if (emptyLegend) emptyLegend.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No data for this filter in the selected period</div>';
                 return;
             }
 
@@ -438,6 +441,9 @@ async renderMentionsTimelineChart() {
 
             if (!result.success || !result.mentions_datasets || !result.dates || result.dates.length === 0) {
                 console.warn('⚠️ No mentions data available yet for this project');
+                // Limpiar la leyenda del render anterior (el chart ya se destruyó arriba)
+                const emptyLegend = document.getElementById('mentionsTimelineLegend');
+                if (emptyLegend) emptyLegend.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No data for this filter in the selected period</div>';
                 return;
             }
 
