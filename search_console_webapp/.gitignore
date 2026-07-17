@@ -128,3 +128,6 @@ RAILWAY_STAGING_VARIABLES.txt
 
 # Claude Code local (worktrees, settings de sesión)
 .claude/
+
+# Agent scanner
+agent_scanner/__pycache__/

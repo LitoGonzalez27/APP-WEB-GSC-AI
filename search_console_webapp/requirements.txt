@@ -86,3 +86,5 @@ pytest-asyncio==0.24.0
 
 # Para mocking y testing
 mock==5.1.0
+# Agent-Ready Scanner: DNS-AID lookups
+dnspython==2.6.1

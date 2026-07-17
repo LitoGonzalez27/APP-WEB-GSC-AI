@@ -3973,6 +3973,14 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Could not register admin costs endpoint: {e}")
 
+# 🤖 Agent-Ready Scanner (auditoría de preparación agéntica de webs), solo admin
+try:
+    from agent_routes import agent_bp
+    app.register_blueprint(agent_bp)
+    logger.info("✅ Agent-Ready Scanner registered at /agent")
+except Exception as e:
+    logger.warning(f"⚠️ Could not register Agent-Ready Scanner: {e}")
+
 # ✅ NUEVO: Ruta para LLM Monitoring Dashboard
 @app.route('/llm-monitoring')
 @login_required
