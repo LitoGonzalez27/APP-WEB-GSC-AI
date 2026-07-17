@@ -20,6 +20,23 @@ from .config import get_key
 
 MAX_STEPS = 14
 
+# Modelos por defecto (los mismos que usa la app). Se resuelven en runtime con
+# el helper de la app si está disponible, para no desactualizarse nunca.
+_FALLBACK_MODELS = {"chatgpt": "gpt-4o", "claude": "claude-sonnet-4-6",
+                    "gemini": "gemini-3.5-flash"}
+
+
+def _model_for(provider):
+    prov_key = {"chatgpt": "openai", "claude": "anthropic", "gemini": "google"}[provider]
+    try:
+        from services.llm_providers.base_provider import get_current_model_for_provider
+        m = get_current_model_for_provider(prov_key)
+        if m:
+            return m
+    except Exception:
+        pass
+    return _FALLBACK_MODELS[provider]
+
 TASKS = {
     "ecommerce": ("Añade cualquier producto al carrito y avanza hasta la página de "
                   "checkout/pago. Cuando veas el formulario de pago, marca la tarea como "
@@ -86,7 +103,7 @@ def _ask_openai(messages, key):
     import openai
     client = openai.OpenAI(api_key=key)
     r = client.chat.completions.create(
-        model="gpt-4o", messages=messages, temperature=0, max_tokens=400)
+        model=_model_for("chatgpt"), messages=messages, temperature=0, max_tokens=400)
     return r.choices[0].message.content
 
 
@@ -96,7 +113,7 @@ def _ask_anthropic(messages, key):
     system = next((m["content"] for m in messages if m["role"] == "system"), "")
     convo = [m for m in messages if m["role"] != "system"]
     r = client.messages.create(
-        model="claude-3-5-sonnet-20241022", system=system, messages=convo,
+        model=_model_for("claude"), system=system, messages=convo,
         max_tokens=400, temperature=0)
     return r.content[0].text
 
@@ -105,7 +122,7 @@ def _ask_gemini(messages, key):
     import google.generativeai as genai
     genai.configure(api_key=key)
     system = next((m["content"] for m in messages if m["role"] == "system"), "")
-    model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=system)
+    model = genai.GenerativeModel(_model_for("gemini"), system_instruction=system)
     convo = "\n\n".join(f"{m['role']}: {m['content']}"
                         for m in messages if m["role"] != "system")
     r = model.generate_content(convo, generation_config={"temperature": 0, "max_output_tokens": 400})
