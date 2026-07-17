@@ -46,7 +46,9 @@ def _run_job(job_id, urls, opts):
                     u, typology_override=opts.get("type") or None,
                     skip_render=not opts.get("render", True),
                     with_psi=opts.get("psi", False),
-                    categories=cats or None)
+                    categories=cats or None,
+                    with_agents=bool(opts.get("agents")) and i == 0,
+                    allow_submit=bool(opts.get("allow_submit")) and i == 0)
                 audits.append(a)
                 job["domains"][i].update(state="done", score=a["score"],
                                          emoji=a["level"]["emoji"], level=a["level"]["name"])
