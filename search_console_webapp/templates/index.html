@@ -289,6 +289,18 @@
               <div class="status-dot status-ready" id="statusAISummary"></div>
             </div>
           </button>
+
+          {% if user and user.role == 'admin' %}
+          <button type="button" class="nav-item" id="navAgentScanner" onclick="window.location.href='/agent'">
+            <div class="nav-icon">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="nav-text">Agent Readiness <span class="nav-badge-new">new</span></div>
+            <div class="section-status">
+              <div class="status-dot status-ready" id="statusAgentScanner"></div>
+            </div>
+          </button>
+          {% endif %}
           {% else %}
           <div class="nav-item disabled" id="navManualAI" title="Authentication required">
             <div class="nav-icon">

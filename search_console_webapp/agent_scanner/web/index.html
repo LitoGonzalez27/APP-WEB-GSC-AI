@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent-Ready Scanner · Clicandseo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700;800&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#D9F9B8;--accent-subtle:rgba(217,249,184,.14);
+  --bg:#0A0A0B;--panel:rgba(255,255,255,.035);--panel-2:rgba(255,255,255,.06);
+  --border:rgba(255,255,255,.09);--border-strong:rgba(255,255,255,.16);
+  --text:#F8FAFC;--text-2:#94A3B8;--text-3:#64748B;
+  --ok:#3CB371;--bad:#E05252;--warn:#F2A65A;
+  --sans:'Inter Tight',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --serif:'Libre Baskerville',Georgia,serif;
+  --mono:ui-monospace,Menlo,monospace;
+  --ease-out:cubic-bezier(0.23,1,0.32,1);--r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;
+  -webkit-font-smoothing:antialiased;font-size:16px;min-height:100vh}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+a{color:var(--accent)}
+header{border-bottom:1px solid var(--border);background:var(--bg)}
+.hbar{display:flex;align-items:center;justify-content:space-between;height:60px}
+.logo{font-weight:800;letter-spacing:-.03em;font-size:1.1rem}
+.logo em{font-style:normal;color:var(--accent)}
+.hmeta{font-size:.8rem;color:var(--text-2);display:flex;gap:14px;align-items:center}
+.hscore{font-weight:800;color:var(--text);background:var(--panel-2);
+  border:1px solid var(--border);border-radius:99px;padding:4px 14px}
+.view{display:none}.view.active{display:block}
+.eyebrow{font-family:var(--serif);font-style:italic;color:var(--text-2);font-size:.95rem;margin-bottom:14px}
+h1{font-size:clamp(1.8rem,1.3rem+2vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.12}
+h1 .acc{color:var(--accent)}
+h2{font-size:clamp(1.3rem,1.05rem+1vw,1.8rem);font-weight:800;letter-spacing:-.03em}
+h3{font-size:1.02rem;font-weight:700;margin-bottom:12px}
+.sub{color:var(--text-2);margin-top:10px;max-width:640px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:26px}
+.label{font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
+button{font-family:var(--sans)}
+
+/* ---------- SETUP ---------- */
+#view-setup{padding:64px 0 80px}
+.grid-form{display:grid;grid-template-columns:1.2fr .8fr;gap:20px;margin-top:36px}
+.field{margin-bottom:18px}
+.field input[type=text],.field input[type=url],.field select,textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border-strong);color:var(--text);
+  border-radius:10px;padding:12px 14px;font-size:.95rem;font-family:var(--sans);
+  transition:border-color .15s ease}
+textarea{font-family:var(--mono)!important;font-size:.8rem;min-height:130px;resize:vertical}
+.field input:focus,.field select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+.field .hint{font-size:.75rem;color:var(--text-3);margin-top:5px}
+.chips-select{display:flex;flex-wrap:wrap;gap:8px}
+.chip-check{position:relative}
+.chip-check input{position:absolute;opacity:0;pointer-events:none}
+.chip-check span{display:inline-block;border:1px solid var(--border-strong);color:var(--text-2);
+  border-radius:99px;padding:7px 14px;font-size:.8rem;font-weight:600;cursor:pointer;
+  user-select:none;transition:all .15s var(--ease-out)}
+.chip-check input:checked+span{border-color:var(--accent);color:var(--accent);background:var(--accent-subtle)}
+.chip-check span:active{transform:scale(.97)}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 0;border-bottom:1px solid var(--border)}
+.switch-row:last-child{border-bottom:none}
+.switch-row .t{font-size:.9rem;font-weight:600}
+.switch-row .d{font-size:.76rem;color:var(--text-3)}
+.switch{position:relative;width:42px;height:24px;flex-shrink:0}
+.switch input{position:absolute;opacity:0}
+.switch i{position:absolute;inset:0;background:var(--panel-2);border:1px solid var(--border-strong);
+  border-radius:99px;cursor:pointer;transition:background .2s ease}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;
+  border-radius:50%;background:var(--text-2);transition:transform .2s var(--ease-out),background .2s}
+.switch input:checked+i{background:var(--accent-subtle);border-color:var(--accent)}
+.switch input:checked+i::after{transform:translateX(18px);background:var(--accent)}
+.cta{width:100%;margin-top:26px;background:var(--accent);color:#0A0A0B;border:none;
+  font-weight:800;font-size:1.05rem;letter-spacing:-.01em;border-radius:12px;padding:17px;
+  cursor:pointer;transition:transform .16s var(--ease-out),filter .15s ease}
+.cta:hover{filter:brightness(1.06)}
+.cta:active{transform:scale(.98)}
+.cta:disabled{opacity:.5;cursor:default}
+.err{color:var(--bad);font-size:.85rem;margin-top:12px;min-height:1.2em}
+
+/* ---------- LOADING ---------- */
+#view-loading{padding:70px 0 80px;text-align:center}
+.radar{position:relative;width:230px;height:230px;margin:38px auto 30px}
+.radar .ring{position:absolute;inset:0;border:1px solid var(--border-strong);border-radius:50%}
+.radar .ring:nth-child(2){inset:17%}.radar .ring:nth-child(3){inset:34%}
+.radar .cross{position:absolute;background:var(--border)}
+.radar .cross.h{left:0;right:0;top:50%;height:1px}
+.radar .cross.v{top:0;bottom:0;left:50%;width:1px}
+.radar .sweep{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(217,249,184,.5), rgba(217,249,184,.06) 22%, transparent 40%);
+  animation:spin 2.4s linear infinite}
+.radar .dot{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--accent);
+  animation:blip 2.4s ease-in-out infinite}
+.radar .dot:nth-child(6){top:26%;left:62%;animation-delay:.4s}
+.radar .dot:nth-child(7){top:58%;left:30%;animation-delay:1.2s}
+.radar .dot:nth-child(8){top:70%;left:68%;animation-delay:1.9s}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blip{0%,15%{opacity:0}25%{opacity:1}60%,100%{opacity:0}}
+#phase{font-size:1.15rem;font-weight:700;letter-spacing:-.01em;min-height:1.6em}
+#elapsed{color:var(--text-3);font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:4px}
+.dom-chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:22px 0 26px}
+.dom-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);
+  border-radius:99px;padding:8px 16px;font-size:.85rem;font-weight:600;color:var(--text-2);
+  transition:all .3s var(--ease-out)}
+.dom-chip.running{border-color:var(--accent);color:var(--text)}
+.dom-chip.running .st{color:var(--accent)}
+.dom-chip.done{border-color:var(--ok);color:var(--text)}
+.dom-chip.error{border-color:var(--bad)}
+.dom-chip .st{font-size:.72rem;color:var(--text-3)}
+#console{max-width:640px;margin:0 auto;text-align:left;background:var(--bg);
+  border:1px solid var(--border);border-radius:12px;padding:16px 18px;height:190px;
+  overflow-y:auto;font-family:var(--mono);font-size:.74rem;color:var(--text-2);line-height:1.8}
+#console div::before{content:"▸ ";color:var(--accent)}
+
+/* ---------- REPORT ---------- */
+#view-report{padding-bottom:80px}
+.rep-hero{padding:48px 0 8px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:34px 0 30px;
+  overflow-x:auto;scrollbar-width:none}
+.tab{background:none;border:none;color:var(--text-3);font-weight:600;font-size:.9rem;
+  padding:11px 16px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;
+  transition:color .15s ease}
+.tab:hover{color:var(--text-2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tabpane{display:none;animation:fadein .3s var(--ease-out)}
+.tabpane.active{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.score-grid{display:grid;grid-template-columns:minmax(250px,330px) 1fr;gap:20px}
+.score-big{font-size:clamp(3.6rem,3rem+3vw,5.6rem);font-weight:800;letter-spacing:-.045em;line-height:1}
+.score-big small{font-size:.32em;color:var(--text-3);font-weight:600}
+.lvl{display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-weight:700}
+.lvl-dot{width:10px;height:10px;border-radius:50%}
+.lvl-msg{color:var(--text-2);font-size:.9rem;margin-top:8px}
+.pen{margin-top:12px;font-size:.82rem;color:var(--warn)}
+.cats{display:flex;flex-direction:column;gap:13px}
+.cat{display:grid;grid-template-columns:200px 1fr 52px;gap:14px;align-items:center}
+.cat-name{font-size:.85rem;color:var(--text-2)}
+.cat-name b{color:var(--text)}
+.bar{height:8px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .8s var(--ease-out)}
+.cat-val{text-align:right;font-weight:700;font-size:.9rem;font-variant-numeric:tabular-nums}
+.vs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:22px}
+.vs-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.vs-card.win{border-color:var(--accent)}
+.vs-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:8px}
+.vs-host{font-weight:700;font-size:.93rem;word-break:break-all}
+.vs-score{font-size:2.3rem;font-weight:800;letter-spacing:-.04em;margin-top:6px}
+.vs-lvl{font-size:.8rem;color:var(--text-2)}
+.flex2{display:grid;grid-template-columns:minmax(300px,430px) 1fr;gap:20px;align-items:start}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{color:var(--text-3);font-weight:600;text-transform:uppercase;font-size:.66rem;letter-spacing:.08em;
+  text-align:left;padding:10px 12px;border-bottom:1px solid var(--border-strong)}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.mk-1{color:var(--ok);font-weight:700}.mk-05{color:var(--warn);font-weight:700}
+.mk-0{color:var(--bad);font-weight:700}.mk-na{color:var(--text-3)}
+.gap{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--warn);
+  border-radius:10px;padding:13px 16px;font-size:.9rem;margin-bottom:10px}
+.gap b{color:var(--warn)}
+.gap.ok{border-left-color:var(--ok)}.gap.ok b{color:var(--ok)}
+.finding{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:14px}
+.finding.qw{border-left:3px solid var(--accent)}
+.f-top{display:flex;justify-content:space-between;gap:14px;align-items:baseline;flex-wrap:wrap}
+.f-title{font-weight:700;font-size:1.03rem}
+.chips{display:flex;gap:6px;flex-shrink:0}
+.chip{font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  border-radius:99px;padding:4px 10px;border:1px solid var(--border-strong);color:var(--text-2)}
+.chip.imp-0{border-color:var(--bad);color:#F1968F;background:rgba(224,82,82,.14)}
+.chip.imp-1{border-color:var(--warn);color:var(--warn);background:rgba(242,166,90,.1)}
+.chip.imp-2{border-color:#F5D76E;color:#F5D76E;background:rgba(245,215,110,.08)}
+.f-block{margin-top:13px}
+.f-block p{color:var(--text-2);font-size:.92rem;max-width:840px}
+.f-block.fix p{color:var(--text)}
+details{margin-top:12px;font-size:.85rem}
+summary{cursor:pointer;color:var(--text-3);font-size:.8rem;user-select:none}
+summary:hover{color:var(--text-2)}
+.evidence{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;margin-top:8px;font-family:var(--mono);font-size:.76rem;color:var(--text-2);word-break:break-word}
+.sov-row{display:grid;grid-template-columns:210px 1fr 130px;gap:14px;align-items:center;
+  padding:12px 0;border-bottom:1px solid var(--border)}
+.sov-row:last-child{border-bottom:none}
+.sec{margin-bottom:34px}
+/* resumen: contadores + continuum */
+.counters{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.counter{background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:10px 18px;text-align:center;min-width:82px}
+.counter b{display:block;font-size:1.5rem;font-weight:800;letter-spacing:-.02em}
+.counter span{font-size:.68rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.cont-row{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap}
+.cont-stage{flex:1;min-width:170px;background:var(--bg);border:1px solid var(--border);
+  border-radius:12px;padding:18px}
+.cont-pct{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.cont-ring{height:6px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin:10px 0}
+.cont-ring i{display:block;height:100%;border-radius:99px;transition:width .8s var(--ease-out)}
+.cont-name{font-weight:700;font-size:.95rem}
+.cont-desc{font-size:.72rem;color:var(--text-3)}
+.cont-arrow{display:flex;align-items:center;color:var(--text-3);font-size:1.3rem;font-weight:300}
+/* comparativa: head-to-head + barras agrupadas */
+.h2h{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.h2h-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:14px 18px;font-size:.88rem}
+.h2h-card b{font-weight:700}
+.h2h-nums{display:flex;gap:14px;margin-top:6px;font-variant-numeric:tabular-nums}
+.h2h-nums span{font-weight:700}
+.gbar-row{display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--border)}
+.gbar-row:last-child{border-bottom:none}
+.gbar-name{font-size:.83rem;color:var(--text-2)}
+.gbar-name b{color:var(--text)}
+.gbar-set{display:flex;flex-direction:column;gap:4px}
+.gbar{display:flex;align-items:center;gap:8px}
+.gbar .bar{flex:1;height:6px}
+.gbar .v{width:38px;text-align:right;font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums}
+/* fiabilidad */
+.verdict{border-radius:var(--r);padding:20px 24px;margin-bottom:20px;border:1px solid;display:flex;gap:16px;align-items:center}
+.verdict .big{font-size:1.6rem}
+.verdict h3{margin:0}
+.verdict p{font-size:.85rem;color:var(--text-2);margin-top:2px}
+.verdict.v-ok{border-color:var(--ok);background:rgba(60,179,113,.07)}
+.verdict.v-warn{border-color:var(--warn);background:rgba(242,166,90,.07)}
+.verdict.v-fail{border-color:var(--bad);background:rgba(224,82,82,.07)}
+.trail-ic{font-weight:800;width:22px;display:inline-block}
+.t-ok{color:var(--ok)}.t-warn{color:var(--warn)}.t-fail{color:var(--bad)}.t-skipped{color:var(--text-3)}
+/* tooltips */
+.tooltip-box{position:fixed;z-index:999;background:#1A1C20;border:1px solid var(--border-strong);
+  border-radius:10px;padding:11px 14px;font-size:.8rem;line-height:1.5;color:var(--text-2);
+  max-width:320px;pointer-events:none;opacity:0;transition:opacity .12s ease;
+  box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.tooltip-box b{color:var(--text);display:block;margin-bottom:2px}
+[data-tip]{cursor:help}
+/* anillos de score + mapa de calor */
+.vs-card{text-align:center}
+.vs-card .ring{margin:10px auto 6px}
+.heat{display:grid;gap:6px;align-items:stretch}
+.heat .hd{font-size:.78rem;font-weight:700;color:var(--text-2);display:flex;
+  align-items:flex-end;justify-content:center;padding-bottom:4px;text-align:center;word-break:break-all}
+.heat .rowname{font-size:.82rem;color:var(--text-2);display:flex;align-items:center;padding-right:8px}
+.heat .rowname b{color:var(--text);margin-right:6px}
+.heat .cell{border-radius:10px;padding:16px 8px;text-align:center;font-size:1.25rem;
+  font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  transition:transform .15s var(--ease-out)}
+.heat .cell:hover{transform:scale(1.04)}
+.heat .cell small{display:block;font-size:.6rem;font-weight:600;letter-spacing:.05em;opacity:.75}
+/* balance apilado + deltas divergentes */
+.stack-row{display:grid;grid-template-columns:200px 1fr 150px;gap:14px;align-items:center;
+  padding:10px 0;border-bottom:1px solid var(--border)}
+.stack-row:last-child{border-bottom:none}
+.stack-bar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--panel-2)}
+.stack-bar i{display:block;height:100%}
+.stack-leg{font-size:.74rem;color:var(--text-2);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.delta-row{display:grid;grid-template-columns:170px 1fr 70px;gap:12px;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--border)}
+.delta-row:last-child{border-bottom:none}
+.delta-track{position:relative;height:12px}
+.delta-track::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;
+  background:var(--border-strong)}
+.delta-bar{position:absolute;top:2px;height:8px;border-radius:99px}
+.delta-val{font-size:.8rem;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+/* grupos de hallazgos por prioridad */
+.fgroup{border:1px solid var(--border);border-radius:var(--r);background:var(--panel);
+  margin-bottom:12px;overflow:hidden}
+.fgroup>summary{list-style:none;display:flex;align-items:center;gap:12px;
+  padding:18px 22px;cursor:pointer;user-select:none;font-weight:800;font-size:1.02rem;
+  letter-spacing:-.01em;transition:background .15s ease}
+.fgroup>summary:hover{background:rgba(255,255,255,.02)}
+.fgroup>summary::-webkit-details-marker{display:none}
+.fg-count{font-size:.85rem;background:var(--bg);border:1px solid var(--border-strong);
+  border-radius:99px;padding:2px 11px;font-variant-numeric:tabular-nums}
+.fg-hint{font-size:.78rem;color:var(--text-3);font-weight:400;flex:1}
+.fg-caret{color:var(--text-3);transition:transform .2s var(--ease-out);font-size:.85em}
+.fgroup[open]>summary .fg-caret{transform:rotate(90deg)}
+.fg-body{padding:4px 14px 14px}
+.fg-body .finding{background:var(--bg)}
+/* filas de check expandibles */
+.chk-row{cursor:pointer}
+.chk-row:hover td{background:rgba(255,255,255,.025)}
+.caret{color:var(--text-3);display:inline-block;transition:transform .15s var(--ease-out);font-size:.8em}
+.chk-row.open .caret{transform:rotate(90deg)}
+.chk-detail>td{background:var(--bg);padding:16px 18px}
+.chk-ev{margin-bottom:10px}
+.chk-ev:last-child{margin-bottom:0}
+.chk-ev a{font-size:.75rem;margin-left:6px}
+.pill-select{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.pill-select button{border:1px solid var(--border-strong);background:none;color:var(--text-2);
+  border-radius:99px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s}
+.pill-select button.active{border-color:var(--accent);color:var(--accent);background:var(--accent-subtle)}
+.ghost-btn{border:1px solid var(--border-strong);background:none;color:var(--text-2);
+  border-radius:99px;padding:8px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s}
+.ghost-btn:hover{color:var(--text);border-color:var(--text-3)}
+.note{font-size:.78rem;color:var(--text-3);margin-top:12px}
+@media (max-width:840px){
+  .grid-form,.score-grid,.flex2{grid-template-columns:1fr}
+  .cat{grid-template-columns:1fr 52px}.cat .bar{grid-column:1/-1;order:3}
+  .sov-row{grid-template-columns:1fr 100px}.sov-row .bar{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){
+  .radar .sweep{animation-duration:6s}
+  .tabpane{animation:none}.bar i{transition:none}
+}
+</style>
+</head>
+<body>
+<header><div class="wrap hbar">
+  <div class="logo">clicand<em>seo</em></div>
+  <div class="hmeta"><span>Agent-Ready Scanner</span><span class="hscore" id="hscore" style="display:none"></span></div>
+</div></header>
+
+<!-- ============ SETUP ============ -->
+<div class="view active wrap" id="view-setup">
+  <div class="eyebrow">Auditoría de preparación para la era agéntica</div>
+  <h1>¿Está tu web lista para que<br>la use <span class="acc">la IA</span>?</h1>
+  <p class="sub">Mete tu dominio y hasta dos competidores. Medimos si los sistemas de IA pueden
+  <b>leer</b>, <b>entender</b> y <b>actuar</b> en cada web — con la misma vara de medir.</p>
+
+  <div class="grid-form">
+    <div class="panel">
+      <div class="field"><div class="label">Tu proyecto</div>
+        <input type="url" id="u0" placeholder="https://tucliente.com" autocomplete="off"></div>
+      <div class="field"><div class="label">Competidor 1 (opcional)</div>
+        <input type="url" id="u1" placeholder="https://competidor1.com" autocomplete="off"></div>
+      <div class="field"><div class="label">Competidor 2 (opcional)</div>
+        <input type="url" id="u2" placeholder="https://competidor2.com" autocomplete="off"></div>
+      <div class="field"><div class="label">Qué verificar</div>
+        <div class="chips-select" id="cats"></div>
+        <div class="hint">Todo marcado = auditoría completa. El comercio agéntico solo puntúa en e-commerce.</div></div>
+      <div class="field"><div class="label">Tipología</div>
+        <select id="typ"><option value="">Detectar automáticamente</option>
+        <option value="ecommerce">E-commerce</option><option value="saas">SaaS</option>
+        <option value="corporativo">Corporativo</option></select></div>
+      <button class="cta" id="go">Comprobar viabilidad agéntica →</button>
+      <div class="err" id="err"></div>
+    </div>
+    <div>
+      <div class="panel" style="margin-bottom:16px">
+        <div class="switch-row"><div><div class="t">Render JavaScript</div>
+          <div class="d">Compara lo que ven los bots vs un navegador real. +2 min.</div></div>
+          <label class="switch"><input type="checkbox" id="opt-render" checked><i></i></label></div>
+      </div>
+      <div class="panel">
+        <div class="label">Qué mide este scanner</div>
+        <p style="font-size:.88rem;color:var(--text-2)">Preparación <b>técnica y estructural</b>
+        para agentes de IA: acceso real de bots, datos estructurados, renderizado, superficie
+        MCP/A2A y comercio agéntico — con evidencias y comparativa frente a competidores.</p>
+        <p class="hint" style="margin-top:10px">La visibilidad en respuestas de IA (menciones,
+        citas, share of voice) se mide con <b>Clicandseo</b>.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOADING ============ -->
+<div class="view wrap" id="view-loading">
+  <div class="eyebrow" style="text-align:center;margin-top:56px">Análisis en curso</div>
+  <div class="radar" aria-hidden="true">
+    <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+    <div class="cross h"></div><div class="cross v"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="sweep"></div>
+  </div>
+  <div id="phase">Preparando análisis…</div>
+  <div id="elapsed">0:00</div>
+  <div class="dom-chips" id="dom-chips"></div>
+  <div id="console" aria-live="polite"></div>
+  <p class="note" style="text-align:center">Robots · WAF real · sitemap · datos estructurados · render sin JS ·
+  superficie MCP/A2A · Markdown · comercio agéntico</p>
+</div>
+
+<!-- ============ REPORT ============ -->
+<div class="view wrap" id="view-report">
+  <div class="rep-hero">
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:20px;flex-wrap:wrap">
+      <div>
+        <div class="eyebrow" id="rep-date"></div>
+        <h1 id="rep-title"></h1>
+      </div>
+      <button class="ghost-btn" onclick="location.href='/'">← Nuevo análisis</button>
+    </div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div id="panes"></div>
+  <p class="note" id="rep-saved"></p>
+</div>
+
+<script>
+"use strict";
+const $=q=>document.querySelector(q);
+const CATS={C1:"Descubribilidad y acceso",C2:"Identidad y control de bots",C3:"Datos estructurados",
+  C4:"Renderizado y arquitectura",C5:"Contenido para LLMs",C6:"Capacidades y acciones",C7:"Comercio agéntico"};
+const CAT_DESC={
+ C1:"¿Pueden los sistemas de IA encontrarte y entrar? Mide robots.txt, sitemap, bloqueos reales del firewall y acceso sin login.",
+ C2:"¿Controlas qué bots entran y qué pueden hacer? Mide Content Signals, gestión del crawl y verificación de identidad de agentes.",
+ C3:"¿Tus datos están marcados para que la IA no tenga que adivinar? Mide JSON-LD, tu entidad de marca, atributos de producto y HTML semántico.",
+ C4:"¿Tu contenido existe sin ejecutar JavaScript y responde rápido? Es lo que ven los rastreadores de ChatGPT/Claude/Perplexity, que NO ejecutan JS.",
+ C5:"¿Tu contenido está escrito para ser citado? Mide respuesta directa, secciones autocontenidas, autoría verificable y versión Markdown.",
+ C6:"¿Ofreces capacidades que un agente pueda usar (no solo leer)? Mide MCP/A2A, APIs y formularios operables.",
+ C7:"¿Puede un asistente de compra vender tus productos? Mide catálogo estructurado, fiabilidad de precios y checkout agéntico (ACP).",
+};
+const SCALE_TIP="Escala: 0-25 invisible para agentes · 26-50 legible pero no operable · 51-75 agent-aware · 76-100 agent-ready.";
+const PCT_TIP="El % son los checks de la categoría superados, ponderados por importancia (los críticos pesan más).";
+const SERIES=["#D9F9B8","#8AB4F8","#F2A65A"];
+const LVL={"🔴":"#E05252","🟠":"#F2A65A","🟡":"#F5D76E","🟢":"#3CB371"};
+const IMPORD={"Crítico":0,"Alto":1,"Alto (apuesta de futuro)":1,"Alto (ventana de oportunidad)":1,
+  "Medio":2,"Medio (creciente)":2,"Bajo":3,"Bajo (hoy)":3,"Diagnóstico":4};
+/* metodología de cada check (para la matriz de fiabilidad) */
+const METHODS={
+ "1.1":"GET /robots.txt y validación de sintaxis (texto plano parseable, no HTML)",
+ "1.2":"Parseo de reglas por user-agent de IA; penaliza bloquear los bots de búsqueda en vivo",
+ "1.3":"Peticiones reales con el UA oficial de cada bot, contrastadas con lo declarado en robots.txt",
+ "1.4":"GET de sitemap(s) e índices, conteo de URLs y frescura de lastmod (<90 días)",
+ "1.5":"Inspección de cabeceras Link (RFC 8288) en la respuesta HTTP",
+ "1.6":"Fetch anónimo de las páginas muestreadas: ¿hay contenido útil sin sesión?",
+ "1.7":"Consulta DNS TXT a _aid/_agent con dig (estándar experimental)",
+ "2.1":"Parseo de Content Signals (search / ai-input / ai-train) en robots.txt",
+ "2.2":"Detección de CDN/WAF por cabeceras + respuestas 402 observadas a bots",
+ "2.3":"GET /.well-known/http-message-signatures-directory con validación JWKS",
+ "2.4":"10 peticiones consecutivas como GPTBot: patrón de códigos de respuesta",
+ "3.1":"Extracción y parseo de todos los bloques JSON-LD de las páginas muestreadas",
+ "3.2":"Validación de campos de Organization/LocalBusiness en la home",
+ "3.3":"Validación de Product/Offer (price, priceCurrency, availability) en fichas",
+ "3.4":"Conteo de atributos ricos (GTIN, brand, rating, fechas…) en el marcado",
+ "3.5":"Análisis del DOM: jerarquía de headings, landmarks, button vs div-onclick",
+ "3.6":"Conteo de div/span clicables sin semántica vs controles nativos y mitigados (role+tabindex)",
+ "4.1":"Comparación del texto visible: HTML crudo (curl) vs renderizado con JS (Camoufox)",
+ "4.2":"Búsqueda de precio y CTA de compra sobre el HTML sin ejecutar JS",
+ "4.3":"TTFB medido con curl en todas las páginas muestreadas",
+ "4.4":"GET directo y sin sesión de cada URL profunda muestreada",
+ "4.5":"Sondeo de /openapi.json, /swagger.json y /api-docs",
+ "4.6":"CLS vía PageSpeed Insights API (requiere --psi y key en el vault)",
+ "5.1":"Análisis determinista del bloque tras el H1: densidad de datos vs léxico de relleno",
+ "5.2":"Sección a sección H2/H3: título descriptivo + cuerpo 25-450 palabras + saltos de jerarquía",
+ "5.3":"Autoría y fechas verificables en schema/HTML de los artículos muestreados",
+ "5.5":"GET /llms.txt y /llms-full.txt con validación de contenido (anti soft-404)",
+ "5.6":"Petición real con Accept: text/markdown y análisis del Content-Type/cuerpo devuelto",
+ "6.1":"Sondeo de 12 rutas agénticas (MCP/A2A/OAuth/Skills) con validación de contenido",
+ "6.2":"Análisis por formulario: vinculación for=id verificada contra los id reales, autocomplete, submit real y CAPTCHA. No se envían formularios (ética)",
+ "6.3":"Prueba manual con un agente real (Operator/Claude): no automatizable con honestidad",
+ "7.1":"Detección de plataforma e-commerce + Product schema en las fichas muestreadas",
+ "7.2":"Comparación del precio del JSON-LD contra el precio visible de la misma ficha",
+ "7.3":"Detección de PSP compatible con ACP (Stripe / Shopify)",
+ "7.4":"Sondeo informativo de x402/UCP/MPP + señales HTTP 402 (no puntúa, tampoco en Cloudflare)",
+};
+const CHECK_LINKS={"1.1":"/robots.txt","1.2":"/robots.txt","2.1":"/robots.txt",
+ "1.4":"/sitemap.xml","5.5":"/llms.txt","2.3":"/.well-known/http-message-signatures-directory"};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* setup: chips de categorías */
+$("#cats").innerHTML=Object.entries(CATS).map(([k,v])=>
+  `<label class="chip-check"><input type="checkbox" value="${k}" checked><span>${k} · ${v}</span></label>`).join("");
+
+function show(view){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$(view).classList.add("active")}
+
+/* ---------- lanzar análisis ---------- */
+$("#go").addEventListener("click",async()=>{
+  const urls=[$("#u0").value,$("#u1").value,$("#u2").value].map(s=>s.trim()).filter(Boolean);
+  if(!urls.length){$("#err").textContent="Falta la URL de tu proyecto.";return}
+  const cats=[...document.querySelectorAll("#cats input:checked")].map(i=>i.value);
+  if(!cats.length){$("#err").textContent="Marca al menos una categoría de checks.";return}
+  $("#go").disabled=true;$("#err").textContent="";
+  const payload={urls,cats,render:$("#opt-render").checked,type:$("#typ").value||null};
+  try{
+    const r=await fetch("/agent/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||"error");
+    history.replaceState(null,"","/agent/?job="+j.id);
+    show("#view-loading");poll(j.id);
+  }catch(e){$("#err").textContent=e.message;$("#go").disabled=false}
+});
+
+/* ---------- polling / loading ---------- */
+async function poll(id){
+  try{
+    const r=await fetch("/agent/api/status/"+id);
+    if(!r.ok){$("#phase").textContent="Análisis no encontrado (¿servidor reiniciado?)";return}
+    const s=await r.json();
+    $("#phase").textContent=s.phase||"…";
+    const m=Math.floor(s.elapsed/60),sec=String(s.elapsed%60).padStart(2,"0");
+    $("#elapsed").textContent=`${m}:${sec}`;
+    $("#dom-chips").innerHTML=s.domains.map(d=>{
+      const st=d.state==="done"?`${d.emoji} ${d.score}`:d.state==="running"?"analizando…":d.state==="error"?"error":"en cola";
+      return `<div class="dom-chip ${d.state}">${esc(d.host)} <span class="st">${st}</span></div>`}).join("");
+    const con=$("#console");con.innerHTML=(s.log||[]).map(l=>`<div>${esc(l)}</div>`).join("");
+    con.scrollTop=con.scrollHeight;
+    if(s.status==="done"){const rr=await fetch("/agent/api/result/"+id);renderReport(await rr.json(),s.outdir);return}
+    if(s.status==="error"){$("#phase").textContent="✗ "+(s.error||"Error en el análisis");return}
+    setTimeout(()=>poll(id),1500);
+  }catch(e){setTimeout(()=>poll(id),3000)}
+}
+
+/* resume por URL */
+const jobParam=new URLSearchParams(location.search).get("job");
+if(jobParam){show("#view-loading");poll(jobParam)}
+
+/* tooltips globales: cualquier elemento con data-tip="Título||Explicación" */
+const tipBox=document.createElement("div");
+tipBox.className="tooltip-box";
+document.body.appendChild(tipBox);
+document.addEventListener("pointermove",e=>{
+  const t=e.target&&e.target.closest?e.target.closest("[data-tip]"):null;
+  if(t&&t.dataset.tip){
+    const[head,...rest]=t.dataset.tip.split("||");
+    tipBox.innerHTML=`<b>${esc(head)}</b>`+(rest.length?esc(rest.join("||")):"");
+    const w=Math.min(tipBox.offsetWidth||300,320),h=tipBox.offsetHeight||60;
+    let x=e.clientX+16,y=e.clientY+18;
+    if(x+w>innerWidth-12)x=e.clientX-w-16;
+    if(y+h>innerHeight-12)y=e.clientY-h-14;
+    tipBox.style.left=x+"px";tipBox.style.top=y+"px";tipBox.style.opacity=1;
+  }else{tipBox.style.opacity=0}
+});
+
+/* expandir/contraer filas de check (delegado: sobrevive a re-renders) */
+document.addEventListener("click",e=>{
+  const r=e.target.closest(".chk-row");
+  if(!r||e.target.closest("a"))return;
+  const det=document.getElementById("chkd-"+r.dataset.r);
+  if(!det)return;
+  const open=det.style.display!=="none";
+  det.style.display=open?"none":"table-row";
+  r.classList.toggle("open",!open);
+});
+
+/* ---------- render del informe ---------- */
+const mark=s=>s==null?'<span class="mk-na">–</span>':s>=1?'<span class="mk-1">✓</span>':s>0?'<span class="mk-05">◐</span>':'<span class="mk-0">✗</span>';
+
+function radarSVG(audits,size=380){
+  const cats=Object.keys(CATS).filter(c=>audits.some(a=>a.category_scores&&a.category_scores[c]!=null));
+  if(cats.length<3)return"";
+  const cx=size/2,cy=size/2,rad=size/2-46,n=cats.length;
+  const pt=(i,r)=>{const a=-Math.PI/2+2*Math.PI*i/n;return[cx+r*Math.cos(a),cy+r*Math.sin(a)]};
+  let out=`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Radar de categorías">`;
+  for(const ring of[.25,.5,.75,1]){
+    out+=`<polygon points="${cats.map((_,i)=>pt(i,rad*ring).map(v=>v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="rgba(255,255,255,.09)"/>`}
+  cats.forEach((c,i)=>{const[x,y]=pt(i,rad),[lx,ly]=pt(i,rad+24);
+    const anchor=lx<cx-8?"end":lx>cx+8?"start":"middle";
+    out+=`<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.09)"/>
+      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="#94A3B8" font-size="12" font-weight="600" text-anchor="${anchor}" dominant-baseline="middle">${c}</text>`});
+  audits.forEach((a,idx)=>{
+    const col=SERIES[idx%3],cs=a.category_scores||{};
+    const pts=cats.map((c,i)=>pt(i,rad*(cs[c]||0)).map(v=>v.toFixed(1)).join(",")).join(" ");
+    const resume=cats.map(c=>c+" "+Math.round((cs[c]||0)*100)+"%").join(" · ");
+    out+=`<polygon points="${pts}" fill="${col}" fill-opacity="${idx===0?.16:.08}" stroke="${col}" stroke-width="${idx===0?2.5:1.5}" data-tip="${esc(a.host+"||Cuanto más grande y regular el polígono, mejor preparación en todas las categorías. "+resume)}"/>`});
+  return out+"</svg>";
+}
+
+function catBars(a){
+  return Object.keys(CATS).filter(c=>a.category_scores&&a.category_scores[c]!=null).map(c=>{
+    const pct=Math.round(a.category_scores[c]*100);
+    return `<div class="cat"><div class="cat-name"><b>${c}</b> · ${CATS[c]}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div><div class="cat-val">${pct}%</div></div>`}).join("");
+}
+
+function gaugeSVG(score,color,size=230){
+  const r=88,cx=size/2,cy=size/2+26,L=Math.PI*r;
+  const frac=Math.max(0,Math.min(1,score/100));
+  const arc=`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`;
+  let ticks="";
+  for(const t of[25,50,75]){
+    const a=Math.PI*(1-t/100);
+    const x1=cx+(r-7)*Math.cos(a),y1=cy-(r-7)*Math.sin(a);
+    const x2=cx+(r+7)*Math.cos(a),y2=cy-(r+7)*Math.sin(a);
+    ticks+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/>`;
+  }
+  return`<svg width="${size}" height="${size*0.66}" viewBox="0 0 ${size} ${size*0.66}" role="img" aria-label="Puntuación ${score} de 100">
+  <path d="${arc}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="15" stroke-linecap="round"/>
+  <path d="${arc}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round"
+    stroke-dasharray="${(frac*L).toFixed(1)} ${L.toFixed(1)}" style="transition:stroke-dasharray .9s cubic-bezier(0.23,1,0.32,1)"/>
+  ${ticks}
+  <text x="${cx}" y="${cy-16}" text-anchor="middle" fill="#F8FAFC" font-size="46" font-weight="800" letter-spacing="-2">${score}</text>
+  <text x="${cx}" y="${cy+6}" text-anchor="middle" fill="#64748B" font-size="12" font-weight="600">de 100</text>
+  </svg>`;
+}
+
+function ringSVG(score,color,size=118){
+  const r=size/2-11,C=2*Math.PI*r,frac=Math.max(0,Math.min(1,score/100));
+  return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${score} de 100">
+  <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="11"/>
+  <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round"
+    stroke-dasharray="${(frac*C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 ${size/2} ${size/2})"
+    style="transition:stroke-dasharray .9s cubic-bezier(0.23,1,0.32,1)"/>
+  <text x="50%" y="50%" text-anchor="middle" dy="9" fill="#F8FAFC" font-size="28" font-weight="800" letter-spacing="-1">${score}</text></svg>`;
+}
+
+const STAGES=[
+  {name:"¿Te leen?",desc:"Acceso y rastreo",cats:["C1","C2"]},
+  {name:"¿Te entienden?",desc:"Datos y contenido",cats:["C3","C4","C5"]},
+  {name:"¿Pueden usarte?",desc:"Acciones y compra",cats:["C6","C7"]},
+];
+function stageColor(p){return p>=70?"var(--ok)":p>=45?"#F5D76E":"var(--bad)"}
+function continuumHTML(a){
+  return `<div class="cont-row">`+STAGES.map((s,i)=>{
+    const vals=s.cats.map(c=>a.category_scores?.[c]).filter(v=>v!=null);
+    if(!vals.length)return"";
+    const p=Math.round(vals.reduce((x,y)=>x+y,0)/vals.length*100);
+    return`${i>0?'<div class="cont-arrow">→</div>':""}
+    <div class="cont-stage">
+      <div class="cont-pct" style="color:${stageColor(p)}">${p}%</div>
+      <div class="cont-ring"><i style="width:${p}%;background:${stageColor(p)}"></i></div>
+      <div class="cont-name">${s.name}</div>
+      <div class="cont-desc">${s.desc} · ${s.cats.join("+")}</div>
+    </div>`}).join("")+`</div>`;
+}
+
+function countersHTML(a){
+  const ch=a.checks||[];
+  const n={pass:ch.filter(x=>x.score>=1).length,part:ch.filter(x=>x.score>0&&x.score<1).length,
+    fail:ch.filter(x=>x.score===0).length,na:ch.filter(x=>x.score==null).length};
+  return`<div class="counters">
+    <div class="counter"><b style="color:var(--ok)">${n.pass}</b><span>cumplen</span></div>
+    <div class="counter"><b style="color:var(--warn)">${n.part}</b><span>parciales</span></div>
+    <div class="counter"><b style="color:var(--bad)">${n.fail}</b><span>fallan</span></div>
+    <div class="counter"><b style="color:var(--text-3)">${n.na}</b><span>no aplican</span></div>
+  </div>`;
+}
+
+function paneResumen(d){
+  const c=d.client,col=LVL[c.level.emoji]||"#94A3B8";
+  const pens=(c.penalties||[]).map(p=>`<div class="pen">⚠ ${esc(p[0])} (${p[1]})</div>`).join("");
+  const qw=c.checks.filter(x=>x.advice&&x.advice.esfuerzo==="Bajo"&&(IMPORD[x.advice.impacto]??3)<=2&&x.score<1);
+  return `<div class="score-grid">
+    <div class="panel" style="text-align:center">
+      <div class="label">Puntuación global</div>
+      ${gaugeSVG(c.score,col)}
+      <div class="lvl" style="justify-content:center"><span class="lvl-dot" style="background:${col}"></span>${esc(c.level.name)}</div>
+      <div class="lvl-msg">${esc(c.level.msg)}</div>${pens}
+      ${countersHTML(c)}
+    </div>
+    <div class="panel"><div class="label" style="margin-bottom:16px">Desglose por categoría</div>
+      <div class="cats">${catBars(c)}</div></div></div>
+  <div class="panel sec" style="margin-top:20px">
+    <div class="label" style="margin-bottom:18px">El viaje del agente por tu web</div>
+    ${continuumHTML(c)}
+    <p class="note">Un agente primero tiene que poder <b>leerte</b>, luego <b>entenderte</b> sin equivocarse,
+    y solo entonces puede <b>usarte</b> (comprar, reservar, contactar). La cadena se rompe en el eslabón más débil.</p>
+  </div>
+  <div class="sec" style="margin-top:26px"><h3>Por dónde empezar (quick wins)</h3>
+    ${qw.length?qw.map(x=>`<div class="gap ok"><b>${esc(x.advice.titulo)}:</b> ${esc(x.advice.como)}</div>`).join("")
+    :'<p class="note">Sin quick wins pendientes: los fallos restantes requieren más esfuerzo (ver Hallazgos).</p>'}</div>`;
+}
+
+function paneComparativa(d){
+  const audits=[d.client,...(d.competitors||[]).filter(a=>!a.error)];
+  if(audits.length<2)return '<p class="note">Añade competidores en el análisis para ver el panel comparativo.</p>';
+  const best=Math.max(...audits.map(a=>a.score));
+  const cards=audits.map((a,i)=>{
+    const col=LVL[a.level.emoji]||"#94A3B8";
+    return`<div class="vs-card${a.score===best?" win":""}">
+    <div class="label">${i===0?"Tu web":"Competidor "+i}</div>
+    <div class="vs-host"><span class="vs-dot" style="background:${SERIES[i%3]}"></span>${esc(a.host)}</div>
+    <div class="ring">${ringSVG(a.score,col)}</div>
+    <div class="vs-lvl">${a.level.emoji} ${esc(a.level.name)} · ${esc(a.typology)}</div></div>`}).join("");
+
+  /* mapa de calor: categorías × dominios, el vistazo de 2 segundos */
+  const heatCats=Object.keys(CATS).filter(c=>audits.some(a=>a.category_scores?.[c]!=null));
+  const heatColor=p=>p>=75?["rgba(60,179,113,.22)","#7BE0A8"]:p>=50?["rgba(245,215,110,.18)","#F5D76E"]
+    :p>=25?["rgba(242,166,90,.18)","#F2A65A"]:["rgba(224,82,82,.2)","#F1968F"];
+  const heat=`<div class="heat" style="grid-template-columns:210px repeat(${audits.length},1fr)">
+    <div></div>${audits.map((a,i)=>`<div class="hd"><span><span class="vs-dot" style="background:${SERIES[i%3]}"></span>${esc(a.host)}</span></div>`).join("")}
+    ${heatCats.map(cat=>`<div class="rowname"><b>${cat}</b> ${CATS[cat]}</div>
+      ${audits.map(a=>{const v=a.category_scores?.[cat];
+        if(v==null)return'<div class="cell" style="background:var(--panel-2);color:var(--text-3);font-size:.9rem">n/a</div>';
+        const p=Math.round(v*100),[bg,fg]=heatColor(p);
+        return`<div class="cell" style="background:${bg};color:${fg}">${p}<small>${p>=75?"BIEN":p>=50?"MEJORABLE":p>=25?"FLOJO":"CRÍTICO"}</small></div>`}).join("")}`).join("")}
+  </div>`;
+  /* barras agrupadas por categoría: los 3 dominios lado a lado */
+  const gbars=Object.keys(CATS).filter(cat=>audits.some(a=>a.category_scores?.[cat]!=null)).map(cat=>{
+    const bars=audits.map((a,i)=>{
+      const v=a.category_scores?.[cat];
+      if(v==null)return`<div class="gbar"><div class="bar"></div><div class="v" style="color:var(--text-3)">–</div></div>`;
+      const pct=Math.round(v*100);
+      return`<div class="gbar"><div class="bar"><i style="width:${pct}%;background:${SERIES[i%3]}"></i></div>
+        <div class="v" style="color:${SERIES[i%3]}">${pct}</div></div>`}).join("");
+    return`<div class="gbar-row"><div class="gbar-name"><b>${cat}</b> · ${CATS[cat]}</div>
+      <div class="gbar-set">${bars}</div></div>`}).join("");
+
+  const rows=d.client.checks.map((c,ri)=>{
+    const cells=audits.map(a=>{const m=(a.checks||[]).find(x=>x.id===c.id);return`<td>${mark(m?m.score:null)}</td>`}).join("");
+    const detail=audits.map((a,i)=>{
+      const m=(a.checks||[]).find(x=>x.id===c.id);
+      const link=CHECK_LINKS[c.id]
+        ?` <a href="https://${esc(a.host)}${CHECK_LINKS[c.id]}" target="_blank" rel="noopener">abrir ${CHECK_LINKS[c.id]} ↗</a>`:"";
+      return`<div class="chk-ev"><span class="vs-dot" style="background:${SERIES[i%3]}"></span>
+        <b>${esc(a.host)}</b>${link}
+        <div class="evidence">${esc(m?m.evidence:"no analizado en este dominio")}</div></div>`}).join("");
+    return`<tr class="chk-row" data-r="${ri}"><td><span class="caret">▸</span> <b>${c.id}</b> ${esc(c.name)}</td>${cells}</tr>
+    <tr class="chk-detail" id="chkd-${ri}" style="display:none"><td colspan="${audits.length+1}">
+      <div class="f-label" style="margin:4px 0 8px">Cómo se mide: <span style="text-transform:none;letter-spacing:0;color:var(--text-2)">${esc(METHODS[c.id]||"")}</span></div>
+      ${detail}</td></tr>`}).join("");
+  return`<div class="vs-grid">${cards}</div>
+  <div class="panel sec"><h3>Mapa de calor por categoría</h3>
+    <p class="note" style="margin-bottom:14px">Verde = fuerte · amarillo = mejorable · naranja = flojo · rojo = crítico.
+    La foto completa de la batalla en un vistazo.</p>
+    ${heat}</div>
+  <div class="flex2"><div class="panel" style="display:flex;justify-content:center">${radarSVG(audits)}</div>
+    <div><h3>Categoría a categoría</h3>
+      <div class="panel">${gbars}
+        <p class="note">${audits.map((a,i)=>`<span class="vs-dot" style="background:${SERIES[i%3]}"></span>${esc(a.host)}`).join(" &nbsp; ")}</p></div>
+    </div></div>
+  <div class="sec" style="margin-top:24px"><h3>Detalle check a check</h3>
+    <p class="note" style="margin-bottom:10px">Haz clic en cualquier check para ver la evidencia concreta de cada dominio y el enlace al recurso.</p>
+    <div class="panel" style="overflow-x:auto"><table><thead><tr><th>Check</th>${audits.map(a=>`<th>${esc(a.host)}</th>`).join("")}</tr></thead>
+    <tbody>${rows}</tbody></table>
+    <p class="note">✓ cumple · ◐ parcial · ✗ falla · – no aplica / no medido</p></div></div>`;
+}
+
+const CATCOLORS={C1:"#8AB4F8",C2:"#F2A65A",C3:"#D9F9B8",C4:"#F1968F",C5:"#F5D76E",C6:"#B79BF5",C7:"#7BD9D0"};
+
+function bubbleChart(a){
+  const items=(a.checks||[]).filter(c=>c.score!=null&&c.score<1&&c.advice);
+  if(!items.length)return"";
+  const W=780,H=430,padL=95,padB=64,padT=34,padR=30;
+  const plotW=W-padL-padR,plotH=H-padT-padB;
+  const effOf=e=>e==="Bajo"?0:e==="Medio"?1:2;
+  const impOf=i=>3-Math.min(IMPORD[i]??3,3); // Crítico=3 arriba, Bajo=0
+  const cx=e=>padL+(e+0.5)*plotW/3, cy=i=>H-padB-(i+0.5)*plotH/4;
+  // tamaño = puntos de score recuperables (aprox: peso de su categoría repartido)
+  const perCat={};
+  items.forEach(c=>perCat[c.cat]=(perCat[c.cat]||0)+1);
+  const scoredInCat={};
+  (a.checks||[]).forEach(c=>{if(c.score!=null)scoredInCat[c.cat]=(scoredInCat[c.cat]||0)+1});
+  const rec=c=>{const catw=a.category_weights?.[c.cat]??14;
+    return catw/(scoredInCat[c.cat]||1)*(1-c.score)};
+  // jitter determinista para burbujas en la misma celda
+  const offsets=[[0,0],[30,-22],[-30,22],[30,22],[-30,-22],[0,-36],[0,36],[58,0],[-58,0],[58,-30],[-58,30],[58,30]];
+  const cellCount={};
+  let bubbles="";
+  for(const c of items.sort((x,y)=>rec(y)-rec(x))){
+    const e=effOf(c.advice.esfuerzo.split(" ")[0]),im=impOf(c.advice.impacto);
+    const key=e+"-"+im,k=cellCount[key]=(cellCount[key]||0)+1;
+    const[ox,oy]=offsets[Math.min(k-1,offsets.length-1)];
+    const r=Math.max(13,Math.min(32,10+rec(c)*4.5));
+    const col=CATCOLORS[c.cat]||"#94A3B8";
+    bubbles+=`<circle cx="${(cx(e)+ox).toFixed(0)}" cy="${(cy(im)+oy).toFixed(0)}" r="${r.toFixed(0)}"
+      fill="${col}" fill-opacity=".28" stroke="${col}" stroke-width="1.5"
+      data-tip="${esc(c.id+" · "+c.advice.titulo+"||Impacto "+c.advice.impacto+" · esfuerzo "+c.advice.esfuerzo+" · arreglarlo recupera ~"+rec(c).toFixed(1)+" puntos de score. Cómo: "+c.advice.como)}"/>
+    <text x="${(cx(e)+ox).toFixed(0)}" y="${(cy(im)+oy).toFixed(0)}" text-anchor="middle" dy="4"
+      fill="${col}" font-size="11" font-weight="800" style="pointer-events:none">${c.id}</text>`;
+  }
+  // zona "hazlo ya": esfuerzo Bajo-Medio × impacto Alto-Crítico
+  const zone=`<rect x="${padL}" y="${padT}" width="${plotW*2/3}" height="${plotH/2}" rx="12"
+    fill="rgba(217,249,184,.05)" stroke="rgba(217,249,184,.25)" stroke-dasharray="5 5"/>
+  <text x="${padL+12}" y="${padT+22}" fill="var(--accent)" font-size="11" font-weight="800"
+    letter-spacing="1.5" style="text-transform:uppercase">HAZLO YA</text>`;
+  const xLabels=["BAJO","MEDIO","ALTO"].map((t,i)=>
+    `<text x="${cx(i)}" y="${H-padB+26}" text-anchor="middle" fill="#64748B" font-size="11" font-weight="700">${t}</text>`).join("");
+  const yLabels=["BAJO","MEDIO","ALTO","CRÍTICO"].map((t,i)=>
+    `<text x="${padL-14}" y="${cy(i)}" text-anchor="end" dy="4" fill="#64748B" font-size="10" font-weight="700">${t}</text>`).join("");
+  const grid=[1,2].map(i=>`<line x1="${padL+i*plotW/3}" y1="${padT}" x2="${padL+i*plotW/3}" y2="${H-padB}" stroke="rgba(255,255,255,.05)"/>`).join("")
+    +[1,2,3].map(i=>`<line x1="${padL}" y1="${padT+i*plotH/4}" x2="${W-padR}" y2="${padT+i*plotH/4}" stroke="rgba(255,255,255,.05)"/>`).join("");
+  const legend=Object.keys(CATS).filter(c=>items.some(x=>x.cat===c)).map(c=>
+    `<span style="margin-right:14px;white-space:nowrap"><span class="vs-dot" style="background:${CATCOLORS[c]}"></span>${c} ${CATS[c]}</span>`).join("");
+  return`<div class="panel sec" style="overflow-x:auto">
+    <h3>Mapa de prioridades: qué arreglar primero</h3>
+    <p class="note" style="margin-bottom:10px">Cada burbuja es un problema detectado. Posición = impacto en el negocio (vertical)
+    frente a esfuerzo de arreglo (horizontal). Tamaño = puntos de score que recuperas al arreglarlo.
+    <b>Empieza por la zona punteada.</b> Pasa el ratón por una burbuja para ver el detalle.</p>
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Matriz impacto × esfuerzo">
+      ${grid}${zone}
+      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="rgba(255,255,255,.18)"/>
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="rgba(255,255,255,.18)"/>
+      <text x="${padL+plotW/2}" y="${H-14}" text-anchor="middle" fill="#94A3B8" font-size="11" font-weight="700" letter-spacing="1">ESFUERZO DE ARREGLO →</text>
+      <text transform="rotate(-90 24 ${padT+plotH/2})" x="24" y="${padT+plotH/2}" text-anchor="middle" fill="#94A3B8" font-size="11" font-weight="700" letter-spacing="1">IMPACTO EN EL NEGOCIO →</text>
+      ${xLabels}${yLabels}${bubbles}
+    </svg>
+    <p class="note" style="margin-top:8px">${legend}</p></div>`;
+}
+
+function findingCard(c){
+  const a=c.advice,imp=Math.min(IMPORD[a.impacto]??3,2);
+  const qw=a.esfuerzo==="Bajo"&&(IMPORD[a.impacto]??3)<=2?" qw":"";
+  return`<article class="finding${qw}">
+  <div class="f-top"><div class="f-title">${esc(a.titulo)}</div>
+    <div class="chips"><span class="chip imp-${imp}">Impacto ${esc(a.impacto)}</span>
+    <span class="chip">Esfuerzo ${esc(a.esfuerzo)}</span></div></div>
+  <div class="f-block"><div class="label">Por qué te importa</div><p>${esc(a.por_que)}</p></div>
+  <div class="f-block fix"><div class="label">Cómo se arregla</div><p>${esc(a.como)}</p></div>
+  <details><summary>Evidencia técnica · check ${c.id} · ${esc(c.name)}</summary>
+    <div class="evidence">${esc(c.evidence)}</div></details></article>`;
+}
+
+const TIERS=[
+  {ord:0,color:"var(--bad)",title:"Crítico",hint:"Está frenando a los agentes HOY. Arreglar lo primero."},
+  {ord:1,color:"var(--warn)",title:"Importante",hint:"Alto impacto en tu visibilidad y capacidad de ser usado."},
+  {ord:2,color:"#F5D76E",title:"Mejoras recomendadas",hint:"Suman puntos y pulen la experiencia del agente."},
+  {ord:3,color:"var(--text-3)",title:"Menor",hint:"Poca urgencia hoy: para cuando el resto esté hecho."},
+];
+
+function paneHallazgos(d){
+  const items=d.client.checks.filter(c=>c.score!=null&&c.score<1&&c.advice)
+    .sort((a,b)=>(IMPORD[a.advice.impacto]??3)-(IMPORD[b.advice.impacto]??3)||a.score-b.score
+      ||(a.advice.esfuerzo==="Bajo"?-1:1)-(b.advice.esfuerzo==="Bajo"?-1:1));
+  if(!items.length)return"<p class='note'>Todos los checks puntuables pasan. 🎉</p>";
+  const groups=TIERS.map(t=>{
+    const inTier=items.filter(c=>Math.min(IMPORD[c.advice.impacto]??3,3)===t.ord);
+    if(!inTier.length)return"";
+    return`<details class="fgroup" style="border-left:3px solid ${t.color}">
+      <summary><span class="vs-dot" style="background:${t.color}"></span>
+        ${t.title} <span class="fg-count" style="color:${t.color}">${inTier.length}</span>
+        <span class="fg-hint">${t.hint}</span>
+        <span class="fg-caret">▸</span></summary>
+      <div class="fg-body">${inTier.map(findingCard).join("")}</div>
+    </details>`}).join("");
+  return bubbleChart(d.client)+`<p class="sub" style="margin-bottom:18px">Agrupado por prioridad —
+  abre cada bloque para ver el detalle. El borde <span style="color:var(--accent)">verde lima</span>
+  marca los <b>quick wins</b> (alto impacto, esfuerzo bajo).</p>`+groups;
+}
+
+function paneEvidencias(d){
+  const audits=[d.client,...(d.competitors||[]).filter(a=>!a.error)];
+  let sel=0;
+  window._evSel=i=>{sel=i;render()};
+  function render(){
+    const a=audits[sel];
+    const bots=Object.entries(a.bot_matrix||{}).map(([b,c])=>{
+      const cls=c===200?"mk-1":c===0||c===403||c===429?"mk-0":"mk-05";
+      return`<tr><td>${esc(b==="_human"?"Navegador humano":b)}</td><td class="${cls}">${c===0?"sin respuesta":c}</td></tr>`}).join("");
+    const pages=(a.pages_sampled||[]).map(p=>
+      `<tr><td>${esc(p.bucket)}</td><td style="word-break:break-all">${esc(p.url)}</td><td>${p.status}</td><td>${esc(p.via)}</td></tr>`).join("");
+    const wk=Object.keys(a.wellknown||{}).length?
+      Object.keys(a.wellknown).map(p=>`<code style="display:block;font-size:.78rem;color:var(--accent)">${esc(p)}</code>`).join("")
+      :'<span class="note">Ninguna superficie agéntica expuesta.</span>';
+    const checks=(a.checks||[]).map(c=>
+      `<tr><td><b>${c.id}</b> ${esc(c.name)}${c.manual?' <span class="chip" style="font-size:.58rem">revisar</span>':""}</td>
+      <td>${mark(c.score)}</td><td style="font-family:var(--mono);font-size:.76rem;color:var(--text-2)">${esc(c.evidence)}</td></tr>`).join("");
+    let agentPanel="";
+    if(a.agent_tests&&a.agent_tests.agents){
+      const at=a.agent_tests;
+      agentPanel=`<div class="panel sec"><h3>Prueba agéntica real (check 6.3)</h3>
+      <p class="note" style="margin-bottom:12px">Tarea de tipología <b>${esc(at.typology)}</b>
+      ${at.allow_submit?"· envío de formularios AUTORIZADO en este dominio":"· sin envíos (solo llegar y rellenar)"}.
+      Cada agente LLM controla un navegador real e intenta completarla; nunca se pagan compras ni se crean cuentas.</p>
+      ${Object.entries(at.agents).map(([name,r])=>{
+        const col=r.outcome==="conseguido"?"var(--ok)":r.outcome==="conseguido_con_friccion"?"#F5D76E"
+          :r.outcome==="no_disponible"?"var(--text-3)":"var(--bad)";
+        return`<div class="gap" style="border-left-color:${col}">
+        <b style="color:${col}">${esc(name)}: ${esc((r.outcome||"?").replace(/_/g," "))}</b>
+        ${r.steps?` · ${r.steps} pasos`:""}
+        <div style="font-size:.85rem;color:var(--text-2);margin-top:4px">${esc(r.detail||"")}</div>
+        ${r.action_log&&r.action_log.length?`<details><summary>registro de acciones del agente</summary>
+          <div class="evidence">${r.action_log.map(esc).join("<br>")}</div></details>`:""}</div>`}).join("")}
+      </div>`;
+    }
+    $("#ev-body").innerHTML=agentPanel+`
+    <div class="flex2 sec">
+      <div class="panel"><h3>Acceso real de bots de IA</h3>
+        <table><thead><tr><th>User-agent</th><th>Respuesta</th></tr></thead><tbody>${bots}</tbody></table>
+        <p class="note">Medido con peticiones reales usando el user-agent oficial de cada bot.</p></div>
+      <div class="panel"><h3>Superficie agéntica encontrada</h3>${wk}
+        <h3 style="margin-top:20px">Tipología detectada</h3>
+        <p style="font-size:.9rem;color:var(--text-2)">${esc(a.typology)} — señales: ${esc(JSON.stringify(a.typology_evidence))}</p>
+        <p class="note">Render JS: ${a.render_ok?"✓ ejecutado":"no ejecutado"} · Vista LLM (Jina): ${a.jina_ok?"✓":"—"}</p></div></div>
+    <div class="panel sec" style="overflow-x:auto"><h3>Páginas muestreadas</h3>
+      <table><thead><tr><th>Plantilla</th><th>URL</th><th>HTTP</th><th>Vía</th></tr></thead><tbody>${pages}</tbody></table></div>
+    <div class="panel" style="overflow-x:auto"><h3>Los ${a.checks.length} checks con su evidencia bruta</h3>
+      <table><thead><tr><th>Check</th><th></th><th>Evidencia</th></tr></thead><tbody>${checks}</tbody></table></div>`;
+    document.querySelectorAll("#ev-pills button").forEach((b,i)=>b.classList.toggle("active",i===sel));
+  }
+  setTimeout(render,0);
+  return`<div class="pill-select" id="ev-pills">${audits.map((a,i)=>
+    `<button onclick="_evSel(${i})" class="${i===0?"active":""}">${esc(a.host)}</button>`).join("")}</div>
+  <div id="ev-body"></div>`;
+}
+
+function paneFiabilidad(d){
+  const audits=[d.client,...(d.competitors||[]).filter(a=>!a.error)];
+  let sel=0;
+  window._fbSel=i=>{sel=i;render()};
+  const IC={ok:["✓","t-ok"],warn:["⚠","t-warn"],fail:["✗","t-fail"],skipped:["○","t-skipped"]};
+  function render(){
+    const a=audits[sel];
+    if(!a.trail){
+      $("#fb-body").innerHTML='<p class="note">Este análisis se generó con una versión anterior del motor sin registro de procesos. Relanza el análisis para tener el panel de fiabilidad.</p>';
+      return;
+    }
+    const n={ok:0,warn:0,fail:0,skipped:0};
+    a.trail.forEach(t=>n[t.status]=(n[t.status]||0)+1);
+    const manual=(a.checks||[]).filter(x=>x.manual);
+    const informational=(a.checks||[]).filter(x=>x.score==null&&!x.manual);
+    let vClass,vIcon,vTitle,vMsg;
+    if(n.fail>0){vClass="v-fail";vIcon="✗";vTitle="Análisis incompleto";
+      vMsg=`${n.fail} proceso(s) fallaron y hay checks sin evidencia. NO entregar sin revisar o relanzar.`}
+    else if(n.warn>0||n.skipped>0){vClass="v-warn";vIcon="⚠";vTitle="Fiable con avisos";
+      vMsg=`Todos los procesos corrieron, pero ${n.warn} con evidencia degradada y ${n.skipped} desactivados. Revisar los avisos antes de entregar.`}
+    else{vClass="v-ok";vIcon="✓";vTitle="Análisis completo y fiable";
+      vMsg="Todos los procesos ejecutados con evidencia directa. Lo que dice el informe está respaldado."}
+    const steps=a.trail.map(t=>{const[ic,cls]=IC[t.status]||["?",""];
+      return`<tr><td><span class="trail-ic ${cls}">${ic}</span></td>
+      <td style="font-weight:600;white-space:nowrap">${esc(t.step)}</td>
+      <td style="color:var(--text-2);font-size:.82rem">${esc(t.detail)}</td></tr>`}).join("");
+    const cov=a.coverage||{};
+    const buckets=Object.entries(cov.buckets||{}).map(([b,total])=>{
+      const sampled=(a.pages_sampled||[]).filter(p=>p.bucket===b).length;
+      return`<tr><td>${esc(b)}</td><td>${total}</td><td>${sampled}</td></tr>`}).join("");
+    $("#fb-body").innerHTML=`
+    <div class="verdict ${vClass}"><span class="big">${vIcon}</span>
+      <div><h3>${vTitle}</h3><p>${vMsg} · ${manual.length} checks marcados para criterio humano.</p></div></div>
+    <div class="panel sec" style="overflow-x:auto">
+      <h3>Procesos ejecutados (${a.trail.length})</h3>
+      <table><thead><tr><th></th><th>Proceso</th><th>Resultado / evidencia</th></tr></thead>
+      <tbody>${steps}</tbody></table>
+      <p class="note">✓ ejecutado con evidencia · ⚠ evidencia degradada (fallback o distorsión posible) ·
+      ✗ el proceso falló (sin evidencia) · ○ desactivado. Un 404 del sitio es un hallazgo, no un fallo del análisis.</p></div>
+    <div class="flex2 sec">
+      <div class="panel"><h3>Cobertura del muestreo</h3>
+        <p style="font-size:.9rem;color:var(--text-2)">${cov.sampled_ok??"?"}/${cov.sampled??"?"} páginas accesibles
+        de ${cov.sitemap_urls??"?"} URLs del sitemap (tope 800) · ${cov.fallbacks??0} vía fallback</p>
+        <table style="margin-top:10px"><thead><tr><th>Plantilla</th><th>Encontradas</th><th>Muestreadas</th></tr></thead>
+        <tbody>${buckets}</tbody></table>
+        <p class="note">Muestreo representativo, no exhaustivo: hasta 2 páginas por plantilla. Los checks de plantilla
+        (producto, blog) valen lo que valga la muestra.</p></div>
+      <div class="panel"><h3>Checks que requieren criterio humano (${manual.length})</h3>
+        <ul style="margin-left:18px;font-size:.86rem;color:var(--text-2)">
+        ${manual.map(x=>`<li><b>${x.id}</b> ${esc(x.name)}</li>`).join("")||"<li>Ninguno</li>"}</ul>
+        <h3 style="margin-top:18px">Informativos / no puntuados (${informational.length})</h3>
+        <ul style="margin-left:18px;font-size:.86rem;color:var(--text-2)">
+        ${informational.map(x=>`<li><b>${x.id}</b> ${esc(x.name)} — <span style="color:var(--text-3)">${esc(x.evidence.slice(0,90))}</span></li>`).join("")||"<li>Ninguno</li>"}</ul></div>
+    </div>`;
+    document.querySelectorAll("#fb-pills button").forEach((b,i)=>b.classList.toggle("active",i===sel));
+  }
+  setTimeout(render,0);
+
+  /* matriz global: factor × metodología × estado en cada dominio */
+  const statusFor=(a,id)=>{
+    const m=(a.checks||[]).find(x=>x.id===id);
+    if(!m)return'<span class="mk-na">–</span>';
+    if((m.evidence||"").startsWith("N/A"))return'<span class="mk-na">– n/a</span>';
+    if(m.score==null&&m.manual)return'<span class="mk-05">○ humano</span>';
+    if(m.score==null)return'<span class="mk-na">○ info</span>';
+    if(m.manual)return'<span class="mk-05">◐ heurístico</span>';
+    return'<span class="mk-1">✓ medido</span>';
+  };
+  const matrixRows=d.client.checks.map(c=>
+    `<tr><td style="white-space:nowrap"><b>${c.id}</b> ${esc(c.name)}</td>
+    <td style="color:var(--text-2);font-size:.8rem">${esc(METHODS[c.id]||"")}</td>
+    ${audits.map(a=>`<td style="white-space:nowrap;font-size:.78rem">${statusFor(a,c.id)}</td>`).join("")}</tr>`).join("");
+
+  return`<p class="sub" style="margin-bottom:18px">Panel de control del analista: qué procesos corrieron,
+  con qué evidencia, qué se degradó y qué falta. <b>Si este panel no está en verde, el informe no se entrega.</b></p>
+  <div class="panel sec" style="overflow-x:auto">
+    <h3>Matriz de factores: qué revisamos, cómo, y si se pudo medir en cada dominio</h3>
+    <table><thead><tr><th>Factor</th><th>Metodología</th>${audits.map(a=>`<th>${esc(a.host)}</th>`).join("")}</tr></thead>
+    <tbody>${matrixRows}</tbody></table>
+    <p class="note">✓ medido con evidencia directa · ◐ heurístico (evidencia parcial) · ○ humano = requiere criterio del analista ·
+    ○ info = se comprueba pero no puntúa · – n/a = no aplica a esta tipología.</p></div>
+  <div class="pill-select" id="fb-pills">${audits.map((a,i)=>
+    `<button onclick="_fbSel(${i})" class="${i===0?"active":""}">${esc(a.host)}</button>`).join("")}</div>
+  <div id="fb-body"></div>`;
+}
+
+function paneMetodologia(d){
+  const c=d.client;
+  const w=Object.entries(c.category_weights||{}).map(([k,v])=>
+    `<tr><td><b>${k}</b> ${CATS[k]}</td><td>${v}%</td></tr>`).join("");
+  const manual=(c.checks||[]).filter(x=>x.manual).map(x=>`<li><b>${x.id}</b> ${esc(x.name)}</li>`).join("");
+  return`<div class="flex2">
+  <div class="panel"><h3>Pesos aplicados (${esc(c.typology)})</h3>
+    <table><tbody>${w}</tbody></table>
+    <p class="note">Cada check puntúa 0 / 0,5 / 1 y pondera dentro de su categoría. Los checks críticos pesan más.
+    Las categorías sin datos redistribuyen su peso.</p></div>
+  <div class="panel"><h3>Escala</h3>
+    <div class="gap" style="border-left-color:#E05252"><b style="color:#E05252">0–25 Invisible para agentes.</b> Ni te leen ni te usan.</div>
+    <div class="gap"><b>26–50 Legible, no operable.</b> Te leen, no te entienden bien, no te usan.</div>
+    <div class="gap" style="border-left-color:#F5D76E"><b style="color:#F5D76E">51–75 Agent-aware.</b> Bien posicionado; faltan capacidades ejecutables.</div>
+    <div class="gap ok"><b>76–100 Agent-ready.</b> Ventaja competitiva real.</div>
+    <h3 style="margin-top:22px">Checks que requieren revisión humana</h3>
+    <ul style="margin-left:20px;color:var(--text-2);font-size:.88rem">${manual||"<li>Ninguno</li>"}</ul>
+    <p class="note">Framework ${esc(d.framework_version)} · basado en estándares abiertos (RFC 9421, MCP, ACP, Schema.org)
+    y el Agent Readiness score de Cloudflare. El campo evoluciona por trimestres: re-auditar cada 90 días.</p></div></div>`;
+}
+
+function renderReport(d,outdir){
+  show("#view-report");
+  const c=d.client;
+  $("#hscore").style.display="inline-block";$("#hscore").textContent=c.score+"/100";
+  $("#rep-date").textContent="Auditoría de preparación agéntica · "+(d.generated||"").slice(0,10);
+  $("#rep-title").innerHTML=`¿Está <span class="acc">${esc(c.host)}</span> lista para la IA?`;
+  if(outdir)$("#rep-saved").textContent="Guardado en "+outdir+" (data.json + informe.html entregable)";
+  const tabs=[["Resumen",()=>paneResumen(d)],["Comparativa",()=>paneComparativa(d)],
+    ["Hallazgos",()=>paneHallazgos(d)],["Evidencias",()=>paneEvidencias(d)],
+    ["Fiabilidad",()=>paneFiabilidad(d)],["Metodología",()=>paneMetodologia(d)]];
+  $("#tabs").innerHTML=tabs.map((t,i)=>`<button class="tab${i===0?" active":""}" data-i="${i}">${t[0]}</button>`).join("");
+  $("#panes").innerHTML=tabs.map((t,i)=>`<div class="tabpane${i===0?" active":""}" id="pane-${i}"></div>`).join("");
+  tabs.forEach((t,i)=>{$("#pane-"+i).innerHTML=t[1]()});
+  $("#tabs").addEventListener("click",e=>{
+    const b=e.target.closest(".tab");if(!b)return;
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");$("#pane-"+b.dataset.i).classList.add("active");
+    window.scrollTo({top:0,behavior:"auto"});
+  });
+}
+</script>
+</body>
+</html>
