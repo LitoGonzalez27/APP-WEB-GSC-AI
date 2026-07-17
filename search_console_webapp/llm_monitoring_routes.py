@@ -4275,7 +4275,9 @@ def get_project_queries(project_id):
                 'query_type': q['query_type'],
                 'topic_cluster': q.get('topic_cluster'),  # ✨ NUEVO: Cluster asignado (o None)
                 'total_responses': q['total_responses'] or 0,
-                'total_mentions': q['total_mentions'] or 0,
+                # int() explícito: el SUM de PostgreSQL llega como Decimal y Flask
+                # serializa Decimal como string, rompiendo el orden numérico en Grid.js
+                'total_mentions': int(q['total_mentions'] or 0),
                 'visibility_pct': float(q['visibility_pct']) if q['visibility_pct'] else 0,
                 'avg_position': float(q['avg_position']) if q['avg_position'] else None,
                 'last_update': q['last_update'].isoformat() if q['last_update'] else None,
@@ -4483,13 +4485,40 @@ def get_share_of_voice_history(project_id):
                     'borderWidth': 1.5
                 })
 
+            # Menciones absolutas con el mismo scope (para "Total Mentions Over Time")
+            mentions_datasets = [{
+                'label': project.get('brand_name') or 'Your Brand',
+                'data': [scope_by_date[d]['brand'] for d in dates_sorted],
+                'borderColor': '#3b82f6',
+                'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                'borderWidth': 3,
+                'tension': 0.4,
+                'fill': True,
+                'pointRadius': 4,
+                'pointHoverRadius': 6
+            }]
+            for ci, cname in enumerate(sorted_comp_names):
+                border_color, bg_color = comp_colors[ci % len(comp_colors)]
+                mentions_datasets.append({
+                    'label': cname,
+                    'data': [scope_by_date[d]['competitors'].get(cname, 0) for d in dates_sorted],
+                    'borderColor': border_color,
+                    'backgroundColor': bg_color,
+                    'borderWidth': 2,
+                    'tension': 0.4,
+                    'fill': False,
+                    'pointRadius': 3,
+                    'pointHoverRadius': 5
+                })
+
             scope_label = 'Non-Branded' if query_scope == 'non_branded' else 'Branded'
             return jsonify({
                 'success': True,
                 'query_scope': query_scope,
                 'scope_label': scope_label,
                 'dates': dates_sorted,
-                'datasets': datasets
+                'datasets': datasets,
+                'mentions_datasets': mentions_datasets
             }), 200
 
         # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
