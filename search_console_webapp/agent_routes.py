@@ -15,15 +15,46 @@ import os
 import threading
 import time
 import uuid
+from functools import wraps
 from urllib.parse import urlparse
 
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import (Blueprint, jsonify, redirect, request, send_from_directory,
+                   session, url_for)
 
-from auth import admin_required
+from auth import admin_required, get_current_user, is_user_authenticated
 
 logger = logging.getLogger(__name__)
 
 agent_bp = Blueprint("agent_scanner", __name__, url_prefix="/agent")
+
+
+def agent_access_required(f):
+    """Acceso al panel: admins SIEMPRE + emails de la allowlist (tabla aislada)."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        wants_json = request.is_json or request.path.startswith("/agent/api/")
+        if not is_user_authenticated():
+            if wants_json:
+                return jsonify({"error": "Authentication required", "auth_required": True}), 401
+            return redirect(url_for("login_page") + "?auth_required=true")
+        user = get_current_user()
+        if not user or not user.get("is_active"):
+            session.clear()
+            if wants_json:
+                return jsonify({"error": "Unauthorized", "auth_required": True}), 401
+            return redirect(url_for("login_page") + "?auth_required=true")
+        try:
+            from agent_scanner.access import user_has_access
+            allowed = user_has_access(user)
+        except Exception as exc:
+            logger.warning(f"agent access check falló, fallback a admin: {exc}")
+            allowed = user.get("role") == "admin"
+        if not allowed:
+            if wants_json:
+                return jsonify({"error": "No tienes acceso a esta herramienta"}), 403
+            return redirect(url_for("login_page") + "?account_suspended=true")
+        return f(*args, **kwargs)
+    return wrapper
 
 _WEB_DIR = os.path.join(os.path.dirname(__file__), "agent_scanner", "web")
 _JOBS = {}
@@ -78,13 +109,13 @@ def _run_job(job_id, urls, opts):
 
 
 @agent_bp.route("/")
-@admin_required
+@agent_access_required
 def index():
     return send_from_directory(_WEB_DIR, "index.html")
 
 
 @agent_bp.route("/api/scan", methods=["POST"])
-@admin_required
+@agent_access_required
 def scan():
     with _JOBS_LOCK:
         if any(j["status"] == "running" for j in _JOBS.values()):
@@ -120,7 +151,7 @@ def scan():
 
 
 @agent_bp.route("/api/status/<job_id>")
-@admin_required
+@agent_access_required
 def status(job_id):
     job = _JOBS.get(job_id)
     if not job:
@@ -132,9 +163,53 @@ def status(job_id):
 
 
 @agent_bp.route("/api/result/<job_id>")
-@admin_required
+@agent_access_required
 def result(job_id):
     job = _JOBS.get(job_id)
     if not job or job.get("result") is None:
         return jsonify({"error": "resultado no disponible"}), 404
     return jsonify(job["result"])
+
+
+# ---------------------------------------------------------------- gestión de acceso (solo admin)
+
+@agent_bp.route("/api/me")
+@agent_access_required
+def whoami():
+    user = get_current_user() or {}
+    return jsonify({"email": user.get("email"), "is_admin": user.get("role") == "admin"})
+
+
+@agent_bp.route("/acceso")
+@admin_required
+def access_page():
+    return send_from_directory(_WEB_DIR, "access.html")
+
+
+@agent_bp.route("/api/access/list")
+@admin_required
+def access_list():
+    from agent_scanner.access import list_emails
+    return jsonify({"emails": list_emails()})
+
+
+@agent_bp.route("/api/access/add", methods=["POST"])
+@admin_required
+def access_add():
+    from agent_scanner.access import add_email
+    payload = request.get_json(silent=True) or {}
+    user = get_current_user() or {}
+    ok, res = add_email(payload.get("email"), added_by=user.get("email"))
+    if not ok:
+        return jsonify({"error": res}), 400
+    return jsonify({"ok": True, "email": res})
+
+
+@agent_bp.route("/api/access/remove", methods=["POST"])
+@admin_required
+def access_remove():
+    from agent_scanner.access import remove_email
+    payload = request.get_json(silent=True) or {}
+    if remove_email(payload.get("email")):
+        return jsonify({"ok": True})
+    return jsonify({"error": "no se pudo eliminar"}), 400

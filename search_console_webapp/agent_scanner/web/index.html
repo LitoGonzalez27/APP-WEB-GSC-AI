@@ -306,7 +306,7 @@ summary:hover{color:var(--text-2)}
 <body>
 <header><div class="wrap hbar">
   <div class="logo">clicand<em>seo</em></div>
-  <div class="hmeta"><span>Agent-Ready Scanner</span><span class="hscore" id="hscore" style="display:none"></span></div>
+  <div class="hmeta"><a href="/agent/acceso" id="accessLink" style="display:none;color:var(--text-2);text-decoration:none;font-size:.8rem;border:1px solid var(--border-strong);border-radius:99px;padding:5px 12px">Gestionar accesos</a><span>Agent-Ready Scanner</span><span class="hscore" id="hscore" style="display:none"></span></div>
 </div></header>
 
 <!-- ============ SETUP ============ -->
@@ -506,6 +506,11 @@ async function poll(id){
 }
 
 /* resume por URL */
+/* mostrar el enlace de gestión de accesos solo a admins */
+fetch("/agent/api/me").then(r=>r.json()).then(d=>{
+  if(d&&d.is_admin){const l=document.getElementById("accessLink");if(l)l.style.display="inline-block"}
+}).catch(()=>{});
+
 const jobParam=new URLSearchParams(location.search).get("job");
 if(jobParam){show("#view-loading");poll(jobParam)}
 
