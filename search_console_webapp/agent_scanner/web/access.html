@@ -126,7 +126,15 @@ $("#add").addEventListener("click",async()=>{
 
 document.addEventListener("click",async e=>{
   const b=e.target.closest(".rm");if(!b)return;
-  if(!confirm("¿Quitar el acceso a "+b.dataset.email+"?"))return;
+  // confirmación inline de dos clics (sin popup nativo)
+  if(b.dataset.confirm!=="1"){
+    b.dataset.confirm="1";
+    b.textContent="¿Confirmar?";
+    b.style.borderColor="var(--bad)";b.style.color="var(--bad)";
+    setTimeout(()=>{if(b.dataset.confirm==="1"){b.dataset.confirm="0";b.textContent="Quitar acceso";b.style.borderColor="";b.style.color=""}},3500);
+    return;
+  }
+  b.textContent="Quitando…";b.disabled=true;
   await fetch("/agent/api/access/remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:b.dataset.email})});
   load();
 });
