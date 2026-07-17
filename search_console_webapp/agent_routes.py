@@ -196,13 +196,27 @@ def access_list():
 @agent_bp.route("/api/access/add", methods=["POST"])
 @admin_required
 def access_add():
-    from agent_scanner.access import add_email
+    from agent_scanner.access import add_email, send_invitation_email
     payload = request.get_json(silent=True) or {}
     user = get_current_user() or {}
     ok, res = add_email(payload.get("email"), added_by=user.get("email"))
     if not ok:
         return jsonify({"error": res}), 400
-    return jsonify({"ok": True, "email": res})
+    email_sent = send_invitation_email(res, invited_by_name=user.get("name") or user.get("email"))
+    return jsonify({"ok": True, "email": res, "email_sent": email_sent})
+
+
+@agent_bp.route("/api/access/resend", methods=["POST"])
+@admin_required
+def access_resend():
+    from agent_scanner.access import send_invitation_email
+    payload = request.get_json(silent=True) or {}
+    user = get_current_user() or {}
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "falta email"}), 400
+    sent = send_invitation_email(email, invited_by_name=user.get("name") or user.get("email"))
+    return jsonify({"ok": sent, "email_sent": sent})
 
 
 @agent_bp.route("/api/access/remove", methods=["POST"])
