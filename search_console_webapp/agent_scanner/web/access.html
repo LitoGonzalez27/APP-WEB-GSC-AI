@@ -49,9 +49,12 @@ td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 .email{font-weight:600}
 .meta{font-size:.78rem;color:var(--text-3)}
-.rm{background:none;border:1px solid var(--border-strong);color:var(--text-2);border-radius:8px;
-  padding:6px 12px;font-size:.8rem;cursor:pointer;transition:all .15s}
+.rm,.resend{background:none;border:1px solid var(--border-strong);color:var(--text-2);border-radius:8px;
+  padding:6px 12px;font-size:.8rem;cursor:pointer;transition:all .15s;margin-left:6px}
 .rm:hover{border-color:var(--bad);color:var(--bad)}
+.resend:hover{border-color:var(--accent);color:var(--accent)}
+.toast{margin-top:10px;font-size:.85rem}
+.toast.ok{color:var(--ok)}.toast.warn{color:var(--warn)}
 .empty{color:var(--text-3);font-size:.9rem;padding:16px 0}
 .badge{display:inline-block;background:var(--accent-subtle);color:var(--accent);border:1px solid var(--accent);
   border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700}
@@ -78,8 +81,9 @@ tr:last-child td{border-bottom:none}
       <input type="email" id="email" placeholder="persona@empresa.com" autocomplete="off">
       <button class="btn" id="add">Dar acceso →</button>
     </div>
-    <div class="hint">El usuario debe tener una cuenta en Clicandseo con ese email. Al entrar, verá el panel Agent Readiness.</div>
+    <div class="hint">El usuario debe tener una cuenta en Clicandseo con ese email. Al darle acceso, le llega un email de invitación con un botón para entrar.</div>
     <div class="err" id="err"></div>
+    <div class="toast" id="toast"></div>
   </div>
 
   <div class="panel">
@@ -105,26 +109,44 @@ async function load(){
       emails.map(e=>`<tr>
         <td class="email">${esc(e.email)}</td>
         <td class="meta">${esc(e.added_at||"")}${e.added_by?` · por ${esc(e.added_by)}`:""}</td>
-        <td style="text-align:right"><button class="rm" data-email="${esc(e.email)}">Quitar acceso</button></td>
+        <td style="text-align:right;white-space:nowrap"><button class="resend" data-email="${esc(e.email)}">Reenviar email</button><button class="rm" data-email="${esc(e.email)}">Quitar acceso</button></td>
       </tr>`).join("")+`</tbody></table>`;
   }catch(e){$("#list").innerHTML='<div class="empty">No se pudo cargar la lista.</div>'}
 }
 
+function toast(msg,cls){const t=$("#toast");t.className="toast "+(cls||"");t.textContent=msg;
+  if(msg)setTimeout(()=>{if(t.textContent===msg)t.textContent=""},6000)}
+
 $("#add").addEventListener("click",async()=>{
   const email=$("#email").value.trim();
-  $("#err").textContent="";
+  $("#err").textContent="";toast("");
   if(!email){$("#err").textContent="Escribe un email.";return}
   $("#add").disabled=true;
   try{
     const r=await fetch("/agent/api/access/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
     const j=await r.json();
     if(!r.ok)throw new Error(j.error||"error");
-    $("#email").value="";load();
+    $("#email").value="";
+    if(j.email_sent)toast("✓ Acceso concedido y email de invitación enviado a "+j.email,"ok");
+    else toast("Acceso concedido, pero el email de invitación no se pudo enviar. Prueba 'Reenviar email' en la lista.","warn");
+    load();
   }catch(e){$("#err").textContent=e.message}
   finally{$("#add").disabled=false}
 });
 
 document.addEventListener("click",async e=>{
+  const rs=e.target.closest(".resend");
+  if(rs){
+    const email=rs.dataset.email;const old=rs.textContent;
+    rs.textContent="Enviando…";rs.disabled=true;
+    try{
+      const r=await fetch("/agent/api/access/resend",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+      const j=await r.json();
+      toast(j.email_sent?("✓ Email reenviado a "+email):"No se pudo enviar el email (revisa la config SMTP del entorno).",j.email_sent?"ok":"warn");
+    }catch(_){toast("Error al reenviar.","warn")}
+    finally{rs.textContent=old;rs.disabled=false}
+    return;
+  }
   const b=e.target.closest(".rm");if(!b)return;
   // confirmación inline de dos clics (sin popup nativo)
   if(b.dataset.confirm!=="1"){

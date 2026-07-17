@@ -104,3 +104,48 @@ def user_has_access(user):
         return True
     email = (user.get("email") or "").strip().lower()
     return bool(email) and email in _allowed_emails()
+
+
+def _agent_url():
+    import os
+    base = (os.getenv("PUBLIC_BASE_URL") or "https://app.clicandseo.com").rstrip("/")
+    return f"{base}/agent/"
+
+
+def send_invitation_email(email, invited_by_name=None):
+    """Envía el email de invitación reutilizando el servicio SMTP de la app.
+    Devuelve True si se envió, False si no (sin romper el flujo de acceso)."""
+    try:
+        from email_service import send_email, LOGO_URL
+    except Exception as exc:
+        logger.warning(f"invitación agent: email_service no disponible: {exc}")
+        return False
+    url = _agent_url()
+    quien = f" por {invited_by_name}" if invited_by_name else ""
+    subject = "Tienes acceso a Agent Readiness en Clicandseo"
+    html_body = f"""
+<div style="font-family:'Inter Tight',Arial,sans-serif;max-width:560px;margin:0 auto;color:#0F172A">
+  <div style="text-align:center;padding:24px 0"><img src="{LOGO_URL}" alt="Clicandseo" style="height:28px"></div>
+  <div style="background:#0A0A0B;border-radius:16px;padding:36px 32px;color:#F8FAFC">
+    <p style="font-family:Georgia,serif;font-style:italic;color:#94A3B8;margin:0 0 10px">Auditoría de preparación agéntica</p>
+    <h1 style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 14px;color:#F8FAFC">
+      Se te ha dado acceso a <span style="color:#D9F9B8">Agent Readiness</span></h1>
+    <p style="color:#94A3B8;font-size:15px;line-height:1.6;margin:0 0 24px">
+      Ya puedes usar la nueva herramienta de Clicandseo para auditar si una web está preparada
+      para la era de los agentes de IA{quien}. Analiza tu dominio y el de tus competidores,
+      con informe visual, comparativa y hasta 3 IAs probando la web en un navegador real.</p>
+    <a href="{url}" style="display:inline-block;background:#D9F9B8;color:#0A0A0B;font-weight:800;
+      text-decoration:none;border-radius:12px;padding:14px 28px;font-size:15px">Entrar a Agent Readiness →</a>
+    <p style="color:#64748B;font-size:13px;line-height:1.6;margin:24px 0 0">
+      Si el botón no funciona, copia este enlace: <br><span style="color:#94A3B8">{url}</span><br><br>
+      Usa la cuenta de Clicandseo asociada a este email. Si aún no has iniciado sesión, te pedirá login primero.</p>
+  </div>
+  <p style="text-align:center;color:#94A3B8;font-size:12px;padding:18px 0">Clicandseo · Agent Readiness</p>
+</div>"""
+    text_body = (f"Se te ha dado acceso a Agent Readiness en Clicandseo{quien}.\n\n"
+                 f"Entra aquí: {url}\n\nUsa la cuenta de Clicandseo asociada a este email.")
+    try:
+        return bool(send_email(email, subject, html_body, text_body))
+    except Exception as exc:
+        logger.warning(f"invitación agent: fallo al enviar email a {email}: {exc}")
+        return False
