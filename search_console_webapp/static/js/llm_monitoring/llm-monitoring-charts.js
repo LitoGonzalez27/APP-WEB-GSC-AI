@@ -4,6 +4,55 @@
  */
 Object.assign(LLMMonitoring.prototype, {
 
+// Empty state centrado para gráficas timeline (canvas oculto mientras se muestra)
+showChartEmptyState(canvasId, legendId, title, subtitle) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const container = canvas.parentElement;
+        container.querySelector('.chart-empty-state')?.remove();
+        canvas.style.display = 'none';
+        if (legendId) {
+            const legend = document.getElementById(legendId);
+            if (legend) legend.innerHTML = '';
+        }
+        const overlay = document.createElement('div');
+        overlay.className = 'chart-empty-state';
+        overlay.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;color:#6b7280;text-align:center;padding:2rem;';
+        overlay.innerHTML = `
+            <i class="fas fa-chart-line" style="font-size:2.5rem;opacity:0.3;margin-bottom:1rem;"></i>
+            <p style="font-size:1rem;font-weight:600;margin:0;">${title}</p>
+            ${subtitle ? `<p style="font-size:0.85rem;margin-top:0.5rem;color:#9ca3af;max-width:420px;">${subtitle}</p>` : ''}
+        `;
+        container.appendChild(overlay);
+    },
+
+clearChartEmptyState(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        canvas.parentElement.querySelector('.chart-empty-state')?.remove();
+        canvas.style.display = '';
+    },
+
+// Mensajes del empty state según el scope activo (branded/non_branded/all)
+chartEmptyStateCopy(scope) {
+        if (scope === 'branded') {
+            return {
+                title: 'No branded prompts in this period',
+                subtitle: 'None of the analyzed prompts include your brand name. Switch to "All" or "Non-Branded" to see data.'
+            };
+        }
+        if (scope === 'non_branded') {
+            return {
+                title: 'No non-branded prompts in this period',
+                subtitle: 'All analyzed prompts include your brand name. Switch to "All" or "Branded" to see data.'
+            };
+        }
+        return {
+            title: 'No data yet for this period',
+            subtitle: 'Run an analysis or extend the time range to see this chart.'
+        };
+    },
+
 renderRichChartTooltip(context) {
         let tooltipEl = document.getElementById('llm-chart-tooltip');
         if (!tooltipEl) {
@@ -290,14 +339,16 @@ async renderShareOfVoiceChart() {
             // Store previous period averages for tooltip use
             this.sovPreviousPeriodAvg = result.previous_period_avg || {};
 
-            // Si no hay datos, limpiar la leyenda (el chart ya se destruyó arriba)
-            // para no dejar la del render anterior colgada, y mostrar aviso
+            // Si no hay datos (el chart ya se destruyó arriba), mostrar empty state
+            // centrado y limpiar la leyenda del render anterior
             if (!dates || dates.length === 0 || !datasets || datasets.length === 0) {
                 console.warn('⚠️ No data available for Share of Voice chart');
-                const emptyLegend = document.getElementById('shareOfVoiceLegend');
-                if (emptyLegend) emptyLegend.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No data for this filter in the selected period</div>';
+                const copy = this.chartEmptyStateCopy(this.sovScope);
+                this.showChartEmptyState('chartShareOfVoice', 'shareOfVoiceLegend', copy.title, copy.subtitle);
                 return;
             }
+
+            this.clearChartEmptyState('chartShareOfVoice');
 
             // Formatear fechas para el eje X
             const formattedLabels = dates.map(dateStr => {
@@ -441,11 +492,13 @@ async renderMentionsTimelineChart() {
 
             if (!result.success || !result.mentions_datasets || !result.dates || result.dates.length === 0) {
                 console.warn('⚠️ No mentions data available yet for this project');
-                // Limpiar la leyenda del render anterior (el chart ya se destruyó arriba)
-                const emptyLegend = document.getElementById('mentionsTimelineLegend');
-                if (emptyLegend) emptyLegend.innerHTML = '<div style="color:#9ca3af;font-size:0.85rem;padding:0.5rem 0;">No data for this filter in the selected period</div>';
+                // El chart ya se destruyó arriba: empty state centrado según el scope
+                const copy = this.chartEmptyStateCopy(this.mentionsScope);
+                this.showChartEmptyState('chartMentionsTimeline', 'mentionsTimelineLegend', copy.title, copy.subtitle);
                 return;
             }
+
+            this.clearChartEmptyState('chartMentionsTimeline');
 
             const { dates, mentions_datasets } = result;
 
