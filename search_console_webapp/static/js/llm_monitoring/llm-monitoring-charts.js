@@ -15,9 +15,11 @@ showChartEmptyState(canvasId, legendId, title, subtitle) {
             const legend = document.getElementById(legendId);
             if (legend) legend.innerHTML = '';
         }
+        // Overlay absoluto ocupando el área del chart (el contenedor tiene altura fija)
+        if (!container.style.position) container.style.position = 'relative';
         const overlay = document.createElement('div');
         overlay.className = 'chart-empty-state';
-        overlay.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;color:#6b7280;text-align:center;padding:2rem;';
+        overlay.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#6b7280;text-align:center;padding:2rem;';
         overlay.innerHTML = `
             <i class="fas fa-chart-line" style="font-size:2.5rem;opacity:0.3;margin-bottom:1rem;"></i>
             <p style="font-size:1rem;font-weight:600;margin:0;">${title}</p>
