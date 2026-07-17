@@ -102,8 +102,15 @@ def build_task(typology, allow_submit):
 def _ask_openai(messages, key):
     import openai
     client = openai.OpenAI(api_key=key)
-    r = client.chat.completions.create(
-        model=_model_for("chatgpt"), messages=messages, temperature=0, max_tokens=400)
+    model = _model_for("chatgpt")
+    # GPT-5.x usa max_completion_tokens y no admite temperature; GPT-4o usa max_tokens
+    params = {"model": model, "messages": messages}
+    if model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3"):
+        params["max_completion_tokens"] = 600
+    else:
+        params["max_tokens"] = 400
+        params["temperature"] = 0
+    r = client.chat.completions.create(**params)
     return r.choices[0].message.content
 
 
