@@ -812,9 +812,17 @@ def run_c6(ctx):
         ev += " Detalle y registro de pasos en la pestaña Evidencias."
         out.append(R("6.3", "C6", "Tarea completada por un agente real", score, ev))
     else:
+        # el mensaje cambia si el usuario YA las pidió: decirle "actívalas"
+        # cuando acaba de activarlas seria desconcertante
+        if ctx.get("agentes_pendientes"):
+            ev_63 = ("Pendiente de ejecutar: pulsa «Simular agentes» en el informe. "
+                     "Corre en segundo plano (10-15 min) y al terminar actualiza este "
+                     "check y la puntuacion global sin repetir el resto del analisis")
+        else:
+            ev_63 = ("No ejecutado (activar 'Pruebas agenticas' en el analisis, o hacerlo "
+                     "manual con Operator/Claude)")
         out.append(R("6.3", "C6", "Tarea completada por un agente real", None,
-                     "No ejecutado (activar 'Pruebas agénticas' en el análisis, o hacerlo manual con Operator/Claude)",
-                     manual=True))
+                     ev_63, manual=True))
 
     # 6.4 autenticacion operable por un agente. Jerarquia: OAuth delegado (el
     # agente actua en nombre del usuario SIN manejar su contrasena) > formulario

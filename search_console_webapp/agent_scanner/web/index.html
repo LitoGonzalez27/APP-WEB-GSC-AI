@@ -387,7 +387,10 @@ summary:hover{color:var(--text-2)}
           <div class="d">ChatGPT, Gemini y Claude pilotan un navegador real e intentan una tarea
           en tu web y en la de los competidores (carrito→checkout con datos rellenos /
           formulario / plan más barato). <b>Nunca se paga ni se crean cuentas</b>: los campos
-          de tarjeta están bloqueados por código. +10-15 min.</div></div>
+          de tarjeta están bloqueados por código.<br>
+          <b style="color:var(--acc)">No frena el análisis</b>: al activarlo aparecerá un botón
+          «Simular agentes» en el informe, y podrás lanzarlo cuando quieras mientras
+          consultas el resto de métricas.</div></div>
           <label class="switch"><input type="checkbox" id="opt-agents"><i></i></label></div>
         <div class="switch-row" id="row-reps" style="display:none"><div><div class="t">Intentos por agente</div>
           <div class="d">Los agentes LLM no son deterministas: repetir la tarea distingue
@@ -443,6 +446,8 @@ summary:hover{color:var(--text-2)}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="ghost-btn" onclick="location.href='/app'">← Volver al dashboard</button>
+        <button class="ghost-btn" id="btnAgents" style="display:none;border-color:var(--acc);
+          color:var(--acc)">🤖 Simular agentes</button>
         <button class="ghost-btn dl" id="dlPdf">⤓ Informe PDF</button>
         <button class="ghost-btn dl" id="dlJson">⤓ JSON completo</button>
         <button class="ghost-btn" onclick="location.href='/agent/'">Nuevo análisis</button>
@@ -1175,6 +1180,80 @@ document.addEventListener("click",e=>{
   const j=e.target.closest("#dlJson");if(j){download("json",j)}
 });
 
+/* ---------- simulación agéntica bajo demanda ----------
+   El 6.3 es con diferencia lo más lento (10-15 min) y bloqueaba la lectura del
+   panel. Ahora el análisis de factores termina primero y los agentes se lanzan
+   desde aquí, en segundo plano, sin frenar el trabajo. */
+let AGENTS_POLL=null;
+function pintarBotonAgentes(d){
+  const b=$("#btnAgents"),ag=d.agentes||{};
+  if(!b)return;
+  if(!ag.solicitados){b.style.display="none";return}
+  b.style.display="inline-block";
+  const est=ag.estado;
+  if(est==="corriendo"){
+    b.disabled=true;b.textContent="🤖 Simulando agentes…";
+    b.style.opacity=".7";arrancarPollAgentes(d);
+  }else if(est==="completado"){
+    b.disabled=true;b.style.opacity=".7";
+    b.textContent="✓ Agentes simulados";b.style.borderColor="var(--ok)";
+    b.style.color="var(--ok)";
+  }else if(est==="error"){
+    b.disabled=false;b.style.opacity="1";b.textContent="🤖 Reintentar simulación";
+    b.style.borderColor="var(--bad)";b.style.color="var(--bad)";
+  }else{
+    b.disabled=false;b.style.opacity="1";b.textContent="🤖 Simular agentes";
+  }
+  b.onclick=async()=>{
+    if(b.disabled)return;
+    b.disabled=true;b.style.opacity=".7";b.textContent="🤖 Lanzando…";
+    const r=await fetch("/agent/api/agents/"+CURRENT_JOB,{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));
+      alert(e.error||"No se pudo lanzar la simulación");
+      b.disabled=false;b.style.opacity="1";b.textContent="🤖 Simular agentes";return}
+    d.agentes.estado="corriendo";pintarBotonAgentes(d);
+  };
+}
+function bannerAgentes(txt,estado){
+  let el=$("#agentsBanner");
+  if(!el){el=document.createElement("div");el.id="agentsBanner";
+    el.className="panel";el.style.cssText="margin:0 0 16px;border-left:4px solid var(--acc)";
+    const cont=$("#panes");cont.parentNode.insertBefore(el,cont);}
+  const col=estado==="error"?"var(--bad)":estado==="done"?"var(--ok)":"var(--acc)";
+  el.style.borderLeftColor=col;
+  el.innerHTML=`<div style="font-size:.9rem;color:var(--text-2)">${txt}</div>`;
+}
+function arrancarPollAgentes(d){
+  if(AGENTS_POLL)return;
+  AGENTS_POLL=setInterval(async()=>{
+    let s;try{s=await(await fetch("/agent/api/agents/"+CURRENT_JOB+"/status")).json()}
+    catch(e){return}
+    if(s.status==="running"){
+      const m=Math.floor((s.elapsed||0)/60),seg=(s.elapsed||0)%60;
+      bannerAgentes(`<b style="color:var(--acc)">🤖 ${esc(s.phase||"Simulando agentes…")}</b>
+        · ${m}m ${seg}s · puedes seguir usando el informe mientras tanto.
+        <span style="color:var(--text-3)">${esc((s.log||[]).slice(-1)[0]||"")}</span>`,"running");
+      return;
+    }
+    clearInterval(AGENTS_POLL);AGENTS_POLL=null;
+    if(s.status==="error"){
+      bannerAgentes(`<b style="color:var(--bad)">La simulación agéntica falló:</b>
+        ${esc(s.error||"error desconocido")}`,"error");
+      d.agentes.estado="error";pintarBotonAgentes(d);return;
+    }
+    if(s.status==="done"){
+      // el informe se recarga con las puntuaciones ya recalculadas
+      const rr=await fetch("/agent/api/result/"+CURRENT_JOB);
+      const nuevo=await rr.json();
+      renderReport(nuevo,null,CURRENT_JOB);
+      bannerAgentes(`<b style="color:var(--ok)">✓ Simulación agéntica completada.</b>
+        El check 6.3 y la puntuación global están actualizados. El detalle paso a
+        paso de cada agente está en la pestaña <b>Evidencias</b>.`,"done");
+    }
+  },4000);
+}
+
 function renderReport(d,outdir,jobId){
   show("#view-report");
   if(jobId)CURRENT_JOB=jobId;
@@ -1196,6 +1275,7 @@ function renderReport(d,outdir,jobId){
     b.classList.add("active");$("#pane-"+b.dataset.i).classList.add("active");
     window.scrollTo({top:0,behavior:"auto"});
   });
+  pintarBotonAgentes(d);
 }
 </script>
 </body>

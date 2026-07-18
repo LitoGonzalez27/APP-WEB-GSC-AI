@@ -584,11 +584,14 @@ def _degradar_si_bloqueado(results, ctx):
 
 def audit_domain(base, typology_override=None, skip_render=False, with_psi=False,
                  categories=None, with_agents=False, allow_submit=False,
-                 check_ids=None, agent_repeticiones=3):
+                 check_ids=None, agent_repeticiones=3, agentes_pendientes=False):
     """Audita un dominio y devuelve el dict de resultados (apto para JSON/UI)."""
     base = discovery.normalize(base)
     assert_public_url(base)  # anti-SSRF antes de nada
     ctx = gather_context(base, typology_override, skip_render, with_psi)
+    # las pruebas agenticas se lanzan aparte desde el informe: el check 6.3 lo
+    # dice asi en vez de pedir que se active algo que ya esta activado
+    ctx["agentes_pendientes"] = bool(agentes_pendientes) and not with_agents
 
     if with_agents:
         _log("pruebas agénticas reales (varios minutos)…")

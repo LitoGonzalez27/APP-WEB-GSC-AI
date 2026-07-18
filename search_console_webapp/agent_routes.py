@@ -79,17 +79,11 @@ def _run_job(job_id, urls, opts):
                     with_psi=opts.get("psi", False),
                     categories=cats or None,
                     check_ids=set(opts.get("checks") or []) or None,
-                    # Los agentes corren también en competidores (comparativa
-                    # real del flujo), pero el ENVÍO de formularios queda
-                    # reservado al dominio del cliente: es el único donde hay
-                    # autorización expresa. En competidores el agente rellena
-                    # y se detiene ante el botón.
-                    with_agents=bool(opts.get("agents")),
-                    allow_submit=bool(opts.get("allow_submit")) and i == 0,
-                    # rigor completo en el cliente, una pasada en competidores:
-                    # la consistencia importa donde se toman las decisiones, y
-                    # así el análisis no triplica coste ni tiempo
-                    agent_repeticiones=(int(opts.get("agent_reps") or 3) if i == 0 else 1))
+                    # Las pruebas agénticas NO corren aquí: son con diferencia lo
+                    # más lento (10-15 min) y bloqueaban la lectura del panel.
+                    # Se lanzan aparte desde el informe con "Simular agentes".
+                    with_agents=False,
+                    agentes_pendientes=bool(opts.get("agents")))
                 audits.append(a)
                 job["domains"][i].update(state="done", score=a["score"],
                                          emoji=a["level"]["emoji"], level=a["level"]["name"])
@@ -101,6 +95,13 @@ def _run_job(job_id, urls, opts):
             "client": audits[0],
             "competitors": audits[1:],
             "framework_version": "2.0 (agent_scanner en clicandseo)",
+            # el informe usa esto para ofrecer el botón "Simular agentes"
+            "agentes": {
+                "solicitados": bool(opts.get("agents")),
+                "estado": "pendiente" if opts.get("agents") else "desactivadas",
+                "allow_submit": bool(opts.get("allow_submit")),
+                "repeticiones": int(opts.get("agent_reps") or 3),
+            },
         }
         if "error" in audits[0]:
             job["status"] = "error"
@@ -116,6 +117,114 @@ def _run_job(job_id, urls, opts):
     finally:
         from agent_scanner import engine
         engine.LOG_SINK = None
+
+
+def _aplicar_agentes(audit, agent_tests):
+    """Integra el resultado agéntico en una auditoría YA calculada.
+
+    Como el análisis base no guarda el contexto (sería muy pesado en memoria),
+    se reconstruye solo lo que el check 6.3 necesita, se sustituye ese check y
+    se recalcula la puntuación con el mismo scoring del motor. Así el panel
+    refleja los agentes sin repetir las tres horas de sondas.
+    """
+    from agent_scanner import checks as checks_mod, scoring
+    from agent_scanner.knowledge import advice_for
+
+    ctx = {"agent_tests": agent_tests, "wellknown": {}, "home": {"body": ""},
+           "pages": [], "login_probe": {"found": False}}
+    nuevo = next(c for c in checks_mod.run_c6(ctx) if c["id"] == "6.3")
+    if nuevo["score"] is not None and nuevo["score"] < 1:
+        nuevo["advice"] = advice_for("6.3")
+
+    audit["checks"] = [nuevo if c["id"] == "6.3" else c for c in audit["checks"]]
+    total, cat_scores, weights = scoring.total_score(audit["checks"], audit["typology"])
+    adjusted, penalties = scoring.apply_governance_gate(
+        total, audit["checks"], audit["typology"])
+    audit.update({
+        "score": adjusted, "score_pre_gate": total, "penalties": penalties,
+        "level": scoring.level_for(adjusted), "category_scores": cat_scores,
+        "category_weights": {k: round(v, 1) for k, v in weights.items()},
+        "agent_tests": agent_tests,
+    })
+    return audit
+
+
+def _run_agents_job(job_id, opts):
+    """Segunda fase: solo las pruebas agénticas, sobre un análisis ya hecho."""
+    job = _JOBS[job_id]
+    data = job["result"]
+    try:
+        from agent_scanner import engine
+        from agent_scanner.agents import run_agent_tests
+        engine.LOG_SINK = job["log"]
+        dominios = [data["client"]] + [c for c in data["competitors"] if "error" not in c]
+        for i, audit in enumerate(dominios):
+            host = audit.get("host", "?")
+            job["agents_phase"] = f"Simulando agentes en {host}"
+            job["log"].append(f"agentes en {host}…")
+            try:
+                at = run_agent_tests(
+                    audit["domain"], audit["typology"],
+                    # el envío real solo en el dominio del cliente (i == 0)
+                    allow_submit=bool(opts.get("allow_submit")) and i == 0,
+                    log=job["log"],
+                    # rigor completo en el cliente, una pasada en competidores
+                    repeticiones=(int(opts.get("agent_reps") or 3) if i == 0 else 1))
+                _aplicar_agentes(audit, at)
+                job["log"].append(f"  {host}: agentes completados")
+            except Exception as exc:
+                logger.warning(f"agentes fallaron en {host}: {exc}")
+                job["log"].append(f"  {host}: fallo en agentes ({str(exc)[:80]})")
+        data["agentes"]["estado"] = "completado"
+        job["agents_status"] = "done"
+        job["agents_phase"] = "Simulación agéntica completada"
+    except Exception as exc:
+        logger.exception("Fallo en la simulación agéntica")
+        job["agents_status"] = "error"
+        job["agents_error"] = str(exc)[:300]
+        if data.get("agentes"):
+            data["agentes"]["estado"] = "error"
+    finally:
+        from agent_scanner import engine
+        engine.LOG_SINK = None
+
+
+@agent_bp.route("/api/agents/<job_id>", methods=["POST"])
+@agent_access_required
+def run_agents(job_id):
+    """Lanza la simulación agéntica sobre un análisis ya terminado."""
+    job = _JOBS.get(job_id)
+    if not job or not job.get("result"):
+        return jsonify({"error": "análisis desconocido o sin resultado"}), 404
+    if job.get("agents_status") == "running":
+        return jsonify({"error": "la simulación ya está en curso"}), 409
+    with _JOBS_LOCK:
+        if any(j.get("agents_status") == "running" for j in _JOBS.values()):
+            return jsonify({"error": "Ya hay una simulación agéntica en curso"}), 409
+    payload = request.get_json(silent=True) or {}
+    solicitado = job["result"].get("agentes") or {}
+    opts = {"allow_submit": payload.get("allow_submit", solicitado.get("allow_submit")),
+            "agent_reps": payload.get("agent_reps", solicitado.get("repeticiones", 3))}
+    job.update(agents_status="running", agents_phase="Preparando agentes…",
+               agents_error=None, agents_started=time.time())
+    job["result"]["agentes"]["estado"] = "corriendo"
+    threading.Thread(target=_run_agents_job, args=(job_id, opts), daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@agent_bp.route("/api/agents/<job_id>/status")
+@agent_access_required
+def agents_status(job_id):
+    job = _JOBS.get(job_id)
+    if not job:
+        return jsonify({"error": "análisis desconocido"}), 404
+    return jsonify({
+        "status": job.get("agents_status", "idle"),
+        "phase": job.get("agents_phase", ""),
+        "error": job.get("agents_error"),
+        "log": job["log"][-25:],
+        "elapsed": round(time.time() - job["agents_started"]) if job.get("agents_started") else 0,
+    })
 
 
 @agent_bp.route("/")
