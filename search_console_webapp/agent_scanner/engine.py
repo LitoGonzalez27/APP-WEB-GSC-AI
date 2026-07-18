@@ -226,7 +226,8 @@ CAT_NAMES = {
 
 
 def audit_domain(base, typology_override=None, skip_render=False, with_psi=False,
-                 categories=None, with_agents=False, allow_submit=False):
+                 categories=None, with_agents=False, allow_submit=False,
+                 check_ids=None):
     """Audita un dominio y devuelve el dict de resultados (apto para JSON/UI)."""
     base = discovery.normalize(base)
     assert_public_url(base)  # anti-SSRF antes de nada
@@ -256,6 +257,8 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
     results = checks_mod.run_all(ctx)
     if categories:
         results = [r for r in results if r["cat"] in categories]
+    if check_ids:
+        results = [r for r in results if r["id"] in check_ids]
 
     total, cat_scores, weights = scoring.total_score(results, ctx["typology"])
     adjusted, penalties = scoring.apply_governance_gate(total, results, ctx["typology"])

@@ -78,6 +78,7 @@ def _run_job(job_id, urls, opts):
                     skip_render=not opts.get("render", True),
                     with_psi=opts.get("psi", False),
                     categories=cats or None,
+                    check_ids=set(opts.get("checks") or []) or None,
                     with_agents=bool(opts.get("agents")) and i == 0,
                     allow_submit=bool(opts.get("allow_submit")) and i == 0)
                 audits.append(a)
@@ -215,6 +216,14 @@ def report_json(job_id):
     body = _json.dumps(payload, ensure_ascii=False, indent=2)
     return Response(body, mimetype="application/json", headers={
         "Content-Disposition": f'attachment; filename="agent-readiness_{host}_{fecha}.json"'})
+
+
+@agent_bp.route("/api/catalog")
+@agent_access_required
+def catalog():
+    """Catálogo de factores analizados (para el selector del formulario)."""
+    from agent_scanner.catalog import as_dict
+    return jsonify({"categorias": as_dict()})
 
 
 @agent_bp.route("/api/me")
