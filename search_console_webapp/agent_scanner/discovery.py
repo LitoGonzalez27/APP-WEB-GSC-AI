@@ -65,6 +65,19 @@ SAAS_WEAK = {
 }
 
 
+# Una FICHA de producto termina en el slug del producto: /productos/<slug>.
+# "/productos/" a media ruta suele ser una sección informativa jerárquica —
+# administracion.gob.es tiene 45 URLs tipo
+# /empresas/productos/normas-especificaciones/productos-industriales y salía
+# clasificada como e-commerce. Exigir que el slug sea el ÚLTIMO tramo separa
+# el catálogo real del contenido que habla "de productos".
+_FICHA_URL_RE = re.compile(
+    r"/(?:productos?|products?|p)/[^/?#]+/?$"
+    r"|/(?:comprar|buy)-[^/?#]+/?$"
+    r"|-p-\d+/?$"
+    r"|/dp/[^/?#]+/?$", re.I)
+
+
 def _hits(patterns, corpus):
     """Devuelve el conjunto de señales DISTINTAS que aparecen (no repeticiones)."""
     return {name for name, pat in patterns.items() if re.search(pat, corpus, re.I)}
@@ -311,8 +324,7 @@ def detect_typology(home_html, all_urls):
 
     # Señal estructural: muchas URLs con patrón de ficha de producto en el sitemap.
     # Un catálogo grande es evidencia fuerte de e-commerce aunque la home sea JS.
-    prod_urls = sum(1 for u in all_urls if re.search(
-        r"/(productos?|products?|p)/|/(comprar|buy)-|-p-\d+|/dp/", u, re.I))
+    prod_urls = sum(1 for u in all_urls if _FICHA_URL_RE.search(u))
     if prod_urls >= 20:
         e_s = e_s | {f"catalogo_urls_producto({prod_urls})"}
 

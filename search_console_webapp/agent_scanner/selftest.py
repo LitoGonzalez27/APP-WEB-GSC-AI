@@ -79,6 +79,23 @@ def test_tipologia_catalogo_shopify():
     t("tipologia_catalogo_shopify", typ == "ecommerce", f"obtenido {typ}")
 
 
+def test_catalogo_vs_seccion_informativa():
+    """Bug: administracion.gob.es salía e-commerce por 45 URLs tipo
+    /empresas/productos/normas-especificaciones/productos-industriales —
+    contenido que HABLA de productos, no un catálogo."""
+    gob = [f"https://x.gob.es/empresas/productos/normas-especificaciones/sector-{i}"
+           for i in range(45)]
+    typ, ev = discovery.detect_typology("Portal de la administracion", gob)
+    t("gob_no_es_tienda", typ != "ecommerce", f"obtenido {typ}")
+    t("gob_sin_senal_catalogo",
+      not any("catalogo_urls" in s for s in ev["ecommerce"]["fuertes"]),
+      str(ev["ecommerce"]["fuertes"]))
+    # fichas reales (el slug es el último tramo) sí son catálogo
+    tienda = [f"https://x.es/productos/jamon-iberico-{i}" for i in range(25)]
+    typ, _ = discovery.detect_typology("", tienda)
+    t("catalogo_real", typ == "ecommerce", f"obtenido {typ}")
+
+
 def test_tipologia_jerga_pagos_no_es_tienda():
     """Bug: stripe.com salía e-commerce por hablar de checkout/add-to-cart y
     mencionar WooCommerce/Shopify como CLIENTES (prosa, no assets)."""
