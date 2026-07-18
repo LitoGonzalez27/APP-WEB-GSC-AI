@@ -368,7 +368,7 @@ summary:hover{color:var(--text-2)}
 
       <details class="factors" id="factorsBox">
         <summary>
-          <span>Ver los <b id="facCount">35</b> factores que analizamos</span>
+          <span>Ver los <b id="facCount">40</b> factores que analizamos</span>
           <span class="fac-actions">
             <button type="button" class="mini" id="facAll">Marcar todos</button>
             <button type="button" class="mini" id="facNone">Desmarcar todos</button>
@@ -387,6 +387,15 @@ summary:hover{color:var(--text-2)}
           <div class="d">ChatGPT, Gemini y Claude pilotan un navegador real e intentan una tarea
           en tu web (carrito→checkout / formulario / plan más barato). Solo dominio cliente. +5-10 min.</div></div>
           <label class="switch"><input type="checkbox" id="opt-agents"><i></i></label></div>
+        <div class="switch-row" id="row-reps" style="display:none"><div><div class="t">Intentos por agente</div>
+          <div class="d">Los agentes LLM no son deterministas: repetir la tarea distingue
+          <b>«la web funciona»</b> de <b>«esa vez tuvo suerte»</b>. Cada intento extra suma tiempo.</div></div>
+          <select id="opt-reps" style="background:var(--bg-2);color:var(--text-1);border:1px solid var(--line);
+            border-radius:8px;padding:7px 10px;font-size:.85rem">
+            <option value="1">1 (rápido, sin medir consistencia)</option>
+            <option value="3" selected>3 (recomendado)</option>
+            <option value="5">5 (máximo rigor, muy lento)</option>
+          </select></div>
         <div class="switch-row" id="row-submit" style="display:none"><div><div class="t">Autorizo el envío de formularios de prueba</div>
           <div class="d">Solo en tu dominio y con tu permiso. Nunca en competidores, nunca pagos, nunca cuentas.</div></div>
           <label class="switch"><input type="checkbox" id="opt-submit"><i></i></label></div>
@@ -508,6 +517,7 @@ $("#cats").innerHTML=Object.entries(CATS).map(([k,v])=>
   `<label class="chip-check"><input type="checkbox" value="${k}" checked><span>${k} · ${v}</span></label>`).join("");
 $("#opt-agents").addEventListener("change",e=>{
   $("#row-submit").style.display=e.target.checked?"flex":"none";
+  $("#row-reps").style.display=e.target.checked?"flex":"none";
   if(!e.target.checked)$("#opt-submit").checked=false;
 });
 
@@ -574,7 +584,8 @@ $("#go").addEventListener("click",async()=>{
   if(!cats.length){$("#err").textContent="Marca al menos un factor o categoría a analizar.";return}
   $("#go").disabled=true;$("#err").textContent="";
   const payload={urls,cats,checks,render:$("#opt-render").checked,type:$("#typ").value||null,
-    agents:$("#opt-agents").checked,allow_submit:$("#opt-agents").checked&&$("#opt-submit").checked};
+    agents:$("#opt-agents").checked,allow_submit:$("#opt-agents").checked&&$("#opt-submit").checked,
+    agent_reps:parseInt($("#opt-reps").value||"3",10)};
   try{
     const r=await fetch("/agent/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     const j=await r.json();
@@ -738,7 +749,18 @@ function paneResumen(d){
   const c=d.client,col=LVL[c.level.emoji]||"#94A3B8";
   const pens=(c.penalties||[]).map(p=>`<div class="pen">⚠ ${esc(p[0])} (${p[1]})</div>`).join("");
   const qw=c.checks.filter(x=>x.advice&&x.advice.esfuerzo==="Bajo"&&(IMPORD[x.advice.impacto]??3)<=2&&x.score<1);
-  return `<div class="score-grid">
+  // Si el sitio nos bloqueó, la puntuación NO se puede entregar como buena.
+  // Avisar arriba del todo es más importante que la estética del panel.
+  const deg=c.acceso_degradado;
+  const aviso=(c.score_fiable===false&&deg)?`<div class="panel sec" style="margin-bottom:18px;
+    border-left:4px solid var(--bad);background:rgba(240,110,110,.07)">
+    <div style="font-weight:700;color:var(--bad);margin-bottom:6px">
+      ⚠ Puntuación NO fiable — no entregar este informe</div>
+    <div style="font-size:.88rem;color:var(--text-2)">${esc(deg.motivo)}.
+    Se han marcado <b>${deg.degradados}</b> factores como «no verificable» en vez de
+    contarlos como fallo, porque no hemos podido comprobarlos. Repite el análisis más
+    tarde o desde otra red antes de usar estos datos.</div></div>`:"";
+  return aviso+`<div class="score-grid">
     <div class="panel" style="text-align:center">
       <div class="label">Puntuación global</div>
       ${gaugeSVG(c.score,col)}
@@ -952,7 +974,21 @@ function paneEvidencias(d){
       Cada agente LLM controla un navegador real e intenta completarla; nunca se pagan compras ni se crean cuentas.</p>
       ${Object.entries(at.agents).map(([name,r])=>{
         const col=r.outcome==="conseguido"?"var(--ok)":r.outcome==="conseguido_con_friccion"?"#F5D76E"
+          :r.outcome==="inconsistente"?"#E8A33D"
           :r.outcome==="no_disponible"?"var(--text-3)":"var(--bad)";
+        // consistencia entre intentos: lo que distingue "funciona" de "tuvo suerte"
+        let cons="";
+        if(r.intentos>1){
+          cons=`<div style="margin-top:7px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+            <span style="font-size:.72rem;color:var(--text-3)">Consistencia:</span>
+            ${(r.runs||[]).map((x,i)=>{const okr=String(x.outcome||"").startsWith("conseguido");
+              return`<span title="Intento ${i+1}: ${esc(x.outcome||"?")}"
+                style="width:19px;height:19px;border-radius:5px;display:inline-flex;align-items:center;
+                justify-content:center;font-size:.66rem;font-weight:700;
+                background:${okr?"rgba(216,249,184,.16)":"rgba(240,110,110,.16)"};
+                color:${okr?"var(--ok)":"var(--bad)"}">${okr?"✓":"✕"}</span>`}).join("")}
+            <b style="font-size:.75rem;color:${col}">${r.exitos}/${r.intentos} intentos</b></div>`;
+        }
         const p=r.progreso||{};
         // recorrido por hitos: dónde llega el agente y dónde se atasca exactamente
         let ruta="";
@@ -974,6 +1010,7 @@ function paneEvidencias(d){
         <b style="color:${col}">${esc(name)}: ${esc((r.outcome||"?").replace(/_/g," "))}</b>
         ${r.steps?` · ${r.steps} pasos`:""}
         <div style="font-size:.85rem;color:var(--text-2);margin-top:4px">${esc(r.detail||"")}</div>
+        ${cons}
         ${ruta}
         ${r.action_log&&r.action_log.length?`<details><summary>registro de acciones del agente</summary>
           <div class="evidence">${r.action_log.map(esc).join("<br>")}</div></details>`:""}</div>`}).join("")}

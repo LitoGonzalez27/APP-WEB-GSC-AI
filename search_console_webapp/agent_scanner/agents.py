@@ -74,7 +74,11 @@ MILESTONES = {
          "html": r"(?i)(mailto:|tel:|\+34[\s\d]{9,})"},
         {"clave": "formulario_relleno", "nombre": "Rellenar el formulario",
          "accion": r"^type "},
+        # Solo se evalúa si el envío está autorizado: si se lo prohibimos
+        # nosotros, marcarlo como "no alcanzado" acusaría a la web de un
+        # atasco que en realidad es una restricción NUESTRA.
         {"clave": "envio", "nombre": "Alcanzar el botón de envío",
+         "requiere_submit": True,
          "accion": r"(?i)(BLOQUEADO env[ií]o|click.*(enviar|send|submit))"},
     ],
     "saas": [
@@ -93,9 +97,15 @@ SUBMIT_OK = "Cuando esté relleno, envíalo con el botón de enviar."
 SUBMIT_NO = "Cuando esté relleno, marca la tarea como terminada SIN pulsar enviar."
 
 
-def _check_milestones(typology, reached, url, html, last_action):
+def hitos_aplicables(typology, allow_submit):
+    """Hitos que SÍ se pueden evaluar según la política de la prueba."""
+    return [m for m in MILESTONES.get(typology, [])
+            if allow_submit or not m.get("requiere_submit")]
+
+
+def _check_milestones(hitos, reached, url, html, last_action):
     """Marca hitos recién alcanzados con la evidencia que los prueba."""
-    for m in MILESTONES.get(typology, []):
+    for m in hitos:
         if m["clave"] in reached:
             continue
         if m.get("url") and re.search(m["url"], url or "", re.I):
@@ -210,13 +220,15 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
     from playwright.sync_api import sync_playwright
     steps, frictions, outcome = [], [], "no_conseguido"
     reached = {}
-    total_hitos = len(MILESTONES.get(typology, []))
+    hitos = hitos_aplicables(typology, allow_submit)
+    total_hitos = len(hitos)
+    omitidos = [m["nombre"] for m in MILESTONES.get(typology, []) if m not in hitos]
 
     def _progress():
         return {"alcanzados": len(reached), "total": total_hitos,
                 "hitos": [{"clave": k, **v} for k, v in reached.items()],
-                "pendientes": [m["nombre"] for m in MILESTONES.get(typology, [])
-                               if m["clave"] not in reached]}
+                "pendientes": [m["nombre"] for m in hitos if m["clave"] not in reached],
+                "no_evaluados": omitidos}
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -237,7 +249,7 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                 elements = []
             # evidencia de hitos ANTES de decidir el siguiente paso
             try:
-                _check_milestones(typology, reached, page.url, page.content(),
+                _check_milestones(hitos, reached, page.url, page.content(),
                                   steps[-1] if steps else None)
             except Exception:
                 pass
@@ -296,7 +308,7 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                 frictions.append(f"el elemento '{label[:40]}' no respondió")
             # el hito puede consumarse por la acción recién ejecutada
             try:
-                _check_milestones(typology, reached, page.url, page.content(),
+                _check_milestones(hitos, reached, page.url, page.content(),
                                   steps[-1] if steps else None)
             except Exception:
                 pass
@@ -315,27 +327,79 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
             "action_log": steps[:25], "progreso": prog}
 
 
+def _aggregate(runs):
+    """Resume N intentos del mismo agente. La CONSISTENCIA es el dato clave:
+    un agente LLM es estocástico, así que una sola pasada no prueba nada. Que
+    una web funcione 1 de cada 3 veces no es 'funciona': es un hallazgo."""
+    validos = [r for r in runs if r.get("outcome") not in ("error", None)]
+    if not validos:
+        return {"outcome": "error", "intentos": len(runs),
+                "detail": (runs[0].get("detail") if runs else "sin ejecuciones"),
+                "runs": runs}
+    exitos = [r for r in validos if str(r["outcome"]).startswith("conseguido")]
+    limpios = [r for r in validos if r["outcome"] == "conseguido"]
+    n = len(validos)
+    if len(exitos) == n:
+        outcome = "conseguido" if len(limpios) == n else "conseguido_con_friccion"
+    elif exitos:
+        outcome = "inconsistente"
+    else:
+        outcome = "no_conseguido"
+    progs = [r.get("progreso") or {} for r in validos]
+    ratios = [p["alcanzados"] / p["total"] for p in progs if p.get("total")]
+    mejor = max(validos, key=lambda r: (r.get("progreso") or {}).get("alcanzados", 0))
+    detail = f"{len(exitos)}/{n} intentos con éxito"
+    if ratios:
+        detail += f" · recorrido medio {sum(ratios)/len(ratios):.0%}"
+    if outcome == "inconsistente":
+        detail += (". LA WEB FUNCIONA A VECES: para un agente esto es peor que un fallo "
+                   "claro, porque el resultado no es predecible")
+    detail += ". " + (mejor.get("detail") or "")
+    return {"outcome": outcome, "intentos": n, "exitos": len(exitos),
+            "consistencia": round(len(exitos) / n, 2),
+            "steps": mejor.get("steps"), "detail": detail[:700],
+            "progreso": mejor.get("progreso"), "action_log": mejor.get("action_log"),
+            "runs": [{"outcome": r.get("outcome"), "steps": r.get("steps"),
+                      "alcanzados": (r.get("progreso") or {}).get("alcanzados")}
+                     for r in runs]}
+
+
 def run_agent_tests(url, typology, providers=("chatgpt", "gemini", "claude"),
-                    allow_submit=False, log=None):
-    """Ejecuta la tarea con cada proveedor disponible. Devuelve dict de resultados."""
+                    allow_submit=False, log=None, repeticiones=3):
+    """Ejecuta la tarea con cada proveedor disponible, N veces cada uno.
+
+    Las repeticiones existen por rigor, no por exceso: los agentes LLM no son
+    deterministas y una única pasada no distingue "la web funciona" de "esa vez
+    tuvo suerte".
+    """
     def _log(m):
         if log is not None:
             log.append(m)
     task = build_task(typology, allow_submit)
+    reps = max(1, min(int(repeticiones or 1), 5))
     agents = {}
     for prov in providers:
         key = get_key(_KEY_NAMES[prov])
         if not key:
             agents[prov] = {"outcome": "no_disponible", "detail": f"sin API key de {prov}"}
             continue
-        _log(f"agente {prov} intentando la tarea…")
-        try:
-            agents[prov] = _browser_task(url, task, _ADAPTERS[prov], key,
-                                         allow_submit, typology)
-        except Exception as exc:
-            agents[prov] = {"outcome": "error", "detail": str(exc)[:200]}
-        prog = (agents[prov].get("progreso") or {})
-        _log(f"  {prov}: {agents[prov].get('outcome')}"
-             + (f" ({prog.get('alcanzados')}/{prog.get('total')} hitos)" if prog.get("total") else ""))
+        runs = []
+        for i in range(reps):
+            _log(f"agente {prov} intentando la tarea… (intento {i+1}/{reps})")
+            try:
+                runs.append(_browser_task(url, task, _ADAPTERS[prov], key,
+                                          allow_submit, typology))
+            except Exception as exc:
+                runs.append({"outcome": "error", "detail": str(exc)[:200]})
+            prog = (runs[-1].get("progreso") or {})
+            _log(f"  {prov} #{i+1}: {runs[-1].get('outcome')}"
+                 + (f" ({prog.get('alcanzados')}/{prog.get('total')} hitos)"
+                    if prog.get("total") else ""))
+        agents[prov] = _aggregate(runs)
+        _log(f"  {prov}: {agents[prov]['outcome']} "
+             f"({agents[prov].get('exitos')}/{agents[prov].get('intentos')} intentos)")
     return {"url": url, "typology": typology, "allow_submit": allow_submit,
-            "agents": agents, "hitos_tarea": [m["nombre"] for m in MILESTONES.get(typology, [])]}
+            "repeticiones": reps, "agents": agents,
+            "hitos_tarea": [m["nombre"] for m in hitos_aplicables(typology, allow_submit)],
+            "hitos_no_evaluados": [m["nombre"] for m in MILESTONES.get(typology, [])
+                                   if m.get("requiere_submit") and not allow_submit]}

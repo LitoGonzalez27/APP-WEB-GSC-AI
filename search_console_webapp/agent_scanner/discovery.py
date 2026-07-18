@@ -30,12 +30,15 @@ ECOM_STRONG = {
     "add_to_cart": r'a[ñn]adir al carrito|a[ñn]adir a la cesta|add to cart|comprar ahora',
     "cart_url": r'/(carrito|cart|cesta|checkout)(/|"|\'|\?|$)',
     "ecom_platform": r'woocommerce|cdn\.shopify|shopify\.com|prestashop|magento|bigcommerce|vtex',
-    "schema_offer": r'"@type"\s*:\s*"Offer"|"priceCurrency"',
 }
 ECOM_WEAK = {
     "cart_word": r'\bcarrito\b|\bcesta\b',
     "shop_url": r'/(tienda|shop|store|productos?)(/|"|\'|$)',
     "price_tag": r'\d+[.,]\d{2}\s*(€|EUR)',
+    # Un Offer suelto NO es señal de tienda: lo llevan SoftwareApplication,
+    # Service, Event, Course… La app de BBVA tiene Offer y es un banco.
+    # Solo cuenta como fuerte cuando va acompañado de Product (ver ECOM_STRONG).
+    "schema_offer": r'"@type"\s*:\s*"Offer"|"priceCurrency"',
 }
 SAAS_STRONG = {
     "free_trial": r'prueba gratis|pru[eé]balo gratis|free trial|empieza gratis|start free|comienza gratis',
@@ -59,23 +62,45 @@ def _hits(patterns, corpus):
     return {name for name, pat in patterns.items() if re.search(pat, corpus, re.I)}
 
 
+# Registros que NO son de descubrimiento agéntico aunque respondan en _aid/_agent.
+# Muchos dominios tienen un TXT wildcard (típicamente SPF) que contesta a
+# CUALQUIER subdominio: sin este filtro, hubspot.com daba _aid "encontrado".
+_TXT_RUIDO = re.compile(r"(?i)v=spf1|v=DKIM1|v=DMARC1|google-site-verification|"
+                        r"MS=|facebook-domain-verification|_globalsign|amazonses")
+
+
 def dns_aid(base):
     """DNS for AI Discovery (experimental): registros TXT _aid/_agent.
-    Usa dnspython (portable), con fallback a `dig` si estuviera disponible."""
+
+    Valida el CONTENIDO y descarta wildcards: se consulta un subdominio
+    inventado como control y, si devuelve lo mismo, es un comodín y no un
+    registro real. Detectado en el set de calibración con hubspot.com.
+    """
     host = urlparse(base).netloc.replace("www.", "")
     try:
         import dns.resolver
-        for label in ("_aid.", "_agent."):
-            try:
-                answers = dns.resolver.resolve(label + host, "TXT", lifetime=8)
-                txt = " ".join(r.to_text() for r in answers)
-                if txt:
-                    return f"TXT {label}{host} -> {txt[:120]}"
-            except Exception:
-                continue
-        return None
     except ImportError:
         return None
+
+    def _txt(name):
+        try:
+            answers = dns.resolver.resolve(name, "TXT", lifetime=8)
+            return " ".join(r.to_text() for r in answers).strip()
+        except Exception:
+            return ""
+
+    # control de comodín: un subdominio que no puede existir
+    wildcard = _txt("_control-no-existe-agentready." + host)
+    for label in ("_aid.", "_agent."):
+        txt = _txt(label + host)
+        if not txt:
+            continue
+        if wildcard and txt == wildcard:
+            continue  # comodín DNS, no un registro real
+        if _TXT_RUIDO.search(txt):
+            continue  # SPF/DKIM/verificaciones: no es descubrimiento agéntico
+        return f"TXT {label}{host} -> {txt[:120]}"
+    return None
 
 
 def normalize(url):
@@ -139,9 +164,21 @@ def robots_allows(groups, bot_name, path="/"):
     return verdict
 
 
+# Los sitemaps de All in One SEO (y otros plugins de WordPress) envuelven las
+# URLs en CDATA: <loc><![CDATA[https://…]]></loc>. Sin contemplarlo, el sitemap
+# se leía como vacío y reportábamos "sin sitemap" en webs que sí lo tenían.
+_LOC_RE = re.compile(r"<loc>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)\s*(?:\]\]>)?\s*</loc>", re.I)
+_LASTMOD_RE = re.compile(r"<lastmod>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)\s*(?:\]\]>)?\s*</lastmod>", re.I)
+
+
 def get_sitemap_urls(base, robots, cap=800):
     """Recoge URLs de sitemaps (indices incluidos) hasta `cap`. Tambien lastmods."""
-    candidates = robots["sitemaps"] or [base + "/sitemap.xml", base + "/sitemap_index.xml"]
+    # Las rutas convencionales SIEMPRE se prueban, aunque robots declare otra:
+    # elpozo.com declara un sitemap.rss (que no lleva <loc>) y tiene un
+    # sitemap.xml perfectamente válido que así se nos escapaba.
+    convencionales = [base + "/sitemap.xml", base + "/sitemap_index.xml",
+                      base + "/sitemap-index.xml", base + "/wp-sitemap.xml"]
+    candidates = list(dict.fromkeys((robots["sitemaps"] or []) + convencionales))
     urls, lastmods, seen_maps = [], [], set()
     queue = list(candidates)[:6]
     while queue and len(urls) < cap:
@@ -154,11 +191,11 @@ def get_sitemap_urls(base, robots, cap=800):
             continue
         body = res["body"]
         if "<sitemapindex" in body[:2000]:
-            children = re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", body)
+            children = _LOC_RE.findall(body)
             queue.extend(children[:10])
             continue
-        urls.extend(re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", body))
-        lastmods.extend(re.findall(r"<lastmod>\s*([^<\s]+)\s*</lastmod>", body))
+        urls.extend(_LOC_RE.findall(body))
+        lastmods.extend(_LASTMOD_RE.findall(body))
     host = urlparse(base).netloc.replace("www.", "")
     urls = [u for u in urls if host in urlparse(u).netloc][:cap]
     return {"urls": urls, "lastmods": lastmods, "found": bool(urls)}
@@ -223,8 +260,11 @@ def detect_typology(home_html, all_urls):
         "ecommerce": {"puntos": ecom_score, "fuertes": sorted(e_s), "debiles": sorted(e_w)},
         "saas": {"puntos": saas_score, "fuertes": sorted(s_s), "debiles": sorted(s_w)},
     }
-    # e-commerce: una señal fuerte, o el trío débil completo (carrito + tienda + precios)
-    if (e_s or len(e_w) >= 3) and ecom_score >= saas_score:
+    # e-commerce: una señal fuerte, o el trío débil PERO con carrito de por medio.
+    # Sin carrito no hay tienda: "shop_url + precio + Offer" lo cumple cualquier
+    # web corporativa que venda algo puntual o liste una app con precio.
+    trio_con_carrito = len(e_w) >= 3 and "cart_word" in e_w
+    if (e_s or trio_con_carrito) and ecom_score >= saas_score:
         return "ecommerce", ev
     # saas: exige >=2 señales FUERTES (las débiles las tiene cualquier corporativa)
     if len(s_s) >= 2 and saas_score > ecom_score:

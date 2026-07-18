@@ -41,6 +41,22 @@ def assert_public_url(url):
             raise BlockedURLError(f"destino no público bloqueado: {ip}")
 
 
+# Perfil de cabeceras de un Chrome real. Solo se usa para la línea base humana.
+BROWSER_HEADERS = {
+    "Accept": ("text/html,application/xhtml+xml,application/xml;q=0.9,"
+               "image/avif,image/webp,*/*;q=0.8"),
+    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "sec-ch-ua": '"Chromium";v="126", "Google Chrome";v="126", "Not-A.Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"macOS"',
+}
+
+
 def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public=True):
     """GET con requests. Devuelve dict homogéneo (compatible con el motor)."""
     result = {"status": 0, "body": "", "headers": "", "ttfb": None,
@@ -51,7 +67,15 @@ def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public
         except BlockedURLError as exc:
             result["error"] = str(exc)
             return result
-    hdrs = {"User-Agent": ua, "Accept-Encoding": "gzip, deflate"}
+    hdrs = {"User-Agent": ua, "Accept-Encoding": "gzip, deflate, br"}
+    # La medición de referencia "como un humano" necesita el perfil de cabeceras
+    # completo: WAF tipo Akamai (BBVA, Mango) devuelven 403 a un UA de navegador
+    # que llega sin Sec-Fetch/sec-ch-ua, y entonces reportábamos como "no existe"
+    # cosas que sí existían. Detectado en el set de calibración.
+    # Las peticiones con UA de bot NO llevan esto: un bot real no las envía, y
+    # falsearlo daría una matriz de acceso que no refleja lo que le pasa al bot.
+    if ua == UA_HUMAN:
+        hdrs.update(BROWSER_HEADERS)
     for h in (headers or []):
         if ":" in h:
             k, v = h.split(":", 1)
@@ -81,8 +105,11 @@ def status_only(url, ua=UA_HUMAN, timeout=12, verify_public=True):
             assert_public_url(url)
         except BlockedURLError:
             return 0
+    hdrs = {"User-Agent": ua}
+    if ua == UA_HUMAN:
+        hdrs.update(BROWSER_HEADERS)  # misma línea base que fetch(), o no comparan
     try:
-        resp = _SESSION.get(url, headers={"User-Agent": ua}, timeout=timeout,
+        resp = _SESSION.get(url, headers=hdrs, timeout=timeout,
                             allow_redirects=True, stream=True)
         code = resp.status_code
         resp.close()

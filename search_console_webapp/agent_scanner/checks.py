@@ -98,26 +98,55 @@ def run_c1(ctx):
                                                   "meta-externalagent", "bytespider", "ccbot"])]
     live_blocked = [b for b in ("oai-searchbot", "chatgpt-user", "perplexitybot")
                     if not robots_allows(groups, b)]
+    # Nota maxima solo si se pronuncia sobre los bots QUE IMPORTAN. Nombrar a
+    # un secundario (p.ej. Amazonbot) y callar sobre GPTBot/ClaudeBot no es una
+    # politica: Notion sacaba un 1 sin decir nada de los crawlers relevantes.
+    PRINCIPALES = ("gptbot", "claudebot", "oai-searchbot", "chatgpt-user",
+                   "perplexitybot", "google-extended")
+    principales_nombrados = [ua for ua in groups
+                             if any(b in ua for b in PRINCIPALES)]
     if live_blocked:
         score, ev = 0, f"Bloquea bots de busqueda EN VIVO: {', '.join(live_blocked)} (autoexclusion de respuestas IA)"
+    elif len(principales_nombrados) >= 2:
+        score = 1
+        ev = (f"Politica explicita sobre los bots que importan "
+              f"({len(principales_nombrados)}): {', '.join(principales_nombrados[:6])}")
     elif ai_bots_named:
-        score, ev = 1, f"Politica explicita para {len(ai_bots_named)} bots de IA: {', '.join(ai_bots_named[:6])}"
+        score = 0.5
+        faltan = [b for b in PRINCIPALES
+                  if not any(b in ua for ua in groups)]
+        ev = (f"Solo nombra a {', '.join(ai_bots_named[:4])}, pero NO se pronuncia sobre "
+              f"los crawlers que deciden tu presencia en respuestas de IA "
+              f"({', '.join(faltan[:4])}): decision a medias")
     else:
         score, ev = 0.5, "Sin reglas nominales para bots de IA (todo permitido por defecto, sin decision consciente)"
     out.append(R("1.2", "C1", "Politica de bots de IA", score, ev))
 
     # 1.3 bloqueo declarado vs real (WAF)
     matrix = ctx["bot_matrix"]
+    # Cualquier respuesta que no sea exito ni redireccion normal es un bloqueo.
+    # Antes se listaban codigos concretos y se escapaban los 5xx: un 503 a GPTBot
+    # (bloqueo silencioso muy comun en WAF de hosting) se daba por bueno.
+    # Detectado en el set de calibracion: elpozo.com devolvia GPTBot=503 y el
+    # check decia "todo coincide". Es ademas el peor bloqueo posible: un 503 le
+    # dice al bot "vuelve luego" en vez de "no entres", asi que reintenta siempre.
+    def _bloqueado(code):
+        return code == 0 or code >= 400
+
     mismatches = []
     for bot, code in matrix.items():
         if bot == "_human":
             continue
-        if robots_allows(groups, bot) and code in (401, 403, 406, 429, 0):
+        if robots_allows(groups, bot) and _bloqueado(code):
             mismatches.append(f"{bot}={code}")
     human_ok = matrix.get("_human", 0) == 200
     if mismatches and human_ok:
         score = 0
-        ev = f"robots.txt permite pero el WAF bloquea: {', '.join(mismatches)} (humano=200)"
+        ev = f"robots.txt permite pero el servidor bloquea: {', '.join(mismatches)} (humano=200)"
+        if any(c.endswith(("=503", "=429", "=500", "=502")) for c in mismatches):
+            ev += (". Ademas responde con un error de servidor en vez de un 403: el bot "
+                   "lo interpreta como 'vuelve mas tarde' y reintentara indefinidamente, "
+                   "sin que nadie se entere de que esta bloqueado")
     elif not human_ok:
         score, ev = 0.5, f"Ni el UA humano recibe 200 ({matrix.get('_human')}): WAF muy agresivo, revisar"
     else:
@@ -226,7 +255,12 @@ def run_c2(ctx):
 
 def run_c3(ctx):
     out = []
+    # La HOME cuenta como pagina: es la plantilla mas marcada de casi cualquier
+    # sitio y dejarla fuera daba falsos negativos (el marcado existia y el check
+    # decia que no). Detectado en el set de calibracion contra verificacion manual.
     pages = [p for p in ctx["pages"] if p["fetch"]["status"] == 200]
+    if len(ctx["home"].get("body") or "") > 200:
+        pages = [{"url": ctx["base"], "bucket": "home", "fetch": ctx["home"]}] + pages
     per_page = [(p, *jsonld_blocks(p["fetch"]["body"])) for p in pages]
 
     # 3.1 JSON-LD presente y valido
@@ -402,8 +436,15 @@ def run_c4(ctx):
     # 4.7 zonas de clic operables — medidas en el LAYOUT REAL, no en el HTML.
     # Un agente que pilota un navegador clica por coordenadas: un control de
     # 15px es un fallo de ejecucion aunque el marcado sea perfecto.
-    boxes = (ctx.get("rendered_home") or {}).get("boxes")
-    if not boxes:
+    # Se mide en la home Y en otras plantillas: la home suele ser la pagina mas
+    # cuidada, y medir solo ahi daria un veredicto optimista que no representa
+    # las fichas donde el agente realmente opera.
+    medidas = []
+    if (ctx.get("rendered_home") or {}).get("boxes"):
+        medidas.append(("home", ctx["rendered_home"]["boxes"]))
+    for rp in (ctx.get("rendered_pages") or []):
+        medidas.append((rp["bucket"], rp["boxes"]))
+    if not medidas:
         out.append(R("4.7", "C4", "Zonas de clic operables", None,
                      "Sin geometria de render disponible (requiere backend Playwright): "
                      "no se puede medir el tamano real de los controles", manual=True))
@@ -412,33 +453,48 @@ def run_c4(ctx):
         # Los enlaces en linea dentro de texto corrido quedan fuera: WCAG los
         # exceptua y un agente los acierta sin problema (son anchos). Contarlos
         # inflaria el fallo con falsos positivos.
-        targets = [b for b in boxes if not b.get("inline")]
-        inline_n = len(boxes) - len(targets)
-        if not targets:
-            out.append(R("4.7", "C4", "Zonas de clic operables", None,
-                         f"Solo se detectaron {inline_n} enlaces en linea (exentos de WCAG): "
-                         "sin controles medibles", manual=True))
-        else:
+        per_page, tot_targets, tot_problems, tot_inline = [], 0, 0, 0
+        ejemplos = []
+        for nombre, boxes in medidas:
+            targets = [b for b in boxes if not b.get("inline")]
+            tot_inline += len(boxes) - len(targets)
+            if not targets:
+                continue
             small = [b for b in targets if b["w"] < MIN or b["h"] < MIN]
-            # affordance ambigua: clicable no nativo que ni siquiera cambia el cursor
             ambiguous = [b for b in targets
                          if not b["native"] and b.get("cursor") != "pointer"]
             problems = {id(b) for b in small} | {id(b) for b in ambiguous}
-            ratio_ok = 1 - (len(problems) / len(targets))
+            tot_targets += len(targets)
+            tot_problems += len(problems)
+            per_page.append((nombre, len(targets), len(problems),
+                             1 - len(problems) / len(targets)))
+            ejemplos += [(nombre, b) for b in small[:2]]
+        if not tot_targets:
+            out.append(R("4.7", "C4", "Zonas de clic operables", None,
+                         f"Solo se detectaron {tot_inline} enlaces en linea (exentos de "
+                         "WCAG): sin controles medibles", manual=True))
+        else:
+            ratio_ok = 1 - (tot_problems / tot_targets)
             score = 1 if ratio_ok >= 0.95 else 0.5 if ratio_ok >= 0.8 else 0
-            ev = (f"{len(targets)} controles medidos en el layout real "
-                  f"({inline_n} enlaces en linea excluidos por la excepcion de WCAG): "
-                  f"{ratio_ok:.0%} sin problemas")
-            if small:
-                muestra = ", ".join(f"{b['tag']} {b['w']}x{b['h']}px"
-                                    + (f" ('{b['name'][:30]}')" if b["name"] else "")
-                                    for b in small[:4])
-                ev += (f". {len(small)} por debajo de {MIN}x{MIN}px: {muestra}"
+            desglose = ", ".join(f"{n} {r:.0%} ({t} controles)"
+                                 for n, t, _p, r in per_page)
+            ev = (f"{tot_targets} controles medidos en {len(per_page)} plantilla(s) "
+                  f"[{desglose}] ({tot_inline} enlaces en linea excluidos por la "
+                  f"excepcion de WCAG): {ratio_ok:.0%} sin problemas")
+            if ejemplos:
+                muestra = ", ".join(f"{n}: {b['tag']} {b['w']}x{b['h']}px"
+                                    + (f" ('{b['name'][:28]}')" if b["name"] else "")
+                                    for n, b in ejemplos[:4])
+                ev += (f". Por debajo de {MIN}x{MIN}px: {muestra}"
                        " — un agente que clica por coordenadas falla o pulsa el de al lado")
-            if ambiguous:
-                ev += (f". {len(ambiguous)} elementos clicables no nativos sin "
-                       "cursor:pointer (un agente no los reconoce como accionables)")
-            if not small and not ambiguous:
+            # una plantilla claramente peor que el resto es un hallazgo por si mismo
+            if len(per_page) > 1:
+                peor = min(per_page, key=lambda x: x[3])
+                mejor = max(per_page, key=lambda x: x[3])
+                if mejor[3] - peor[3] >= 0.15:
+                    ev += (f". La plantilla '{peor[0]}' esta notablemente peor que "
+                           f"'{mejor[0]}' ({peor[3]:.0%} vs {mejor[3]:.0%})")
+            if tot_problems == 0:
                 ev += ". Todos los controles son accionables con fiabilidad"
             out.append(R("4.7", "C4", "Zonas de clic operables", score, ev))
 
@@ -572,11 +628,32 @@ def run_c5(ctx):
 
     # (la citacion real en respuestas de IA — el antiguo 5.4 — se mide con Clicandseo)
 
-    # 5.5 llms.txt (higiene, peso bajo)
+    # 5.5 llms.txt (higiene, peso bajo). Se mide CALIDAD, no solo presencia:
+    # un volcado automatico de cientos de KB cumple la letra del estandar y
+    # falla su proposito, que es ser un indice curado.
     llms = ctx["wellknown"].get("/llms.txt", 0)
-    out.append(R("5.5", "C5", "llms.txt (higiene)", 1 if llms == 200 else 0,
-                 "llms.txt presente" if llms == 200
-                 else "Sin llms.txt (peso bajo: el 97% nunca se leen, pero es higiene barata)"))
+    if llms != 200:
+        out.append(R("5.5", "C5", "llms.txt (higiene)", 0,
+                     "Sin llms.txt (peso bajo: el 97% nunca se leen, pero es higiene barata)"))
+    else:
+        m = (ctx.get("wellknown_meta") or {}).get("/llms.txt") or {}
+        kb = (m.get("bytes") or 0) / 1024
+        volcado = kb > 200 or m.get("autogenerado")
+        if volcado:
+            motivos = []
+            if kb > 200:
+                motivos.append(f"{kb:.0f} KB")
+            if m.get("autogenerado"):
+                motivos.append("declara estar generado por un plugin")
+            out.append(R("5.5", "C5", "llms.txt (higiene)", 0.5,
+                         f"llms.txt presente pero parece un volcado automatico "
+                         f"({', '.join(motivos)}, {m.get('enlaces', 0)} enlaces). El estandar "
+                         "pide un indice CURADO que oriente al modelo; un dump de todas las "
+                         "URLs cumple la forma y no la funcion"))
+        else:
+            out.append(R("5.5", "C5", "llms.txt (higiene)", 1,
+                         f"llms.txt presente y con pinta de estar curado "
+                         f"({kb:.0f} KB, {m.get('enlaces', 0)} enlaces)"))
 
     # 5.6 negociacion de contenido Markdown (Accept: text/markdown)
     mdn = ctx.get("md_negotiation") or {}
@@ -666,7 +743,18 @@ def run_c6(ctx):
         progs = [v.get("progreso") or {} for v in valid.values()]
         ratios = [p["alcanzados"] / p["total"] for p in progs if p.get("total")]
         avg = sum(ratios) / len(ratios) if ratios else None
-        if ok == total:
+        # consistencia entre repeticiones: un agente LLM no es determinista, asi
+        # que "funciono una vez" no es evidencia de que la web funcione.
+        consist = [v.get("consistencia") for v in valid.values()
+                   if v.get("consistencia") is not None]
+        tasa = sum(consist) / len(consist) if consist else None
+        inconsistentes = [k for k, v in valid.items() if v["outcome"] == "inconsistente"]
+        if tasa is not None:
+            # el score sale de la tasa real de exito sobre TODOS los intentos
+            score = 1 if tasa >= 0.95 else 0.5 if tasa >= 0.4 else 0
+            if score == 0 and avg is not None and avg >= 0.5:
+                score = 0.5
+        elif ok == total:
             score = 1
         elif (ok + okf) > 0:
             score = 0.5
@@ -676,17 +764,31 @@ def run_c6(ctx):
             score = 0
         per = ", ".join(
             f"{k}: {v['outcome']}"
+            + (f" {v['exitos']}/{v['intentos']}" if v.get("intentos") else "")
             + (f" ({(v.get('progreso') or {}).get('alcanzados')}/"
                f"{(v.get('progreso') or {}).get('total')} pasos)"
                if (v.get("progreso") or {}).get("total") else "")
             for k, v in valid.items())
-        ev = (f"Tarea '{at['typology']}' ejecutada por {total} agente(s) reales — {per}.")
+        reps = at.get("repeticiones")
+        ev = (f"Tarea '{at['typology']}' ejecutada por {total} agente(s) reales"
+              + (f", {reps} intentos cada uno" if reps and reps > 1 else "") + f" — {per}.")
+        if tasa is not None and reps and reps > 1:
+            ev += f" Tasa de exito global: {tasa:.0%}."
+        if inconsistentes:
+            ev += (f" ATENCION: {', '.join(inconsistentes)} completo la tarea solo en "
+                   "algunos intentos. Una web que funciona a veces es, para un agente, "
+                   "peor que una que falla siempre: el resultado no es predecible.")
         if avg is not None:
             ev += f" Recorrido medio: {avg:.0%} de los pasos de la tarea."
         # donde se atascan todos = el cuello de botella real del sitio
         atascos = [p["pendientes"][0] for p in progs if p.get("pendientes")]
         if atascos and len(set(atascos)) == 1 and len(atascos) > 1:
             ev += f" Todos se atascan en el mismo punto: {atascos[0]}."
+        # honestidad: lo que NO evaluamos por politica propia no se cuenta como fallo
+        no_eval = at.get("hitos_no_evaluados") or []
+        if no_eval:
+            ev += (f" No evaluado por politica de la prueba (no por fallo de la web): "
+                   f"{', '.join(no_eval)}.")
         ev += " Detalle y registro de pasos en la pestaña Evidencias."
         out.append(R("6.3", "C6", "Tarea completada por un agente real", score, ev))
     else:
@@ -715,11 +817,13 @@ def run_c6(ctx):
         captcha = bool(re.search(r"(?i)recaptcha|hcaptcha|turnstile", body))
         social = bool(re.search(r"(?i)(sign|log)[ -]?in with (google|apple|microsoft)|"
                                 r"continuar con (google|apple)", body))
+        n_cand = len(lp.get("intentos") or [])
+        via = " (formulario visible solo tras renderizar JS)" if lp.get("via") == "render" else ""
         if not has_pwd:
-            score, ev = (None, f"Area de acceso en {lp['url']} sin formulario de contrasena "
-                               "en el HTML (login renderizado por JS o via terceros): "
-                               "no evaluable automaticamente")
-            out.append(R("6.4", "C6", "Autenticacion operable por agentes", score, ev, manual=True))
+            out.append(R("6.4", "C6", "Autenticacion operable por agentes", None,
+                         f"Probados {n_cand} candidatos de acceso; en {lp['url']} no hay "
+                         "formulario de contrasena ni siquiera tras renderizar (login via "
+                         "terceros o muro externo): no evaluable automaticamente", manual=True))
             return out
         if captcha:
             score = 0
@@ -739,6 +843,7 @@ def run_c6(ctx):
                   "identificar con fiabilidad que campo es cual")
         if social:
             ev += ". Ofrece acceso social (Google/Apple), que anade una capa mas de friccion al agente"
+        ev += f". Evaluado en {lp['url']}{via}"
         out.append(R("6.4", "C6", "Autenticacion operable por agentes", score, ev))
     return out
 
