@@ -227,6 +227,12 @@ def harvest_links(base, home_html, cap=60):
     for href in re.findall(r'href=["\']([^"\'#]+)', home_html or ""):
         if href.startswith(("mailto:", "tel:", "javascript:", "data:")):
             continue
+        # descartar lo que no es una página de contenido: assets y endpoints
+        # internos (wikipedia enlaza /w/load.php en la portada y se muestreaba
+        # ESE fichero como si fuera una página del sitio)
+        if re.search(r"\.(php|json|xml|css|js|rss|atom|pdf|jpe?g|png|gif|svg|webp|ico|zip)"
+                     r"(\?|$)|/(w|wp-json|api|cdn-cgi|static|assets)/", href, re.I):
+            continue
         if href.startswith("//"):
             url = "https:" + href
         elif href.startswith("/"):
@@ -278,6 +284,17 @@ def classify_and_sample(urls, per_bucket=2, max_total=10):
             sample.append({"url": u, "bucket": name})
         if len(sample) >= max_total:
             break
+    # Relleno desde "otras": en sitios cuyas URLs no encajan en ningún patrón
+    # (wikipedia, github, muchas SPAs) TODO cae en "otras", de la que solo se
+    # tomaba 1 página — y los checks de contenido se quedaban casi ciegos.
+    if len(sample) < 5:
+        ya = {s["url"] for s in sample}
+        for u in buckets["otras"]:
+            if u in ya:
+                continue
+            sample.append({"url": u, "bucket": "otras"})
+            if len(sample) >= 5:
+                break
     return buckets, sample[:max_total]
 
 
@@ -308,7 +325,11 @@ def detect_typology(home_html, all_urls):
     # e-commerce: una señal fuerte, o el trío débil PERO con carrito de por medio.
     # Sin carrito no hay tienda: "shop_url + precio + Offer" lo cumple cualquier
     # web corporativa que venda algo puntual o liste una app con precio.
-    trio_con_carrito = len(e_w) >= 3 and "cart_word" in e_w
+    # El trío débil es SOLO vocabulario, y un medio grande lo cumple sin ser
+    # tienda: eldiario.es menciona "carrito", precios y tiene /tienda/ de
+    # merchandising, y salía clasificado como e-commerce. Exigimos que el
+    # vocabulario venga respaldado por estructura (URLs con patrón de ficha).
+    trio_con_carrito = (len(e_w) >= 3 and "cart_word" in e_w and prod_urls >= 5)
     # Evidencia ESTRUCTURAL de tienda (schema Product, assets de plataforma,
     # catálogo de URLs) pesa más que el vocabulario: una SaaS de pagos habla de
     # "checkout" y "add to cart" todo el día sin vender nada (stripe.com se

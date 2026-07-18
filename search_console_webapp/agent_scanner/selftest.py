@@ -8,6 +8,7 @@ vivos (CALIBRACION.md en el proyecto web-agentica), no sustituto.
 
 Sin dependencias de test externas: asserts planos, exit code 1 si algo falla.
 """
+import re
 import sys
 
 from . import checks, discovery, engine, scoring
@@ -146,17 +147,60 @@ def test_sitemap_bloqueado_no_es_ausente():
     t("sitemap_ausente_real", r["score"] == 0, f"score={r['score']}")
 
 
+def test_trio_debil_necesita_estructura():
+    """Bug: eldiario.es (prensa) salía e-commerce por el trío débil de
+    vocabulario — menciona carrito, precios y tiene /tienda/ de merchandising."""
+    prensa = ("Ultima hora. Nuestro carrito de la compra sube. Ver /tienda/ "
+              "de camisetas. Suscripcion 5,99 € al mes. /login/ /registro/")
+    urls_prensa = [f"https://x.es/politica/noticia-{i}" for i in range(40)]
+    typ, _ = discovery.detect_typology(prensa, urls_prensa)
+    t("trio_sin_estructura", typ != "ecommerce", f"obtenido {typ}")
+    # la misma jerga CON catálogo real sí es tienda
+    urls_tienda = [f"https://x.es/producto/item-{i}" for i in range(10)]
+    typ, _ = discovery.detect_typology(prensa, urls_tienda)
+    t("trio_con_estructura", typ == "ecommerce", f"obtenido {typ}")
+
+
+def test_ficha_vs_articulo_afiliacion():
+    """Bug: eldiario.es acababa e-commerce porque DOS NOTICIAS llevaban Product
+    schema de afiliación y se promovían como fichas de producto."""
+    articulo = [{"@type": "NewsArticle", "headline": "Los mejores ventiladores"},
+                {"@type": "Product", "name": "Ventilador X",
+                 "offers": {"@type": "Offer", "price": "49.99"}}]
+    t("afiliacion_no_es_ficha", not engine._es_ficha_producto(articulo),
+      "un artículo con Product embebido se acepta como ficha")
+    ficha = [{"@type": "Product", "name": "Gafas",
+              "offers": {"@type": "Offer", "price": "29.90", "priceCurrency": "EUR"}}]
+    t("ficha_real", engine._es_ficha_producto(ficha), "una ficha real se rechaza")
+    mencion = [{"@type": "Product", "name": "Producto sin precio"}]
+    t("mencion_sin_precio", not engine._es_ficha_producto(mencion),
+      "un Product sin oferta cuenta como ficha")
+
+
+def test_muestreo_rellena_otras():
+    """Bug: si todas las URLs caen en 'otras' (wikipedia, github) solo se
+    muestreaba 1 página y los checks de contenido quedaban ciegos."""
+    urls = [f"https://x.org/tema-{i}" for i in range(30)]
+    _b, sample = discovery.classify_and_sample(urls)
+    t("muestreo_rellena", len(sample) >= 5, f"solo {len(sample)} páginas")
+
+
 def test_harvest_links():
     """Bug de cobertura: sin sitemap (wikipedia, github) se auditaba SOLO la
     home. El plan B extrae enlaces internos de la portada."""
     html = ('<a href="/wiki/Portada">a</a> <a href="/wiki/Ciencia?x=1#top">b</a> '
             '<a href="https://es.wikipedia.org/wiki/Arte">c</a> '
             '<a href="https://otro-dominio.com/fuera">externo</a> '
-            '<a href="mailto:x@y.com">mail</a> <a href="/wiki/Portada">dup</a>')
+            '<a href="mailto:x@y.com">mail</a> <a href="/wiki/Portada">dup</a> '
+            '<a href="/w/load.php">script</a> <a href="/api/v1/data.json">api</a> '
+            '<a href="/static/main.css">css</a>')
     urls = discovery.harvest_links("https://es.wikipedia.org", html)
     t("harvest_internas", len(urls) == 3 and all("wikipedia.org" in u for u in urls),
       str(urls))
     t("harvest_sin_query", not any("?" in u or "#" in u for u in urls), str(urls))
+    # bug: se muestreaba /w/load.php como si fuera una página del sitio
+    t("harvest_sin_assets",
+      not any(re.search(r"\.php|\.json|\.css|/w/|/api/", u) for u in urls), str(urls))
 
 
 # ---------------------------------------------------------- checks C1/C2

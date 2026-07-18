@@ -94,6 +94,32 @@ LOGIN_URL_RE = re.compile(
     r'mi-cuenta|my-account|account)[^"\']*)["\']', re.I)
 
 
+def _es_ficha_producto(valid_blocks):
+    """¿Esta página es una FICHA de producto, o un artículo que lo menciona?
+
+    La prensa incrusta Product schema en piezas de afiliación ("los mejores
+    ventiladores"): eldiario.es acababa clasificado como e-commerce por dos
+    noticias en catalán. Dos exigencias para aceptarla como ficha:
+      1. el Product debe ser vendible (offers con precio), no una mención;
+      2. la página no debe declararse a la vez como artículo — si lleva
+         NewsArticle/Article/BlogPosting, es contenido editorial.
+    """
+    if checks_mod.find_nodes(valid_blocks, "NewsArticle") \
+            or checks_mod.find_nodes(valid_blocks, "Article") \
+            or checks_mod.find_nodes(valid_blocks, "BlogPosting") \
+            or checks_mod.find_nodes(valid_blocks, "LiveBlogPosting"):
+        return False
+    for prod in checks_mod.find_nodes(valid_blocks, "Product"):
+        offers = prod.get("offers") or {}
+        if isinstance(offers, list):
+            offers = offers[0] if offers else {}
+        if isinstance(offers, dict) and (offers.get("price")
+                                         or offers.get("priceCurrency")
+                                         or offers.get("lowPrice")):
+            return True
+    return False
+
+
 def _abs_url(base, url):
     if url.startswith("//"):
         return "https:" + url
@@ -336,7 +362,7 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
             # texto que se le parece, no.
             if res["status"] == 200:
                 valid_blocks, _inv = checks_mod.jsonld_blocks(res["body"] or "")
-                if checks_mod.find_nodes(valid_blocks, "Product"):
+                if _es_ficha_producto(valid_blocks):
                     pages.append({"url": u, "bucket": "producto", "fetch": res})
                     promovidas += 1
             if promovidas >= 2:
