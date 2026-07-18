@@ -64,9 +64,31 @@ def _domain_block(a):
             etapas[key] = {"pregunta": label, "categorias": cs,
                            "porcentaje": round(sum(vals) / len(vals) * 100)}
 
+    # Fiabilidad primero: si el sitio bloqueó el acceso, cualquier IA que consuma
+    # este JSON debe toparse con el aviso ANTES que con la puntuación.
+    fiable = a.get("score_fiable", True)
+    fiabilidad = {"puntuacion_fiable": fiable}
+    deg = a.get("acceso_degradado")
+    if deg:
+        fiabilidad.update({
+            "aviso": ("PUNTUACIÓN NO FIABLE: no usar como dato firme ni comparar "
+                      "contra otros dominios") if not fiable else
+                     ("Puntuación utilizable, con matiz: algunas sondas fueron "
+                      "bloqueadas y esas ausencias concretas no son afirmables"),
+            "nivel_degradacion": deg.get("nivel"),
+            "motivo": deg.get("motivo"),
+            "factores_degradados_a_no_verificable": deg.get("degradados"),
+            "http_acceso_humano": deg.get("human_status"),
+            "via_de_lectura": deg.get("via"),
+            "que_hacer": ("Repetir el análisis más tarde o desde otra red."
+                          if not fiable else
+                          "Los factores marcados 'no verificable' requieren revisión manual."),
+        })
+
     return {
         "dominio": a.get("domain"),
         "host": a.get("host"),
+        "fiabilidad": fiabilidad,
         "tipologia": a.get("typology"),
         "tipologia_evidencia": a.get("typology_evidence"),
         "puntuacion": {
@@ -121,6 +143,10 @@ def build_json(data):
                 "trazabilidad_procesos": "Qué procesos corrieron y con qué evidencia. status ok/warn/"
                                          "fail/skipped. Un 404 del sitio es un hallazgo, no un fallo "
                                          "del análisis.",
+                "fiabilidad": "Cada dominio lleva un bloque 'fiabilidad'. Si "
+                              "'puntuacion_fiable' es false, el sitio bloqueó nuestro acceso: "
+                              "NO uses su puntuación ni lo compares contra otros. Los factores "
+                              "no comprobables figuran como 'no_aplica_o_no_medido', no como fallo.",
                 "sugerencias_de_uso_con_ia": [
                     "Genera un plan de implementación priorizado por impacto/esfuerzo a partir de 'hallazgos_accionables'.",
                     "Redacta tickets técnicos usando 'accion.como_se_arregla' y 'evidencia' de cada check.",
@@ -133,8 +159,13 @@ def build_json(data):
         "competidores": [_domain_block(c) for c in comps],
     }
 
-    # comparativa rápida ya calculada (evita que la IA tenga que derivarla)
-    validos = [client] + [c for c in comps if "error" not in c]
+    # comparativa rápida ya calculada (evita que la IA tenga que derivarla).
+    # Los dominios con puntuación no fiable quedan FUERA: comparar contra un
+    # score construido a ciegas fabricaría brechas que no existen.
+    excluidos = [c.get("host") for c in [client] + comps
+                 if "error" not in (c or {}) and c.get("score_fiable") is False]
+    validos = [a for a in [client] + [c for c in comps if "error" not in c]
+               if a.get("score_fiable", True)]
     if len(validos) > 1:
         comparativa = {}
         for cat in CAT_NAMES:
@@ -159,5 +190,16 @@ def build_json(data):
             "puntuaciones_globales": {a.get("host"): a.get("score") for a in validos},
             "por_categoria": comparativa,
             "brechas_donde_te_superan": brechas,
+        }
+        if excluidos:
+            out["comparativa"]["excluidos_por_fiabilidad"] = {
+                "hosts": excluidos,
+                "motivo": ("Estos dominios bloquearon el análisis: su puntuación no es "
+                           "comparable y se han dejado fuera para no fabricar brechas falsas."),
+            }
+    elif excluidos:
+        out["comparativa_no_disponible"] = {
+            "motivo": ("No hay suficientes dominios con puntuación fiable para comparar. "
+                       f"Excluidos por bloqueo de acceso: {', '.join(h for h in excluidos if h)}."),
         }
     return out

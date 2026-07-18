@@ -12,8 +12,11 @@ from .httpfetch import fetch
 from .config import UA_HUMAN
 
 BUCKET_PATTERNS = [
-    ("producto", re.compile(r"/(producto|product|item|dp|p)/|/prod-", re.I)),
-    ("categoria", re.compile(r"/(categoria|category|collections|tienda|shop|c)/", re.I)),
+    # OJO con los plurales: Shopify usa SIEMPRE /products/ y WooCommerce en
+    # español /productos/. Sin ellos, ninguna tienda Shopify tenía ficha de
+    # producto en el muestreo y 3.3/4.2/7.x salían como "sin ficha accesible".
+    ("producto", re.compile(r"/(productos?|products?|item|dp|p)/|/prod-", re.I)),
+    ("categoria", re.compile(r"/(categor[ií]as?|categor(?:y|ies)|collections?|tienda|shop|c)/", re.I)),
     ("blog", re.compile(r"/(blog|noticias|news|articulo|article|magazine|revista|guia|guide|recursos)s?/", re.I)),
     ("servicio", re.compile(r"/(servicio|service|soluciones|solutions|features|funcionalidades|tratamiento)s?", re.I)),
     ("legal", re.compile(r"/(aviso-legal|privacidad|privacy|terminos|terms|condiciones|cookies)", re.I)),
@@ -29,13 +32,21 @@ ECOM_STRONG = {
     "schema_product": r'"@type"\s*:\s*"Product"',
     "add_to_cart": r'a[ñn]adir al carrito|a[ñn]adir a la cesta|add to cart|comprar ahora',
     "cart_url": r'/(carrito|cart|cesta|checkout)(/|"|\'|\?|$)',
-    "ecom_platform": r'woocommerce|cdn\.shopify|shopify\.com|prestashop|magento|bigcommerce|vtex',
-    "schema_offer": r'"@type"\s*:\s*"Offer"|"priceCurrency"',
+    # Solo marcadores a nivel de ASSET, nunca la palabra suelta: stripe.com
+    # menciona "WooCommerce" y "Shopify" como clientes en su marketing y se
+    # clasificaba como tienda. Una tienda real deja huellas técnicas
+    # (plugins/woocommerce, cdn.shopify, clases woocommerce-page).
+    "ecom_platform": r'plugins/woocommerce|woocommerce-page|cdn\.shopify'
+                     r'|prestashop|magento|bigcommerce|vtex',
 }
 ECOM_WEAK = {
     "cart_word": r'\bcarrito\b|\bcesta\b',
     "shop_url": r'/(tienda|shop|store|productos?)(/|"|\'|$)',
     "price_tag": r'\d+[.,]\d{2}\s*(€|EUR)',
+    # Un Offer suelto NO es señal de tienda: lo llevan SoftwareApplication,
+    # Service, Event, Course… La app de BBVA tiene Offer y es un banco.
+    # Solo cuenta como fuerte cuando va acompañado de Product (ver ECOM_STRONG).
+    "schema_offer": r'"@type"\s*:\s*"Offer"|"priceCurrency"',
 }
 SAAS_STRONG = {
     "free_trial": r'prueba gratis|pru[eé]balo gratis|free trial|empieza gratis|start free|comienza gratis',
@@ -54,28 +65,63 @@ SAAS_WEAK = {
 }
 
 
+# Una FICHA de producto termina en el slug del producto: /productos/<slug>.
+# "/productos/" a media ruta suele ser una sección informativa jerárquica —
+# administracion.gob.es tiene 45 URLs tipo
+# /empresas/productos/normas-especificaciones/productos-industriales y salía
+# clasificada como e-commerce. Exigir que el slug sea el ÚLTIMO tramo separa
+# el catálogo real del contenido que habla "de productos".
+_FICHA_URL_RE = re.compile(
+    r"/(?:productos?|products?|p)/[^/?#]+/?$"
+    r"|/(?:comprar|buy)-[^/?#]+/?$"
+    r"|-p-\d+/?$"
+    r"|/dp/[^/?#]+/?$", re.I)
+
+
 def _hits(patterns, corpus):
     """Devuelve el conjunto de señales DISTINTAS que aparecen (no repeticiones)."""
     return {name for name, pat in patterns.items() if re.search(pat, corpus, re.I)}
 
 
+# Registros que NO son de descubrimiento agéntico aunque respondan en _aid/_agent.
+# Muchos dominios tienen un TXT wildcard (típicamente SPF) que contesta a
+# CUALQUIER subdominio: sin este filtro, hubspot.com daba _aid "encontrado".
+_TXT_RUIDO = re.compile(r"(?i)v=spf1|v=DKIM1|v=DMARC1|google-site-verification|"
+                        r"MS=|facebook-domain-verification|_globalsign|amazonses")
+
+
 def dns_aid(base):
     """DNS for AI Discovery (experimental): registros TXT _aid/_agent.
-    Usa dnspython (portable), con fallback a `dig` si estuviera disponible."""
+
+    Valida el CONTENIDO y descarta wildcards: se consulta un subdominio
+    inventado como control y, si devuelve lo mismo, es un comodín y no un
+    registro real. Detectado en el set de calibración con hubspot.com.
+    """
     host = urlparse(base).netloc.replace("www.", "")
     try:
         import dns.resolver
-        for label in ("_aid.", "_agent."):
-            try:
-                answers = dns.resolver.resolve(label + host, "TXT", lifetime=8)
-                txt = " ".join(r.to_text() for r in answers)
-                if txt:
-                    return f"TXT {label}{host} -> {txt[:120]}"
-            except Exception:
-                continue
-        return None
     except ImportError:
         return None
+
+    def _txt(name):
+        try:
+            answers = dns.resolver.resolve(name, "TXT", lifetime=8)
+            return " ".join(r.to_text() for r in answers).strip()
+        except Exception:
+            return ""
+
+    # control de comodín: un subdominio que no puede existir
+    wildcard = _txt("_control-no-existe-agentready." + host)
+    for label in ("_aid.", "_agent."):
+        txt = _txt(label + host)
+        if not txt:
+            continue
+        if wildcard and txt == wildcard:
+            continue  # comodín DNS, no un registro real
+        if _TXT_RUIDO.search(txt):
+            continue  # SPF/DKIM/verificaciones: no es descubrimiento agéntico
+        return f"TXT {label}{host} -> {txt[:120]}"
+    return None
 
 
 def normalize(url):
@@ -139,10 +185,22 @@ def robots_allows(groups, bot_name, path="/"):
     return verdict
 
 
+# Los sitemaps de All in One SEO (y otros plugins de WordPress) envuelven las
+# URLs en CDATA: <loc><![CDATA[https://…]]></loc>. Sin contemplarlo, el sitemap
+# se leía como vacío y reportábamos "sin sitemap" en webs que sí lo tenían.
+_LOC_RE = re.compile(r"<loc>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)\s*(?:\]\]>)?\s*</loc>", re.I)
+_LASTMOD_RE = re.compile(r"<lastmod>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)\s*(?:\]\]>)?\s*</lastmod>", re.I)
+
+
 def get_sitemap_urls(base, robots, cap=800):
     """Recoge URLs de sitemaps (indices incluidos) hasta `cap`. Tambien lastmods."""
-    candidates = robots["sitemaps"] or [base + "/sitemap.xml", base + "/sitemap_index.xml"]
-    urls, lastmods, seen_maps = [], [], set()
+    # Las rutas convencionales SIEMPRE se prueban, aunque robots declare otra:
+    # elpozo.com declara un sitemap.rss (que no lleva <loc>) y tiene un
+    # sitemap.xml perfectamente válido que así se nos escapaba.
+    convencionales = [base + "/sitemap.xml", base + "/sitemap_index.xml",
+                      base + "/sitemap-index.xml", base + "/wp-sitemap.xml"]
+    candidates = list(dict.fromkeys((robots["sitemaps"] or []) + convencionales))
+    urls, lastmods, seen_maps, estados = [], [], set(), []
     queue = list(candidates)[:6]
     while queue and len(urls) < cap:
         sm = queue.pop(0)
@@ -150,18 +208,61 @@ def get_sitemap_urls(base, robots, cap=800):
             continue
         seen_maps.add(sm)
         res = fetch(sm, timeout=25)
+        estados.append(res["status"])
         if res["status"] != 200:
             continue
         body = res["body"]
         if "<sitemapindex" in body[:2000]:
-            children = re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", body)
+            children = _LOC_RE.findall(body)
             queue.extend(children[:10])
             continue
-        urls.extend(re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", body))
-        lastmods.extend(re.findall(r"<lastmod>\s*([^<\s]+)\s*</lastmod>", body))
+        urls.extend(_LOC_RE.findall(body))
+        lastmods.extend(_LASTMOD_RE.findall(body))
     host = urlparse(base).netloc.replace("www.", "")
     urls = [u for u in urls if host in urlparse(u).netloc][:cap]
-    return {"urls": urls, "lastmods": lastmods, "found": bool(urls)}
+    # "No encontrado" y "bloqueado" NO son lo mismo: el sitemap de zalando.es
+    # existe pero la conexión se corta (status 0). Afirmar "sin sitemap" en ese
+    # caso sería atribuir una carencia no comprobada (guardarraíl de fidelidad).
+    bloqueado = (not urls) and any(
+        s == 0 or s in (401, 403, 406, 429) or s >= 500 for s in estados)
+    return {"urls": urls, "lastmods": lastmods, "found": bool(urls),
+            "bloqueado": bloqueado, "estados": estados}
+
+
+def harvest_links(base, home_html, cap=60):
+    """Fallback de cobertura cuando no hay sitemap: URLs internas de la portada.
+
+    Sin esto, sitios sin sitemap público (es.wikipedia.org, github.com) se
+    auditaban SOLO con la home y los checks de contenido quedaban ciegos.
+    """
+    host = urlparse(base).netloc.replace("www.", "")
+    out, seen = [], set()
+    for href in re.findall(r'href=["\']([^"\'#]+)', home_html or ""):
+        if href.startswith(("mailto:", "tel:", "javascript:", "data:")):
+            continue
+        # descartar lo que no es una página de contenido: assets y endpoints
+        # internos (wikipedia enlaza /w/load.php en la portada y se muestreaba
+        # ESE fichero como si fuera una página del sitio)
+        if re.search(r"\.(php|json|xml|css|js|rss|atom|pdf|jpe?g|png|gif|svg|webp|ico|zip)"
+                     r"(\?|$)|/(w|wp-json|api|cdn-cgi|static|assets)/", href, re.I):
+            continue
+        if href.startswith("//"):
+            url = "https:" + href
+        elif href.startswith("/"):
+            url = base + href
+        elif href.startswith("http"):
+            url = href
+        else:
+            continue
+        if urlparse(url).netloc.replace("www.", "") != host:
+            continue
+        url = url.split("?")[0].rstrip("/")
+        if url and url != base and url not in seen:
+            seen.add(url)
+            out.append(url)
+        if len(out) >= cap:
+            break
+    return out
 
 
 def sitemap_freshness(lastmods, days=90):
@@ -196,6 +297,17 @@ def classify_and_sample(urls, per_bucket=2, max_total=10):
             sample.append({"url": u, "bucket": name})
         if len(sample) >= max_total:
             break
+    # Relleno desde "otras": en sitios cuyas URLs no encajan en ningún patrón
+    # (wikipedia, github, muchas SPAs) TODO cae en "otras", de la que solo se
+    # tomaba 1 página — y los checks de contenido se quedaban casi ciegos.
+    if len(sample) < 5:
+        ya = {s["url"] for s in sample}
+        for u in buckets["otras"]:
+            if u in ya:
+                continue
+            sample.append({"url": u, "bucket": "otras"})
+            if len(sample) >= 5:
+                break
     return buckets, sample[:max_total]
 
 
@@ -212,8 +324,7 @@ def detect_typology(home_html, all_urls):
 
     # Señal estructural: muchas URLs con patrón de ficha de producto en el sitemap.
     # Un catálogo grande es evidencia fuerte de e-commerce aunque la home sea JS.
-    prod_urls = sum(1 for u in all_urls if re.search(
-        r"/(producto|product|p)/|/(comprar|buy)-|-p-\d+|/dp/", u, re.I))
+    prod_urls = sum(1 for u in all_urls if _FICHA_URL_RE.search(u))
     if prod_urls >= 20:
         e_s = e_s | {f"catalogo_urls_producto({prod_urls})"}
 
@@ -223,8 +334,23 @@ def detect_typology(home_html, all_urls):
         "ecommerce": {"puntos": ecom_score, "fuertes": sorted(e_s), "debiles": sorted(e_w)},
         "saas": {"puntos": saas_score, "fuertes": sorted(s_s), "debiles": sorted(s_w)},
     }
-    # e-commerce: una señal fuerte, o el trío débil completo (carrito + tienda + precios)
-    if (e_s or len(e_w) >= 3) and ecom_score >= saas_score:
+    # e-commerce: una señal fuerte, o el trío débil PERO con carrito de por medio.
+    # Sin carrito no hay tienda: "shop_url + precio + Offer" lo cumple cualquier
+    # web corporativa que venda algo puntual o liste una app con precio.
+    # El trío débil es SOLO vocabulario, y un medio grande lo cumple sin ser
+    # tienda: eldiario.es menciona "carrito", precios y tiene /tienda/ de
+    # merchandising, y salía clasificado como e-commerce. Exigimos que el
+    # vocabulario venga respaldado por estructura (URLs con patrón de ficha).
+    trio_con_carrito = (len(e_w) >= 3 and "cart_word" in e_w and prod_urls >= 5)
+    # Evidencia ESTRUCTURAL de tienda (schema Product, assets de plataforma,
+    # catálogo de URLs) pesa más que el vocabulario: una SaaS de pagos habla de
+    # "checkout" y "add to cart" todo el día sin vender nada (stripe.com se
+    # clasificaba como e-commerce por su propia jerga).
+    structural = bool(e_s & {"schema_product", "ecom_platform"}) \
+        or any(s.startswith("catalogo_urls") for s in e_s)
+    if len(s_s) >= 2 and not structural and saas_score >= ecom_score - 2:
+        return "saas", ev
+    if (e_s or trio_con_carrito) and ecom_score >= saas_score:
         return "ecommerce", ev
     # saas: exige >=2 señales FUERTES (las débiles las tiene cualquier corporativa)
     if len(s_s) >= 2 and saas_score > ecom_score:

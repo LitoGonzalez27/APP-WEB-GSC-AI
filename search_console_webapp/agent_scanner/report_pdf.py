@@ -153,6 +153,41 @@ def build_pdf(data):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 12), ("LEFTPADDING", (0, 0), (-1, -1), 12),
     ]))
     story.append(verdict)
+
+    # Aviso de fidelidad: si el sitio bloqueó nuestro acceso, el PDF NO puede
+    # salir con aspecto de dato firme. Este aviso replica el de la web; sin él,
+    # la vía de exportación (la que viaja sola, sin nadie que la matice) era la
+    # única sin guardarraíl.
+    def _aviso_fiabilidad(dom, etiqueta):
+        deg = dom.get("acceso_degradado")
+        if dom.get("score_fiable", True) or not deg:
+            return None
+        warn_tbl = Table([[Paragraph(
+            f'<b><font color="{BAD.hexval()}" size="11">⚠ PUNTUACIÓN NO FIABLE — '
+            f'no usar este informe como dato firme</font></b><br/>'
+            f'<font size="9">{esc(etiqueta)}: {esc(deg.get("motivo", ""))}. '
+            f'Se han marcado <b>{deg.get("degradados", 0)}</b> factores como '
+            f'«no verificable» en lugar de contarlos como fallo. La puntuación '
+            f'cubre solo lo que sí pudo comprobarse: repite el análisis más tarde '
+            f'o desde otra red antes de tomar decisiones con estos datos.</font>', BODY)]],
+            colWidths=[16 * cm])
+        warn_tbl.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 1.2, BAD),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FDF1F1")),
+            ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ("LEFTPADDING", (0, 0), (-1, -1), 12), ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ]))
+        return warn_tbl
+
+    avisos = [w for w in
+              [_aviso_fiabilidad(client, "Tu dominio")]
+              + [_aviso_fiabilidad(comp, comp.get("host", "competidor"))
+                 for comp in (data.get("competitors") or [])]
+              if w is not None]
+    for w in avisos:
+        story.append(Spacer(1, 0.4 * cm))
+        story.append(w)
+
     story.append(Spacer(1, 0.5 * cm))
     story.append(Paragraph(
         "Este informe mide si los sistemas de IA pueden <b>leer</b> tu web, <b>entenderla</b> "

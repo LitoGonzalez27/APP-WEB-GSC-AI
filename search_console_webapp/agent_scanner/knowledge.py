@@ -145,6 +145,18 @@ KB = {
         "como": "Reservar dimensiones para imágenes/embeds (width/height o aspect-ratio), cargar banners y avisos sin desplazar contenido, y mantener CLS ≤ 0,1 en las plantillas clave.",
         "esfuerzo": "Medio", "impacto": "Medio",
     },
+    "4.7": {
+        "titulo": "Hay botones y enlaces demasiado pequeños para que un agente los acierte",
+        "por_que": "Un agente que opera tu web clica por coordenadas sobre una captura de pantalla, no 'entiende' el botón como tú. Si un control mide menos de 24 píxeles, falla el clic o pulsa el de al lado, y la tarea se rompe justo en el paso final. Es exactamente el mismo problema que sufre un usuario con el dedo en el móvil: lo que arreglas para el agente lo arreglas para tus clientes.",
+        "como": "Garantizar un área clicable mínima de 24×24 px (WCAG 2.2 'Target Size') en todos los controles, ampliando con padding en vez de agrandando el icono. Y que todo elemento clicable tenga cursor:pointer y sea un <button>/<a> real, no un div con onclick.",
+        "esfuerzo": "Bajo", "impacto": "Medio",
+    },
+    "4.8": {
+        "titulo": "Las páginas que no existen devuelven 'todo correcto'",
+        "por_que": "Es el fallo silencioso más peligroso para un agente. Una persona ve el mensaje de 'página no encontrada' y da media vuelta; el agente solo mira el código de respuesta, lee un 200 = 'éxito' y sigue trabajando sobre una página vacía. El error se propaga sin que nadie lo detecte y acaba en un dato inventado o una tarea abandonada a medias.",
+        "como": "Devolver HTTP 404 real (o 410) en las URLs inexistentes, nunca 200 ni una redirección a la home. Y que la página de error incluya navegación o buscador para que el agente pueda recuperarse en vez de quedarse sin salida.",
+        "esfuerzo": "Bajo", "impacto": "Alto",
+    },
     "5.1": {
         "titulo": "Las páginas no responden: dan rodeos",
         "por_que": "Los LLMs citan el fragmento que mejor responde. Si tus primeras líneas son 'bienvenidos a la web líder…', la respuesta citable está en otra parte — normalmente en la web del competidor que va al grano.",
@@ -192,6 +204,24 @@ KB = {
         "por_que": "La prueba definitiva: dar a un agente (Operator, Claude) una tarea real en la web y ver dónde se atasca. El vídeo del atasco vale más que cualquier informe para entender el problema.",
         "como": "Sesión guiada: se define una tarea típica de cliente y se documenta la ejecución del agente paso a paso.",
         "esfuerzo": "Bajo", "impacto": "Diagnóstico",
+    },
+    "6.4": {
+        "titulo": "Un agente no puede identificarse en el área privada",
+        "por_que": "Todo lo que hay detrás del login (pedidos, presupuestos, facturas, historial) es invisible y inoperable para un asistente que actúa en nombre de tu cliente. Si además hay CAPTCHA, el bloqueo es total: le cierras la puerta al agente legítimo del propio usuario, no a un atacante. El patrón correcto no es darle la contraseña al agente, sino ofrecer permiso delegado.",
+        "como": "Ideal: exponer OAuth 2.0 descubrible (/.well-known/oauth-authorization-server) para que el agente obtenga un permiso acotado sin manejar la contraseña. Mínimo: formulario de acceso con autocomplete='username' y 'current-password', sin CAPTCHA en el flujo normal (reservarlo para intentos sospechosos).",
+        "esfuerzo": "Alto", "impacto": "Alto",
+    },
+    "7.5": {
+        "titulo": "Los plazos y costes de envío no se pueden leer automáticamente",
+        "por_que": "Cuando un asistente compara tu tienda con otras dos, el envío decide la compra tanto como el precio. Si tus condiciones están en prosa o en una página aparte, el agente no las encuentra: o te descarta por falta de datos, o —peor— se inventa un plazo y genera una incidencia cuando el pedido no llega cuando prometió.",
+        "como": "Añadir shippingDetails (OfferShippingDetails) dentro del Offer de cada producto, con shippingRate, deliveryTime y shippingDestination. Es el mismo marcado que ya exige Google Merchant Center, así que suele ser reaprovechable.",
+        "esfuerzo": "Medio", "impacto": "Alto",
+    },
+    "7.6": {
+        "titulo": "La política de devoluciones no está en un formato que la IA entienda",
+        "por_que": "La devolución es el seguro que hace que un agente se atreva a comprar por su cuenta. Sin ese dato estructurado, un asistente prudente elige al competidor que sí declara '30 días, gratis'. Tener buena política y no publicarla de forma legible es perder la venta teniendo el argumento ganador.",
+        "como": "Declarar hasMerchantReturnPolicy (MerchantReturnPolicy) con merchantReturnDays, returnPolicyCategory y returnMethod en el Offer del producto, y mantenerlo sincronizado con la política real.",
+        "esfuerzo": "Medio", "impacto": "Alto",
     },
     "7.1": {
         "titulo": "El catálogo no está listo para asistentes de compra",
