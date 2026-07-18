@@ -19,12 +19,44 @@ BUCKET_PATTERNS = [
     ("legal", re.compile(r"/(aviso-legal|privacidad|privacy|terminos|terms|condiciones|cookies)", re.I)),
 ]
 
-ECOM_SIGNALS = re.compile(
-    r'carrito|add.to.cart|añadir al carrito|checkout|"@type"\s*:\s*"Product"|woocommerce|shopify|cdn\.shopify|prestashop|magento|añadir a la cesta',
-    re.I)
-SAAS_SIGNALS = re.compile(
-    r'/pricing|/precios|prueba gratis|free trial|sign.?up|reg[ií]strate|/login|/docs\b|/api\b|empieza gratis|demo',
-    re.I)
+# Detección de tipología por señales DISCRIMINANTES y ponderadas.
+# Regla de diseño: se cuentan señales DISTINTAS (no repeticiones) y las fuertes
+# valen doble. Ante la duda, "corporativo" (el error menos dañino: C7 no aplica).
+# Señales descartadas por falsos positivos: "/api" (lo tiene cualquier web con JS)
+# y "demo" suelto (matchea "demostración", "demográfico"…).
+
+ECOM_STRONG = {
+    "schema_product": r'"@type"\s*:\s*"Product"',
+    "add_to_cart": r'a[ñn]adir al carrito|a[ñn]adir a la cesta|add to cart|comprar ahora',
+    "cart_url": r'/(carrito|cart|cesta|checkout)(/|"|\'|\?|$)',
+    "ecom_platform": r'woocommerce|cdn\.shopify|shopify\.com|prestashop|magento|bigcommerce|vtex',
+    "schema_offer": r'"@type"\s*:\s*"Offer"|"priceCurrency"',
+}
+ECOM_WEAK = {
+    "cart_word": r'\bcarrito\b|\bcesta\b',
+    "shop_url": r'/(tienda|shop|store|productos?)(/|"|\'|$)',
+    "price_tag": r'\d+[.,]\d{2}\s*(€|EUR)',
+}
+SAAS_STRONG = {
+    "free_trial": r'prueba gratis|pru[eé]balo gratis|free trial|empieza gratis|start free|comienza gratis',
+    "no_card": r'sin tarjeta de cr[eé]dito|no credit card',
+    "schema_software": r'"@type"\s*:\s*"SoftwareApplication"',
+    "signup_url": r'/(signup|sign-up|registro|register|crear-cuenta|get-started)(/|"|\'|\?|$)',
+    "request_demo": r'(solicita|solicitar|agenda|agendar|pide|pedir|request|book)\s+(una\s+|a\s+|tu\s+)?demo\b',
+    "per_user_pricing": r'(€|\$|usd|eur)\s*\d+\s*(\/|por\s+)(mes|month|usuario|user|mo\b)',
+    "saas_words": r'\bSaaS\b|software as a service|plataforma en la nube',
+}
+SAAS_WEAK = {
+    "pricing_url": r'/(pricing|precios|planes|plans)(/|"|\'|$)',
+    "login_url": r'/(login|signin|iniciar-sesion|acceso)(/|"|\'|\?|$)',
+    "docs_url": r'/(docs|documentation|developers)(/|"|\'|$)',
+    "integrations": r'/(integraciones|integrations)(/|"|\'|$)|\bAPI\s+(key|docs|REST)\b',
+}
+
+
+def _hits(patterns, corpus):
+    """Devuelve el conjunto de señales DISTINTAS que aparecen (no repeticiones)."""
+    return {name for name, pat in patterns.items() if re.search(pat, corpus, re.I)}
 
 
 def dns_aid(base):
@@ -168,12 +200,33 @@ def classify_and_sample(urls, per_bucket=2, max_total=10):
 
 
 def detect_typology(home_html, all_urls):
-    """ecommerce / saas / corporativo segun señales en home + rutas."""
+    """ecommerce / saas / corporativo por señales distintas y ponderadas.
+
+    Fuertes valen 2, débiles 1. Para declarar SaaS se exigen >=2 señales FUERTES
+    (las débiles solas —/login, /precios— las tiene cualquier web corporativa).
+    Para e-commerce basta 1 fuerte con ventaja. Si no, corporativo.
+    """
     corpus = (home_html or "") + " " + " ".join(all_urls[:300])
-    ecom = len(ECOM_SIGNALS.findall(corpus))
-    saas = len(SAAS_SIGNALS.findall(corpus))
-    if ecom >= 2 and ecom >= saas:
-        return "ecommerce", {"ecom_señales": ecom, "saas_señales": saas}
-    if saas >= 3:
-        return "saas", {"ecom_señales": ecom, "saas_señales": saas}
-    return "corporativo", {"ecom_señales": ecom, "saas_señales": saas}
+    e_s, e_w = _hits(ECOM_STRONG, corpus), _hits(ECOM_WEAK, corpus)
+    s_s, s_w = _hits(SAAS_STRONG, corpus), _hits(SAAS_WEAK, corpus)
+
+    # Señal estructural: muchas URLs con patrón de ficha de producto en el sitemap.
+    # Un catálogo grande es evidencia fuerte de e-commerce aunque la home sea JS.
+    prod_urls = sum(1 for u in all_urls if re.search(
+        r"/(producto|product|p)/|/(comprar|buy)-|-p-\d+|/dp/", u, re.I))
+    if prod_urls >= 20:
+        e_s = e_s | {f"catalogo_urls_producto({prod_urls})"}
+
+    ecom_score = 2 * len(e_s) + len(e_w)
+    saas_score = 2 * len(s_s) + len(s_w)
+    ev = {
+        "ecommerce": {"puntos": ecom_score, "fuertes": sorted(e_s), "debiles": sorted(e_w)},
+        "saas": {"puntos": saas_score, "fuertes": sorted(s_s), "debiles": sorted(s_w)},
+    }
+    # e-commerce: una señal fuerte, o el trío débil completo (carrito + tienda + precios)
+    if (e_s or len(e_w) >= 3) and ecom_score >= saas_score:
+        return "ecommerce", ev
+    # saas: exige >=2 señales FUERTES (las débiles las tiene cualquier corporativa)
+    if len(s_s) >= 2 and saas_score > ecom_score:
+        return "saas", ev
+    return "corporativo", ev
