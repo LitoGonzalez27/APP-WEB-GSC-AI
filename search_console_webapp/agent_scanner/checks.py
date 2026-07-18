@@ -398,6 +398,78 @@ def run_c4(ctx):
         score = 1 if cls <= 0.1 else 0.5 if cls <= 0.25 else 0
         out.append(R("4.6", "C4", "Estabilidad visual (CLS)", score,
                      f"CLS={cls:.3f} (bueno <=0.1): los saltos de layout confunden a agentes que capturan entre acciones"))
+
+    # 4.7 zonas de clic operables — medidas en el LAYOUT REAL, no en el HTML.
+    # Un agente que pilota un navegador clica por coordenadas: un control de
+    # 15px es un fallo de ejecucion aunque el marcado sea perfecto.
+    boxes = (ctx.get("rendered_home") or {}).get("boxes")
+    if not boxes:
+        out.append(R("4.7", "C4", "Zonas de clic operables", None,
+                     "Sin geometria de render disponible (requiere backend Playwright): "
+                     "no se puede medir el tamano real de los controles", manual=True))
+    else:
+        MIN = 24  # px CSS: umbral WCAG 2.2 'Target Size (Minimum)'
+        # Los enlaces en linea dentro de texto corrido quedan fuera: WCAG los
+        # exceptua y un agente los acierta sin problema (son anchos). Contarlos
+        # inflaria el fallo con falsos positivos.
+        targets = [b for b in boxes if not b.get("inline")]
+        inline_n = len(boxes) - len(targets)
+        if not targets:
+            out.append(R("4.7", "C4", "Zonas de clic operables", None,
+                         f"Solo se detectaron {inline_n} enlaces en linea (exentos de WCAG): "
+                         "sin controles medibles", manual=True))
+        else:
+            small = [b for b in targets if b["w"] < MIN or b["h"] < MIN]
+            # affordance ambigua: clicable no nativo que ni siquiera cambia el cursor
+            ambiguous = [b for b in targets
+                         if not b["native"] and b.get("cursor") != "pointer"]
+            problems = {id(b) for b in small} | {id(b) for b in ambiguous}
+            ratio_ok = 1 - (len(problems) / len(targets))
+            score = 1 if ratio_ok >= 0.95 else 0.5 if ratio_ok >= 0.8 else 0
+            ev = (f"{len(targets)} controles medidos en el layout real "
+                  f"({inline_n} enlaces en linea excluidos por la excepcion de WCAG): "
+                  f"{ratio_ok:.0%} sin problemas")
+            if small:
+                muestra = ", ".join(f"{b['tag']} {b['w']}x{b['h']}px"
+                                    + (f" ('{b['name'][:30]}')" if b["name"] else "")
+                                    for b in small[:4])
+                ev += (f". {len(small)} por debajo de {MIN}x{MIN}px: {muestra}"
+                       " — un agente que clica por coordenadas falla o pulsa el de al lado")
+            if ambiguous:
+                ev += (f". {len(ambiguous)} elementos clicables no nativos sin "
+                       "cursor:pointer (un agente no los reconoce como accionables)")
+            if not small and not ambiguous:
+                ev += ". Todos los controles son accionables con fiabilidad"
+            out.append(R("4.7", "C4", "Zonas de clic operables", score, ev))
+
+    # 4.8 estados de error correctos — el soft-404 es el fallo agentico silencioso:
+    # el humano lee "no encontrado", el agente solo mira el codigo de estado.
+    ep = ctx.get("error_probe") or {}
+    st = ep.get("status")
+    if not st:
+        out.append(R("4.8", "C4", "Estados de error correctos", None,
+                     "La sonda de URL inexistente no obtuvo respuesta", manual=True))
+    elif st == 200:
+        out.append(R("4.8", "C4", "Estados de error correctos", 0,
+                     f"SOFT-404: una URL inexistente devuelve HTTP 200"
+                     + (" con texto de 'no encontrado' en el cuerpo" if ep.get("looks_missing") else "")
+                     + ". Un agente interpreta 200 como exito y sigue operando con una "
+                       "pagina vacia; el error se propaga sin que nadie lo detecte"))
+    elif st in (301, 302, 307, 308):
+        out.append(R("4.8", "C4", "Estados de error correctos", 0.5,
+                     f"Una URL inexistente redirige (HTTP {st}) en lugar de devolver 404. "
+                     "El agente acaba en otra pagina creyendo que llego a la pedida"))
+    elif st in (404, 410):
+        score = 1 if ep.get("has_recovery") else 0.5
+        ev = (f"Correcto: HTTP {st} en URL inexistente. "
+              + ("La pagina de error ofrece navegacion o buscador para recuperarse"
+                 if ep.get("has_recovery")
+                 else "Pero la pagina de error no ofrece navegacion ni buscador: "
+                      "el agente se queda sin salida"))
+        out.append(R("4.8", "C4", "Estados de error correctos", score, ev))
+    else:
+        out.append(R("4.8", "C4", "Estados de error correctos", 0.5,
+                     f"Una URL inexistente devuelve HTTP {st}, que no es un 404/410 claro"))
     return out
 
 
@@ -589,15 +661,85 @@ def run_c6(ctx):
         ok = sum(1 for v in valid.values() if v["outcome"] == "conseguido")
         okf = sum(1 for v in valid.values() if v["outcome"] == "conseguido_con_friccion")
         total = len(valid)
-        score = 1 if ok == total else 0.5 if (ok + okf) > 0 else 0
-        per = ", ".join(f"{k}: {v['outcome']}" for k, v in valid.items())
-        out.append(R("6.3", "C6", "Tarea completada por un agente real", score,
-                     f"Tarea '{at['typology']}' ejecutada por {total} agente(s) reales — {per}. "
-                     f"Detalle y registro de pasos en la pestaña Evidencias."))
+        # progreso medio por hitos: distingue "se atasca al entrar" de
+        # "llega al final y falla en el ultimo paso", que no son lo mismo
+        progs = [v.get("progreso") or {} for v in valid.values()]
+        ratios = [p["alcanzados"] / p["total"] for p in progs if p.get("total")]
+        avg = sum(ratios) / len(ratios) if ratios else None
+        if ok == total:
+            score = 1
+        elif (ok + okf) > 0:
+            score = 0.5
+        elif avg is not None and avg >= 0.5:
+            score = 0.5  # ningun agente termino, pero todos recorrieron medio camino
+        else:
+            score = 0
+        per = ", ".join(
+            f"{k}: {v['outcome']}"
+            + (f" ({(v.get('progreso') or {}).get('alcanzados')}/"
+               f"{(v.get('progreso') or {}).get('total')} pasos)"
+               if (v.get("progreso") or {}).get("total") else "")
+            for k, v in valid.items())
+        ev = (f"Tarea '{at['typology']}' ejecutada por {total} agente(s) reales — {per}.")
+        if avg is not None:
+            ev += f" Recorrido medio: {avg:.0%} de los pasos de la tarea."
+        # donde se atascan todos = el cuello de botella real del sitio
+        atascos = [p["pendientes"][0] for p in progs if p.get("pendientes")]
+        if atascos and len(set(atascos)) == 1 and len(atascos) > 1:
+            ev += f" Todos se atascan en el mismo punto: {atascos[0]}."
+        ev += " Detalle y registro de pasos en la pestaña Evidencias."
+        out.append(R("6.3", "C6", "Tarea completada por un agente real", score, ev))
     else:
         out.append(R("6.3", "C6", "Tarea completada por un agente real", None,
                      "No ejecutado (activar 'Pruebas agénticas' en el análisis, o hacerlo manual con Operator/Claude)",
                      manual=True))
+
+    # 6.4 autenticacion operable por un agente. Jerarquia: OAuth delegado (el
+    # agente actua en nombre del usuario SIN manejar su contrasena) > formulario
+    # estandar bien marcado > formulario opaco o con CAPTCHA (agente bloqueado).
+    oauth = [p for p in ("/.well-known/oauth-authorization-server",
+                         "/.well-known/oauth-protected-resource") if wk.get(p) == 200]
+    lp = ctx.get("login_probe") or {}
+    if oauth:
+        out.append(R("6.4", "C6", "Autenticacion operable por agentes", 1,
+                     f"OAuth descubrible en {', '.join(oauth)}: un agente puede obtener "
+                     "permiso delegado sin manejar la contrasena del usuario (el patron correcto)"))
+    elif not lp.get("found"):
+        out.append(R("6.4", "C6", "Autenticacion operable por agentes", None,
+                     "El sitio no expone area de acceso: no aplica"))
+    else:
+        body = lp.get("body") or ""
+        has_pwd = bool(re.search(r'(?i)<input[^>]+type=["\']password', body))
+        ac_user = bool(re.search(r'(?i)autocomplete=["\'](username|email)', body))
+        ac_pwd = bool(re.search(r'(?i)autocomplete=["\'](current-password|password)', body))
+        captcha = bool(re.search(r"(?i)recaptcha|hcaptcha|turnstile", body))
+        social = bool(re.search(r"(?i)(sign|log)[ -]?in with (google|apple|microsoft)|"
+                                r"continuar con (google|apple)", body))
+        if not has_pwd:
+            score, ev = (None, f"Area de acceso en {lp['url']} sin formulario de contrasena "
+                               "en el HTML (login renderizado por JS o via terceros): "
+                               "no evaluable automaticamente")
+            out.append(R("6.4", "C6", "Autenticacion operable por agentes", score, ev, manual=True))
+            return out
+        if captcha:
+            score = 0
+            ev = ("El acceso esta protegido por CAPTCHA: un agente legitimo del propio "
+                  "usuario no puede autenticarse. Sin OAuth ni alternativa, el area "
+                  "privada es territorio cerrado para agentes")
+        elif ac_user and ac_pwd:
+            score = 0.5
+            ev = ("Formulario de acceso correctamente marcado (autocomplete username + "
+                  "current-password): un agente con credenciales puede rellenarlo. "
+                  "Falta OAuth para permiso delegado sin compartir contrasena")
+        else:
+            score = 0
+            faltan = [n for n, v in (("autocomplete de usuario", ac_user),
+                                     ("autocomplete de contrasena", ac_pwd)) if not v]
+            ev = (f"Formulario de acceso sin {' ni '.join(faltan)}: un agente no puede "
+                  "identificar con fiabilidad que campo es cual")
+        if social:
+            ev += ". Ofrece acceso social (Google/Apple), que anade una capa mas de friccion al agente"
+        out.append(R("6.4", "C6", "Autenticacion operable por agentes", score, ev))
     return out
 
 
@@ -620,6 +762,8 @@ def run_c7(ctx):
 
     if ctx["typology"] != "ecommerce":
         out.append(R("7.1", "C7", "Comercio agentico", None, "N/A (no es e-commerce)"))
+        out.append(R("7.5", "C7", "Politica de envio legible por maquina", None, "N/A (no es e-commerce)"))
+        out.append(R("7.6", "C7", "Politica de devoluciones legible por maquina", None, "N/A (no es e-commerce)"))
         return out
 
     prod_pages = [p for p in ctx["pages"] if p["bucket"] == "producto"
@@ -688,6 +832,60 @@ def run_c7(ctx):
     else:
         score, ev = 0, "Sin PSP compatible con ACP detectado (Stripe/Shopify)"
     out.append(R("7.3", "C7", "Preparacion ACP / checkout agentico", score, ev, manual=True))
+
+    # 7.5 / 7.6 datos operativos de la compra. Un agente que decide por el usuario
+    # necesita plazo, coste y condiciones de devolucion ANTES de comprar. Si solo
+    # estan en un PDF o en prosa legal, el agente los ignora o los inventa.
+    def _policy_check(cid, nombre, schema_keys, schema_type, text_re, url_re, humano):
+        found_schema, sample = [], None
+        for p in prod_pages + [{"fetch": ctx["home"]}]:
+            valid, _ = jsonld_blocks(p["fetch"]["body"])
+            for node in find_nodes(valid, "Product") + find_nodes(valid, "Offer"):
+                offers = node.get("offers") or node
+                if isinstance(offers, list):
+                    offers = offers[0] if offers else {}
+                if not isinstance(offers, dict):
+                    continue
+                for key in schema_keys:
+                    val = offers.get(key) or node.get(key)
+                    if val:
+                        found_schema.append(key)
+                        sample = val if isinstance(val, dict) else {"_": val}
+            if find_nodes(valid, schema_type):
+                found_schema.append(schema_type)
+        if found_schema:
+            campos = []
+            if isinstance(sample, dict):
+                campos = [k for k in sample.keys() if not k.startswith("@") and k != "_"]
+            score = 1 if campos else 0.5
+            ev = (f"Marcado {schema_type} presente ({', '.join(sorted(set(found_schema))[:3])})"
+                  + (f" con campos: {', '.join(campos[:6])}" if campos
+                     else " pero sin detalle interno (plazo/coste): un agente lo lee pero no puede usarlo"))
+            return R(cid, "C7", nombre, score, ev)
+        # sin schema: ¿al menos existe la informacion para un humano?
+        page_text = visible_text(corpus)
+        has_text = bool(re.search(text_re, page_text))
+        has_page = bool(re.search(url_re, corpus, re.I))
+        if has_text or has_page:
+            return R(cid, "C7", nombre, 0,
+                     f"La informacion de {humano} existe para un humano "
+                     f"({'texto en la ficha' if has_text else 'pagina dedicada'}) pero NO esta "
+                     f"en {schema_type}: un agente no puede leerla ni compararla antes de comprar")
+        return R(cid, "C7", nombre, 0,
+                 f"Sin informacion de {humano} detectable, ni estructurada ni visible. "
+                 f"Un agente que compare opciones descartara esta tienda por falta de datos")
+
+    out.append(_policy_check(
+        "7.5", "Politica de envio legible por maquina",
+        ["shippingDetails"], "OfferShippingDetails",
+        r"(?i)(gastos de env[ií]o|env[ií]o gratis|plazo de entrega|free shipping|delivery time)",
+        r"/(envios?|shipping|entrega|gastos-de-envio)", "envio"))
+
+    out.append(_policy_check(
+        "7.6", "Politica de devoluciones legible por maquina",
+        ["hasMerchantReturnPolicy"], "MerchantReturnPolicy",
+        r"(?i)(devoluci[oó]n|derecho de desistimiento|return policy|30 d[ií]as|14 d[ií]as)",
+        r"/(devoluciones?|returns?|cambios-y-devoluciones)", "devoluciones"))
     return out
 
 

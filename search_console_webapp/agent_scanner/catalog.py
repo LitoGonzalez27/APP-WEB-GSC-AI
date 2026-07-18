@@ -43,6 +43,8 @@ CHECKS = [
     ("4.4", "C4", "Deep-linking estable", "URLs directas y sin sesión para cada estado"),
     ("4.5", "C4", "API pública detectable", "OpenAPI/Swagger en rutas estándar"),
     ("4.6", "C4", "Estabilidad visual (CLS)", "Saltos de layout que confunden a los agentes"),
+    ("4.7", "C4", "Zonas de clic operables", "Tamaño real de los controles (≥24px) medido en el render"),
+    ("4.8", "C4", "Estados de error correctos", "URL inexistente: ¿404 real o soft-404 que engaña al agente?"),
 
     ("5.1", "C5", "Respuesta directa arriba", "Densidad de datos vs relleno de marketing tras el H1"),
     ("5.2", "C5", "Estructura chunkeable", "Secciones H2/H3 autocontenidas y citables"),
@@ -53,11 +55,14 @@ CHECKS = [
     ("6.1", "C6", "Superficie agéntica", "MCP Server Card, A2A, WebMCP, API Catalog, OAuth"),
     ("6.2", "C6", "Formularios operables", "label for=id verificado, autocomplete, submit real"),
     ("6.3", "C6", "Tarea con agente real", "ChatGPT/Gemini/Claude pilotando un navegador de verdad"),
+    ("6.4", "C6", "Autenticación operable por agentes", "OAuth delegado o formulario de acceso que un agente sepa rellenar"),
 
     ("7.1", "C7", "Feed/catálogo estructurado", "Plataforma e-commerce y Product schema en fichas"),
     ("7.2", "C7", "Consistencia de precio", "Precio del JSON-LD vs el visible (anti-alucinación)"),
     ("7.3", "C7", "Preparación ACP", "PSP compatible con checkout agéntico (Stripe/Shopify)"),
     ("7.4", "C7", "Protocolos emergentes", "x402/UCP/MPP (informativo, no puntúa)"),
+    ("7.5", "C7", "Política de envío legible", "OfferShippingDetails: plazo y coste antes de comprar"),
+    ("7.6", "C7", "Política de devoluciones legible", "MerchantReturnPolicy: días y condiciones en el marcado"),
 ]
 
 

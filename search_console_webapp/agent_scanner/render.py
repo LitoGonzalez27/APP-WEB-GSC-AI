@@ -6,6 +6,8 @@
 - none:       sin render; el check 4.1 degrada a heurístico.
 
 Todos devuelven: {"ok": bool, "status": int, "html": str, "error": str}
+y, cuando el backend lo permite, "boxes": geometria real de los controles
+interactivos (para el check 4.7 de zonas de clic).
 """
 import json
 import os
@@ -16,17 +18,47 @@ from .config import render_backend
 _CAMOUFOX_PY = os.path.expanduser("~/Desktop/proyectos/.venv-seo-scraping/bin/python3")
 _CAMOUFOX_PROBE = os.path.join(os.path.dirname(__file__), "_camoufox_probe.py")
 
+# Mide los controles que un agente intentaria accionar. Solo cuentan los que
+# ocupan espacio real: los de 0x0 o display:none no son clicables por nadie.
+INTERACTIVE_JS = """
+() => {
+  const SEL = 'a[href], button, input:not([type=hidden]), select, textarea,' +
+              '[role=button], [role=link], [role=tab], [onclick]';
+  const NATIVE = ['A','BUTTON','INPUT','SELECT','TEXTAREA'];
+  const out = [];
+  for (const el of Array.from(document.querySelectorAll(SEL)).slice(0, 500)) {
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0') continue;
+    out.push({
+      tag: el.tagName.toLowerCase(),
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+      cursor: cs.cursor,
+      // WCAG 2.2 exceptua los enlaces en linea dentro de texto corrido: su
+      // altura la marca el line-height, no el diseno, y son faciles de acertar
+      inline: cs.display === 'inline' && el.tagName === 'A',
+      native: NATIVE.includes(el.tagName),
+      name: (el.getAttribute('aria-label') || el.innerText || el.value || '')
+              .trim().replace(/\\s+/g, ' ').slice(0, 50)
+    });
+  }
+  return out;
+}
+"""
 
-def render(url, timeout=90):
+
+def render(url, timeout=90, interactive=False):
     backend = render_backend()
     if backend == "playwright":
-        return _render_playwright(url, timeout)
+        return _render_playwright(url, timeout, interactive)
     if backend == "camoufox":
         return _render_camoufox(url, timeout)
     return {"ok": False, "error": "sin backend de render disponible", "html": "", "status": 0}
 
 
-def _render_playwright(url, timeout):
+def _render_playwright(url, timeout, interactive=False):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -34,12 +66,19 @@ def _render_playwright(url, timeout):
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
-            page = browser.new_page()
+            page = browser.new_page(viewport={"width": 1280, "height": 900})
             resp = page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
             html = page.content()
             status = resp.status if resp else 200
+            boxes = None
+            if interactive:
+                try:
+                    boxes = page.evaluate(INTERACTIVE_JS)
+                except Exception:
+                    boxes = None
             browser.close()
-            return {"ok": True, "status": status, "html": html[:2_000_000], "error": None}
+            return {"ok": True, "status": status, "html": html[:2_000_000],
+                    "boxes": boxes, "error": None}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:300], "html": "", "status": 0}
 

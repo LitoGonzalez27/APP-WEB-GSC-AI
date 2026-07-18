@@ -54,6 +54,72 @@ def probe_wellknown(base):
     return out
 
 
+def probe_error_handling(base):
+    """Sonda de estados de error: pide una URL que no puede existir.
+
+    Un soft-404 (HTTP 200 en una página inexistente) es un fallo agéntico grave:
+    el agente cree que la operación fue bien y sigue con datos inventados. Un
+    humano lee "no encontrado"; el agente solo mira el código de estado.
+    """
+    probe = base + "/agent-readiness-probe-404-no-existe-xyz"
+    res = fetch(probe, timeout=15, ua=UA_HUMAN)
+    body = res["body"] or ""
+    text = re.sub(r"(?is)<(script|style).*?</\1>|<[^>]+>", " ", body)
+    looks_missing = bool(re.search(
+        r"(?i)no (se ha |hemos )?(encontrado|existe)|not found|404|"
+        r"página no disponible|pagina no encontrada|error 404", text[:4000]))
+    # ¿ofrece salida? (buscador o navegación para que el agente se recupere)
+    has_recovery = bool(re.search(r'(?i)<input[^>]+type=["\']search|role=["\']search|'
+                                  r'<nav\b|<form[^>]+(search|buscar)', body))
+    return {"status": res["status"], "looks_missing": looks_missing,
+            "has_recovery": has_recovery, "url": probe}
+
+
+LOGIN_URL_RE = re.compile(
+    r'href=["\']([^"\']*/(login|signin|sign-in|iniciar-sesion|acceso|'
+    r'mi-cuenta|my-account|account)[^"\']*)["\']', re.I)
+
+
+def probe_login(base, home_html):
+    """Localiza el área de acceso y la trae, para evaluar si un agente podría
+    autenticarse (check 6.4). Si el sitio no tiene login, no es un fallo: es N/A."""
+    m = LOGIN_URL_RE.search(home_html or "")
+    if not m:
+        return {"found": False}
+    url = m.group(1)
+    if url.startswith("//"):
+        url = "https:" + url
+    elif url.startswith("/"):
+        url = base + url
+    elif not url.startswith("http"):
+        return {"found": False}
+    if urlparse(url).netloc.replace("www.", "") != urlparse(base).netloc.replace("www.", ""):
+        return {"found": False}
+    res = fetch(url, timeout=20, ua=UA_HUMAN)
+    return {"found": True, "url": url, "status": res["status"], "body": res["body"] or ""}
+
+
+def probe_error_handling(base):
+    """Sonda de estados de error: pide una URL que no puede existir.
+
+    Un soft-404 (HTTP 200 en una página inexistente) es un fallo agéntico grave:
+    el agente cree que la operación fue bien y sigue con datos inventados. Un
+    humano lee "no encontrado"; el agente solo mira el código de estado.
+    """
+    probe = base + "/agent-readiness-probe-404-no-existe-xyz"
+    res = fetch(probe, timeout=15, ua=UA_HUMAN)
+    body = res["body"] or ""
+    text = re.sub(r"(?is)<(script|style).*?</\1>|<[^>]+>", " ", body)
+    looks_missing = bool(re.search(
+        r"(?i)no (se ha |hemos )?(encontrado|existe)|not found|404|"
+        r"página no disponible|pagina no encontrada|error 404", text[:4000]))
+    # ¿ofrece salida? (buscador o navegación para que el agente se recupere)
+    has_recovery = bool(re.search(r'(?i)<input[^>]+type=["\']search|role=["\']search|'
+                                  r'<nav\b|<form[^>]+(search|buscar)', body))
+    return {"status": res["status"], "looks_missing": looks_missing,
+            "has_recovery": has_recovery, "url": probe}
+
+
 def psi_cls(url):
     """CLS vía PageSpeed Insights (opcional). Requiere key para cuota decente."""
     api = ("https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
@@ -188,17 +254,39 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
           "e-commerce sin ficha de producto en el muestreo: 3.3/4.2/C7 por ausencia")
 
     if not skip_render:
-        _log("render de la home (crudo vs JS)…")
-        ctx["rendered_home"] = render_page(base + "/")
+        _log("render de la home (crudo vs JS + zonas de clic)…")
+        ctx["rendered_home"] = render_page(base + "/", interactive=True)
         if ctx["rendered_home"].get("ok"):
             T("render JS", "ok",
               f"{len(ctx['rendered_home'].get('html', ''))} bytes: check 4.1 con comparación real")
+            boxes = ctx["rendered_home"].get("boxes")
+            if boxes:
+                T("geometría de controles (4.7)", "ok",
+                  f"{len(boxes)} controles interactivos medidos en el layout real")
+            else:
+                T("geometría de controles (4.7)", "warn",
+                  "el backend de render no devolvió geometría: 4.7 queda sin evidencia")
         else:
             T("render JS", "fail",
               f"{ctx['rendered_home'].get('error', '?')[:150]} — 4.1 degrada a heurístico")
     else:
         ctx["rendered_home"] = None
-        T("render JS", "skipped", "desactivado: check 4.1 heurístico")
+        T("render JS", "skipped", "desactivado: checks 4.1 y 4.7 sin evidencia")
+
+    _log("área de acceso (autenticación agéntica)…")
+    ctx["login_probe"] = probe_login(base, ctx["home"]["body"])
+    lp = ctx["login_probe"]
+    T("área de acceso", "ok",
+      f"login localizado en {lp['url']} (HTTP {lp['status']})" if lp.get("found")
+      else "sin enlace de acceso en la home: el check 6.4 no aplica")
+
+    _log("estados de error (soft-404)…")
+    ctx["error_probe"] = probe_error_handling(base)
+    ep = ctx["error_probe"]
+    T("estados de error", "ok" if ep["status"] else "fail",
+      f"URL inexistente -> HTTP {ep['status']}"
+      + (" con texto de 'no encontrado'" if ep["looks_missing"] else "")
+      + (" y vía de recuperación" if ep["has_recovery"] else ""))
 
     # Reafinar tipología con el HTML renderizado: en SPAs (Zara y similares) el
     # HTML crudo viene casi vacío y la detección se quedaría sin señales.
@@ -313,6 +401,10 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
         "wellknown": {k: v for k, v in ctx["wellknown"].items() if v == 200},
         "jina_ok": ctx["jina_ok"],
         "render_ok": bool(ctx.get("rendered_home") and ctx["rendered_home"].get("ok")),
+        "error_handling": ctx.get("error_probe"),
+        "login_area": {k: v for k, v in (ctx.get("login_probe") or {}).items()
+                       if k != "body"},
+        "interactive_controls": len((ctx.get("rendered_home") or {}).get("boxes") or []),
         "agent_tests": ctx.get("agent_tests"),
         "trail": ctx["trail"],
         "coverage": {

@@ -953,10 +953,28 @@ function paneEvidencias(d){
       ${Object.entries(at.agents).map(([name,r])=>{
         const col=r.outcome==="conseguido"?"var(--ok)":r.outcome==="conseguido_con_friccion"?"#F5D76E"
           :r.outcome==="no_disponible"?"var(--text-3)":"var(--bad)";
+        const p=r.progreso||{};
+        // recorrido por hitos: dónde llega el agente y dónde se atasca exactamente
+        let ruta="";
+        if(p.total){
+          const hechos=new Set((p.hitos||[]).map(h=>h.nombre));
+          const todos=(at.hitos_tarea||[]).length?at.hitos_tarea
+            :[...(p.hitos||[]).map(h=>h.nombre),...(p.pendientes||[])];
+          ruta=`<div style="margin-top:8px">
+            <div style="font-size:.72rem;color:var(--text-3);margin-bottom:5px">
+              Recorrido de la tarea: ${p.alcanzados}/${p.total} pasos</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">
+            ${todos.map(n=>{const ok=hechos.has(n);
+              return`<span class="chip" title="${ok?'completado':'no alcanzado'}"
+                style="font-size:.62rem;${ok?'background:rgba(216,249,184,.14);color:var(--ok);border-color:rgba(216,249,184,.3)'
+                :'opacity:.45'}">${ok?"✓":"○"} ${esc(n)}</span>`}).join("")}
+            </div></div>`;
+        }
         return`<div class="gap" style="border-left-color:${col}">
         <b style="color:${col}">${esc(name)}: ${esc((r.outcome||"?").replace(/_/g," "))}</b>
         ${r.steps?` · ${r.steps} pasos`:""}
         <div style="font-size:.85rem;color:var(--text-2);margin-top:4px">${esc(r.detail||"")}</div>
+        ${ruta}
         ${r.action_log&&r.action_log.length?`<details><summary>registro de acciones del agente</summary>
           <div class="evidence">${r.action_log.map(esc).join("<br>")}</div></details>`:""}</div>`}).join("")}
       </div>`;
