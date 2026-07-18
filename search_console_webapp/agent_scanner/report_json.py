@@ -66,17 +66,23 @@ def _domain_block(a):
 
     # Fiabilidad primero: si el sitio bloqueó el acceso, cualquier IA que consuma
     # este JSON debe toparse con el aviso ANTES que con la puntuación.
-    fiabilidad = {"puntuacion_fiable": a.get("score_fiable", True)}
+    fiable = a.get("score_fiable", True)
+    fiabilidad = {"puntuacion_fiable": fiable}
     deg = a.get("acceso_degradado")
     if deg:
         fiabilidad.update({
             "aviso": ("PUNTUACIÓN NO FIABLE: no usar como dato firme ni comparar "
-                      "contra otros dominios"),
+                      "contra otros dominios") if not fiable else
+                     ("Puntuación utilizable, con matiz: algunas sondas fueron "
+                      "bloqueadas y esas ausencias concretas no son afirmables"),
+            "nivel_degradacion": deg.get("nivel"),
             "motivo": deg.get("motivo"),
             "factores_degradados_a_no_verificable": deg.get("degradados"),
             "http_acceso_humano": deg.get("human_status"),
             "via_de_lectura": deg.get("via"),
-            "que_hacer": "Repetir el análisis más tarde o desde otra red.",
+            "que_hacer": ("Repetir el análisis más tarde o desde otra red."
+                          if not fiable else
+                          "Los factores marcados 'no verificable' requieren revisión manual."),
         })
 
     return {

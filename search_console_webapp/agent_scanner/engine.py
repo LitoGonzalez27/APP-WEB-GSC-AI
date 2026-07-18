@@ -299,6 +299,51 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     else:
         T("muestreo de páginas", "ok",
           f"{len(pages)} páginas de {len(all_urls)} URLs del sitemap ({via_fb} vía fallback)")
+    # Promoción de fichas por CONTENIDO: muchas tiendas usan URLs propias
+    # (pccomponentes.com/placa-base-..., hawkersco.com/gafas-...) que ningún
+    # patrón de palabras clave reconoce. Si no hay bucket producto, se sondean
+    # unas pocas URLs "otras" buscando Product schema — evidencia estructural
+    # que además corrige la tipología si hacía falta.
+    if not any(p["bucket"] == "producto" and p["fetch"]["status"] == 200 for p in pages) \
+            and len(buckets.get("otras", [])) >= 10:
+        _log("buscando fichas de producto por contenido…")
+        # las fichas suelen tener el slug más largo y descriptivo del sitio
+        candidatos = sorted(buckets["otras"],
+                            key=lambda u: -urlparse(u).path.count("-"))[:5]
+        promovidas, sondeos = 0, []
+        for u in candidatos:
+            res = fetch(u, ua=UA_HUMAN, timeout=15)
+            sondeos.append(res["status"])
+            # Se PARSEA el JSON-LD real, no se busca la cadena: la documentación
+            # de stripe.com contiene '"@type": "Product"' como ejemplo de código
+            # y el match de texto la convertía en tienda. Un bloque ld+json que
+            # parsea y contiene un nodo Product sí es una ficha; un trozo de
+            # texto que se le parece, no.
+            if res["status"] == 200:
+                valid_blocks, _inv = checks_mod.jsonld_blocks(res["body"] or "")
+                if checks_mod.find_nodes(valid_blocks, "Product"):
+                    pages.append({"url": u, "bucket": "producto", "fetch": res})
+                    promovidas += 1
+            if promovidas >= 2:
+                break
+        if promovidas:
+            T("fichas de producto por contenido", "ok",
+              f"{promovidas} página(s) con Product schema encontradas fuera de los "
+              f"patrones de URL: promovidas al bucket producto")
+            if ctx["typology"] != "ecommerce" and not typology_override:
+                T("tipología (corregida por evidencia estructural)", "ok",
+                  f"{ctx['typology']} → ecommerce: hay fichas con Product schema, "
+                  "y eso pesa más que el vocabulario de la home")
+                ctx["typology"] = "ecommerce"
+            # la evidencia estructural manda: que la re-evaluación por render
+            # (que solo mira vocabulario) no la deshaga después
+            ctx["typology_estructural"] = True
+        else:
+            # el intento fallido también se registra: silencio = agujero de fidelidad
+            T("fichas de producto por contenido", "warn",
+              f"sondeadas {len(sondeos)} URLs sin patrón de ficha (HTTP {sondeos}): "
+              "ninguna con Product schema en el HTML crudo. Si el sitio es una "
+              "tienda, sus fichas no son detectables automáticamente")
     if ctx["typology"] == "ecommerce" and not any(p["bucket"] == "producto" for p in pages):
         T("cobertura de producto", "warn",
           "e-commerce sin ficha de producto en el muestreo: 3.3/4.2/C7 por ausencia")
@@ -363,7 +408,8 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     # Reafinar tipología con el HTML renderizado: en SPAs (Zara y similares) el
     # HTML crudo viene casi vacío y la detección se quedaría sin señales.
     rh = (ctx.get("rendered_home") or {}).get("html") or ""
-    if not typology_override and len(rh) > len(ctx["home"].get("body", "")) * 1.2:
+    if not typology_override and not ctx.get("typology_estructural") \
+            and len(rh) > len(ctx["home"].get("body", "")) * 1.2:
         typ2, ev2 = discovery.detect_typology(rh, all_urls)
         if typ2 != ctx["typology"]:
             T("tipología (re-evaluada con render)", "ok",
@@ -413,9 +459,12 @@ CAT_NAMES = {
 # Checks cuyo "0" significa "no lo he encontrado". Si el sitio nos ha bloqueado,
 # ese 0 no es un hallazgo sobre la web: es una ceguera nuestra, y afirmarlo sería
 # mentir. Se degradan a "no verificable" en vez de puntuar como fallo.
-CHECKS_POR_AUSENCIA = {"1.4", "1.5", "1.7", "2.1", "3.1", "3.2", "3.3", "3.4",
-                       "3.5", "3.6", "4.5", "5.1", "5.2", "5.3", "5.5", "5.6",
-                       "6.1", "6.2", "7.1", "7.5", "7.6"}
+CHECKS_POR_AUSENCIA = {"1.4", "1.5", "1.7", "2.1", "2.3", "3.1", "3.2", "3.3",
+                       "3.4", "3.5", "3.6", "4.5", "5.1", "5.2", "5.3", "5.5",
+                       "5.6", "6.1", "6.2", "7.1", "7.5", "7.6"}
+# Se quedan FUERA a propósito aunque el sitio bloquee: 1.6, 2.4 y 4.4 miden
+# exactamente esa hostilidad al acceso automatizado, que es lo que un agente
+# sufriría. Que el sitio nos bloquee ES el hallazgo, no ruido.
 
 # Checks que leen MARCADO (JSON-LD, formularios, atributos). Si la home vino por
 # un fallback de texto (Jina), el marcado sencillamente no está en lo que vemos:
@@ -424,29 +473,48 @@ CHECKS_POR_AUSENCIA = {"1.4", "1.5", "1.7", "2.1", "3.1", "3.2", "3.3", "3.4",
 CHECKS_DE_MARCADO = {"3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "4.2", "6.2",
                      "7.1", "7.2", "7.5", "7.6"}
 
+# Checks cuyo "no encontrado" depende de SONDAS adicionales (robots, sitemap,
+# .well-known, negociación de contenido), no de la portada. Si la portada se vio
+# pero esas sondas recibieron bloqueos, solo estas ausencias son inafirmables.
+CHECKS_DE_SONDA = {"1.4", "1.5", "2.1", "4.5", "5.5", "5.6", "6.1"}
+
 
 def _degradar_si_bloqueado(results, ctx):
-    """Si no hemos podido ver el sitio (o solo lo hemos visto de refilón), no
-    afirmamos ausencias. Distinguir 'no está' de 'no lo he podido mirar' es la
-    diferencia entre un informe fiable y uno que difama al cliente."""
+    """Si no hemos podido ver el sitio (o solo en parte), no afirmamos ausencias.
+    Distinguir 'no está' de 'no lo he podido mirar' es la diferencia entre un
+    informe fiable y uno que difama al cliente. Tres niveles:
+      total   → no vimos nada creíble: se degrada todo lo basado en ausencia.
+      marcado → solo texto vía Jina: se degrada lo que lee HTML + las sondas.
+      sondas  → la portada SÍ se vio; solo fallaron sondas posteriores: se
+                degradan únicamente las ausencias que dependen de ellas, y la
+                puntuación sigue siendo utilizable (con aviso en el trail).
+    """
     human = (ctx.get("bot_matrix") or {}).get("_human", 0)
     via = (ctx.get("home") or {}).get("_via", "http")
     home_ok = len((ctx.get("home") or {}).get("body") or "") >= 500
-    acceso_directo = human == 200 and home_ok and via == "http"
 
-    if acceso_directo:
+    if human == 200 and home_ok and via in ("http", "render"):
         ctx["acceso_degradado"] = None
         return results
 
-    if human != 200 or not home_ok:
-        objetivo, motivo = CHECKS_POR_AUSENCIA, (
-            f"el sitio no sirve contenido a un acceso automatizado (UA humano "
-            f"recibe HTTP {human}). No es posible afirmar que esto falte: no hemos "
-            f"podido comprobarlo")
+    if not home_ok or (human != 200 and via == "render"):
+        # sin portada creíble (un render con el humano bloqueado puede ser la
+        # página del captcha: no nos fiamos de ese HTML)
+        nivel, objetivo = "total", CHECKS_POR_AUSENCIA
+        motivo = (f"el sitio no sirve contenido a un acceso automatizado (UA humano "
+                  f"recibe HTTP {human}). No es posible afirmar que esto falte: no "
+                  f"hemos podido comprobarlo")
+    elif via == "jina":
+        nivel, objetivo = "marcado", CHECKS_DE_MARCADO | CHECKS_DE_SONDA
+        motivo = ("la página solo se pudo leer vía jina, que devuelve texto sin "
+                  "marcado, y el acceso directo está limitado. El HTML real no es "
+                  "observable, así que no afirmamos nada sobre él")
     else:
-        objetivo, motivo = CHECKS_DE_MARCADO, (
-            f"la página solo se pudo leer vía {via}, que devuelve texto sin marcado. "
-            f"El HTML real no es observable, así que no afirmamos nada sobre él")
+        # portada vista por HTTP normal, pero sondas posteriores bloqueadas
+        nivel, objetivo = "sondas", CHECKS_DE_SONDA
+        motivo = (f"la portada se obtuvo con normalidad, pero el sitio devolvió "
+                  f"HTTP {human} a sondas posteriores del análisis: las ausencias "
+                  f"que dependen de esas sondas no son afirmables")
 
     n = 0
     for r in results:
@@ -455,14 +523,18 @@ def _degradar_si_bloqueado(results, ctx):
             r["manual"] = True
             r["evidence"] = f"NO VERIFICABLE — {motivo}. (Sonda: {r['evidence'][:120]})"
             n += 1
-    ctx["acceso_degradado"] = {
-        "motivo": motivo, "degradados": n, "human_status": human, "via": via}
+    ctx["acceso_degradado"] = {"nivel": nivel, "motivo": motivo, "degradados": n,
+                               "human_status": human, "via": via}
     if n:
+        aviso_final = ("La puntuación global queda marcada como NO FIABLE: no debe "
+                       "entregarse sin repetir el análisis"
+                       if nivel in ("total", "marcado") else
+                       "La puntuación sigue siendo utilizable: cubre lo que sí se "
+                       "pudo comprobar")
         ctx["trail"].append({
             "step": "guardarraíl de fidelidad", "status": "warn",
-            "detail": (f"{n} checks degradados a 'no verificable'. {motivo}. "
-                       "La puntuación global queda marcada como NO FIABLE: no debe "
-                       "entregarse al cliente sin repetir el análisis")})
+            "detail": f"{n} checks degradados a 'no verificable' (nivel {nivel}). "
+                      f"{motivo}. {aviso_final}"})
     return results
 
 
@@ -544,7 +616,10 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
         "wellknown": {k: v for k, v in ctx["wellknown"].items() if v == 200},
         "jina_ok": ctx["jina_ok"],
         "render_ok": bool(ctx.get("rendered_home") and ctx["rendered_home"].get("ok")),
-        "score_fiable": not bool(ctx.get("acceso_degradado")),
+        # "sondas" degrada checks concretos pero la puntuación sigue valiendo;
+        # solo "total" y "marcado" invalidan el score para entrega
+        "score_fiable": (ctx.get("acceso_degradado") or {}).get("nivel")
+                        not in ("total", "marcado"),
         "acceso_degradado": ctx.get("acceso_degradado"),
         "error_handling": ctx.get("error_probe"),
         "login_area": {k: v for k, v in (ctx.get("login_probe") or {}).items()

@@ -877,7 +877,10 @@ def run_c7(ctx):
 
     # 7.1 plataforma con feed / catalogo estructurado
     platform = None
-    for marker, name in (("cdn.shopify", "Shopify"), ("woocommerce", "WooCommerce"),
+    # marcadores a nivel de asset, no la palabra suelta (stripe.com menciona
+    # "WooCommerce" como cliente y salia detectada como tienda WooCommerce)
+    for marker, name in (("cdn.shopify", "Shopify"), ("plugins/woocommerce", "WooCommerce"),
+                         ("woocommerce-page", "WooCommerce"),
                          ("prestashop", "PrestaShop"), ("magento", "Magento"),
                          ("bigcommerce", "BigCommerce")):
         if marker in corpus.lower():

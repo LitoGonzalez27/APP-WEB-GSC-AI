@@ -12,8 +12,11 @@ from .httpfetch import fetch
 from .config import UA_HUMAN
 
 BUCKET_PATTERNS = [
-    ("producto", re.compile(r"/(producto|product|item|dp|p)/|/prod-", re.I)),
-    ("categoria", re.compile(r"/(categoria|category|collections|tienda|shop|c)/", re.I)),
+    # OJO con los plurales: Shopify usa SIEMPRE /products/ y WooCommerce en
+    # español /productos/. Sin ellos, ninguna tienda Shopify tenía ficha de
+    # producto en el muestreo y 3.3/4.2/7.x salían como "sin ficha accesible".
+    ("producto", re.compile(r"/(productos?|products?|item|dp|p)/|/prod-", re.I)),
+    ("categoria", re.compile(r"/(categor[ií]as?|categor(?:y|ies)|collections?|tienda|shop|c)/", re.I)),
     ("blog", re.compile(r"/(blog|noticias|news|articulo|article|magazine|revista|guia|guide|recursos)s?/", re.I)),
     ("servicio", re.compile(r"/(servicio|service|soluciones|solutions|features|funcionalidades|tratamiento)s?", re.I)),
     ("legal", re.compile(r"/(aviso-legal|privacidad|privacy|terminos|terms|condiciones|cookies)", re.I)),
@@ -29,7 +32,12 @@ ECOM_STRONG = {
     "schema_product": r'"@type"\s*:\s*"Product"',
     "add_to_cart": r'a[ñn]adir al carrito|a[ñn]adir a la cesta|add to cart|comprar ahora',
     "cart_url": r'/(carrito|cart|cesta|checkout)(/|"|\'|\?|$)',
-    "ecom_platform": r'woocommerce|cdn\.shopify|shopify\.com|prestashop|magento|bigcommerce|vtex',
+    # Solo marcadores a nivel de ASSET, nunca la palabra suelta: stripe.com
+    # menciona "WooCommerce" y "Shopify" como clientes en su marketing y se
+    # clasificaba como tienda. Una tienda real deja huellas técnicas
+    # (plugins/woocommerce, cdn.shopify, clases woocommerce-page).
+    "ecom_platform": r'plugins/woocommerce|woocommerce-page|cdn\.shopify'
+                     r'|prestashop|magento|bigcommerce|vtex',
 }
 ECOM_WEAK = {
     "cart_word": r'\bcarrito\b|\bcesta\b',
@@ -250,7 +258,7 @@ def detect_typology(home_html, all_urls):
     # Señal estructural: muchas URLs con patrón de ficha de producto en el sitemap.
     # Un catálogo grande es evidencia fuerte de e-commerce aunque la home sea JS.
     prod_urls = sum(1 for u in all_urls if re.search(
-        r"/(producto|product|p)/|/(comprar|buy)-|-p-\d+|/dp/", u, re.I))
+        r"/(productos?|products?|p)/|/(comprar|buy)-|-p-\d+|/dp/", u, re.I))
     if prod_urls >= 20:
         e_s = e_s | {f"catalogo_urls_producto({prod_urls})"}
 
@@ -264,6 +272,14 @@ def detect_typology(home_html, all_urls):
     # Sin carrito no hay tienda: "shop_url + precio + Offer" lo cumple cualquier
     # web corporativa que venda algo puntual o liste una app con precio.
     trio_con_carrito = len(e_w) >= 3 and "cart_word" in e_w
+    # Evidencia ESTRUCTURAL de tienda (schema Product, assets de plataforma,
+    # catálogo de URLs) pesa más que el vocabulario: una SaaS de pagos habla de
+    # "checkout" y "add to cart" todo el día sin vender nada (stripe.com se
+    # clasificaba como e-commerce por su propia jerga).
+    structural = bool(e_s & {"schema_product", "ecom_platform"}) \
+        or any(s.startswith("catalogo_urls") for s in e_s)
+    if len(s_s) >= 2 and not structural and saas_score >= ecom_score - 2:
+        return "saas", ev
     if (e_s or trio_con_carrito) and ecom_score >= saas_score:
         return "ecommerce", ev
     # saas: exige >=2 señales FUERTES (las débiles las tiene cualquier corporativa)
