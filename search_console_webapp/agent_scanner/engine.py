@@ -247,10 +247,6 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     if ctx["home"]["status"] == 0 and all(v == 0 for v in ctx["bot_matrix"].values()):
         raise RuntimeError(f"{base} no responde (DNS/conexión). Verifica el dominio.")
 
-    _log("rate limiting…")
-    ctx["rapid"] = rapid_fire(base + "/", BOT_UAS["GPTBot"], n=10)
-    T("rate limiting", "ok", f"10 peticiones como GPTBot: {ctx['rapid']}")
-
     _log("superficie agéntica (.well-known)…")
     ctx["wellknown"], ctx["wellknown_meta"] = probe_wellknown(base)
     hits = [p for p, c in ctx["wellknown"].items() if c == 200]
@@ -401,6 +397,7 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     if with_psi:
         T("PageSpeed (CLS)", "ok" if ctx["psi_cls"] is not None else "fail",
           f"CLS={ctx['psi_cls']}" if ctx["psi_cls"] is not None else "PSI sin respuesta")
+
     ctx.setdefault("agent_tests", None)
     return ctx
 
@@ -499,6 +496,17 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
     else:
         ctx["trail"].append({"step": "pruebas agénticas (6.3)", "status": "skipped",
                              "detail": "desactivadas: el check 6.3 queda como manual"})
+
+    # La sonda de rate limiting va la ULTIMA de todas a propósito: aporrear el
+    # sitio con 10 peticiones seguidas al principio contaminaba las mediciones
+    # posteriores (muestreo, render, sondas e incluso las pruebas agénticas) en
+    # sitios con límite por IP. Detectado en calibración: perfumesclub devolvió
+    # 429/418 al muestreo tras dispararse esta sonda, y acabamos baneados.
+    _log("rate limiting (última sonda, para no contaminar el resto)…")
+    ctx["rapid"] = rapid_fire(base + "/", BOT_UAS["GPTBot"], n=10)
+    ctx["trail"].append({"step": "rate limiting", "status": "ok",
+                         "detail": f"10 peticiones como GPTBot: {ctx['rapid']} "
+                                   "(se ejecuta al final para no distorsionar las demás sondas)"})
 
     results = checks_mod.run_all(ctx)
     results = _degradar_si_bloqueado(results, ctx)
