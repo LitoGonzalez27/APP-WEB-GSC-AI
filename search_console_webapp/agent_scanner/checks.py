@@ -155,15 +155,22 @@ def run_c1(ctx):
         ev = f"Acceso declarado coincide con el real ({codes})"
     out.append(R("1.3", "C1", "Bloqueo declarado vs real", score, ev))
 
-    # 1.4 sitemap presente y fresco
+    # 1.4 sitemap presente y fresco. "Bloqueado" != "ausente": si las rutas de
+    # sitemap devuelven 403/timeout no podemos afirmar que falte (zalando.es).
     sm = ctx["sitemap"]
     if sm["found"] and ctx["sitemap_fresh"]:
-        score, ev = 1, f"Sitemap con {len(sm['urls'])} URLs y lastmod reciente (<90 dias)"
+        out.append(R("1.4", "C1", "sitemap.xml fresco", 1,
+                     f"Sitemap con {len(sm['urls'])} URLs y lastmod reciente (<90 dias)"))
     elif sm["found"]:
-        score, ev = 0.5, f"Sitemap con {len(sm['urls'])} URLs pero sin lastmod reciente"
+        out.append(R("1.4", "C1", "sitemap.xml fresco", 0.5,
+                     f"Sitemap con {len(sm['urls'])} URLs pero sin lastmod reciente"))
+    elif sm.get("bloqueado"):
+        out.append(R("1.4", "C1", "sitemap.xml fresco", None,
+                     f"Las rutas de sitemap no responden a acceso automatizado "
+                     f"(HTTP {sm.get('estados')}): puede existir y estar bloqueado, "
+                     "no es afirmable que falte", manual=True))
     else:
-        score, ev = 0, "Sin sitemap.xml localizable"
-    out.append(R("1.4", "C1", "sitemap.xml fresco", score, ev))
+        out.append(R("1.4", "C1", "sitemap.xml fresco", 0, "Sin sitemap.xml localizable"))
 
     # 1.5 Link headers (RFC 8288)
     link_h = re.search(r"(?im)^link:\s*(.+)$", ctx["home"]["headers"] or "")

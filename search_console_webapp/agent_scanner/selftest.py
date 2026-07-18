@@ -131,6 +131,34 @@ def test_dns_wildcard_ruido():
       "un registro agentico real se descarta por error")
 
 
+def test_sitemap_bloqueado_no_es_ausente():
+    """Bug: el sitemap de zalando.es está bloqueado (timeout/403) y el check
+    afirmaba 'sin sitemap' — una carencia no comprobada."""
+    ctx = ctx_base()
+    ctx["sitemap"] = {"urls": [], "lastmods": [], "found": False,
+                      "bloqueado": True, "estados": [0, 403]}
+    r = by_id(checks.run_c1(ctx), "1.4")
+    t("sitemap_bloqueado", r["score"] is None and "no es afirmable" in r["evidence"],
+      f"score={r['score']}")
+    ctx["sitemap"] = {"urls": [], "lastmods": [], "found": False,
+                      "bloqueado": False, "estados": [404]}
+    r = by_id(checks.run_c1(ctx), "1.4")
+    t("sitemap_ausente_real", r["score"] == 0, f"score={r['score']}")
+
+
+def test_harvest_links():
+    """Bug de cobertura: sin sitemap (wikipedia, github) se auditaba SOLO la
+    home. El plan B extrae enlaces internos de la portada."""
+    html = ('<a href="/wiki/Portada">a</a> <a href="/wiki/Ciencia?x=1#top">b</a> '
+            '<a href="https://es.wikipedia.org/wiki/Arte">c</a> '
+            '<a href="https://otro-dominio.com/fuera">externo</a> '
+            '<a href="mailto:x@y.com">mail</a> <a href="/wiki/Portada">dup</a>')
+    urls = discovery.harvest_links("https://es.wikipedia.org", html)
+    t("harvest_internas", len(urls) == 3 and all("wikipedia.org" in u for u in urls),
+      str(urls))
+    t("harvest_sin_query", not any("?" in u or "#" in u for u in urls), str(urls))
+
+
 # ---------------------------------------------------------- checks C1/C2
 
 def test_bloqueo_5xx():

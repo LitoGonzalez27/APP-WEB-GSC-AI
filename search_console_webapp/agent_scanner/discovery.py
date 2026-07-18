@@ -187,7 +187,7 @@ def get_sitemap_urls(base, robots, cap=800):
     convencionales = [base + "/sitemap.xml", base + "/sitemap_index.xml",
                       base + "/sitemap-index.xml", base + "/wp-sitemap.xml"]
     candidates = list(dict.fromkeys((robots["sitemaps"] or []) + convencionales))
-    urls, lastmods, seen_maps = [], [], set()
+    urls, lastmods, seen_maps, estados = [], [], set(), []
     queue = list(candidates)[:6]
     while queue and len(urls) < cap:
         sm = queue.pop(0)
@@ -195,6 +195,7 @@ def get_sitemap_urls(base, robots, cap=800):
             continue
         seen_maps.add(sm)
         res = fetch(sm, timeout=25)
+        estados.append(res["status"])
         if res["status"] != 200:
             continue
         body = res["body"]
@@ -206,7 +207,43 @@ def get_sitemap_urls(base, robots, cap=800):
         lastmods.extend(_LASTMOD_RE.findall(body))
     host = urlparse(base).netloc.replace("www.", "")
     urls = [u for u in urls if host in urlparse(u).netloc][:cap]
-    return {"urls": urls, "lastmods": lastmods, "found": bool(urls)}
+    # "No encontrado" y "bloqueado" NO son lo mismo: el sitemap de zalando.es
+    # existe pero la conexión se corta (status 0). Afirmar "sin sitemap" en ese
+    # caso sería atribuir una carencia no comprobada (guardarraíl de fidelidad).
+    bloqueado = (not urls) and any(
+        s == 0 or s in (401, 403, 406, 429) or s >= 500 for s in estados)
+    return {"urls": urls, "lastmods": lastmods, "found": bool(urls),
+            "bloqueado": bloqueado, "estados": estados}
+
+
+def harvest_links(base, home_html, cap=60):
+    """Fallback de cobertura cuando no hay sitemap: URLs internas de la portada.
+
+    Sin esto, sitios sin sitemap público (es.wikipedia.org, github.com) se
+    auditaban SOLO con la home y los checks de contenido quedaban ciegos.
+    """
+    host = urlparse(base).netloc.replace("www.", "")
+    out, seen = [], set()
+    for href in re.findall(r'href=["\']([^"\'#]+)', home_html or ""):
+        if href.startswith(("mailto:", "tel:", "javascript:", "data:")):
+            continue
+        if href.startswith("//"):
+            url = "https:" + href
+        elif href.startswith("/"):
+            url = base + href
+        elif href.startswith("http"):
+            url = href
+        else:
+            continue
+        if urlparse(url).netloc.replace("www.", "") != host:
+            continue
+        url = url.split("?")[0].rstrip("/")
+        if url and url != base and url not in seen:
+            seen.add(url)
+            out.append(url)
+        if len(out) >= cap:
+            break
+    return out
 
 
 def sitemap_freshness(lastmods, days=90):

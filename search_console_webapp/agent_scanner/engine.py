@@ -254,6 +254,15 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
       f"{len(WELLKNOWN_PATHS)} rutas con validación de contenido; válidas: {', '.join(hits) or 'ninguna'}")
 
     all_urls = ctx["sitemap"]["urls"]
+    if not all_urls:
+        # sin sitemap no hay muestreo, y auditar solo la home deja ciegos los
+        # checks de contenido (es.wikipedia.org, github.com). Los enlaces
+        # internos de la portada son el plan B de cobertura.
+        all_urls = discovery.harvest_links(base, ctx["home"]["body"])
+        if all_urls:
+            T("descubrimiento por enlaces", "ok",
+              f"sin sitemap utilizable: {len(all_urls)} URLs internas extraídas "
+              "de la portada para poder muestrear contenido real")
     typ, typ_ev = discovery.detect_typology(ctx["home"]["body"], all_urls)
     ctx["typology"] = typology_override or typ
     ctx["typology_evidence"] = typ_ev
@@ -304,8 +313,14 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     # patrón de palabras clave reconoce. Si no hay bucket producto, se sondean
     # unas pocas URLs "otras" buscando Product schema — evidencia estructural
     # que además corrige la tipología si hacía falta.
+    # Puerta: solo se sondea si hay ALGUNA señal textual de comercio. Sin ella,
+    # un Product schema suelto no convierte el sitio en tienda: la prensa mete
+    # Product en artículos de afiliación (eldiario.es salía "e-commerce" por
+    # dos NOTICIAS promovidas como fichas).
+    pts_ecom = (ctx.get("typology_evidence", {}).get("ecommerce") or {}).get("puntos", 0)
     if not any(p["bucket"] == "producto" and p["fetch"]["status"] == 200 for p in pages) \
-            and len(buckets.get("otras", [])) >= 10:
+            and len(buckets.get("otras", [])) >= 10 \
+            and (ctx["typology"] == "ecommerce" or pts_ecom >= 1):
         _log("buscando fichas de producto por contenido…")
         # las fichas suelen tener el slug más largo y descriptivo del sitio
         candidatos = sorted(buckets["otras"],
@@ -330,7 +345,10 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
             T("fichas de producto por contenido", "ok",
               f"{promovidas} página(s) con Product schema encontradas fuera de los "
               f"patrones de URL: promovidas al bucket producto")
-            if ctx["typology"] != "ecommerce" and not typology_override:
+            # el cambio de tipología exige 2 fichas (una sola puede ser un
+            # artículo de afiliación con Product schema); con 1, se promueve
+            # la página para los checks pero la tipología no se toca
+            if promovidas >= 2 and ctx["typology"] != "ecommerce" and not typology_override:
                 T("tipología (corregida por evidencia estructural)", "ok",
                   f"{ctx['typology']} → ecommerce: hay fichas con Product schema, "
                   "y eso pesa más que el vocabulario de la home")
