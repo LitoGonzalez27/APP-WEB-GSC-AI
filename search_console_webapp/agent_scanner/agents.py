@@ -78,12 +78,24 @@ TASKS = {
 MILESTONES = {
     "ecommerce": [
         {"clave": "ficha_producto", "nombre": "Abrir una ficha de producto",
-         "url": r"/(producto|product|item|dp|p)/|-p-\d+",
-         "html": r"(?i)(a[ñn]adir al carrito|add to cart|a[ñn]adir a la cesta)"},
+         "url": r"/(productos?|products?|item|dp|p)/|-p-\d+",
+         # el marcado Product es la señal más fiable de que estamos en una ficha:
+         # noel.es abría un producto y no lo contábamos porque su URL y su texto
+         # no encajaban con los patrones en español que teníamos
+         "html": r"(?i)(a[ñn]adir al carrito|add to cart|a[ñn]adir a la cesta|"
+                 r"a[ñn]adir a la bolsa|\"@type\"\s*:\s*\"Product\")"},
         {"clave": "anadir_carrito", "nombre": "Añadir el producto al carrito",
-         "accion": r"(?i)(a[ñn]adir|add to cart|comprar|cesta)"},
+         # PREORDER/reservar son el botón de compra en preventa: pompeii lo
+         # pulsó y no se lo contábamos
+         "accion": r"(?i)(a[ñn]adir|add to (cart|bag)|comprar|cesta|bolsa|"
+                   r"pre-?order|preventa|reservar)"},
+        # El carrito de Shopify y muchos temas modernos se abre como PANEL
+        # LATERAL sin cambiar la URL: comprobar solo la URL daba el hito por no
+        # alcanzado aunque el agente lo hubiera abierto correctamente.
         {"clave": "ver_carrito", "nombre": "Abrir el carrito",
-         "url": r"/(carrito|cart|cesta|basket)"},
+         "url": r"/(carrito|cart|cesta|basket)",
+         "html": r"(?i)(cart-drawer|cart__drawer|mini-?cart|drawer--cart|"
+                 r"id=[\"']?CartDrawer|(subtotal|total)[^<]{0,40}(carrito|cart|cesta))"},
         {"clave": "checkout", "nombre": "Llegar al checkout",
          "url": r"/(checkout|pago|caja|finalizar|payment)"},
         # se detecta por haber escrito un email: es el campo que pide todo
@@ -161,8 +173,11 @@ SYSTEM = (
     '{\"accion\": \"click\"|\"type\"|\"done\", \"indice\": <n>, \"texto\": \"<si type>\", '
     '\"friccion\": \"<describe cualquier dificultad, o vacío>\", '
     '\"resultado\": \"<solo si done: CONSEGUIDO o NO_CONSEGUIDO y por qué>\"}\n'
-    "Reglas: rechaza cookies si aparecen. No pagues ni crees cuentas. Si te atascas 2 veces, "
-    "responde done con NO_CONSEGUIDO explicando la fricción."
+    "Reglas: rechaza cookies si aparecen. No pagues ni crees cuentas. Si una acción falla, "
+    "PRUEBA OTRA RUTA antes de rendirte (el buscador, el menú, otra categoría, otro "
+    "producto): tienes pasos de sobra y abandonar pronto falsea el resultado. Solo "
+    "responde done con NO_CONSEGUIDO cuando hayas agotado al menos 4 alternativas "
+    "distintas, y explica cuáles probaste."
 )
 
 _ELEMENTS_JS = r"""
@@ -172,15 +187,33 @@ _ELEMENTS_JS = r"""
   let i = 0;
   document.querySelectorAll(sel).forEach(el => {
     const r = el.getBoundingClientRect();
-    const vis = r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'
-      && getComputedStyle(el).display !== 'none';
+    const cs = getComputedStyle(el);
+    // Los controles ocultos con etiqueta visible (tallas, colores) SÍ entran:
+    // se clican por su <label>, que es lo que haría un agente con visión.
+    const tieneLabel = el.id && document.querySelector(`label[for='${CSS.escape(el.id)}']`);
+    const vis = (r.width > 0 && r.height > 0 && cs.visibility !== 'hidden'
+                 && cs.display !== 'none') || tieneLabel;
     if (!vis) return;
-    if (i > 60) return;
+    // Tope alto: con 60 en orden del DOM, en una tienda solo entraban cabecera
+    // y menú, y los productos nunca llegaban a la lista. El agente no podía
+    // encontrar lo que no le enseñábamos.
+    if (i >= 110) return;
     el.setAttribute('data-agent-idx', i);
-    const name = (el.innerText || el.value || el.getAttribute('aria-label')
-      || el.getAttribute('placeholder') || el.getAttribute('name') || '').trim().slice(0, 70);
+    // El texto visible manda; si no hay (enlaces que son solo imagen, típicos
+    // de las fichas de producto), se usa el alt de la imagen antes que caer en
+    // atributos internos como name, que no dicen nada al modelo.
+    const img = el.querySelector('img');
+    const name = (el.innerText || (img && (img.alt || img.title)) || el.value
+      || el.getAttribute('aria-label') || el.getAttribute('title')
+      || el.getAttribute('placeholder') || el.getAttribute('name') || ''
+      ).trim().replace(/\s+/g, ' ').slice(0, 70);
+    // El destino del enlace orienta muchísimo: /products/... delata una ficha
+    let href = '';
+    if (el.tagName === 'A') {
+      try { href = new URL(el.href, location.href).pathname.slice(0, 45); } catch (e) {}
+    }
     out.push({i, tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || '',
-      name});
+      name, href});
     i++;
   });
   return out;
@@ -273,6 +306,36 @@ def _despejar(page):
         return 0
 
 
+_LABEL_JS = r"""
+(idx) => {
+  // Devuelve un selector para la ETIQUETA visible de un control oculto.
+  // Los selectores de talla/color son <input> con opacidad 0 o recortados,
+  // con su <label> encima: lo clicable de verdad es la etiqueta.
+  const el = document.querySelector(`[data-agent-idx='${idx}']`);
+  if (!el) return null;
+  let lab = null;
+  if (el.id) lab = document.querySelector(`label[for='${CSS.escape(el.id)}']`);
+  if (!lab) lab = el.closest('label');
+  if (!lab) return null;
+  const r = lab.getBoundingClientRect();
+  if (r.width < 1 || r.height < 1) return null;
+  lab.setAttribute('data-agent-label', idx);
+  return true;
+}
+"""
+
+
+def _click_via_label(page, idx):
+    """Clica la etiqueta asociada a un control oculto. True si lo consiguió."""
+    try:
+        if not page.evaluate(_LABEL_JS, idx):
+            return False
+        page.click(f"[data-agent-label='{idx}']", timeout=5000)
+        return True
+    except Exception:
+        return False
+
+
 def _parse_action(text):
     m = re.search(r"\{.*\}", text or "", re.S)
     if not m:
@@ -288,7 +351,7 @@ def _parse_action(text):
 def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
     from playwright.sync_api import sync_playwright
     steps, frictions, outcome = [], [], "no_conseguido"
-    reached = {}
+    reached, fallidos = {}, {}
     hitos = hitos_aplicables(typology, allow_submit)
     total_hitos = len(hitos)
     omitidos = [m["nombre"] for m in MILESTONES.get(typology, []) if m not in hitos]
@@ -327,8 +390,11 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                                   steps[-1] if steps else None)
             except Exception:
                 pass
-            listing = "\n".join(f"[{e['i']}] <{e['tag']}{('/'+e['type']) if e['type'] else ''}> "
-                                f"{e['name'] or '(sin texto)'}" for e in elements) or "(sin elementos)"
+            listing = "\n".join(
+                f"[{e['i']}] <{e['tag']}{('/'+e['type']) if e['type'] else ''}> "
+                f"{e['name'] or '(sin texto)'}"
+                + (f"  -> {e['href']}" if e.get("href") else "")
+                for e in elements) or "(sin elementos)"
             messages.append({"role": "user",
                              "content": f"URL: {page.url}\nElementos:\n{listing}\n"
                                         "Responde con el JSON de la próxima acción."})
@@ -356,6 +422,16 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                 break
 
             label = (target or {}).get("name", "")
+
+            def _parar_por_guardarrail(motivo):
+                """Un guardarraíl detiene la prueba por ética. Que eso cuente
+                como ÉXITO depende de lo lejos que hubiéramos llegado: toparse
+                con un botón 'Enviar' de una newsletter en el primer paso no es
+                haber completado una compra. Sin recorrido no hay éxito."""
+                steps.append(motivo)
+                p = _progress()
+                suficiente = p["total"] and p["alcanzados"] >= max(1, p["total"] // 2)
+                return "conseguido" if suficiente else "no_conseguido"
             # GUARDARRAÍL: jamás se escribe en un campo de pago, aunque el LLM
             # lo pida. Rellenar contacto y envío sí; tarjeta nunca.
             if action == "type" and CARD_FIELD.search(label):
@@ -365,14 +441,14 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                 break
             # GUARDARRAÍL en código: nunca pagar/crear cuenta
             if action == "click" and FORBIDDEN_CLICK.search(label):
-                steps.append(f"BLOQUEADO por ética (pago/cuenta): '{label[:50]}' — se detiene aquí")
-                outcome = "conseguido"  # llegar hasta aquí ES el éxito de la prueba
+                outcome = _parar_por_guardarrail(
+                    f"BLOQUEADO por ética (pago/cuenta): '{label[:50]}' — se detiene aquí")
                 break
             # GUARDARRAÍL: submit solo si autorizado
             if action == "click" and not allow_submit and SUBMIT_HINT.search(label) \
                     and (target or {}).get("tag") in ("button", "input", "a"):
-                steps.append(f"BLOQUEADO envío (no autorizado): '{label[:50]}' — se detiene aquí")
-                outcome = "conseguido"
+                outcome = _parar_por_guardarrail(
+                    f"BLOQUEADO envío (no autorizado): '{label[:50]}' — se detiene aquí")
                 break
 
             try:
@@ -384,21 +460,40 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                         page.click(f"[data-agent-idx='{idx}']", timeout=6000)
                         steps.append(f"click [{idx}] '{label[:50]}'")
                     except Exception:
-                        # segundo intento tras despejar lo que estuviera tapando:
-                        # si ahora funciona, el obstáculo era un overlay, y eso
-                        # es fricción real de la web (un agente pierde un paso),
-                        # pero NO un "no se puede completar la tarea"
-                        _despejar(page)
-                        page.click(f"[data-agent-idx='{idx}']", timeout=6000)
-                        steps.append(f"click [{idx}] '{label[:50]}' (tras cerrar un overlay)")
-                        frictions.append(
-                            f"un elemento superpuesto tapaba '{label[:35]}': hubo que "
-                            "cerrarlo antes de poder pulsar")
+                        # 2º intento: despejar lo que tape. Si ahora funciona, el
+                        # obstáculo era un overlay: fricción real de la web (un
+                        # agente pierde un paso), no "tarea imposible".
+                        try:
+                            _despejar(page)
+                            page.click(f"[data-agent-idx='{idx}']", timeout=6000)
+                            steps.append(f"click [{idx}] '{label[:50]}' (tras cerrar un overlay)")
+                            frictions.append(
+                                f"un elemento superpuesto tapaba '{label[:35]}': hubo que "
+                                "cerrarlo antes de poder pulsar")
+                        except Exception:
+                            # 3º intento: los selectores de talla/color son
+                            # <input> visualmente ocultos con su <label> al lado.
+                            # Un agente con visión clica la ETIQUETA, que es lo
+                            # visible; clicar el input oculto es imposible hasta
+                            # para un humano. Esto es emulación fiel, no trampa.
+                            if not _click_via_label(page, idx):
+                                raise
+                            steps.append(f"click [{idx}] '{label[:50]}' (vía su etiqueta)")
                 else:
                     steps.append(f"acción inválida o índice inexistente: {act}")
             except Exception as exc:
                 steps.append(f"fallo al ejecutar [{idx}]: {type(exc).__name__}")
                 frictions.append(f"el elemento '{label[:40]}' no respondió")
+                # Sin decírselo, el modelo reintenta el mismo elemento una y otra
+                # vez (hawkersco: 6 intentos sobre el mismo botón) y quema los
+                # pasos disponibles sin explorar alternativas.
+                fallidos[idx] = fallidos.get(idx, 0) + 1
+                if fallidos[idx] >= 2:
+                    messages.append({"role": "user", "content":
+                                     f"AVISO: el elemento [{idx}] ha fallado "
+                                     f"{fallidos[idx]} veces y no va a funcionar. "
+                                     "NO lo vuelvas a intentar: busca otra ruta "
+                                     "(el buscador, el menú, otro producto)."})
             # el hito puede consumarse por la acción recién ejecutada
             try:
                 _check_milestones(hitos, reached, page.url, page.content(),

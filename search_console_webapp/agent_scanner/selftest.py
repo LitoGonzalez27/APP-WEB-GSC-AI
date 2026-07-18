@@ -421,6 +421,23 @@ def test_un_solo_envio_real():
         A._browser_task, A.get_key = orig_task, orig_key
 
 
+def test_guardarrail_sin_recorrido_no_es_exito():
+    """Bug: tiendaanimal.es salía 'conseguido_con_friccion' con 0/5 hitos porque
+    el agente topó con un botón 'Send' (newsletter) en el primer paso y el
+    guardarraíl daba la prueba por buena. Sin recorrido no hay éxito."""
+    from .agents import _aggregate
+    sin_recorrido = {"outcome": "no_conseguido", "steps": 2, "detail": "", "action_log": [],
+                     "progreso": {"alcanzados": 0, "total": 5,
+                                  "pendientes": ["Abrir una ficha"], "no_evaluados": []}}
+    a = _aggregate([sin_recorrido])
+    t("sin_recorrido_no_exito", a["outcome"] == "no_conseguido", a["outcome"])
+    con_recorrido = dict(sin_recorrido, outcome="conseguido",
+                         progreso={"alcanzados": 4, "total": 5, "pendientes": [],
+                                   "no_evaluados": []})
+    a = _aggregate([con_recorrido])
+    t("con_recorrido_si_exito", a["outcome"] == "conseguido", a["outcome"])
+
+
 def test_hitos_submit():
     """Bug: 'alcanzar el botón de envío' contaba como atasco de la web cuando
     éramos NOSOTROS quienes prohibíamos enviar."""
