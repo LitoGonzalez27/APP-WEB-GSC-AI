@@ -291,6 +291,9 @@ summary:hover{color:var(--text-2)}
 .ghost-btn{border:1px solid var(--border-strong);background:none;color:var(--text-2);
   border-radius:99px;padding:8px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s}
 .ghost-btn:hover{color:var(--text);border-color:var(--text-3)}
+.ghost-btn.dl{border-color:var(--accent);color:var(--accent)}
+.ghost-btn.dl:hover{background:var(--accent-subtle)}
+.ghost-btn:disabled{opacity:.55;cursor:default}
 .note{font-size:.78rem;color:var(--text-3);margin-top:12px}
 @media (max-width:840px){
   .grid-form,.score-grid,.flex2{grid-template-columns:1fr}
@@ -386,6 +389,8 @@ summary:hover{color:var(--text-2)}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="ghost-btn" onclick="location.href='/app'">← Volver al dashboard</button>
+        <button class="ghost-btn dl" id="dlPdf">⤓ Informe PDF</button>
+        <button class="ghost-btn dl" id="dlJson">⤓ JSON completo</button>
         <button class="ghost-btn" onclick="location.href='/agent/'">Nuevo análisis</button>
       </div>
     </div>
@@ -499,7 +504,7 @@ async function poll(id){
       return `<div class="dom-chip ${d.state}">${esc(d.host)} <span class="st">${st}</span></div>`}).join("");
     const con=$("#console");con.innerHTML=(s.log||[]).map(l=>`<div>${esc(l)}</div>`).join("");
     con.scrollTop=con.scrollHeight;
-    if(s.status==="done"){const rr=await fetch("/agent/api/result/"+id);renderReport(await rr.json(),s.outdir);return}
+    if(s.status==="done"){const rr=await fetch("/agent/api/result/"+id);renderReport(await rr.json(),s.outdir,id);return}
     if(s.status==="error"){$("#phase").textContent="✗ "+(s.error||"Error en el análisis");return}
     setTimeout(()=>poll(id),1500);
   }catch(e){setTimeout(()=>poll(id),3000)}
@@ -990,8 +995,36 @@ function paneMetodologia(d){
     y el Agent Readiness score de Cloudflare. El campo evoluciona por trimestres: re-auditar cada 90 días.</p></div></div>`;
 }
 
-function renderReport(d,outdir){
+let CURRENT_JOB=null;
+
+/* descargas: PDF (informe para CMO) y JSON (datos completos para iterar con IA) */
+async function download(kind,btn){
+  if(!CURRENT_JOB){alert("No hay informe cargado.");return}
+  const old=btn.textContent;btn.disabled=true;
+  btn.textContent=kind==="pdf"?"Generando PDF…":"Preparando JSON…";
+  try{
+    const r=await fetch(`/agent/api/report/${CURRENT_JOB}.${kind}`);
+    if(!r.ok){let m="error";try{m=(await r.json()).error||m}catch(_){}
+      throw new Error(m)}
+    const blob=await r.blob();
+    const cd=r.headers.get("Content-Disposition")||"";
+    const m=cd.match(/filename="([^"]+)"/);
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=m?m[1]:`agent-readiness.${kind}`;
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+  }catch(e){alert("No se pudo descargar: "+e.message)}
+  finally{btn.textContent=old;btn.disabled=false}
+}
+document.addEventListener("click",e=>{
+  const p=e.target.closest("#dlPdf");if(p){download("pdf",p);return}
+  const j=e.target.closest("#dlJson");if(j){download("json",j)}
+});
+
+function renderReport(d,outdir,jobId){
   show("#view-report");
+  if(jobId)CURRENT_JOB=jobId;
   const c=d.client;
   $("#hscore").style.display="inline-block";$("#hscore").textContent=c.score+"/100";
   $("#rep-date").textContent="Auditoría de preparación agéntica · "+(d.generated||"").slice(0,10);

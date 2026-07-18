@@ -173,6 +173,50 @@ def result(job_id):
 
 # ---------------------------------------------------------------- gestión de acceso (solo admin)
 
+@agent_bp.route("/api/report/<job_id>.pdf")
+@agent_access_required
+def report_pdf(job_id):
+    """Informe PDF estructurado (CMO → equipo técnico)."""
+    from flask import send_file
+    job = _JOBS.get(job_id)
+    if not job or job.get("result") is None:
+        return jsonify({"error": "resultado no disponible"}), 404
+    try:
+        from agent_scanner.report_pdf import build_pdf
+        buf = build_pdf(job["result"])
+    except ImportError:
+        return jsonify({"error": "generación de PDF no disponible (falta reportlab)"}), 500
+    except Exception as exc:
+        logger.exception("Fallo generando PDF del agent scanner")
+        return jsonify({"error": f"no se pudo generar el PDF: {exc}"}), 500
+    host = (job["result"].get("client") or {}).get("host", "informe")
+    fecha = (job["result"].get("generated") or "")[:10]
+    return send_file(buf, mimetype="application/pdf", as_attachment=True,
+                     download_name=f"agent-readiness_{host}_{fecha}.pdf")
+
+
+@agent_bp.route("/api/report/<job_id>.json")
+@agent_access_required
+def report_json(job_id):
+    """JSON completo y estructurado, pensado para iterar con IA."""
+    import json as _json
+    from flask import Response
+    job = _JOBS.get(job_id)
+    if not job or job.get("result") is None:
+        return jsonify({"error": "resultado no disponible"}), 404
+    try:
+        from agent_scanner.report_json import build_json
+        payload = build_json(job["result"])
+    except Exception as exc:
+        logger.warning(f"build_json falló, se sirve el crudo: {exc}")
+        payload = job["result"]
+    host = (job["result"].get("client") or {}).get("host", "informe")
+    fecha = (job["result"].get("generated") or "")[:10]
+    body = _json.dumps(payload, ensure_ascii=False, indent=2)
+    return Response(body, mimetype="application/json", headers={
+        "Content-Disposition": f'attachment; filename="agent-readiness_{host}_{fecha}.json"'})
+
+
 @agent_bp.route("/api/me")
 @agent_access_required
 def whoami():
