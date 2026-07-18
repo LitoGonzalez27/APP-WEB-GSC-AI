@@ -142,8 +142,22 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     ctx["typology"] = typology_override or typ
     ctx["typology_evidence"] = typ_ev
     _log(f"tipología: {ctx['typology']}")
-    T("detección de tipología", "ok",
-      f"{ctx['typology']}" + (" (forzada)" if typology_override else f" — señales: {typ_ev}"))
+    if typology_override:
+        T("detección de tipología", "ok", f"{ctx['typology']} (forzada por configuración)")
+    else:
+        pts_e = (typ_ev.get("ecommerce") or {}).get("puntos", 0)
+        pts_s = (typ_ev.get("saas") or {}).get("puntos", 0)
+        det = (f"{ctx['typology']} — e-commerce {pts_e} pts "
+               f"{(typ_ev.get('ecommerce') or {}).get('fuertes')}, saas {pts_s} pts "
+               f"{(typ_ev.get('saas') or {}).get('fuertes')}")
+        if pts_e == 0 and pts_s == 0:
+            # sin señales: normalmente el sitio bloquea el acceso automatizado
+            T("detección de tipología", "warn",
+              det + " — SIN señales: la web devuelve poco/ningún contenido a accesos "
+                    "automatizados. Se asume 'corporativo' por defecto; si no lo es, "
+                    "fuerza la tipología en el formulario.")
+        else:
+            T("detección de tipología", "ok", det)
 
     _log("muestreo de páginas…")
     buckets, sample = discovery.classify_and_sample(all_urls)
@@ -185,6 +199,16 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     else:
         ctx["rendered_home"] = None
         T("render JS", "skipped", "desactivado: check 4.1 heurístico")
+
+    # Reafinar tipología con el HTML renderizado: en SPAs (Zara y similares) el
+    # HTML crudo viene casi vacío y la detección se quedaría sin señales.
+    rh = (ctx.get("rendered_home") or {}).get("html") or ""
+    if not typology_override and len(rh) > len(ctx["home"].get("body", "")) * 1.2:
+        typ2, ev2 = discovery.detect_typology(rh, all_urls)
+        if typ2 != ctx["typology"]:
+            T("tipología (re-evaluada con render)", "ok",
+              f"{ctx['typology']} → {typ2} tras renderizar JS (la home cruda no tenía señales)")
+            ctx["typology"], ctx["typology_evidence"] = typ2, ev2
 
     _log("negociación Markdown y DNS-AID…")
     md = fetch(base + "/", timeout=15, headers=["Accept: text/markdown"])
