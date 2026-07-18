@@ -37,11 +37,31 @@ def _model_for(provider):
         pass
     return _FALLBACK_MODELS[provider]
 
+# Datos de relleno. Configurables por entorno para que quien opera decida qué
+# buzón recibe las pruebas sin tocar código. El defecto usa example.com, que es
+# un dominio RESERVADO por la RFC 2606: no puede pertenecer a nadie, así que
+# ningún tercero recibe correo por accidente.
+def datos_prueba():
+    import os
+    g = os.environ.get
+    return {
+        "nombre": g("AGENT_SCANNER_TEST_NOMBRE", "Test Auditoria"),
+        "email": g("AGENT_SCANNER_TEST_EMAIL", "test-auditoria@example.com"),
+        "telefono": g("AGENT_SCANNER_TEST_TEL", "600000000"),
+        "direccion": g("AGENT_SCANNER_TEST_DIR", "Calle de Prueba 1"),
+        "cp": g("AGENT_SCANNER_TEST_CP", "28001"),
+        "ciudad": g("AGENT_SCANNER_TEST_CIUDAD", "Madrid"),
+    }
+
+
 TASKS = {
     "ecommerce": ("Busca un producto del catálogo, ábrelo, añádelo al carrito, abre el "
-                  "carrito y avanza hasta la página de checkout/pago. Cuando veas el "
-                  "formulario de pago, marca la tarea como terminada: NO introduzcas "
-                  "datos de tarjeta ni completes la compra."),
+                  "carrito y avanza hasta el checkout. En el checkout RELLENA los datos "
+                  "de contacto y envío: nombre '{nombre}', email '{email}', teléfono "
+                  "'{telefono}', dirección '{direccion}', código postal '{cp}', ciudad "
+                  "'{ciudad}'. Avanza todo lo que puedas SIN pagar. Cuando llegues a los "
+                  "datos de tarjeta, marca la tarea como terminada: NO introduzcas "
+                  "NINGÚN dato de pago ni completes la compra."),
     "corporativo": ("Localiza la página de contacto, identifica un teléfono o email de "
                     "contacto, y rellena el formulario con: nombre 'Test Auditoria', "
                     "email 'test-auditoria@example.com', mensaje 'Prueba de auditoria "
@@ -66,6 +86,11 @@ MILESTONES = {
          "url": r"/(carrito|cart|cesta|basket)"},
         {"clave": "checkout", "nombre": "Llegar al checkout",
          "url": r"/(checkout|pago|caja|finalizar|payment)"},
+        # se detecta por haber escrito un email: es el campo que pide todo
+        # checkout y no aparece al buscar producto (evita falsos positivos
+        # con el buscador, que también genera acciones "type")
+        {"clave": "datos_checkout", "nombre": "Rellenar los datos del checkout",
+         "accion": r"(?i)^type .*@"},
     ],
     "corporativo": [
         {"clave": "pagina_contacto", "nombre": "Llegar a la página de contacto",
@@ -122,6 +147,13 @@ FORBIDDEN_CLICK = re.compile(
     r"crear cuenta|create account|sign ?up|registrarme|suscribirme|subscribe)\b")
 SUBMIT_HINT = re.compile(r"(?i)\b(enviar|send|submit|contactar|solicitar)\b")
 
+# Campos de pago: NUNCA se escribe en ellos, ni aunque el LLM lo pida. Es la
+# defensa en código de "llegamos al pago pero jamás pagamos": el agente puede
+# rellenar contacto y envío, pero la tarjeta es territorio prohibido.
+CARD_FIELD = re.compile(
+    r"(?i)\b(tarjeta|card ?(number|holder)?|cvv|cvc|caducidad|expir|"
+    r"numero de tarjeta|titular|iban|cuenta bancaria)\b")
+
 SYSTEM = (
     "Eres un agente que navega una web real para comprobar si una tarea puede completarse. "
     "En cada paso recibes la URL actual y una lista NUMERADA de elementos interactivos. "
@@ -158,7 +190,8 @@ _ELEMENTS_JS = r"""
 
 def build_task(typology, allow_submit):
     t = TASKS.get(typology, TASKS["corporativo"])
-    return t.format(submit_rule=SUBMIT_OK if allow_submit else SUBMIT_NO)
+    return t.format(submit_rule=SUBMIT_OK if allow_submit else SUBMIT_NO,
+                    **datos_prueba())
 
 
 # ----------------------------------------------------------- adaptadores LLM
@@ -204,6 +237,42 @@ _ADAPTERS = {"chatgpt": _ask_openai, "claude": _ask_anthropic, "gemini": _ask_ge
 _KEY_NAMES = {"chatgpt": "openai", "claude": "anthropic", "gemini": "gemini"}
 
 
+_CERRAR_JS = r"""
+() => {
+  // Cierra banners de cookies y paneles superpuestos. Un agente con visión los
+  // vería y los cerraría; el nuestro recibe una lista de elementos y no sabe
+  // que algo los tapa, así que los clics fallaban por "elemento no accionable"
+  // y acabábamos atribuyendo a la web un atasco que era nuestro.
+  const PATRON = /^(aceptar|accept|entendido|got it|ok|cerrar|close|rechazar|
+                    reject|continuar|dismiss|x)$/i;
+  let cerrados = 0;
+  for (const el of document.querySelectorAll('button,a,[role=button],[aria-label]')) {
+    const txt = (el.innerText || el.getAttribute('aria-label') || '').trim();
+    if (!txt || txt.length > 20) continue;
+    if (!PATRON.test(txt)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) continue;
+    try { el.click(); cerrados++; } catch (e) {}
+    if (cerrados >= 3) break;
+  }
+  return cerrados;
+}
+""".replace("\n                    ", "")
+
+
+def _despejar(page):
+    """Quita lo que tape la interfaz antes de dejar actuar al agente."""
+    try:
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(200)
+        n = page.evaluate(_CERRAR_JS)
+        if n:
+            page.wait_for_timeout(400)
+        return n
+    except Exception:
+        return 0
+
+
 def _parse_action(text):
     m = re.search(r"\{.*\}", text or "", re.S)
     if not m:
@@ -239,6 +308,11 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
             browser.close()
             return {"outcome": "error", "detail": f"no se pudo abrir la web: {exc}"[:200],
                     "steps": 0, "action_log": [], "progreso": _progress()}
+        # cookies y paneles abiertos fuera antes de empezar: si no, los clics
+        # fallan por "elemento tapado" y el informe culpa a la web
+        page.wait_for_timeout(1200)
+        if _despejar(page):
+            steps.append("cerrado un banner/overlay inicial para poder operar")
         messages = [{"role": "system", "content": SYSTEM},
                     {"role": "user", "content": f"Tarea: {task}"}]
         for _ in range(MAX_STEPS):
@@ -282,6 +356,13 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                 break
 
             label = (target or {}).get("name", "")
+            # GUARDARRAÍL: jamás se escribe en un campo de pago, aunque el LLM
+            # lo pida. Rellenar contacto y envío sí; tarjeta nunca.
+            if action == "type" and CARD_FIELD.search(label):
+                steps.append(f"BLOQUEADO campo de pago: '{label[:50]}' — no se escriben "
+                             "datos de tarjeta bajo ninguna circunstancia")
+                outcome = "conseguido"  # llegar al pago ES el éxito de la prueba
+                break
             # GUARDARRAÍL en código: nunca pagar/crear cuenta
             if action == "click" and FORBIDDEN_CLICK.search(label):
                 steps.append(f"BLOQUEADO por ética (pago/cuenta): '{label[:50]}' — se detiene aquí")
@@ -299,8 +380,20 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                     page.fill(f"[data-agent-idx='{idx}']", act.get("texto", ""))
                     steps.append(f"type [{idx}] '{act.get('texto','')[:40]}' en '{label[:40]}'")
                 elif action == "click" and target is not None:
-                    page.click(f"[data-agent-idx='{idx}']", timeout=6000)
-                    steps.append(f"click [{idx}] '{label[:50]}'")
+                    try:
+                        page.click(f"[data-agent-idx='{idx}']", timeout=6000)
+                        steps.append(f"click [{idx}] '{label[:50]}'")
+                    except Exception:
+                        # segundo intento tras despejar lo que estuviera tapando:
+                        # si ahora funciona, el obstáculo era un overlay, y eso
+                        # es fricción real de la web (un agente pierde un paso),
+                        # pero NO un "no se puede completar la tarea"
+                        _despejar(page)
+                        page.click(f"[data-agent-idx='{idx}']", timeout=6000)
+                        steps.append(f"click [{idx}] '{label[:50]}' (tras cerrar un overlay)")
+                        frictions.append(
+                            f"un elemento superpuesto tapaba '{label[:35]}': hubo que "
+                            "cerrarlo antes de poder pulsar")
                 else:
                     steps.append(f"acción inválida o índice inexistente: {act}")
             except Exception as exc:
@@ -316,6 +409,13 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
     if outcome == "conseguido" and frictions:
         outcome = "conseguido_con_friccion"
     prog = _progress()
+    # Honestidad sobre el método: si la tarea se cayó por controles que no
+    # respondieron al clic programático (selectores de talla, componentes JS a
+    # medida), NO podemos afirmar que la web sea inoperable para un agente.
+    # Nuestro harness clica por selector; Operator y Atlas usan visión y son
+    # más tolerantes a esos controles. Es un límite NUESTRO y hay que decirlo.
+    timeouts = sum(1 for s in steps if "TimeoutError" in s)
+    limitado = (not outcome.startswith("conseguido")) and timeouts >= 2
     detail = ("OBJETIVO CONSEGUIDO. " if outcome.startswith("conseguido") else "NO CONSEGUIDO. ")
     if total_hitos:
         detail += f"Recorrido: {prog['alcanzados']}/{total_hitos} pasos completados"
@@ -323,8 +423,15 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
             detail += f" (se atascó en: {prog['pendientes'][0]})"
         detail += ". "
     detail += ("Fricciones: " + "; ".join(dict.fromkeys(frictions))) if frictions else "Sin fricciones."
-    return {"outcome": outcome, "detail": detail[:600], "steps": len(steps),
-            "action_log": steps[:25], "progreso": prog}
+    if limitado:
+        detail += (f" AVISO DE MÉTODO: {timeouts} controles no respondieron al clic "
+                   "programático. Puede ser hostilidad real al automatismo, pero también "
+                   "un límite de nuestro harness (clicamos por selector; los agentes "
+                   "comerciales usan visión y toleran mejor los controles a medida). "
+                   "No concluyas que la web es inoperable sin comprobarlo a mano.")
+    return {"outcome": outcome, "detail": detail[:800], "steps": len(steps),
+            "action_log": steps[:25], "progreso": prog,
+            "limite_de_metodo": limitado, "timeouts": timeouts}
 
 
 def _aggregate(runs):
@@ -355,7 +462,9 @@ def _aggregate(runs):
         detail += (". LA WEB FUNCIONA A VECES: para un agente esto es peor que un fallo "
                    "claro, porque el resultado no es predecible")
     detail += ". " + (mejor.get("detail") or "")
+    limitado = all(r.get("limite_de_metodo") for r in validos) and not exitos
     return {"outcome": outcome, "intentos": n, "exitos": len(exitos),
+            "limite_de_metodo": limitado,
             "consistencia": round(len(exitos) / n, 2),
             "steps": mejor.get("steps"), "detail": detail[:700],
             "progreso": mejor.get("progreso"), "action_log": mejor.get("action_log"),
@@ -375,9 +484,14 @@ def run_agent_tests(url, typology, providers=("chatgpt", "gemini", "claude"),
     def _log(m):
         if log is not None:
             log.append(m)
-    task = build_task(typology, allow_submit)
     reps = max(1, min(int(repeticiones or 1), 5))
     agents = {}
+    # UN solo envío real por análisis, no uno por pasada. Con 3 agentes x 3
+    # repeticiones se enviaban hasta 9 formularios: quien marca la casilla
+    # espera "un formulario de prueba", no nueve leads en su CRM. Las demás
+    # pasadas rellenan y se detienen ante el botón, así que la medición de
+    # consistencia se conserva intacta.
+    envio_disponible = bool(allow_submit)
     for prov in providers:
         key = get_key(_KEY_NAMES[prov])
         if not key:
@@ -385,10 +499,13 @@ def run_agent_tests(url, typology, providers=("chatgpt", "gemini", "claude"),
             continue
         runs = []
         for i in range(reps):
-            _log(f"agente {prov} intentando la tarea… (intento {i+1}/{reps})")
+            envia_esta = envio_disponible
+            envio_disponible = False       # se consume en la primera pasada
+            _log(f"agente {prov} intentando la tarea… (intento {i+1}/{reps})"
+                 + (" [con envío real autorizado]" if envia_esta else ""))
             try:
-                runs.append(_browser_task(url, task, _ADAPTERS[prov], key,
-                                          allow_submit, typology))
+                runs.append(_browser_task(url, build_task(typology, envia_esta),
+                                          _ADAPTERS[prov], key, envia_esta, typology))
             except Exception as exc:
                 runs.append({"outcome": "error", "detail": str(exc)[:200]})
             prog = (runs[-1].get("progreso") or {})
@@ -399,6 +516,7 @@ def run_agent_tests(url, typology, providers=("chatgpt", "gemini", "claude"),
         _log(f"  {prov}: {agents[prov]['outcome']} "
              f"({agents[prov].get('exitos')}/{agents[prov].get('intentos')} intentos)")
     return {"url": url, "typology": typology, "allow_submit": allow_submit,
+            "envios_reales": 1 if allow_submit else 0,
             "repeticiones": reps, "agents": agents,
             "hitos_tarea": [m["nombre"] for m in hitos_aplicables(typology, allow_submit)],
             "hitos_no_evaluados": [m["nombre"] for m in MILESTONES.get(typology, [])

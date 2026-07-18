@@ -791,6 +791,19 @@ def run_c6(ctx):
         atascos = [p["pendientes"][0] for p in progs if p.get("pendientes")]
         if atascos and len(set(atascos)) == 1 and len(atascos) > 1:
             ev += f" Todos se atascan en el mismo punto: {atascos[0]}."
+        # Si TODOS los agentes se cayeron por controles que no responden al clic
+        # programatico, no afirmamos que la web sea inoperable: puede ser un
+        # limite de nuestro harness. Se marca para revision manual.
+        if valid and all(v.get("limite_de_metodo") for v in valid.values()):
+            out[-1] = R("6.3", "C6", "Tarea completada por un agente real", None,
+                        ev + " AVISO DE METODO: todos los intentos se cayeron por "
+                             "controles que no respondieron al clic programatico "
+                             "(selectores a medida, componentes JS). Nuestro harness "
+                             "clica por selector; los agentes comerciales usan vision "
+                             "y los toleran mejor. NO es concluyente: requiere prueba "
+                             "manual antes de afirmar que la web no es operable.",
+                        manual=True)
+            return out
         # honestidad: lo que NO evaluamos por politica propia no se cuenta como fallo
         no_eval = at.get("hitos_no_evaluados") or []
         if no_eval:

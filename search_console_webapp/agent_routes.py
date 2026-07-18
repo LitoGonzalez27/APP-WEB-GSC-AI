@@ -79,9 +79,17 @@ def _run_job(job_id, urls, opts):
                     with_psi=opts.get("psi", False),
                     categories=cats or None,
                     check_ids=set(opts.get("checks") or []) or None,
-                    with_agents=bool(opts.get("agents")) and i == 0,
+                    # Los agentes corren también en competidores (comparativa
+                    # real del flujo), pero el ENVÍO de formularios queda
+                    # reservado al dominio del cliente: es el único donde hay
+                    # autorización expresa. En competidores el agente rellena
+                    # y se detiene ante el botón.
+                    with_agents=bool(opts.get("agents")),
                     allow_submit=bool(opts.get("allow_submit")) and i == 0,
-                    agent_repeticiones=int(opts.get("agent_reps") or 3))
+                    # rigor completo en el cliente, una pasada en competidores:
+                    # la consistencia importa donde se toman las decisiones, y
+                    # así el análisis no triplica coste ni tiempo
+                    agent_repeticiones=(int(opts.get("agent_reps") or 3) if i == 0 else 1))
                 audits.append(a)
                 job["domains"][i].update(state="done", score=a["score"],
                                          emoji=a["level"]["emoji"], level=a["level"]["name"])

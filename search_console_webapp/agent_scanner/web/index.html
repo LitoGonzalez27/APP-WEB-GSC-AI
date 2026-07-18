@@ -385,7 +385,9 @@ summary:hover{color:var(--text-2)}
           <label class="switch"><input type="checkbox" id="opt-render" checked><i></i></label></div>
         <div class="switch-row"><div><div class="t">Pruebas agénticas reales (check 6.3)</div>
           <div class="d">ChatGPT, Gemini y Claude pilotan un navegador real e intentan una tarea
-          en tu web (carrito→checkout / formulario / plan más barato). Solo dominio cliente. +5-10 min.</div></div>
+          en tu web y en la de los competidores (carrito→checkout con datos rellenos /
+          formulario / plan más barato). <b>Nunca se paga ni se crean cuentas</b>: los campos
+          de tarjeta están bloqueados por código. +10-15 min.</div></div>
           <label class="switch"><input type="checkbox" id="opt-agents"><i></i></label></div>
         <div class="switch-row" id="row-reps" style="display:none"><div><div class="t">Intentos por agente</div>
           <div class="d">Los agentes LLM no son deterministas: repetir la tarea distingue
@@ -397,7 +399,9 @@ summary:hover{color:var(--text-2)}
             <option value="5">5 (máximo rigor, muy lento)</option>
           </select></div>
         <div class="switch-row" id="row-submit" style="display:none"><div><div class="t">Autorizo el envío de formularios de prueba</div>
-          <div class="d">Solo en tu dominio y con tu permiso. Nunca en competidores, nunca pagos, nunca cuentas.</div></div>
+          <div class="d">Se enviará <b>un solo formulario real</b> en todo el análisis, y únicamente
+          en tu dominio: recibirás un aviso a nombre de «Test Auditoria». Las demás pasadas
+          rellenan y se detienen ante el botón. Nunca en competidores, nunca pagos, nunca cuentas.</div></div>
           <label class="switch"><input type="checkbox" id="opt-submit"><i></i></label></div>
       </div>
       <div class="panel">
@@ -502,7 +506,7 @@ const METHODS={
  "5.6":"Petición real con Accept: text/markdown y análisis del Content-Type/cuerpo devuelto",
  "6.1":"Sondeo de 12 rutas agénticas (MCP/A2A/OAuth/Skills) con validación de contenido",
  "6.2":"Análisis por formulario: vinculación for=id verificada contra los id reales, autocomplete, submit real y CAPTCHA. No se envían formularios (ética)",
- "6.3":"Prueba manual con un agente real (Operator/Claude): no automatizable con honestidad",
+ "6.3":"ChatGPT, Gemini y Claude pilotan un navegador real, varias pasadas por agente para medir consistencia. En e-commerce: producto→carrito→checkout con datos de contacto y envío rellenos. Los campos de tarjeta están bloqueados por código: nunca se paga, nunca se crean cuentas. El envío de formularios solo ocurre una vez y solo en el dominio del cliente, con autorización expresa",
  "7.1":"Detección de plataforma e-commerce + Product schema en las fichas muestreadas",
  "7.2":"Comparación del precio del JSON-LD contra el precio visible de la misma ficha",
  "7.3":"Detección de PSP compatible con ACP (Stripe / Shopify)",

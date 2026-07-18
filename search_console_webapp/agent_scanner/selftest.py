@@ -373,6 +373,54 @@ def test_consistencia_agentes():
       f"{a['outcome']}")
 
 
+def test_checkout_nunca_toca_la_tarjeta():
+    """El agente rellena contacto y envío en el checkout, pero los campos de
+    pago son territorio prohibido por código, no por instrucción al modelo."""
+    from .agents import CARD_FIELD
+    for campo in ("Número de tarjeta", "CVV", "Card number", "Fecha de caducidad",
+                  "Titular de la tarjeta", "IBAN"):
+        t("card_bloqueado", bool(CARD_FIELD.search(campo)), f"'{campo}' no se bloquea")
+    for campo in ("Email", "Nombre", "Dirección", "Código postal", "Teléfono"):
+        t("card_permite_envio", not CARD_FIELD.search(campo),
+          f"'{campo}' se bloquea y no debería")
+
+
+def test_datos_prueba_dominio_reservado():
+    """El email por defecto usa example.com (RFC 2606): no puede pertenecer a
+    nadie, así que ningún tercero recibe correo por accidente."""
+    from .agents import datos_prueba, build_task
+    d = datos_prueba()
+    t("email_reservado", d["email"].endswith("example.com"), d["email"])
+    tarea = build_task("ecommerce", False)
+    t("checkout_pide_datos", d["email"] in tarea and d["cp"] in tarea,
+      "la tarea de e-commerce no incluye los datos de checkout")
+    t("checkout_prohibe_pago", "NO introduzcas" in tarea and "tarjeta" in tarea,
+      "la tarea no prohíbe explícitamente el pago")
+
+
+def test_un_solo_envio_real():
+    """Bug propio: con 3 agentes x 3 repeticiones se enviaban hasta 9
+    formularios. Quien marca la casilla espera uno, no nueve."""
+    from . import agents as A
+    envios, orig_task, orig_key = [], A._browser_task, A.get_key
+    try:
+        A._browser_task = lambda url, task, ask, key, allow_submit, typology: (
+            envios.append(allow_submit) or
+            {"outcome": "conseguido", "steps": 1, "detail": "", "action_log": [],
+             "progreso": {"alcanzados": 1, "total": 1, "pendientes": [],
+                          "no_evaluados": []}})
+        A.get_key = lambda p: "k"
+        r = A.run_agent_tests("https://x.com", "corporativo",
+                              providers=("chatgpt", "gemini", "claude"),
+                              allow_submit=True, repeticiones=3)
+        t("envio_unico", sum(1 for e in envios if e) == 1,
+          f"{sum(1 for e in envios if e)} envíos de {len(envios)} pasadas")
+        t("envio_es_el_primero", envios and envios[0] is True, str(envios[:3]))
+        t("envio_declarado", r["envios_reales"] == 1, str(r.get("envios_reales")))
+    finally:
+        A._browser_task, A.get_key = orig_task, orig_key
+
+
 def test_hitos_submit():
     """Bug: 'alcanzar el botón de envío' contaba como atasco de la web cuando
     éramos NOSOTROS quienes prohibíamos enviar."""
