@@ -80,6 +80,35 @@ textarea{font-family:var(--mono)!important;font-size:.8rem;min-height:130px;resi
 .cta:hover{filter:brightness(1.06)}
 .cta:active{transform:scale(.98)}
 .cta:disabled{opacity:.5;cursor:default}
+/* selector de factores */
+.factors{margin-top:22px;border-top:1px solid var(--border);padding-top:16px}
+.factors>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;
+  user-select:none;font-size:.88rem;color:var(--text-2);padding:6px 0}
+.factors>summary::-webkit-details-marker{display:none}
+.factors>summary:hover{color:var(--text)}
+.factors>summary b{color:var(--accent)}
+.fac-actions{margin-left:auto;display:flex;gap:6px}
+.mini{background:none;border:1px solid var(--border-strong);color:var(--text-3);border-radius:99px;
+  padding:3px 10px;font-size:.7rem;cursor:pointer;transition:all .15s}
+.mini:hover{color:var(--accent);border-color:var(--accent)}
+.factors[open]>summary .fg-caret{transform:rotate(90deg)}
+.fac-list{margin-top:12px;display:flex;flex-direction:column;gap:14px}
+.fac-group{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.fac-head{display:flex;align-items:center;gap:9px;font-weight:700;font-size:.85rem;margin-bottom:9px}
+.fac-head .cnt{margin-left:auto;font-size:.72rem;color:var(--text-3);font-weight:600}
+.fac-item{display:flex;align-items:flex-start;gap:9px;padding:5px 0 5px 22px;font-size:.82rem}
+.fac-item label{cursor:pointer;color:var(--text-2)}
+.fac-item .fid{color:var(--text-3);font-weight:700;margin-right:5px}
+.fac-item .fdesc{display:block;color:var(--text-3);font-size:.74rem;margin-top:1px}
+input[type=checkbox].box{appearance:none;width:15px;height:15px;flex-shrink:0;margin-top:2px;
+  border:1px solid var(--border-strong);border-radius:4px;cursor:pointer;position:relative;
+  transition:all .15s var(--ease-out)}
+input[type=checkbox].box:checked{background:var(--accent);border-color:var(--accent)}
+input[type=checkbox].box:checked::after{content:"✓";position:absolute;inset:0;color:#0A0A0B;
+  font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center}
+input[type=checkbox].box:indeterminate{background:var(--accent-subtle);border-color:var(--accent)}
+input[type=checkbox].box:indeterminate::after{content:"–";position:absolute;inset:0;color:var(--accent);
+  font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center}
 .err{color:var(--bad);font-size:.85rem;margin-top:12px;min-height:1.2em}
 
 /* ---------- LOADING ---------- */
@@ -336,6 +365,18 @@ summary:hover{color:var(--text-2)}
         <option value="corporativo">Corporativo</option></select></div>
       <button class="cta" id="go">Comprobar viabilidad agéntica →</button>
       <div class="err" id="err"></div>
+
+      <details class="factors" id="factorsBox">
+        <summary>
+          <span>Ver los <b id="facCount">35</b> factores que analizamos</span>
+          <span class="fac-actions">
+            <button type="button" class="mini" id="facAll">Marcar todos</button>
+            <button type="button" class="mini" id="facNone">Desmarcar todos</button>
+          </span>
+          <span class="fg-caret">▸</span>
+        </summary>
+        <div id="facList" class="fac-list"><p class="hint">Cargando factores…</p></div>
+      </details>
     </div>
     <div>
       <div class="panel" style="margin-bottom:16px">
@@ -470,16 +511,69 @@ $("#opt-agents").addEventListener("change",e=>{
   if(!e.target.checked)$("#opt-submit").checked=false;
 });
 
+/* ---------- catálogo de factores (transparencia + selección granular) ---------- */
+const catChip=c=>document.querySelector(`#cats input[value="${c}"]`);
+const facsOf=c=>[...document.querySelectorAll(`.fac-item input[data-cat="${c}"]`)];
+
+function syncGroup(cat){          // hijos -> cabecera de grupo + chip de categoría
+  const kids=facsOf(cat), on=kids.filter(k=>k.checked).length;
+  const head=document.querySelector(`#grp-${cat}`), chip=catChip(cat);
+  if(head){head.checked=on===kids.length&&on>0; head.indeterminate=on>0&&on<kids.length}
+  if(chip){chip.checked=on>0; chip.indeterminate=on>0&&on<kids.length}
+  const cnt=document.querySelector(`#cnt-${cat}`);
+  if(cnt)cnt.textContent=`${on}/${kids.length}`;
+}
+function setCat(cat,val){         // categoría -> todos sus hijos
+  facsOf(cat).forEach(k=>{k.checked=val});
+  syncGroup(cat);
+}
+
+fetch("/agent/api/catalog").then(r=>r.json()).then(d=>{
+  const groups=(d.categorias||[]).filter(g=>g.factores.length);
+  const total=groups.reduce((n,g)=>n+g.factores.length,0);
+  $("#facCount").textContent=total;
+  $("#facList").innerHTML=groups.map(g=>`
+    <div class="fac-group">
+      <div class="fac-head">
+        <input type="checkbox" class="box" id="grp-${g.categoria}" data-group="${g.categoria}" checked>
+        <label for="grp-${g.categoria}">${g.categoria} · ${esc(g.nombre)}</label>
+        <span class="cnt" id="cnt-${g.categoria}">${g.factores.length}/${g.factores.length}</span>
+      </div>
+      ${g.factores.map(f=>`
+        <div class="fac-item">
+          <input type="checkbox" class="box" id="fac-${f.id}" data-cat="${g.categoria}" value="${f.id}" checked>
+          <label for="fac-${f.id}"><span class="fid">${f.id}</span>${esc(f.nombre)}
+            <span class="fdesc">${esc(f.descripcion)}</span></label>
+        </div>`).join("")}
+    </div>`).join("");
+}).catch(()=>{$("#facList").innerHTML='<p class="hint">No se pudo cargar el catálogo de factores.</p>'});
+
+/* chip de categoría -> marca/desmarca todos sus factores */
+document.addEventListener("change",e=>{
+  const chip=e.target.closest('#cats input[type=checkbox]');
+  if(chip){setCat(chip.value,chip.checked);return}
+  const head=e.target.closest("input[data-group]");
+  if(head){setCat(head.dataset.group,head.checked);return}
+  const fac=e.target.closest(".fac-item input[data-cat]");
+  if(fac){syncGroup(fac.dataset.cat)}
+});
+$("#facAll").addEventListener("click",e=>{e.preventDefault();Object.keys(CATS).forEach(c=>setCat(c,true))});
+$("#facNone").addEventListener("click",e=>{e.preventDefault();Object.keys(CATS).forEach(c=>setCat(c,false))});
+
 function show(view){document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$(view).classList.add("active")}
 
 /* ---------- lanzar análisis ---------- */
 $("#go").addEventListener("click",async()=>{
   const urls=[$("#u0").value,$("#u1").value,$("#u2").value].map(s=>s.trim()).filter(Boolean);
   if(!urls.length){$("#err").textContent="Falta la URL de tu proyecto.";return}
-  const cats=[...document.querySelectorAll("#cats input:checked")].map(i=>i.value);
-  if(!cats.length){$("#err").textContent="Marca al menos una categoría de checks.";return}
+  // factores concretos seleccionados; si el catálogo no cargó, se cae a categorías
+  const checks=[...document.querySelectorAll(".fac-item input[data-cat]:checked")].map(i=>i.value);
+  const cats=checks.length
+    ? [...new Set([...document.querySelectorAll(".fac-item input[data-cat]:checked")].map(i=>i.dataset.cat))]
+    : [...document.querySelectorAll("#cats input:checked")].map(i=>i.value);
+  if(!cats.length){$("#err").textContent="Marca al menos un factor o categoría a analizar.";return}
   $("#go").disabled=true;$("#err").textContent="";
-  const payload={urls,cats,render:$("#opt-render").checked,type:$("#typ").value||null,
+  const payload={urls,cats,checks,render:$("#opt-render").checked,type:$("#typ").value||null,
     agents:$("#opt-agents").checked,allow_submit:$("#opt-agents").checked&&$("#opt-submit").checked};
   try{
     const r=await fetch("/agent/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});

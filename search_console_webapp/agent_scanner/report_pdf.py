@@ -69,6 +69,53 @@ def build_pdf(data):
         return (str(s if s is not None else "")
                 .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
+    def color_for(pct):
+        return BAD if pct < 25 else colors.HexColor("#D97706") if pct < 50 \
+            else colors.HexColor("#B8A20B") if pct < 75 else OK
+
+    # --- helpers gráficos (reportlab shapes): barras y donut, nada de texto plano
+    from reportlab.graphics.shapes import Circle, Drawing, Rect, String, Wedge
+
+    def bar(pct, width=6.2 * cm, height=0.42 * cm, col=None):
+        """Barra de progreso con fondo, relleno y % al final."""
+        d = Drawing(width + 1.3 * cm, height)
+        col = col or color_for(pct)
+        d.add(Rect(0, 0, width, height, fillColor=colors.HexColor("#EEF2F7"),
+                   strokeColor=None, rx=height / 2, ry=height / 2))
+        w = max(width * pct / 100.0, 1)
+        d.add(Rect(0, 0, w, height, fillColor=col, strokeColor=None,
+                   rx=height / 2, ry=height / 2))
+        d.add(String(width + 0.2 * cm, height / 2 - 3.2, f"{pct}%",
+                     fontName="Helvetica-Bold", fontSize=8.5, fillColor=DARK))
+        return d
+
+    def donut(pct, size=3.4 * cm):
+        """Donut del score global, coloreado por nivel."""
+        d = Drawing(size, size)
+        r, cx, cy = size / 2, size / 2, size / 2
+        col = color_for(pct)
+        d.add(Circle(cx, cy, r, fillColor=colors.HexColor("#EEF2F7"), strokeColor=None))
+        ang = max(min(pct, 100), 0) * 3.6
+        if ang > 0:
+            d.add(Wedge(cx, cy, r, 90 - ang, 90, fillColor=col, strokeColor=None))
+        d.add(Circle(cx, cy, r * 0.68, fillColor=colors.white, strokeColor=None))
+        d.add(String(cx, cy + 1, f"{pct:g}", fontName="Helvetica-Bold", fontSize=21,
+                     fillColor=DARK, textAnchor="middle"))
+        d.add(String(cx, cy - 11, "de 100", fontName="Helvetica", fontSize=7,
+                     fillColor=GREY, textAnchor="middle"))
+        return d
+
+    def chip(text, col):
+        """Etiqueta de color (impacto, estado…) como mini-tabla."""
+        t = Table([[Paragraph(f'<font color="{col.hexval()}" size="7.5"><b>{esc(text)}</b></font>',
+                              BODY)]], colWidths=[3.1 * cm])
+        t.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.7, col), ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        return t
+
     story = []
 
     # ---------------------------------------------------------------- 1. Portada
@@ -83,15 +130,27 @@ def build_pdf(data):
     story.append(Paragraph(f"<b>{esc(host)}</b> · {esc(data.get('generated', '')[:10])}", LEAD))
     story.append(Spacer(1, 0.8 * cm))
 
+    lvl_color = color_for(score)
+    etapas_txt = []
+    for _k, label, cs in [("leer", "¿Te leen?", ["C1", "C2"]),
+                          ("entender", "¿Te entienden?", ["C3", "C4", "C5"]),
+                          ("usar", "¿Pueden usarte?", ["C6", "C7"])]:
+        vals = [client["category_scores"][c] for c in cs
+                if c in (client.get("category_scores") or {})]
+        if vals:
+            etapas_txt.append(f"{label} <b>{round(sum(vals)/len(vals)*100)}%</b>")
+
     verdict = Table([[
-        Paragraph(f'<font size="40"><b>{score}</b></font><font size="14" color="#64748B">/100</font>', CENTER),
-        Paragraph(f'<b><font size="13" color="{lvl_color.hexval()}">{esc(lvl.get("name",""))}</font></b><br/>'
-                  f'<font size="9" color="#64748B">{esc(lvl.get("msg",""))}</font>', BODY),
-    ]], colWidths=[4.5 * cm, 11.5 * cm])
+        donut(score),
+        Paragraph(f'<b><font size="14" color="{lvl_color.hexval()}">{esc(lvl.get("name",""))}</font></b><br/>'
+                  f'<font size="9.5" color="#0F172A">{esc(lvl.get("msg",""))}</font><br/><br/>'
+                  f'<font size="8.5" color="#64748B">{" &nbsp;·&nbsp; ".join(etapas_txt)}</font>', BODY),
+    ]], colWidths=[4.6 * cm, 11.4 * cm])
     verdict.setStyle(TableStyle([
-        ("BOX", (0, 0), (-1, -1), 1, LIGHT), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LINEAFTER", (0, 0), (0, 0), 1, LIGHT), ("TOPPADDING", (0, 0), (-1, -1), 14),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 14), ("LEFTPADDING", (0, 0), (-1, -1), 14),
+        ("BOX", (0, 0), (-1, -1), 0.8, LIGHT), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAFBFC")),
+        ("LINEAFTER", (0, 0), (0, 0), 0.8, LIGHT), ("TOPPADDING", (0, 0), (-1, -1), 12),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 12), ("LEFTPADDING", (0, 0), (-1, -1), 12),
     ]))
     story.append(verdict)
     story.append(Spacer(1, 0.5 * cm))
@@ -112,19 +171,24 @@ def build_pdf(data):
 
     cats = [(c, client["category_scores"][c]) for c in CAT_NAMES
             if c in (client.get("category_scores") or {})]
-    rows = [["Categoría", "Puntuación", "Estado"]]
-    for c, v in cats:
+    rows = [[Paragraph('<b><font color="white" size="9">CATEGORÍA</font></b>', BODY),
+             Paragraph('<b><font color="white" size="9">PUNTUACIÓN</font></b>', BODY),
+             Paragraph('<b><font color="white" size="9">ESTADO</font></b>', BODY)]]
+    style = [("BACKGROUND", (0, 0), (-1, 0), DARK),
+             ("FONTSIZE", (0, 0), (-1, -1), 9),
+             ("LINEBELOW", (0, 0), (-1, -1), 0.4, LIGHT),
+             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+             ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]
+    for i, (c, v) in enumerate(cats, start=1):
         pct = round(v * 100)
         estado = "Fuerte" if pct >= 75 else "Mejorable" if pct >= 50 else "Flojo" if pct >= 25 else "Crítico"
-        rows.append([f"{c} · {CAT_NAMES[c]}", f"{pct}%", estado])
-    t = Table(rows, colWidths=[9.5 * cm, 3 * cm, 3.5 * cm])
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), DARK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("GRID", (0, 0), (-1, -1), 0.5, LIGHT), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-    ]))
+        col = color_for(pct)
+        rows.append([Paragraph(f"<b>{c}</b> · {CAT_NAMES[c]}", BODY), bar(pct),
+                     Paragraph(f'<font color="{col.hexval()}"><b>{estado}</b></font>', BODY)])
+        if i % 2 == 0:
+            style.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#FAFBFC")))
+    t = Table(rows, colWidths=[6.1 * cm, 7.3 * cm, 2.6 * cm])
+    t.setStyle(TableStyle(style))
     story.append(t)
 
     # continuum
@@ -190,15 +254,26 @@ def build_pdf(data):
         rows.append(["PUNTUACIÓN GLOBAL"] + [str(a.get("score", "—")) for a in audits])
         w = [7 * cm] + [(9 * cm) / len(audits)] * len(audits)
         ct = Table(rows, colWidths=w)
-        ct.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), DARK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#F1F5F9")),
-            ("FONTSIZE", (0, 0), (-1, -1), 8.5), ("GRID", (0, 0), (-1, -1), 0.5, LIGHT),
-            ("ALIGN", (1, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ]))
+        heat = [("BACKGROUND", (0, 0), (-1, 0), DARK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#F1F5F9")),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.5), ("GRID", (0, 0), (-1, -1), 0.5, colors.white),
+                ("ALIGN", (1, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]
+        # mapa de calor: cada celda coloreada según su valor
+        for ri in range(1, len(rows) - 1):
+            for ci in range(1, len(rows[ri])):
+                txt = rows[ri][ci]
+                if txt.endswith("%"):
+                    p = int(txt[:-1])
+                    tone = (colors.HexColor("#FDECEA") if p < 25 else
+                            colors.HexColor("#FEF0E2") if p < 50 else
+                            colors.HexColor("#FBF7E0") if p < 75 else
+                            colors.HexColor("#E9F5EE"))
+                    heat.append(("BACKGROUND", (ci, ri), (ci, ri), tone))
+                    heat.append(("TEXTCOLOR", (ci, ri), (ci, ri), color_for(p)))
+        ct.setStyle(TableStyle(heat))
         story.append(ct)
         story.append(Spacer(1, 0.3 * cm))
         gaps = []
@@ -229,20 +304,40 @@ def build_pdf(data):
         tier_items = [c for c in items if min(IMPORD.get(c["advice"].get("impacto"), 3), 3) == ord_]
         if not tier_items:
             continue
-        story.append(Spacer(1, 0.3 * cm))
-        story.append(Paragraph(f"{tier_name} ({len(tier_items)})", H3))
-        story.append(Paragraph(tier_desc, MUTED))
+        tier_col = [BAD, colors.HexColor("#D97706"), colors.HexColor("#B8A20B"), GREY][ord_]
+        story.append(Spacer(1, 0.35 * cm))
+        # cabecera de prioridad con banda de color
+        th = Table([[Paragraph(
+            f'<font color="white" size="10.5"><b>&nbsp;{esc(tier_name).upper()} · {len(tier_items)}</b></font>'
+            f'<font color="white" size="8">&nbsp;&nbsp;{esc(tier_desc)}</font>', BODY)]],
+            colWidths=[16 * cm])
+        th.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), tier_col),
+                                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
+        story.append(th)
+        story.append(Spacer(1, 0.2 * cm))
         for c in tier_items:
             a = c["advice"]
-            block = [
-                Paragraph(f"<b>{esc(a['titulo'])}</b>", BODY),
-                Paragraph(f"<font color='#64748B'>Impacto {esc(a['impacto'])} · Esfuerzo "
-                          f"{esc(a['esfuerzo'])} · check {esc(c['id'])}</font>", MUTED),
-                Paragraph(f"<b>Por qué importa:</b> {esc(a['por_que'])}", BODY),
-                Paragraph(f"<b>Cómo se arregla:</b> {esc(a['como'])}", BODY),
-                Spacer(1, 0.25 * cm),
-            ]
-            story.append(KeepTogether(block))
+            meta = Table([[chip(f"Impacto {a['impacto']}", tier_col),
+                           chip(f"Esfuerzo {a['esfuerzo']}", GREY),
+                           Paragraph(f"<font color='#94A3B8' size='7.5'>check {esc(c['id'])}</font>", MUTED)]],
+                         colWidths=[3.3 * cm, 3.3 * cm, 3 * cm])
+            meta.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0),
+                                      ("TOPPADDING", (0, 0), (-1, -1), 0),
+                                      ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                                      ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
+            card = Table([[Paragraph(f"<b>{esc(a['titulo'])}</b>", BODY)],
+                          [meta],
+                          [Paragraph(f"<font color='#64748B'><b>POR QUÉ IMPORTA</b></font><br/>{esc(a['por_que'])}", BODY)],
+                          [Paragraph(f"<font color='#64748B'><b>CÓMO SE ARREGLA</b></font><br/>{esc(a['como'])}", BODY)]],
+                         colWidths=[16 * cm])
+            card.setStyle(TableStyle([
+                ("LINEBEFORE", (0, 0), (0, -1), 2, tier_col),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAFBFC")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(KeepTogether([card, Spacer(1, 0.28 * cm)]))
 
     # ---------------------------------------------------------------- 5. Anexo técnico
     story.append(PageBreak())
