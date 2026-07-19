@@ -527,6 +527,28 @@ def test_informes_no_revientan():
               f"EXCEPCIÓN {type(exc).__name__}: {exc}")
 
 
+def test_persistencia_degrada_sin_bd():
+    """La persistencia MEJORA el producto pero nunca puede ser el motivo de que
+    un análisis falle: si Postgres no responde, todo debe devolver un valor
+    neutro sin propagar excepciones."""
+    from . import storage
+    casos = [
+        ("ensure_table", lambda: storage.ensure_table(), False),
+        ("guardar", lambda: storage.guardar("t", {"client": {}}, "a@b.c"), False),
+        ("cargar", lambda: storage.cargar("t"), None),
+        ("historial", lambda: storage.historial("a@b.c"), []),
+        ("borrar", lambda: storage.borrar("t"), False),
+    ]
+    for nombre, fn, esperado in casos:
+        try:
+            got = fn()
+            t("persist_" + nombre, got == esperado,
+              f"devolvió {got!r}, se esperaba {esperado!r}")
+        except Exception as exc:
+            t("persist_" + nombre, False,
+              f"PROPAGÓ EXCEPCIÓN {type(exc).__name__}: {exc}")
+
+
 def test_scoring_y_catalogo():
     for cid in ("4.7", "4.8", "6.4", "7.5", "7.6"):
         t("peso_" + cid, scoring.CHECK_WEIGHTS.get(cid, 0) > 0, f"{cid} sin peso")

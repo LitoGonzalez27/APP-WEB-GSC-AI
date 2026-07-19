@@ -110,6 +110,7 @@ def _run_job(job_id, urls, opts):
             job["result"] = data
             job["status"] = "done"
             job["phase"] = "Análisis completado"
+            _guardar_informe(job_id, data, job.get("user_email"))
     except Exception as exc:
         logger.exception("Fallo en job de agent_scanner")
         job["status"] = "error"
@@ -176,6 +177,7 @@ def _run_agents_job(job_id, opts):
                 logger.warning(f"agentes fallaron en {host}: {exc}")
                 job["log"].append(f"  {host}: fallo en agentes ({str(exc)[:80]})")
         data["agentes"]["estado"] = "completado"
+        _guardar_informe(job_id, data, job.get("user_email"))
         job["agents_status"] = "done"
         job["agents_phase"] = "Simulación agéntica completada"
     except Exception as exc:
@@ -261,6 +263,7 @@ def scan():
                 _JOBS.pop(k, None)
         _JOBS[jid] = {
             "status": "running", "phase": "Preparando análisis…", "log": [],
+            "user_email": (get_current_user() or {}).get("email"),
             "started": time.time(), "error": None, "result": None,
             "domains": [{"url": u, "host": urlparse(u).netloc.replace("www.", ""),
                          "state": "pending", "score": None} for u in urls],
@@ -281,13 +284,45 @@ def status(job_id):
     return jsonify(slim)
 
 
+def _resultado(job_id):
+    """Resultado de un análisis: primero memoria, si no la base de datos.
+
+    Los jobs viven en el proceso, así que un deploy o un reinicio los borra. La
+    persistencia hace que un informe (y sus descargas de PDF/JSON) siga
+    existiendo mañana, que es lo mínimo para entregarlo a un cliente.
+    """
+    job = _JOBS.get(job_id)
+    if job and job.get("result") is not None:
+        return job["result"]
+    try:
+        from agent_scanner.storage import cargar
+        return cargar(job_id)
+    except Exception:
+        return None
+
+
+def _guardar_informe(job_id, data, user_email=None):
+    """Persiste el informe. Nunca puede tumbar un análisis que ya salió bien.
+
+    OJO: se llama desde hilos de fondo, donde NO hay contexto de petición de
+    Flask. Por eso el email se captura al crear el job y viaja en él, en vez de
+    resolverse aquí con get_current_user().
+    """
+    try:
+        from agent_scanner.storage import guardar
+        if guardar(job_id, data, user_email):
+            logger.info(f"agent_scanner: informe {job_id} persistido")
+    except Exception as exc:
+        logger.warning(f"agent_scanner: no se pudo persistir {job_id}: {exc}")
+
+
 @agent_bp.route("/api/result/<job_id>")
 @agent_access_required
 def result(job_id):
-    job = _JOBS.get(job_id)
-    if not job or job.get("result") is None:
+    data = _resultado(job_id)
+    if data is None:
         return jsonify({"error": "resultado no disponible"}), 404
-    return jsonify(job["result"])
+    return jsonify(data)
 
 
 # ---------------------------------------------------------------- gestión de acceso (solo admin)
@@ -297,19 +332,19 @@ def result(job_id):
 def report_pdf(job_id):
     """Informe PDF estructurado (CMO → equipo técnico)."""
     from flask import send_file
-    job = _JOBS.get(job_id)
-    if not job or job.get("result") is None:
+    data = _resultado(job_id)
+    if data is None:
         return jsonify({"error": "resultado no disponible"}), 404
     try:
         from agent_scanner.report_pdf import build_pdf
-        buf = build_pdf(job["result"])
+        buf = build_pdf(data)
     except ImportError:
         return jsonify({"error": "generación de PDF no disponible (falta reportlab)"}), 500
     except Exception as exc:
         logger.exception("Fallo generando PDF del agent scanner")
         return jsonify({"error": f"no se pudo generar el PDF: {exc}"}), 500
-    host = (job["result"].get("client") or {}).get("host", "informe")
-    fecha = (job["result"].get("generated") or "")[:10]
+    host = (data.get("client") or {}).get("host", "informe")
+    fecha = (data.get("generated") or "")[:10]
     return send_file(buf, mimetype="application/pdf", as_attachment=True,
                      download_name=f"agent-readiness_{host}_{fecha}.pdf")
 
@@ -320,20 +355,50 @@ def report_json(job_id):
     """JSON completo y estructurado, pensado para iterar con IA."""
     import json as _json
     from flask import Response
-    job = _JOBS.get(job_id)
-    if not job or job.get("result") is None:
+    data = _resultado(job_id)
+    if data is None:
         return jsonify({"error": "resultado no disponible"}), 404
     try:
         from agent_scanner.report_json import build_json
-        payload = build_json(job["result"])
+        payload = build_json(data)
     except Exception as exc:
         logger.warning(f"build_json falló, se sirve el crudo: {exc}")
-        payload = job["result"]
-    host = (job["result"].get("client") or {}).get("host", "informe")
-    fecha = (job["result"].get("generated") or "")[:10]
+        payload = data
+    host = (data.get("client") or {}).get("host", "informe")
+    fecha = (data.get("generated") or "")[:10]
     body = _json.dumps(payload, ensure_ascii=False, indent=2)
     return Response(body, mimetype="application/json", headers={
         "Content-Disposition": f'attachment; filename="agent-readiness_{host}_{fecha}.json"'})
+
+
+@agent_bp.route("/api/historial")
+@agent_access_required
+def historial():
+    """Informes anteriores del usuario. Vacío si la BD no está disponible."""
+    try:
+        from agent_scanner.storage import historial as _hist, DISPONIBLE
+        user = get_current_user() or {}
+        # los admin ven todo el historial; el resto, solo el suyo
+        es_admin = user.get("role") == "admin"
+        items = _hist(None if es_admin else user.get("email"), limite=30)
+        return jsonify({"informes": items, "persistencia": DISPONIBLE is not False})
+    except Exception as exc:
+        logger.warning(f"historial no disponible: {exc}")
+        return jsonify({"informes": [], "persistencia": False})
+
+
+@agent_bp.route("/api/historial/<job_id>", methods=["DELETE"])
+@agent_access_required
+def borrar_informe(job_id):
+    try:
+        from agent_scanner.storage import borrar
+        user = get_current_user() or {}
+        # un no-admin solo puede borrar lo suyo (el filtro va en el WHERE)
+        dueno = None if user.get("role") == "admin" else user.get("email")
+        return jsonify({"borrado": borrar(job_id, dueno)})
+    except Exception as exc:
+        logger.warning(f"no se pudo borrar {job_id}: {exc}")
+        return jsonify({"borrado": False}), 500
 
 
 @agent_bp.route("/api/catalog")
