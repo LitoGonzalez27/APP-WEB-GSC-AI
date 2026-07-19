@@ -1362,6 +1362,42 @@ def test_comparativa_no_corona_entre_tipologias():
       "el aviso se calculaba pero no se insertaba en el panel")
 
 
+def test_presupuesto_de_salida_para_modelos_que_razonan():
+    """Bug: el 39% de los pasos de Gemini se perdían y la web cargaba la culpa.
+
+    Los modelos con razonamiento gastan tokens PENSANDO y salen del mismo
+    presupuesto de salida. Con max_output_tokens=400, gemini-3.5-flash devolvía
+    un fragmento del medio del JSON ('": "59,99 EUR",\\n "contacto": "info') que
+    no se podía parsear. Medido sobre la validación de jul 2026: 70 de 178 pasos
+    de Gemini perdidos así (39%), frente al 0% de ChatGPT; mailchimp.com perdió
+    13 de 14 pasos, es decir que el agente nunca llegó a intentar la tarea, y se
+    registró como "no conseguido" del sitio.
+    """
+    src = open(os.path.join(os.path.dirname(__file__), "agents.py")).read()
+    t("presupuesto_salida_generoso", "_MAX_SALIDA = 2000" in src,
+      "un JSON de acción ocupa ~80 tokens, pero el pensamiento sale del mismo saco")
+    t("gemini_usa_el_presupuesto", "max_output_tokens\": _MAX_SALIDA" in src,
+      "gemini tenía 400 cableado")
+    t("no_quedan_presupuestos_de_400", '"max_output_tokens": 400' not in src
+      and "max_tokens=400" not in src, "queda algún límite viejo que trunca")
+
+
+def test_ruido_del_llm_no_es_fallo_de_la_web():
+    """Mismo bug, la otra cara: un paso quemado porque NUESTRO modelo devolvió
+    algo ilegible no dice absolutamente nada sobre la web auditada.
+
+    El flag `limite_de_metodo` solo miraba timeouts de clic, así que un intento
+    arruinado por respuestas ilegibles salía como fallo limpio del sitio.
+    """
+    src = open(os.path.join(os.path.dirname(__file__), "agents.py")).read()
+    t("detecta_ruido_llm", "ilegibles / len(steps) >= 0.3" in src,
+      "hay que medir qué parte del intento se fue en respuestas ilegibles")
+    t("ruido_llm_marca_limite", "timeouts >= 2 or ruido_llm" in src,
+      "el ruido del LLM tiene que marcar límite de método, como los timeouts")
+    t("ruido_llm_se_explica", "límite NUESTRO, no un problema de la web" in src,
+      "el informe debe decir de quién es el problema")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
