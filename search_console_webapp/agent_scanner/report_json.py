@@ -9,12 +9,10 @@ Frente al volcado crudo, este formato:
 Así se puede pegar en un prompt y pedir "hazme un plan", "compara", "prioriza".
 """
 
-CAT_NAMES = {
-    "C1": "Descubribilidad y acceso", "C2": "Identidad y control de bots",
-    "C3": "Datos estructurados", "C4": "Renderizado y arquitectura",
-    "C5": "Contenido para LLMs", "C6": "Capacidades y acciones",
-    "C7": "Comercio agéntico",
-}
+# Los nombres de categoría viven en catalog.py, que es la fuente de verdad
+# del catálogo de factores. Tenerlos duplicados en tres módulos era pedir
+# que se desincronizaran al renombrar una categoría.
+from .catalog import CATEGORIES as CAT_NAMES
 STAGES = [("leer", "¿Te leen?", ["C1", "C2"]),
           ("entender", "¿Te entienden?", ["C3", "C4", "C5"]),
           ("usar", "¿Pueden usarte?", ["C6", "C7"])]

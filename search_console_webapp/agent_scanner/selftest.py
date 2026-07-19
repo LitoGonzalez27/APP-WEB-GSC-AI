@@ -449,6 +449,84 @@ def test_hitos_submit():
 
 # ---------------------------------------------------------- scoring y catálogo
 
+def _audit_ficticia(**extra):
+    """Auditoría mínima pero completa, para ejercitar los generadores de informe."""
+    checks = [
+        {"id": "1.1", "cat": "C1", "name": "robots.txt", "score": 1,
+         "evidence": "ok", "manual": False},
+        {"id": "3.1", "cat": "C3", "name": "JSON-LD", "score": 0.5,
+         "evidence": "parcial", "manual": False,
+         "advice": {"titulo": "Falta marcado", "por_que": "Los agentes no te entienden",
+                    "como": "Añadir JSON-LD", "impacto": "Alto", "esfuerzo": "Bajo"}},
+        {"id": "6.3", "cat": "C6", "name": "Agente real", "score": None,
+         "evidence": "no ejecutado", "manual": True},
+    ]
+    base = {
+        "domain": "https://test.example", "host": "test.example",
+        "typology": "ecommerce", "score": 42.0, "score_pre_gate": 47.0,
+        "penalties": [["Precio inconsistente", -5]],
+        "level": {"emoji": "🟠", "name": "Legible, no operable", "msg": "Te leen, no te usan."},
+        "category_scores": {"C1": 0.8, "C3": 0.5, "C6": 0.2},
+        "category_weights": {"C1": 15.0, "C3": 18.0, "C6": 12.0},
+        "checks": checks, "bot_matrix": {"GPTBot": 200, "_human": 200},
+        "pages_sampled": [{"url": "https://test.example/a", "bucket": "otras",
+                           "status": 200, "via": "http"}],
+        "wellknown": {}, "coverage": {"sitemap_urls": 10, "sampled": 1,
+                                      "sampled_ok": 1, "fallbacks": 0},
+        "trail": [{"step": "robots.txt", "status": "ok", "detail": "200"}],
+        "score_fiable": True, "agent_tests": None,
+    }
+    base.update(extra)
+    return base
+
+
+def test_informes_no_revientan():
+    """El PDF y el JSON no tenían NINGUNA prueba: por eso partir build_pdf era
+    arriesgado. Se ejercitan sus rutas condicionales (con y sin competidores,
+    fiable y degradado, con y sin pruebas agénticas)."""
+    from .report_pdf import build_pdf
+    from .report_json import build_json
+    degradada = _audit_ficticia(
+        host="bloqueada.example", score_fiable=False,
+        acceso_degradado={"nivel": "total", "motivo": "bloqueo", "degradados": 8,
+                          "human_status": 403, "via": "http"})
+    con_agentes = _audit_ficticia(agent_tests={
+        "typology": "ecommerce", "repeticiones": 3, "hitos_tarea": ["Abrir ficha"],
+        "hitos_no_evaluados": [], "allow_submit": False,
+        "agents": {"chatgpt": {"outcome": "conseguido", "intentos": 3, "exitos": 3,
+                               "consistencia": 1.0, "steps": 5, "detail": "ok",
+                               "action_log": ["click [1] 'Comprar'"],
+                               "runs": [{"outcome": "conseguido"}],
+                               "progreso": {"alcanzados": 4, "total": 4,
+                                            "pendientes": [], "hitos": []}}}})
+    escenarios = {
+        "solo cliente": {"client": _audit_ficticia(), "competitors": []},
+        "con competidores": {"client": _audit_ficticia(),
+                             "competitors": [_audit_ficticia(host="comp1.example"),
+                                             degradada]},
+        "cliente degradado": {"client": degradada, "competitors": [_audit_ficticia()]},
+        "con agentes": {"client": con_agentes, "competitors": []},
+        "competidor con error": {"client": _audit_ficticia(),
+                                 "competitors": [{"domain": "x", "error": "no responde"}]},
+    }
+    for nombre, data in escenarios.items():
+        data["generated"] = "2026-07-19"
+        try:
+            pdf = build_pdf(data).getvalue()
+            t("pdf_" + nombre.replace(" ", "_"), len(pdf) > 5000,
+              f"PDF sospechosamente pequeño ({len(pdf)} bytes)")
+        except Exception as exc:
+            t("pdf_" + nombre.replace(" ", "_"), False,
+              f"EXCEPCIÓN {type(exc).__name__}: {exc}")
+        try:
+            j = build_json(data)
+            t("json_" + nombre.replace(" ", "_"),
+              "cliente" in j and "fiabilidad" in j["cliente"], "JSON incompleto")
+        except Exception as exc:
+            t("json_" + nombre.replace(" ", "_"), False,
+              f"EXCEPCIÓN {type(exc).__name__}: {exc}")
+
+
 def test_scoring_y_catalogo():
     for cid in ("4.7", "4.8", "6.4", "7.5", "7.6"):
         t("peso_" + cid, scoring.CHECK_WEIGHTS.get(cid, 0) > 0, f"{cid} sin peso")

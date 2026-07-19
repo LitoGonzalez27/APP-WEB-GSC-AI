@@ -492,12 +492,10 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     return ctx
 
 
-CAT_NAMES = {
-    "C1": "Descubribilidad y acceso", "C2": "Identidad y control de bots",
-    "C3": "Datos estructurados", "C4": "Renderizado y arquitectura",
-    "C5": "Contenido para LLMs", "C6": "Capacidades y acciones",
-    "C7": "Comercio agéntico",
-}
+# Los nombres de categoría viven en catalog.py, que es la fuente de verdad
+# del catálogo de factores. Tenerlos duplicados en tres módulos era pedir
+# que se desincronizaran al renombrar una categoría.
+from .catalog import CATEGORIES as CAT_NAMES
 
 
 # Checks cuyo "0" significa "no lo he encontrado". Si el sitio nos ha bloqueado,
