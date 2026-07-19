@@ -476,7 +476,7 @@ const CAT_DESC={
 const SCALE_TIP="Escala: 0-25 invisible para agentes · 26-50 legible pero no operable · 51-75 agent-aware · 76-100 agent-ready.";
 const PCT_TIP="El % son los checks de la categoría superados, ponderados por importancia (los críticos pesan más).";
 const SERIES=["#D9F9B8","#8AB4F8","#F2A65A"];
-const LVL={"🔴":"#E05252","🟠":"#F2A65A","🟡":"#F5D76E","🟢":"#3CB371"};
+const LVL={"🔴":"#E05252","🟠":"#F2A65A","🟡":"#F5D76E","🟢":"#3CB371","🚫":"#94A3B8"};
 const IMPORD={"Crítico":0,"Alto":1,"Alto (apuesta de futuro)":1,"Alto (ventana de oportunidad)":1,
   "Medio":2,"Medio (creciente)":2,"Bajo":3,"Bajo (hoy)":3,"Diagnóstico":4};
 /* metodología de cada check (para la matriz de fiabilidad) */
@@ -712,6 +712,16 @@ function gaugeSVG(score,color,size=230){
   </svg>`;
 }
 
+/* Un sitio que nos cerró la puerta no tiene nota: pintar un 59.6 en el
+   marcador (caso real: allegro.pl) es exactamente lo que no debe hacerse.
+   Se sustituye el marcador por el muro, no se rellena con un número. */
+function muroSVG(size=230){
+  return`<div style="height:${Math.round(size*0.66)}px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:6px">
+    <div style="font-size:52px;line-height:1">🚫</div>
+    <div style="font-size:.82rem;color:var(--text-2);font-weight:600">Sin nota</div></div>`;
+}
+
 function ringSVG(score,color,size=118){
   const r=size/2-11,C=2*Math.PI*r,frac=Math.max(0,Math.min(1,score/100));
   return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${score} de 100">
@@ -771,8 +781,8 @@ function paneResumen(d){
     tarde o desde otra red antes de usar estos datos.</div></div>`:"";
   return aviso+`<div class="score-grid">
     <div class="panel" style="text-align:center">
-      <div class="label">Puntuación global</div>
-      ${gaugeSVG(c.score,col)}
+      <div class="label">${c.level.sin_nota?"Veredicto":"Puntuación global"}</div>
+      ${c.level.sin_nota?muroSVG():gaugeSVG(c.score,col)}
       <div class="lvl" style="justify-content:center"><span class="lvl-dot" style="background:${col}"></span>${esc(c.level.name)}</div>
       <div class="lvl-msg">${esc(c.level.msg)}</div>${pens}
       ${countersHTML(c)}
@@ -793,13 +803,17 @@ function paneResumen(d){
 function paneComparativa(d){
   const audits=[d.client,...(d.competitors||[]).filter(a=>!a.error)];
   if(audits.length<2)return '<p class="note">Añade competidores en el análisis para ver el panel comparativo.</p>';
-  const best=Math.max(...audits.map(a=>a.score));
+  /* Un dominio sin nota (nos cerró la puerta) no compite por "el mejor": su
+     número no mide lo mismo que el de los demás. Antes podía llevarse la
+     corona con una nota calculada sobre lo poco que dejó ver. */
+  const conNota=audits.filter(a=>!a.level.sin_nota);
+  const best=conNota.length?Math.max(...conNota.map(a=>a.score)):null;
   const cards=audits.map((a,i)=>{
     const col=LVL[a.level.emoji]||"#94A3B8";
-    return`<div class="vs-card${a.score===best?" win":""}">
+    return`<div class="vs-card${(!a.level.sin_nota&&a.score===best)?" win":""}">
     <div class="label">${i===0?"Tu web":"Competidor "+i}</div>
     <div class="vs-host"><span class="vs-dot" style="background:${SERIES[i%3]}"></span>${esc(a.host)}</div>
-    <div class="ring">${ringSVG(a.score,col)}</div>
+    <div class="ring">${a.level.sin_nota?muroSVG(118):ringSVG(a.score,col)}</div>
     <div class="vs-lvl">${a.level.emoji} ${esc(a.level.name)} · ${esc(a.typology)}</div></div>`}).join("");
 
   /* mapa de calor: categorías × dominios, el vistazo de 2 segundos */

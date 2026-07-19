@@ -1195,6 +1195,73 @@ def test_senales_tienda_pl_y_nordicas():
       "un número suelto + kr no es prueba de tienda")
 
 
+def test_peso_no_medido_no_se_reparte():
+    """Bug (batería 6, allegro.pl): el peso de lo que NO pudimos medir se
+    repartía entre lo que sí, inflando la nota de los sitios opacos.
+
+    El reparto existe para las categorías que NO APLICAN (C7 en una web
+    corporativa: no tiene fichas de producto, no hay nada que medir y la nota
+    sigue siendo sobre 100). Se estaba aplicando también a las que no pudimos
+    medir, que es otra cosa: allegro.pl nos bloqueó C3 entera (peso 20), su peso
+    se repartió, las demás subieron un 25% y las dos categorías que allegro
+    tenía perfectas (llms.txt y OAuth) pasaron a aportar 43.75 de 64.6 puntos.
+    Cuanto menos podíamos medir, más pesaba lo poco medido.
+    """
+    def check(cid, cat, score, no_verif=False):
+        r = {"id": cid, "cat": cat, "name": "x", "score": score, "evidence": "e"}
+        if no_verif:
+            r["no_verificable"] = True
+        return r
+
+    # C3 entera NO VERIFICABLE (ceguera), C5 y C6 perfectas
+    ciego = [check("3.1", "C3", None, no_verif=True),
+             check("3.2", "C3", None, no_verif=True),
+             check("5.1", "C5", 1), check("6.1", "C6", 1)]
+    total, cats, pesos, cob = scoring.total_score(ciego, "corporativo")
+    t("ciego_no_reparte_peso_de_C3", "C3" not in pesos,
+      f"C3 no se midió: su peso no puede repartirse: {pesos}")
+    t("ciego_cobertura_menor_que_1", cob < 1.0,
+      f"si falta una categoría por ceguera, la nota no cubre el modelo: cob={cob}")
+    # el mismo perfil pero con C3 AUSENTE por no aplicar (sin la marca) sí
+    # reparte, y por tanto puntúa MÁS: es la diferencia que se había perdido
+    na = [check("5.1", "C5", 1), check("6.1", "C6", 1)]
+    total_na, _, _, cob_na = scoring.total_score(na, "corporativo")
+    t("no_aplica_si_reparte", cob_na == 1.0 and total_na > total,
+      f"'no aplica' reparte y llega a 100; 'no lo sé' no: "
+      f"ciego={total}/cob{cob} vs na={total_na}/cob{cob_na}")
+
+
+def test_bloqueado_no_tiene_nota():
+    """Decisión de producto (batería 6): un sitio que cierra la puerta a cal y
+    canto no pertenece a la escala 0-100.
+
+    allegro.pl salía con 59.6 y la etiqueta "Agent-aware" —la segunda mejor del
+    modelo— sin que hubiéramos visto ni una de sus páginas. Un 0 tampoco sería
+    cierto: su llms.txt (12 KB curados) y su OAuth funcionan de verdad,
+    verificados a mano. Así que sale con veredicto propio y sin nota.
+    """
+    normal = scoring.level_for(59.6)
+    t("nivel_normal_sigue_igual", normal["name"] == "Agent-aware" and not normal.get("sin_nota"),
+      str(normal))
+    bloq = scoring.level_for(59.6, bloqueado=True)
+    t("bloqueado_no_es_agent_aware", bloq["name"] != "Agent-aware", str(bloq))
+    t("bloqueado_marca_sin_nota", bloq.get("sin_nota") is True, str(bloq))
+    t("bloqueado_explica_el_muro", "no sirve contenido" in bloq["msg"], bloq["msg"])
+    # el JSON que consumen las IAs no puede llevar el número: promediarlo o
+    # compararlo contra otros dominios sería tratarlo como si midiera lo mismo
+    from . import report_json
+    payload = report_json.build_json({
+        "client": {"host": "h", "score": 59.6, "score_pre_gate": 64.6,
+                   "level": bloq, "checks": [], "category_scores": {},
+                   "score_fiable": False,
+                   "acceso_degradado": {"nivel": "total", "motivo": "m", "degradados": 12}},
+        "competitors": [], "generated": "2026-07-19"})
+    p = payload["cliente"]["puntuacion"]
+    t("json_bloqueado_sin_numero", p["global_0_a_100"] is None, str(p))
+    t("json_bloqueado_dice_por_que", p["hay_nota"] is False and p["motivo_sin_nota"],
+      str(p))
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

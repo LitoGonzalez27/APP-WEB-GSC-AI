@@ -64,6 +64,7 @@ def _domain_block(a):
 
     # Fiabilidad primero: si el sitio bloqueó el acceso, cualquier IA que consuma
     # este JSON debe toparse con el aviso ANTES que con la puntuación.
+    sin_nota = bool((a.get("level") or {}).get("sin_nota"))
     fiable = a.get("score_fiable", True)
     fiabilidad = {"puntuacion_fiable": fiable}
     deg = a.get("acceso_degradado")
@@ -89,9 +90,17 @@ def _domain_block(a):
         "fiabilidad": fiabilidad,
         "tipologia": a.get("typology"),
         "tipologia_evidencia": a.get("typology_evidence"),
+        # Si el sitio nos cerró la puerta NO hay nota: se envía null en vez del
+        # número, para que una IA que consuma esto no pueda promediarlo ni
+        # compararlo con otros dominios como si midieran lo mismo.
         "puntuacion": {
-            "global_0_a_100": a.get("score"),
-            "antes_de_penalizaciones": a.get("score_pre_gate"),
+            "global_0_a_100": None if sin_nota else a.get("score"),
+            "hay_nota": not sin_nota,
+            "motivo_sin_nota": ((a.get("level") or {}).get("msg") if sin_nota else None),
+            # qué fracción del modelo cubre la nota (1.0 = todo lo que aplica).
+            # Baja cuando hubo categorías que no se pudieron medir.
+            "cobertura_del_modelo": a.get("cobertura_score"),
+            "antes_de_penalizaciones": None if sin_nota else a.get("score_pre_gate"),
             "penalizaciones": [{"motivo": p[0], "puntos": p[1]} for p in (a.get("penalties") or [])],
             "nivel": (a.get("level") or {}).get("name"),
             "nivel_significado": (a.get("level") or {}).get("msg"),
