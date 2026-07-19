@@ -1262,6 +1262,48 @@ def test_bloqueado_no_tiene_nota():
       str(p))
 
 
+def test_agente_bloqueado_no_es_fallo_de_la_web():
+    """Bug (validación jul 2026): el check 6.3 acusaba a la web de fallos nuestros.
+
+    Al validar el modelo contra agentes reales, mango.com y coolblue.nl salieron
+    con 0% de recorrido y "no_conseguido" ATRIBUIDO A LA WEB. Mirando qué recibió
+    el navegador: mango devolvió un "Access Denied" de 294 bytes y coolblue una
+    cáscara de 257 bytes que nunca hidrata. Nunca vimos esas webs. El flag
+    `limite_de_metodo` no lo cazaba porque solo miraba timeouts de clic, y sin un
+    solo elemento no se llega a clicar nada: cero timeouts. Es el sesgo central
+    del proyecto, en el único check que dice literalmente "un agente no pudo usar
+    tu web" — el más caro de equivocar.
+    """
+    nv = {"outcome": "no_verificable", "detail": "NO VERIFICABLE — bloqueo",
+          "progreso": {"alcanzados": 0, "total": 5}, "steps": 1}
+    agg = _aggregate([nv, dict(nv)])
+    t("agg_no_verificable_se_propaga", agg["outcome"] == "no_verificable", str(agg))
+    t("agg_no_verificable_marca_limite", agg.get("limite_de_metodo") is True, str(agg))
+
+    # un intento ciego NO puede promediarse con uno real: eso convertiría
+    # nuestra ceguera en media baja para el dominio
+    real = {"outcome": "conseguido", "detail": "ok", "steps": 6,
+            "progreso": {"alcanzados": 5, "total": 5}}
+    mixto = _aggregate([nv, real])
+    t("agg_mezcla_ignora_el_ciego",
+      mixto["outcome"].startswith("conseguido") and mixto["intentos"] == 1,
+      f"solo debe contar el intento que sí se pudo hacer: {mixto}")
+
+    # y el check 6.3 no puede puntuarlo como 0
+    ctx = ctx_base()
+    ctx["agent_tests"] = {"agents": {"gemini": agg}, "hitos_no_evaluados": []}
+    c63 = by_id(checks.run_c6(ctx), "6.3")
+    t("check63_bloqueado_no_puntua", c63["score"] is None,
+      f"sin haber visto la web, 6.3 no puede valer 0: {c63}")
+    t("check63_bloqueado_es_manual", c63.get("manual") is True, str(c63))
+    t("check63_bloqueado_no_dice_no_ejecutado",
+      "No ejecutado" not in c63["evidence"],
+      f"se ejecutó y nos bloquearon: decir 'no ejecutado' es falso: {c63['evidence']}")
+    t("check63_bloqueado_explica",
+      "NO VERIFICABLE" in c63["evidence"] or "sin resultado medible" in c63["evidence"],
+      c63["evidence"])
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

@@ -422,12 +422,18 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
             steps.append("cerrado un banner/overlay inicial para poder operar")
         messages = [{"role": "system", "content": SYSTEM},
                     {"role": "user", "content": f"Tarea: {task}"}]
+        # ¿Hemos llegado a tener alguna vez una página con la que operar? Sin
+        # esto, un bloqueo del WAF al navegador headless se registraba como
+        # "la web no dejó al agente" (ver el retorno no_verificable más abajo).
+        pasos_con_elementos = 0
         for _ in range(MAX_STEPS):
             try:
                 page.wait_for_timeout(700)
                 elements = page.evaluate(_ELEMENTS_JS)
             except Exception:
                 elements = []
+            if elements:
+                pasos_con_elementos += 1
             # evidencia de hitos ANTES de decidir el siguiente paso
             try:
                 _check_milestones(hitos, reached, page.url, page.content(),
@@ -544,7 +550,40 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                                   steps[-1] if steps else None)
             except Exception:
                 pass
+        # Lo último que se mira antes de cerrar: ¿nos han enseñado la web?
+        try:
+            cascara = page.evaluate(
+                "() => ({t: document.title || '', n: document.documentElement"
+                ".outerHTML.length, txt: (document.body ? document.body.innerText "
+                ": '').slice(0, 300)})")
+        except Exception:
+            cascara = {"t": "", "n": 0, "txt": ""}
         browser.close()
+
+    # NUNCA hubo una página con la que operar. Eso NO es "la web no dejó al
+    # agente": es que no llegamos a ver la web, y afirmar lo primero es el mismo
+    # sesgo que perseguimos en el escáner estático, aquí en el único check que
+    # dice literalmente "un agente no pudo usar tu web".
+    # Caso real (validación jul 2026): mango.com devolvió al navegador headless
+    # un "Access Denied" de 294 bytes y coolblue.nl una cáscara de 257 bytes.
+    # Ambas salieron con 0% de recorrido y "no_conseguido" atribuido a la web,
+    # con limite_de_metodo=False, porque `limitado` solo miraba los timeouts de
+    # clic y sin elementos no se llega a clicar nada: cero timeouts.
+    if not pasos_con_elementos:
+        bloqueo = re.search(r"(?i)access denied|forbidden|are you a robot|"
+                            r"unusual traffic|captcha|acceso denegado",
+                            (cascara.get("t", "") + " " + cascara.get("txt", "")))
+        motivo = (f"el navegador recibió una página de bloqueo "
+                  f"(«{cascara.get('t', '')[:60]}»)" if bloqueo else
+                  f"la página no expuso un solo control con el que operar "
+                  f"({cascara.get('n', 0)} bytes de HTML)")
+        return {"outcome": "no_verificable",
+                "detail": ("NO VERIFICABLE — " + motivo + ". No es posible afirmar "
+                           "que un agente no pueda usar esta web: no hemos llegado a "
+                           "verla. Compruébalo a mano o repite desde otra red."),
+                "steps": len(steps), "action_log": steps[:25], "progreso": _progress(),
+                "limite_de_metodo": True, "timeouts": 0}
+
     if outcome == "conseguido" and frictions:
         outcome = "conseguido_con_friccion"
     prog = _progress()
@@ -577,7 +616,19 @@ def _aggregate(runs):
     """Resume N intentos del mismo agente. La CONSISTENCIA es el dato clave:
     un agente LLM es estocástico, así que una sola pasada no prueba nada. Que
     una web funcione 1 de cada 3 veces no es 'funciona': es un hallazgo."""
-    validos = [r for r in runs if r.get("outcome") not in ("error", None)]
+    # "no_verificable" (nunca vimos la web) no es un intento fallido: es un
+    # intento que no llegó a hacerse. Promediarlo con los demás convertiría
+    # nuestra ceguera en una nota baja para el dominio.
+    novers = [r for r in runs if r.get("outcome") == "no_verificable"]
+    validos = [r for r in runs
+               if r.get("outcome") not in ("error", "no_verificable", None)]
+    if not validos and novers:
+        return {"outcome": "no_verificable", "intentos": len(runs), "exitos": 0,
+                "limite_de_metodo": True, "consistencia": None,
+                "detail": novers[0].get("detail"), "progreso": novers[0].get("progreso"),
+                "runs": [{"outcome": r.get("outcome"), "steps": r.get("steps"),
+                          "alcanzados": (r.get("progreso") or {}).get("alcanzados")}
+                         for r in runs]}
     if not validos:
         return {"outcome": "error", "intentos": len(runs),
                 "detail": (runs[0].get("detail") if runs else "sin ejecuciones"),

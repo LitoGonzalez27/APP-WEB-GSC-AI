@@ -746,8 +746,11 @@ def run_c6(ctx):
     # 6.3 tarea completada por agentes REALES (browser-use con ChatGPT/Gemini/Claude)
     at = ctx.get("agent_tests")
     agents = (at or {}).get("agents") or {}
+    # "no_verificable" fuera junto a "no_disponible": en ambos casos NO hemos
+    # medido nada. Si el navegador solo recibio una pagina de bloqueo, puntuar
+    # 6.3 a 0 seria afirmar "un agente no puede usar tu web" sin haberlo visto.
     valid = {k: v for k, v in agents.items()
-             if v.get("outcome") not in ("no_disponible", None)}
+             if v.get("outcome") not in ("no_disponible", "no_verificable", None)}
     if valid:
         ok = sum(1 for v in valid.values() if v["outcome"] == "conseguido")
         okf = sum(1 for v in valid.values() if v["outcome"] == "conseguido_con_friccion")
@@ -819,6 +822,18 @@ def run_c6(ctx):
         ev += " Detalle y registro de pasos en la pestaña Evidencias."
         out.append(R("6.3", "C6", "Tarea completada por un agente real", score, ev))
     else:
+        # Se ejecutaron y NINGUNA pudo ver la web. Decir "no ejecutado" aqui
+        # seria falso, y decir "no conseguido" seria peor: acusaria a la web.
+        noverif = [k for k, v in agents.items()
+                   if v.get("outcome") == "no_verificable"]
+        if noverif:
+            det = next(v.get("detail") for v in agents.values()
+                       if v.get("outcome") == "no_verificable")
+            out.append(R("6.3", "C6", "Tarea completada por un agente real", None,
+                         f"Ejecutado con {', '.join(noverif)}, sin resultado medible: "
+                         f"{det} No se puntua: no hay evidencia agentica en ningun "
+                         "sentido, ni a favor ni en contra.", manual=True))
+            return out
         # el mensaje cambia si el usuario YA las pidió: decirle "actívalas"
         # cuando acaba de activarlas seria desconcertante
         if ctx.get("agentes_pendientes"):
