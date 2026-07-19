@@ -807,10 +807,30 @@ function paneComparativa(d){
      número no mide lo mismo que el de los demás. Antes podía llevarse la
      corona con una nota calculada sobre lo poco que dejó ver. */
   const conNota=audits.filter(a=>!a.level.sin_nota);
-  const best=conNota.length?Math.max(...conNota.map(a=>a.score)):null;
+  /* Tipologías distintas NO se coronan entre sí. Al validar el modelo con
+     agentes reales (21 dominios, jul 2026) la tarea de e-commerce
+     —producto → carrito → checkout → datos— resultó mucho más dura que la de
+     SaaS —precios → plan—: los SaaS recorrieron 25-100% y las tiendas 0-55%.
+     Y los pesos por categoría tampoco son los mismos (C7 solo puntúa en
+     e-commerce). Coronar a la mejor de una mezcla comparaba dos varas
+     distintas y le daba al cliente un ganador que no significaba nada. */
+  const tipos=[...new Set(audits.map(a=>a.typology))];
+  const mixto=tipos.length>1;
+  const best=(!mixto&&conNota.length)?Math.max(...conNota.map(a=>a.score)):null;
+  const avisoMixto=mixto?`<div class="panel sec" style="margin-bottom:18px;
+    border-left:4px solid var(--warn,#F2A65A);background:rgba(242,166,90,.07)">
+    <div style="font-weight:700;margin-bottom:6px">⚠ Tipologías distintas: las notas no son comparables</div>
+    <div style="font-size:.88rem;color:var(--text-2)">Estás comparando
+    ${tipos.map(t=>`<b>${esc(t)}</b>`).join(" y ")}. Cada tipología se puntúa con
+    pesos distintos (la categoría de ficha de producto solo cuenta en e-commerce)
+    y la tarea que un agente debe completar no tiene la misma dificultad: al
+    validar con agentes reales, los SaaS completaron entre el 25% y el 100% del
+    recorrido y las tiendas entre el 0% y el 55%. Por eso <b>no se señala una
+    ganadora</b>. Compara cada dominio con otros de su misma tipología, o
+    quédate con el desglose por categoría de abajo, que sí es comparable.</div></div>`:"";
   const cards=audits.map((a,i)=>{
     const col=LVL[a.level.emoji]||"#94A3B8";
-    return`<div class="vs-card${(!a.level.sin_nota&&a.score===best)?" win":""}">
+    return`<div class="vs-card${(!a.level.sin_nota&&best!==null&&a.score===best)?" win":""}">
     <div class="label">${i===0?"Tu web":"Competidor "+i}</div>
     <div class="vs-host"><span class="vs-dot" style="background:${SERIES[i%3]}"></span>${esc(a.host)}</div>
     <div class="ring">${a.level.sin_nota?muroSVG(118):ringSVG(a.score,col)}</div>
@@ -852,7 +872,7 @@ function paneComparativa(d){
     <tr class="chk-detail" id="chkd-${ri}" style="display:none"><td colspan="${audits.length+1}">
       <div class="f-label" style="margin:4px 0 8px">Cómo se mide: <span style="text-transform:none;letter-spacing:0;color:var(--text-2)">${esc(METHODS[c.id]||"")}</span></div>
       ${detail}</td></tr>`}).join("");
-  return`<div class="vs-grid">${cards}</div>
+  return avisoMixto+`<div class="vs-grid">${cards}</div>
   <div class="panel sec"><h3>Mapa de calor por categoría</h3>
     <p class="note" style="margin-bottom:14px">Verde = fuerte · amarillo = mejorable · naranja = flojo · rojo = crítico.
     La foto completa de la batalla en un vistazo.</p>

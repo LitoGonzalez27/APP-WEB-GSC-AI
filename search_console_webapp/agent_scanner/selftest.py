@@ -1335,6 +1335,33 @@ def test_saas_una_fuerte_con_tres_debiles():
     t("tienda_estructural_no_se_vuelve_saas", typ3 == "ecommerce", typ3)
 
 
+def test_comparativa_no_corona_entre_tipologias():
+    """Hallazgo de la validación (jul 2026): el panel comparativo coronaba a la
+    "mejor" aunque las tipologías fueran distintas, y no miden lo mismo.
+
+    Con agentes reales sobre 21 dominios, la tarea de e-commerce
+    (producto → carrito → checkout → datos) resultó mucho más dura que la de
+    SaaS (precios → plan): los SaaS recorrieron 25-100% y las tiendas 0-55%.
+    Los pesos por categoría tampoco coinciden (C7 solo puntúa en e-commerce).
+    Coronar a la mejor de una mezcla le daba al cliente un ganador que no
+    significaba nada. Verificado además en navegador: con tipologías mezcladas
+    se pinta el aviso y ninguna tarjeta lleva .win; con la misma tipología, una.
+    """
+    src = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    assert "function paneComparativa" in src, "cambió el nombre del panel"
+    frag = src[src.index("function paneComparativa"):]
+    frag = frag[:frag.index("const heatCats")]
+    t("comparativa_detecta_tipologias", "new Set(audits.map(a=>a.typology))" in frag,
+      "el panel debe mirar cuántas tipologías distintas hay")
+    t("comparativa_corona_solo_si_homogenea", "!mixto&&conNota.length" in frag,
+      "el 'mejor' solo puede calcularse cuando todas comparten tipología")
+    t("comparativa_avisa_al_usuario", "no son comparables" in frag,
+      "sin aviso, el usuario compara dos varas distintas sin saberlo")
+    # el aviso tiene que llegar al HTML devuelto, no quedarse en una variable
+    t("comparativa_pinta_el_aviso", "return avisoMixto+" in src,
+      "el aviso se calculaba pero no se insertaba en el panel")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
