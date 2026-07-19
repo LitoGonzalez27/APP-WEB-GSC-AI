@@ -138,12 +138,19 @@ def _aplicar_agentes(audit, agent_tests):
         nuevo["advice"] = advice_for("6.3")
 
     audit["checks"] = [nuevo if c["id"] == "6.3" else c for c in audit["checks"]]
-    total, cat_scores, weights = scoring.total_score(audit["checks"], audit["typology"])
+    total, cat_scores, weights, cobertura = scoring.total_score(
+        audit["checks"], audit["typology"])
     adjusted, penalties = scoring.apply_governance_gate(
         total, audit["checks"], audit["typology"])
+    # si el sitio nos cerró la puerta, correr agentes no cambia el veredicto:
+    # sigue sin haber nota. Recalcularlo sin esto devolvía a "Agent-aware" al
+    # dominio bloqueado en cuanto se lanzaba la segunda fase.
+    bloqueado = (audit.get("acceso_degradado") or {}).get("nivel") == "total"
     audit.update({
         "score": adjusted, "score_pre_gate": total, "penalties": penalties,
-        "level": scoring.level_for(adjusted), "category_scores": cat_scores,
+        "cobertura_score": cobertura,
+        "level": scoring.level_for(adjusted, bloqueado=bloqueado),
+        "category_scores": cat_scores,
         "category_weights": {k: round(v, 1) for k, v in weights.items()},
         "agent_tests": agent_tests,
     })

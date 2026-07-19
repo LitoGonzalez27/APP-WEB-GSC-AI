@@ -105,6 +105,23 @@ def build_pdf(data):
                      fillColor=GREY, textAnchor="middle"))
         return d
 
+    def muro(size=3.4 * cm):
+        """Sustituto del donut cuando el sitio nos cerró la puerta.
+
+        El PDF es el canal que viaja solo, sin nadie que lo matice: imprimir un
+        "59.6 de 100" para un dominio que no llegamos a ver (caso real:
+        allegro.pl) es el dato que un CMO reenvía a su equipo técnico.
+        """
+        d = Drawing(size, size)
+        r, cx, cy = size / 2, size / 2, size / 2
+        d.add(Circle(cx, cy, r, fillColor=colors.HexColor("#EEF2F7"), strokeColor=None))
+        d.add(Circle(cx, cy, r * 0.68, fillColor=colors.white, strokeColor=None))
+        d.add(String(cx, cy + 2, "SIN", fontName="Helvetica-Bold", fontSize=13,
+                     fillColor=GREY, textAnchor="middle"))
+        d.add(String(cx, cy - 11, "NOTA", fontName="Helvetica-Bold", fontSize=13,
+                     fillColor=GREY, textAnchor="middle"))
+        return d
+
     def chip(text, col):
         """Etiqueta de color (impacto, estado…) como mini-tabla."""
         t = Table([[Paragraph(f'<font color="{col.hexval()}" size="7.5"><b>{esc(text)}</b></font>',
@@ -140,8 +157,11 @@ def build_pdf(data):
             if vals:
                 etapas_txt.append(f"{label} <b>{round(sum(vals)/len(vals)*100)}%</b>")
 
+        sin_nota = bool(lvl.get("sin_nota"))
+        if sin_nota:
+            lvl_color = GREY
         verdict = Table([[
-            donut(score),
+            muro() if sin_nota else donut(score),
             Paragraph(f'<b><font size="14" color="{lvl_color.hexval()}">{esc(lvl.get("name",""))}</font></b><br/>'
                       f'<font size="9.5" color="#0F172A">{esc(lvl.get("msg",""))}</font><br/><br/>'
                       f'<font size="8.5" color="#64748B">{" &nbsp;·&nbsp; ".join(etapas_txt)}</font>', BODY),

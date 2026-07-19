@@ -639,6 +639,10 @@ def _degradar_sin_ficha_producto(results, ctx):
         if r["id"] in CHECKS_DE_FICHA and r["score"] == 0:
             r["score"] = None
             r["manual"] = True
+            # marca explícita: el scoring necesita distinguir "aquí no hay nada
+            # que medir" (no aplica, su peso se reparte) de "no hemos podido
+            # medirlo" (no se reparte, o inflaría lo poco que quede en pie)
+            r["no_verificable"] = True
             r["evidence"] = f"NO VERIFICABLE — {motivo}. (Sonda: {r['evidence'][:120]})"
             n += 1
     if n:
@@ -757,6 +761,10 @@ def _degradar_si_bloqueado(results, ctx):
         if r["score"] == 0 or (contenido_no_creible and r["score"] is not None):
             r["score"] = None
             r["manual"] = True
+            # marca explícita: el scoring necesita distinguir "aquí no hay nada
+            # que medir" (no aplica, su peso se reparte) de "no hemos podido
+            # medirlo" (no se reparte, o inflaría lo poco que quede en pie)
+            r["no_verificable"] = True
             r["evidence"] = f"NO VERIFICABLE — {motivo}. (Sonda: {r['evidence'][:120]})"
             n += 1
     ctx["acceso_degradado"] = {"nivel": nivel, "motivo": motivo, "degradados": n,
@@ -827,9 +835,11 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
     if check_ids:
         results = [r for r in results if r["id"] in check_ids]
 
-    total, cat_scores, weights = scoring.total_score(results, ctx["typology"])
+    total, cat_scores, weights, cobertura = scoring.total_score(results, ctx["typology"])
     adjusted, penalties = scoring.apply_governance_gate(total, results, ctx["typology"])
-    level = scoring.level_for(adjusted)
+    # el sitio nos cerró la puerta del todo: no hay nota que interpretar
+    bloqueado = (ctx.get("acceso_degradado") or {}).get("nivel") == "total"
+    level = scoring.level_for(adjusted, bloqueado=bloqueado)
 
     from .knowledge import advice_for
     for r in results:
@@ -847,6 +857,10 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
         "level": level,
         "category_scores": cat_scores,
         "category_weights": {k: round(v, 1) for k, v in weights.items()},
+        # qué parte del modelo cubre de verdad esta nota (1.0 = todo lo que
+        # aplica). Baja cuando hay categorías que NO pudimos medir, y su peso
+        # ya no se reparte sobre las demás para no inflarlas.
+        "cobertura_score": cobertura,
         "checks": results,
         "bot_matrix": ctx["bot_matrix"],
         "buckets": ctx["buckets_size"],
