@@ -1304,6 +1304,37 @@ def test_agente_bloqueado_no_es_fallo_de_la_web():
       c63["evidence"])
 
 
+def test_saas_una_fuerte_con_tres_debiles():
+    """Bug (validación jul 2026): SaaS de manual clasificados "corporativo".
+
+    Exigir DOS señales fuertes dejaba fuera a asana.com (free_trial + docs +
+    login + pricing), canva.com (signup_url + los mismos tres) y monday.com
+    (schema_software, o sea "@type":"SoftwareApplication", + 4 débiles). No era
+    un fallo de render: con el HTML crudo ya sumaban 5-6 puntos. Cuesta doble:
+    pesos equivocados y, en el 6.3, la TAREA equivocada (buscar la página de
+    contacto en vez de los precios).
+    """
+    # 1 fuerte + 3 débiles = SaaS (perfil real de monday.com)
+    corpus = ('"@type": "SoftwareApplication" '
+              'href="/pricing/" href="/login" href="/docs" href="/integrations"')
+    typ, ev = discovery.detect_typology(corpus, [])
+    t("saas_1fuerte_3debiles", typ == "saas",
+      f"una fuerte respaldada por tres débiles es concluyente: {typ} {ev['saas']}")
+
+    # las débiles SOLAS siguen sin bastar: eso lo tiene cualquier corporativa
+    solo_debiles = 'href="/pricing/" href="/login" href="/docs" href="/integrations"'
+    typ2, ev2 = discovery.detect_typology(solo_debiles, [])
+    t("saas_solo_debiles_no_basta", typ2 == "corporativo",
+      f"/login + /precios + /docs los tiene cualquier web corporativa: {typ2} {ev2['saas']}")
+
+    # y una tienda con evidencia ESTRUCTURAL no se convierte en SaaS por
+    # mencionar precios y login (stripe.com fue el caso original)
+    tienda = ('"@type": "Product" plugins/woocommerce añadir al carrito '
+              'href="/pricing/" href="/login" href="/docs"')
+    typ3, _ = discovery.detect_typology(tienda, [])
+    t("tienda_estructural_no_se_vuelve_saas", typ3 == "ecommerce", typ3)
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
