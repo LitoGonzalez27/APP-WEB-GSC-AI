@@ -78,26 +78,37 @@ TASKS = {
 MILESTONES = {
     "ecommerce": [
         {"clave": "ficha_producto", "nombre": "Abrir una ficha de producto",
-         "url": r"/(productos?|products?|item|dp|p)/|-p-\d+",
+         "url": r"/(productos?|products?|item|dp|p|produkte?|produits?|prodotti?)/|-p-\d+",
          # el marcado Product es la señal más fiable de que estamos en una ficha:
          # noel.es abría un producto y no lo contábamos porque su URL y su texto
          # no encajaban con los patrones en español que teníamos
          "html": r"(?i)(a[ñn]adir al carrito|add to cart|a[ñn]adir a la cesta|"
-                 r"a[ñn]adir a la bolsa|\"@type\"\s*:\s*\"Product\")"},
+                 r"a[ñn]adir a la bolsa|in den warenkorb|ajouter au panier|"
+                 r"aggiungi al carrello|adicionar ao carrinho|in winkelwagen|"
+                 r"\"@type\"\s*:\s*\"Product\")"},
         {"clave": "anadir_carrito", "nombre": "Añadir el producto al carrito",
          # PREORDER/reservar son el botón de compra en preventa: pompeii lo
-         # pulsó y no se lo contábamos
+         # pulsó y no se lo contábamos.
+         # DE/FR/IT/PT/NL: sin ellos, un agente que SÍ añade al carrito en una
+         # tienda alemana quedaba registrado como "no lo consiguió" — acusar a
+         # la web de un atasco que solo estaba en nuestros patrones.
          "accion": r"(?i)(a[ñn]adir|add to (cart|bag)|comprar|cesta|bolsa|"
-                   r"pre-?order|preventa|reservar)"},
+                   r"pre-?order|preventa|reservar|"
+                   r"warenkorb|einkaufswagen|kaufen|"          # DE
+                   r"panier|acheter|"                          # FR
+                   r"carrello|acquista|"                       # IT
+                   r"carrinho|"                                # PT
+                   r"winkelwagen)"},                           # NL
         # El carrito de Shopify y muchos temas modernos se abre como PANEL
         # LATERAL sin cambiar la URL: comprobar solo la URL daba el hito por no
         # alcanzado aunque el agente lo hubiera abierto correctamente.
         {"clave": "ver_carrito", "nombre": "Abrir el carrito",
-         "url": r"/(carrito|cart|cesta|basket)",
+         "url": r"/(carrito|cart|cesta|basket|warenkorb|panier|carrello|carrinho|winkelwagen)",
          "html": r"(?i)(cart-drawer|cart__drawer|mini-?cart|drawer--cart|"
                  r"id=[\"']?CartDrawer|(subtotal|total)[^<]{0,40}(carrito|cart|cesta))"},
         {"clave": "checkout", "nombre": "Llegar al checkout",
-         "url": r"/(checkout|pago|caja|finalizar|payment)"},
+         "url": r"/(checkout|pago|caja|finalizar|payment|kasse|bezahlen|"
+                r"commande|paiement|pagamento|cassa|betalen)"},
         # se detecta por haber escrito un email: es el campo que pide todo
         # checkout y no aparece al buscar producto (evita falsos positivos
         # con el buscador, que también genera acciones "type")
@@ -153,18 +164,51 @@ def _check_milestones(hitos, reached, url, html, last_action):
             reached[m["clave"]] = {"nombre": m["nombre"], "via": f"acción: {last_action[:70]}"}
 
 # Controles que NUNCA se pulsan (defensa en código, no confiamos solo en el LLM)
+# Estas tres expresiones son la defensa EN CÓDIGO, no una preferencia de estilo:
+# si no matchean, el agente puede pulsar de verdad un botón de compra o escribir
+# en un campo de tarjeta. Estaban solo en ES/EN, así que en una tienda alemana
+# ("Kostenpflichtig bestellen", "Kartennummer") la defensa sencillamente no
+# existía. Ampliadas a DE/FR/IT/PT/NL antes de auditar dominios de esos países.
 FORBIDDEN_CLICK = re.compile(
     r"(?i)\b(pagar|finalizar (compra|pedido|pago)|realizar pedido|confirmar pago|"
     r"place order|pay now|complete (order|purchase)|checkout now|comprar ahora|"
-    r"crear cuenta|create account|sign ?up|registrarme|suscribirme|subscribe)\b")
-SUBMIT_HINT = re.compile(r"(?i)\b(enviar|send|submit|contactar|solicitar)\b")
+    r"crear cuenta|create account|sign ?up|registrarme|suscribirme|subscribe"
+    # DE — "kostenpflichtig bestellen" es la fórmula legal obligatoria del
+    # botón de compra en Alemania (§312j BGB): es EL botón que nunca se pulsa.
+    r"|kostenpflichtig bestellen|jetzt kaufen|jetzt bestellen|zahlungspflichtig"
+    r"|kaufen und bezahlen|konto erstellen|registrieren|abonnieren"
+    # FR
+    r"|payer( maintenant)?|commander( et payer)?|valider (la )?commande"
+    r"|acheter maintenant|cr[ée]er un compte|s'inscrire|s abonner"
+    # IT
+    r"|paga( ora| adesso)?|acquista ora|conferma (ordine|acquisto)"
+    r"|crea un account|registrati|abbonati"
+    # PT
+    r"|pagar agora|finalizar (compra|pedido)|comprar agora|criar conta|registar"
+    # NL
+    r"|nu betalen|bestelling plaatsen|account aanmaken|aanmelden"
+    r")\b")
+SUBMIT_HINT = re.compile(
+    r"(?i)\b(enviar|send|submit|contactar|solicitar"
+    r"|senden|absenden|abschicken|anfragen"          # DE
+    r"|envoyer|soumettre|contacter"                  # FR
+    r"|invia|inviare|contattaci|richiedi"            # IT
+    r"|enviar|contactar"                             # PT
+    r"|verzenden|versturen"                          # NL
+    r")\b")
 
 # Campos de pago: NUNCA se escribe en ellos, ni aunque el LLM lo pida. Es la
 # defensa en código de "llegamos al pago pero jamás pagamos": el agente puede
 # rellenar contacto y envío, pero la tarjeta es territorio prohibido.
 CARD_FIELD = re.compile(
     r"(?i)\b(tarjeta|card ?(number|holder)?|cvv|cvc|caducidad|expir|"
-    r"numero de tarjeta|titular|iban|cuenta bancaria)\b")
+    r"numero de tarjeta|titular|iban|cuenta bancaria"
+    r"|karte|kartennummer|karteninhaber|kreditkarte|g[üu]ltig bis|pr[üu]fziffer"  # DE
+    r"|carte|num[ée]ro de carte|titulaire|date d'expiration|cryptogramme"          # FR
+    r"|carta|numero (della )?carta|intestatario|scadenza"                          # IT
+    r"|cart[ãa]o|n[úu]mero do cart[ãa]o|validade"                                  # PT
+    r"|kaart|kaartnummer|vervaldatum"                                              # NL
+    r")\b")
 
 SYSTEM = (
     "Eres un agente que navega una web real para comprobar si una tarea puede completarse. "

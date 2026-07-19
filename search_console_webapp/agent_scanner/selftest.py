@@ -319,6 +319,215 @@ def test_politicas_comercio():
       f"s={r76['score']} ev={r76['evidence'][:60]}")
 
 
+# ---------------------------------------------------------- idiomas no cubiertos
+
+def test_buckets_multiidioma():
+    """Bug (batería 5, zalando.de): los patrones de bucket eran solo ES/EN.
+
+    zalando.de terminó el muestreo con buckets producto=0 de 36 URLs internas
+    y el informe puntuó 3.3/4.2/C7 a 0 "por ausencia" sobre fichas que nunca
+    abrimos. Un /produkte/, /produits/ o /prodotti/ debe ser tan reconocible
+    como un /productos/.
+    """
+    casos = {"/produkte/hemd": "producto", "/produits/chemise": "producto",
+             "/prodotti/camicia": "producto", "/produtos/camisa": "producto",
+             "/kategorien/herren": "categoria", "/boutique/femme": "categoria",
+             "/negozio/uomo": "categoria",
+             "/ratgeber/mode-tipps": "blog", "/actualites/mode": "blog",
+             "/notizie/moda": "blog",
+             "/impressum": "legal", "/datenschutz": "legal",
+             "/mentions-legales": "legal", "/note-legali": "legal"}
+    for path, want in casos.items():
+        got = next((n for n, p in discovery.BUCKET_PATTERNS if p.search(path)), None)
+        t("bucket_i18n_" + path, got == want, f"{path} -> {got}, esperado {want}")
+    # y NO debe robar URLs editoriales al bucket blog: "artikel"/"article" son
+    # homógrafos de "artículo de blog" y por eso quedaron fuera de producto
+    for path in ("/artikel/moda-2026", "/article/tendances"):
+        got = next((n for n, p in discovery.BUCKET_PATTERNS if p.search(path)), None)
+        t("bucket_i18n_no_roba_" + path, got != "producto",
+          f"{path} clasificado como producto (robaría al blog)")
+
+
+def test_tipologia_tienda_extranjera():
+    """Bug (batería 5): una tienda DE/FR/IT sin vocabulario ES/EN caía a
+    'corporativo', y con ella TODA la categoría C7 a 'N/A (no es e-commerce)'.
+
+    zalando.de solo se salvó por casualidad: su HTML contiene la cadena "/cart".
+    Sin ese accidente habría sido corporativo.
+    """
+    casos = {
+        "de": '<html lang="de"><button>In den Warenkorb</button>'
+              '<a href="/warenkorb">Warenkorb</a><span>19,99 €</span></html>',
+        "fr": '<html lang="fr"><button>Ajouter au panier</button>'
+              '<a href="/panier">Panier</a><span>19,99 €</span></html>',
+        "it": '<html lang="it"><button>Aggiungi al carrello</button>'
+              '<a href="/carrello">Carrello</a><span>19,99 €</span></html>',
+    }
+    for idioma, html in casos.items():
+        tip, ev = discovery.detect_typology(html, [])
+        t("tipologia_shop_" + idioma, tip == "ecommerce",
+          f"{idioma} -> {tip} (ecom={ev['ecommerce']['puntos']} pts "
+          f"{ev['ecommerce']['fuertes']})")
+    # el precio en libras también es precio: johnlewis.com y cualquier tienda UK
+    # perdían la señal porque el patrón solo aceptaba el símbolo DETRÁS y en €
+    for muestra in ("£19.99", "19.99 GBP", "$24.50", "CHF 12,00"):
+        t("precio_i18n_" + muestra,
+          bool(re.search(discovery.ECOM_WEAK["price_tag"], muestra, re.I)),
+          f"{muestra} no reconocido como precio")
+
+
+def test_politicas_comercio_multiidioma():
+    """Bug (batería 5, zalando.de): a una tienda alemana le dijimos "Sin
+    informacion de envio detectable, ni estructurada ni visible. Un agente que
+    compare opciones descartara esta tienda por falta de datos".
+
+    Es la acusación más dura del informe y describía nuestros patrones ES/EN,
+    no su web. Con texto alemán/francés/italiano visible, el veredicto correcto
+    es "existe para un humano pero no está en schema" (0 con explicación justa),
+    nunca "no existe".
+    """
+    textos = {
+        "de": "Versandkosten und Lieferzeit. Rückgabe innerhalb von 30 Tagen.",
+        "fr": "Frais de livraison et délai de livraison. Retours sous 30 jours.",
+        "it": "Spese di spedizione e tempi di consegna. Resi entro 30 giorni.",
+    }
+    for idioma, texto in textos.items():
+        ctx = ctx_base()
+        ctx["typology"] = "ecommerce"
+        ctx["pages"] = [{"url": "https://test.example/produkte/a", "bucket": "producto",
+                         "fetch": {"status": 200, "ttfb": 0.2, "headers": "",
+                                   "body": f"<html><body>{texto}</body></html>"}}]
+        res = checks.run_c7(ctx)
+        for cid in ("7.5", "7.6"):
+            r = by_id(res, cid)
+            t(f"politica_{cid}_{idioma}", "existe para un humano" in r["evidence"],
+              f"{idioma} {cid}: {r['evidence'][:90]}")
+
+
+def test_guardarrailes_agente_multiidioma():
+    """Bug (batería 5): FORBIDDEN_CLICK y CARD_FIELD son la defensa EN CÓDIGO
+    contra comprar de verdad o teclear una tarjeta, y estaban solo en ES/EN.
+
+    En una tienda alemana el botón legalmente obligatorio de compra se llama
+    "Kostenpflichtig bestellen" y el campo de tarjeta "Kartennummer": ninguno
+    de los dos matcheaba, así que la defensa no existía. Es el único bug de
+    esta batería que podía causar daño real (un pedido de verdad), no solo un
+    informe injusto.
+    """
+    from .agents import CARD_FIELD, FORBIDDEN_CLICK, SUBMIT_HINT
+    compra = ["Kostenpflichtig bestellen", "Jetzt kaufen", "Konto erstellen",
+              "Payer maintenant", "Valider la commande", "Créer un compte",
+              "Acquista ora", "Conferma ordine", "Registrati",
+              "Comprar agora", "Nu betalen"]
+    for label in compra:
+        t("forbidden_i18n_" + label, bool(FORBIDDEN_CLICK.search(label)),
+          f"{label!r} NO bloqueado: el agente podría pulsarlo")
+    tarjeta = ["Kartennummer", "Karteninhaber", "Prüfziffer",
+               "Numéro de carte", "Titulaire", "Cryptogramme",
+               "Numero della carta", "Scadenza", "Número do cartão", "Kaartnummer"]
+    for label in tarjeta:
+        t("card_i18n_" + label, bool(CARD_FIELD.search(label)),
+          f"{label!r} NO reconocido como campo de tarjeta: el agente escribiría en él")
+    for label in ("Absenden", "Envoyer", "Invia", "Verzenden"):
+        t("submit_i18n_" + label, bool(SUBMIT_HINT.search(label)),
+          f"{label!r} no reconocido como botón de envío")
+    # y lo que NO debe bloquearse: navegar por el catálogo sigue permitido
+    for label in ("Herren", "Zum Produkt", "Voir le produit", "Vedi prodotto"):
+        t("forbidden_i18n_no_falso_positivo_" + label,
+          not FORBIDDEN_CLICK.search(label),
+          f"{label!r} bloqueado por error: el agente no podría ni navegar")
+
+
+def test_hitos_ecommerce_multiidioma():
+    """Bug (batería 5): los hitos de e-commerce eran ES/EN, así que un agente
+    que SÍ añadía al carrito en una tienda alemana quedaba registrado como
+    "no lo consiguió" — acusar a la web de un atasco que estaba en nosotros."""
+    from .agents import MILESTONES, _check_milestones
+    hitos = MILESTONES["ecommerce"]
+    casos = [
+        ("de", "https://x.de/produkte/hemd", "<html>In den Warenkorb</html>",
+         "click 3: In den Warenkorb"),
+        ("fr", "https://x.fr/produits/chemise", "<html>Ajouter au panier</html>",
+         "click 3: Ajouter au panier"),
+        ("it", "https://x.it/prodotti/camicia", "<html>Aggiungi al carrello</html>",
+         "click 3: Aggiungi al carrello"),
+    ]
+    for idioma, url, html, accion in casos:
+        reached = {}
+        _check_milestones(hitos, reached, url, html, accion)
+        t("hito_ficha_" + idioma, "ficha_producto" in reached,
+          f"{idioma}: ficha no detectada ({sorted(reached)})")
+        t("hito_carrito_" + idioma, "anadir_carrito" in reached,
+          f"{idioma}: añadir al carrito no detectado ({sorted(reached)})")
+
+
+def test_plataformas_ecom_coherentes():
+    """Bug (batería 5): VTEX estaba en ECOM_STRONG de discovery pero NO en el
+    detector de plataforma de 7.1. Una tienda VTEX se clasificaba como
+    e-commerce y luego 7.1 respondía "Sin plataforma reconocible"."""
+    import os
+    ruta = os.path.join(os.path.dirname(__file__), "checks.py")
+    with open(ruta) as f:
+        cuerpo = f.read()
+    for marcador in ("vtexassets", "shopware", "demandware"):
+        t("plataforma_71_" + marcador, marcador in cuerpo.lower(),
+          f"{marcador} reconocido en discovery pero ausente del detector de 7.1")
+    # Squarespace y Wix NO deben estar en ECOM_STRONG: son constructores de
+    # webs, no prueba de tienda; incluirlos convertiría cualquier web
+    # corporativa hecha con ellos en "ecommerce" y con ella toda la C7.
+    for constructor in ("squarespace", "wixstatic"):
+        t("plataforma_no_constructor_" + constructor,
+          constructor not in discovery.ECOM_STRONG["ecom_platform"].lower(),
+          f"{constructor} en ECOM_STRONG: haría e-commerce a webs corporativas")
+
+
+def test_sin_ficha_producto_no_puntua_cero():
+    """Bug (batería 5, zalando.de): una tienda cuyo catálogo no alcanzamos
+    puntuaba 0 en los checks de ficha y el score salía 14.4 con
+    score_fiable=True, listo para entregarse.
+
+    El informe afirmaba "Sin JSON-LD Product en fichas de producto muestreadas"
+    y "Ninguna ficha de producto accesible" sobre páginas que NUNCA abrimos.
+    Ampliar los patrones reduce el caso pero no lo elimina: la regla de
+    fidelidad no puede depender de acertar el idioma.
+    """
+    def resultados():
+        return [{"id": cid, "cat": "C7", "name": "x", "score": 0,
+                 "evidence": "Sin ficha", "manual": False}
+                for cid in ("3.3", "4.2", "7.1", "7.2", "7.5", "7.6")] + \
+               [{"id": "7.3", "cat": "C7", "name": "x", "score": 0,
+                 "evidence": "Sin PSP", "manual": False},
+                {"id": "3.1", "cat": "C3", "name": "x", "score": 0,
+                 "evidence": "Sin JSON-LD", "manual": False}]
+    # tienda SIN ficha alcanzada: los checks de ficha no se afirman
+    ctx = ctx_base()
+    ctx["typology"] = "ecommerce"
+    ctx["sin_ficha_producto"] = True
+    res = engine._degradar_sin_ficha_producto(resultados(), ctx)
+    d = {r["id"]: r["score"] for r in res}
+    for cid in ("3.3", "4.2", "7.1", "7.2", "7.5", "7.6"):
+        t("sin_ficha_degrada_" + cid, d[cid] is None,
+          f"{cid} sigue puntuando {d[cid]} sobre una ficha que no vimos")
+    # 7.3 mira el PSP en la home y 3.1 el marcado general: NO dependen de ficha
+    t("sin_ficha_conserva_73", d["7.3"] == 0, f"7.3={d['7.3']}")
+    t("sin_ficha_conserva_31", d["3.1"] == 0, f"3.1={d['3.1']}")
+    t("sin_ficha_avisa", bool(ctx.get("cobertura_producto_degradada")),
+      "no se registró la degradación de cobertura")
+    t("sin_ficha_trail", any("cobertura de catálogo" in x.get("step", "")
+                             for x in ctx["trail"]), "sin rastro en el trail")
+    t("sin_ficha_evidencia_honesta",
+      all("NO VERIFICABLE" in r["evidence"]
+          for r in res if r["id"] in ("7.5", "7.6")),
+      "la evidencia sigue afirmando una ausencia no comprobada")
+    # tienda CON ficha alcanzada: nada se toca
+    ctx = ctx_base()
+    ctx["typology"] = "ecommerce"
+    ctx["sin_ficha_producto"] = False
+    res = engine._degradar_sin_ficha_producto(resultados(), ctx)
+    t("con_ficha_no_degrada", all(r["score"] == 0 for r in res),
+      "se degradaron checks de una tienda cuya ficha SÍ vimos")
+
+
 # ---------------------------------------------------------- guardarraíl y agentes
 
 def test_degradacion_niveles():

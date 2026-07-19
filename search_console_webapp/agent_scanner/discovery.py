@@ -15,11 +15,52 @@ BUCKET_PATTERNS = [
     # OJO con los plurales: Shopify usa SIEMPRE /products/ y WooCommerce en
     # español /productos/. Sin ellos, ninguna tienda Shopify tenía ficha de
     # producto en el muestreo y 3.3/4.2/7.x salían como "sin ficha accesible".
-    ("producto", re.compile(r"/(productos?|products?|item|dp|p)/|/prod-", re.I)),
-    ("categoria", re.compile(r"/(categor[ií]as?|categor(?:y|ies)|collections?|tienda|shop|c)/", re.I)),
-    ("blog", re.compile(r"/(blog|noticias|news|articulo|article|magazine|revista|guia|guide|recursos)s?/", re.I)),
-    ("servicio", re.compile(r"/(servicio|service|soluciones|solutions|features|funcionalidades|tratamiento)s?", re.I)),
-    ("legal", re.compile(r"/(aviso-legal|privacidad|privacy|terminos|terms|condiciones|cookies)", re.I)),
+    # Idiomas: los patrones eran solo ES/EN y por eso zalando.de no tuvo NI UNA
+    # ficha en el muestreo (buckets producto=0) y 3.3/4.2/C7 salieron a 0 "por
+    # ausencia" cuando en realidad era ceguera nuestra. DE/FR/IT/PT/NL añadidos.
+    ("producto", re.compile(
+        r"/(productos?|products?|item|dp|p"
+        # OJO: "artikel"/"article"/"articolo" NO se incluyen aquí aunque en DE/FR/IT
+        # signifiquen también "artículo de venta": son homógrafos de "artículo de
+        # blog" y robarían URLs editoriales al bucket blog, que se evalúa después.
+        r"|produkte?"                              # DE
+        r"|produits?"                              # FR
+        r"|prodotti?"                              # IT
+        r"|produtos?"                              # PT
+        r"|producten?"                             # NL
+        r")/|/prod-", re.I)),
+    ("categoria", re.compile(
+        r"/(categor[ií]as?|categor(?:y|ies)|collections?|tienda|shop|c"
+        r"|kategorien?|marken?"                    # DE
+        r"|cat[eé]gorie?s?|boutique|rayon"         # FR
+        r"|categorie?|negozio|reparto"             # IT
+        r"|categoria?s?|loja"                      # PT
+        r"|categorie|winkel"                       # NL
+        r")/", re.I)),
+    ("blog", re.compile(
+        r"/(blog|noticias|news|articulo|article|magazine|revista|guia|guide|recursos"
+        r"|nachrichten|ratgeber|magazin"           # DE
+        r"|actualit[eé]s?|conseils?"               # FR
+        r"|notizie|guida|consigli"                 # IT
+        r"|not[ií]cias"                            # PT
+        r"|nieuws"                                 # NL
+        r")s?/", re.I)),
+    ("servicio", re.compile(
+        r"/(servicio|service|soluciones|solutions|features|funcionalidades|tratamiento"
+        r"|dienstleistung|leistungen|l[oö]sungen"  # DE
+        r"|services?|solutions?|prestations?"      # FR
+        r"|servizi|soluzioni"                      # IT
+        r"|servi[çc]os|solu[çc][õo]es"             # PT
+        r"|diensten|oplossingen"                   # NL
+        r")s?", re.I)),
+    ("legal", re.compile(
+        r"/(aviso-legal|privacidad|privacy|terminos|terms|condiciones|cookies"
+        r"|impressum|datenschutz|agb|widerruf"     # DE
+        r"|mentions-legales|confidentialite|cgv|cgu"  # FR
+        r"|note-legali|privacy-policy|condizioni"  # IT
+        r"|termos|privacidade"                     # PT
+        r"|voorwaarden"                            # NL
+        r")", re.I)),
 ]
 
 # Detección de tipología por señales DISCRIMINANTES y ponderadas.
@@ -30,19 +71,50 @@ BUCKET_PATTERNS = [
 
 ECOM_STRONG = {
     "schema_product": r'"@type"\s*:\s*"Product"',
-    "add_to_cart": r'a[ñn]adir al carrito|a[ñn]adir a la cesta|add to cart|comprar ahora',
-    "cart_url": r'/(carrito|cart|cesta|checkout)(/|"|\'|\?|$)',
+    # Multiidioma: zalando.de solo se salvó de ser "corporativo" porque su HTML
+    # tiene "/cart"; su botón real ("In den Warenkorb") no lo veía nada. Un shop
+    # DE/FR/IT sin la palabra inglesa por casualidad caía a corporativo y con él
+    # toda la categoría C7 a "N/A (no es e-commerce)".
+    "add_to_cart": r'a[ñn]adir al carrito|a[ñn]adir a la cesta|add to cart|comprar ahora'
+                   r'|in den warenkorb|in den einkaufswagen|jetzt kaufen'          # DE
+                   r'|ajouter au panier|mettre au panier|acheter maintenant'       # FR
+                   r'|aggiungi al carrello|acquista ora'                           # IT
+                   r'|adicionar ao carrinho|comprar agora'                         # PT
+                   r'|in winkelwagen|voeg toe aan winkelwagen',                    # NL
+    "cart_url": r'/(carrito|cart|cesta|checkout'
+                r'|warenkorb|einkaufswagen|kasse'      # DE
+                r'|panier|commande'                    # FR
+                r'|carrello'                           # IT
+                r'|carrinho'                           # PT
+                r'|winkelwagen|winkelmandje'           # NL
+                r')(/|"|\'|\?|$)',
     # Solo marcadores a nivel de ASSET, nunca la palabra suelta: stripe.com
     # menciona "WooCommerce" y "Shopify" como clientes en su marketing y se
     # clasificaba como tienda. Una tienda real deja huellas técnicas
     # (plugins/woocommerce, cdn.shopify, clases woocommerce-page).
     "ecom_platform": r'plugins/woocommerce|woocommerce-page|cdn\.shopify'
-                     r'|prestashop|magento|bigcommerce|vtex',
+                     r'|prestashop|magento|bigcommerce'
+                     # marcadores de asset, nunca la palabra suelta (ver 7.1).
+                     # Squarespace y Wix se dejan FUERA a propósito: son
+                     # constructores de webs, no prueba de tienda. Un Wix
+                     # corporativo pasaría a "ecommerce" y con él C7 entero.
+                     r'|vtexassets|vtexcommercestable|/_v/public/'
+                     r'|/widgets/emotion|shopware\.'
+                     r'|demandware\.static|/on/demandware',
 }
 ECOM_WEAK = {
-    "cart_word": r'\bcarrito\b|\bcesta\b',
-    "shop_url": r'/(tienda|shop|store|productos?)(/|"|\'|$)',
-    "price_tag": r'\d+[.,]\d{2}\s*(€|EUR)',
+    "cart_word": r'\b(carrito|cesta|warenkorb|panier|carrello|carrinho|winkelwagen)\b',
+    "shop_url": r'/(tienda|shop|store|productos?'
+                r'|produkte|kategorien'      # DE
+                r'|boutique|produits'        # FR
+                r'|negozio|prodotti'         # IT
+                r'|loja|produtos'            # PT
+                r')(/|"|\'|$)',
+    # El precio no siempre lleva el símbolo DETRÁS ni es el euro: UK usa "£19.99"
+    # y muchos sitios internacionales "$19.99". Con el patrón anterior (solo
+    # sufijo €/EUR) johnlewis.com y cualquier tienda en libras perdían la señal.
+    "price_tag": r'\d+[.,]\d{2}\s*(€|EUR|£|GBP|CHF|USD|\$)'
+                 r'|(€|£|\$|CHF)\s?\d+[.,]\d{2}',
     # Un Offer suelto NO es señal de tienda: lo llevan SoftwareApplication,
     # Service, Event, Course… La app de BBVA tiene Offer y es un banco.
     # Solo cuenta como fuerte cuando va acompañado de Product (ver ECOM_STRONG).
@@ -72,8 +144,8 @@ SAAS_WEAK = {
 # clasificada como e-commerce. Exigir que el slug sea el ÚLTIMO tramo separa
 # el catálogo real del contenido que habla "de productos".
 _FICHA_URL_RE = re.compile(
-    r"/(?:productos?|products?|p)/[^/?#]+/?$"
-    r"|/(?:comprar|buy)-[^/?#]+/?$"
+    r"/(?:productos?|products?|p|produkte?|produits?|prodotti?|produtos?)/[^/?#]+/?$"
+    r"|/(?:comprar|buy|kaufen|acheter|acquista)-[^/?#]+/?$"
     r"|-p-\d+/?$"
     r"|/dp/[^/?#]+/?$", re.I)
 

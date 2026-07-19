@@ -392,8 +392,15 @@ def run_c4(ctx):
                      and p["fetch"]["status"] == 200), None)
         if prod:
             text = visible_text(prod["fetch"]["body"])
-            has_price = bool(re.search(r"\d+[.,]\d{2}\s*(€|EUR|\$|USD)|(€|\$)\s*\d+", text))
-            has_cta = bool(re.search(r"(?i)añadir|comprar|add to cart|buy now|cesta", text))
+            has_price = bool(re.search(
+                r"\d+[.,]\d{2}\s*(€|EUR|\$|USD|£|GBP|CHF)|(€|\$|£|CHF)\s*\d+", text))
+            has_cta = bool(re.search(
+                r"(?i)añadir|comprar|add to cart|buy now|cesta"
+                r"|warenkorb|kaufen|einkaufswagen"     # DE
+                r"|panier|acheter"                     # FR
+                r"|carrello|acquista"                  # IT
+                r"|carrinho"                           # PT
+                r"|winkelwagen", text))                # NL
             score = 1 if has_price and has_cta else 0.5 if has_price or has_cta else 0
             ev = f"Ficha de producto sin JS: precio={'si' if has_price else 'NO'}, CTA compra={'si' if has_cta else 'NO'}"
         else:
@@ -907,10 +914,17 @@ def run_c7(ctx):
     platform = None
     # marcadores a nivel de asset, no la palabra suelta (stripe.com menciona
     # "WooCommerce" como cliente y salia detectada como tienda WooCommerce)
+    # VTEX estaba en ECOM_STRONG de discovery pero NO aquí: una tienda VTEX se
+    # clasificaba como e-commerce y luego 7.1 decía "sin plataforma reconocible".
+    # Shopware y Salesforce Commerce (demandware) añadidos por la misma razón.
     for marker, name in (("cdn.shopify", "Shopify"), ("plugins/woocommerce", "WooCommerce"),
                          ("woocommerce-page", "WooCommerce"),
                          ("prestashop", "PrestaShop"), ("magento", "Magento"),
-                         ("bigcommerce", "BigCommerce")):
+                         ("bigcommerce", "BigCommerce"),
+                         ("vtexassets", "VTEX"), ("vtexcommercestable", "VTEX"),
+                         ("/widgets/emotion", "Shopware"), ("shopware.", "Shopware"),
+                         ("demandware.static", "Salesforce Commerce Cloud"),
+                         ("/on/demandware", "Salesforce Commerce Cloud")):
         if marker in corpus.lower():
             platform = name
             break
@@ -1014,14 +1028,37 @@ def run_c7(ctx):
     out.append(_policy_check(
         "7.5", "Politica de envio legible por maquina",
         ["shippingDetails"], "OfferShippingDetails",
-        r"(?i)(gastos de env[ií]o|env[ií]o gratis|plazo de entrega|free shipping|delivery time)",
-        r"/(envios?|shipping|entrega|gastos-de-envio)", "envio"))
+        # Multiidioma: con solo ES/EN, a zalando.de le dijimos "Sin informacion
+        # de envio detectable, ni estructurada ni visible" — una acusacion
+        # que describia nuestros patrones, no su web.
+        r"(?i)(gastos de env[ií]o|env[ií]o gratis|plazo de entrega|free shipping|delivery time"
+        r"|versandkosten|kostenloser versand|lieferzeit|lieferung"        # DE
+        r"|frais de (port|livraison)|livraison gratuite|d[ée]lai de livraison"  # FR
+        r"|spese di spedizione|spedizione gratuita|tempi di consegna"     # IT
+        r"|portes de envio|envio gr[áa]tis|prazo de entrega"              # PT
+        r"|verzendkosten|gratis verzending)",                             # NL
+        r"/(envios?|shipping|entrega|gastos-de-envio"
+        r"|versand|lieferung|versandkosten"          # DE
+        r"|livraison|frais-de-port"                  # FR
+        r"|spedizion\w*|consegna"                    # IT
+        r"|entregas?"                                # PT
+        r"|verzending|bezorging)", "envio"))         # NL
 
     out.append(_policy_check(
         "7.6", "Politica de devoluciones legible por maquina",
         ["hasMerchantReturnPolicy"], "MerchantReturnPolicy",
-        r"(?i)(devoluci[oó]n|derecho de desistimiento|return policy|30 d[ií]as|14 d[ií]as)",
-        r"/(devoluciones?|returns?|cambios-y-devoluciones)", "devoluciones"))
+        r"(?i)(devoluci[oó]n|derecho de desistimiento|return policy|30 d[ií]as|14 d[ií]as"
+        r"|r[üu]ckgabe|widerruf|r[üu]cksendung|retoure|30 tage|14 tage"    # DE
+        r"|retours?|droit de r[ée]tractation|30 jours|14 jours"            # FR
+        r"|resi|reso|diritto di recesso|30 giorni|14 giorni"               # IT
+        r"|devolu[çc][õo]es|30 dias|14 dias"                               # PT
+        r"|retourneren|herroepingsrecht)",                                 # NL
+        r"/(devoluciones?|returns?|cambios-y-devoluciones"
+        r"|rueckgabe|r%C3%BCckgabe|retoure|widerruf|ruecksendung"  # DE
+        r"|retours?|retractation"                                  # FR
+        r"|resi|recesso"                                           # IT
+        r"|devolucoes|devolu%C3%A7%C3%B5es"                        # PT
+        r"|retourneren)", "devoluciones"))                         # NL
     return out
 
 

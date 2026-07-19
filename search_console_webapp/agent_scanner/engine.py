@@ -271,7 +271,27 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
       codes + ("" if human == 200 else " — el UA humano no recibe 200: WAF puede distorsionar"))
 
     if ctx["home"]["status"] == 0 and all(v == 0 for v in ctx["bot_matrix"].values()):
-        raise RuntimeError(f"{base} no responde (DNS/conexión). Verifica el dominio.")
+        # "No resuelve" y "resuelve pero nos deja colgados" NO son lo mismo.
+        # Caso real (batería 5): fnac.fr resuelve perfectamente (165.160.13.20)
+        # y su WAF descarta nuestras conexiones en silencio (ConnectTimeout).
+        # Le decíamos al cliente "no responde (DNS/conexión). Verifica el
+        # dominio", es decir, le mandábamos a revisar un DNS que está bien
+        # mientras el hallazgo real era justo el contrario: el sitio es tan
+        # hostil al acceso automatizado que un agente tampoco entraría.
+        try:
+            assert_public_url(base)
+            resuelve = True
+        except BlockedURLError:
+            resuelve = False
+        if resuelve:
+            raise RuntimeError(
+                f"{base} resuelve en DNS pero rechaza o deja sin respuesta TODAS "
+                f"nuestras peticiones (humano y bots). El dominio no está mal "
+                f"configurado: está bloqueando el acceso automatizado por completo. "
+                f"Eso mismo le ocurriría a un agente, pero no podemos auditar lo que "
+                f"no podemos ver: repite el análisis desde otra IP o con el sitio "
+                f"en lista blanca.")
+        raise RuntimeError(f"{base} no resuelve en DNS. Verifica el dominio.")
 
     _log("superficie agéntica (.well-known)…")
     ctx["wellknown"], ctx["wellknown_meta"] = probe_wellknown(base)
@@ -388,9 +408,12 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
               f"sondeadas {len(sondeos)} URLs sin patrón de ficha (HTTP {sondeos}): "
               "ninguna con Product schema en el HTML crudo. Si el sitio es una "
               "tienda, sus fichas no son detectables automáticamente")
-    if ctx["typology"] == "ecommerce" and not any(p["bucket"] == "producto" for p in pages):
+    ctx["sin_ficha_producto"] = (ctx["typology"] == "ecommerce"
+                                 and not any(p["bucket"] == "producto" for p in pages))
+    if ctx["sin_ficha_producto"]:
         T("cobertura de producto", "warn",
-          "e-commerce sin ficha de producto en el muestreo: 3.3/4.2/C7 por ausencia")
+          "e-commerce sin NINGUNA ficha de producto en el muestreo: los checks que "
+          "dependen de una ficha se marcan NO VERIFICABLES, no se puntúan a 0")
 
     if not skip_render:
         _log("render de la home (crudo vs JS + zonas de clic)…")
@@ -521,6 +544,48 @@ CHECKS_DE_MARCADO = {"3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "4.2", "6.2",
 CHECKS_DE_SONDA = {"1.4", "1.5", "2.1", "4.5", "5.5", "5.6", "6.1"}
 
 
+# Checks que NO pueden responderse sin abrir al menos una ficha de producto.
+# 7.3 se queda fuera: mira el PSP en la home, no necesita ficha.
+CHECKS_DE_FICHA = {"3.3", "4.2", "7.1", "7.2", "7.5", "7.6"}
+
+
+def _degradar_sin_ficha_producto(results, ctx):
+    """Un e-commerce cuyo catálogo no hemos sabido alcanzar no puntúa 0.
+
+    Caso real (batería 5): zalando.de. Nuestros patrones de URL eran ES/EN, sus
+    rutas son alemanas, y el muestreo terminó con buckets producto=0. Los checks
+    de ficha se puntuaron 0 y el informe afirmaba "Sin JSON-LD Product en fichas
+    muestreadas", "Ninguna ficha de producto accesible" y "Sin informacion de
+    envio detectable, ni estructurada ni visible. Un agente que compare opciones
+    descartara esta tienda" — sobre páginas que NUNCA abrimos. El score salía
+    14.4 con score_fiable=True, listo para entregarse a un cliente.
+
+    Ampliar los patrones (hecho) reduce el caso, pero no lo elimina: siempre
+    habrá tiendas cuyo catálogo no alcancemos. La regla de fidelidad no puede
+    depender de acertar el idioma. Si no vimos ficha, no afirmamos nada de ella.
+    """
+    if not ctx.get("sin_ficha_producto"):
+        return results
+    motivo = ("no se alcanzó ninguna ficha de producto en el muestreo, así que no "
+              "es posible afirmar qué contienen las fichas de esta tienda. No es "
+              "un defecto observado de la web: es una limitación de nuestra "
+              "cobertura del catálogo")
+    n = 0
+    for r in results:
+        if r["id"] in CHECKS_DE_FICHA and r["score"] == 0:
+            r["score"] = None
+            r["manual"] = True
+            r["evidence"] = f"NO VERIFICABLE — {motivo}. (Sonda: {r['evidence'][:120]})"
+            n += 1
+    if n:
+        ctx["cobertura_producto_degradada"] = {"degradados": n, "motivo": motivo}
+        ctx["trail"].append({
+            "step": "guardarraíl de cobertura de catálogo", "status": "warn",
+            "detail": f"{n} checks de ficha degradados a 'no verificable'. {motivo}. "
+                      f"La puntuación de C7 cubre solo lo comprobable desde la portada"})
+    return results
+
+
 def _degradar_si_bloqueado(results, ctx):
     """Si no hemos podido ver el sitio (o solo en parte), no afirmamos ausencias.
     Distinguir 'no está' de 'no lo he podido mirar' es la diferencia entre un
@@ -626,6 +691,7 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
                                    "(se ejecuta al final para no distorsionar las demás sondas)"})
 
     results = checks_mod.run_all(ctx)
+    results = _degradar_sin_ficha_producto(results, ctx)
     results = _degradar_si_bloqueado(results, ctx)
     if categories:
         results = [r for r in results if r["cat"] in categories]
@@ -666,6 +732,9 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
         "score_fiable": (ctx.get("acceso_degradado") or {}).get("nivel")
                         not in ("total", "marcado"),
         "acceso_degradado": ctx.get("acceso_degradado"),
+        # Presente solo si es una tienda cuyo catálogo no alcanzamos: la UI y el
+        # PDF deben poder decir "C7 incompleto" en vez de "C7 suspende"
+        "cobertura_producto_degradada": ctx.get("cobertura_producto_degradada"),
         "error_handling": ctx.get("error_probe"),
         "login_area": {k: v for k, v in (ctx.get("login_probe") or {}).items()
                        if k != "body"},
