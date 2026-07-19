@@ -273,6 +273,14 @@ def build_task(typology, allow_submit):
 
 # ----------------------------------------------------------- adaptadores LLM
 
+# Presupuesto de salida. Los modelos con razonamiento gastan tokens PENSANDO y
+# esos tokens salen de aquí: con 400, gemini-3.5-flash devolvía un fragmento del
+# medio del JSON ('": "59,99 EUR",\n "contacto": "info') que no se podía parsear.
+# El JSON de una acción ocupa ~80 tokens; el resto es margen para el pensamiento.
+# No encarece nada: solo se paga lo que se genera de verdad.
+_MAX_SALIDA = 2000
+
+
 def _ask_openai(messages, key):
     import openai
     client = openai.OpenAI(api_key=key)
@@ -280,9 +288,9 @@ def _ask_openai(messages, key):
     # GPT-5.x usa max_completion_tokens y no admite temperature; GPT-4o usa max_tokens
     params = {"model": model, "messages": messages}
     if model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3"):
-        params["max_completion_tokens"] = 600
+        params["max_completion_tokens"] = _MAX_SALIDA
     else:
-        params["max_tokens"] = 400
+        params["max_tokens"] = 800
         params["temperature"] = 0
     r = client.chat.completions.create(**params)
     return r.choices[0].message.content
@@ -295,7 +303,7 @@ def _ask_anthropic(messages, key):
     convo = [m for m in messages if m["role"] != "system"]
     r = client.messages.create(
         model=_model_for("claude"), system=system, messages=convo,
-        max_tokens=400, temperature=0)
+        max_tokens=_MAX_SALIDA, temperature=0)
     return r.content[0].text
 
 
@@ -306,7 +314,8 @@ def _ask_gemini(messages, key):
     model = genai.GenerativeModel(_model_for("gemini"), system_instruction=system)
     convo = "\n\n".join(f"{m['role']}: {m['content']}"
                         for m in messages if m["role"] != "system")
-    r = model.generate_content(convo, generation_config={"temperature": 0, "max_output_tokens": 400})
+    r = model.generate_content(
+        convo, generation_config={"temperature": 0, "max_output_tokens": _MAX_SALIDA})
     return r.text
 
 
@@ -593,7 +602,14 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
     # Nuestro harness clica por selector; Operator y Atlas usan visión y son
     # más tolerantes a esos controles. Es un límite NUESTRO y hay que decirlo.
     timeouts = sum(1 for s in steps if "TimeoutError" in s)
-    limitado = (not outcome.startswith("conseguido")) and timeouts >= 2
+    # Un paso quemado porque NUESTRO modelo devolvió algo ilegible no dice nada
+    # de la web. Caso real: gemini-3.5-flash con el presupuesto de salida corto
+    # perdía el 39% de sus pasos así (mailchimp.com, 13 de 14), y la web cargaba
+    # con el "no conseguido". Si una parte grande de la tarea se fue en eso, el
+    # intento no es concluyente aunque la web nunca diera un problema.
+    ilegibles = sum(1 for s in steps if "no parseable" in s)
+    ruido_llm = bool(steps) and ilegibles / len(steps) >= 0.3
+    limitado = (not outcome.startswith("conseguido")) and (timeouts >= 2 or ruido_llm)
     detail = ("OBJETIVO CONSEGUIDO. " if outcome.startswith("conseguido") else "NO CONSEGUIDO. ")
     if total_hitos:
         detail += f"Recorrido: {prog['alcanzados']}/{total_hitos} pasos completados"
@@ -601,7 +617,12 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
             detail += f" (se atascó en: {prog['pendientes'][0]})"
         detail += ". "
     detail += ("Fricciones: " + "; ".join(dict.fromkeys(frictions))) if frictions else "Sin fricciones."
-    if limitado:
+    if ruido_llm and not outcome.startswith("conseguido"):
+        detail += (f" AVISO DE MÉTODO: {ilegibles} de {len(steps)} pasos se perdieron "
+                   "porque el modelo que pilota al agente devolvió una respuesta "
+                   "ilegible. Eso es un límite NUESTRO, no un problema de la web: "
+                   "el intento no es concluyente.")
+    elif limitado:
         detail += (f" AVISO DE MÉTODO: {timeouts} controles no respondieron al clic "
                    "programático. Puede ser hostilidad real al automatismo, pero también "
                    "un límite de nuestro harness (clicamos por selector; los agentes "
