@@ -120,6 +120,54 @@ def _es_ficha_producto(valid_blocks):
     return False
 
 
+def _trail_tipologia(ctx, typology_override):
+    """Deja en el trail cómo se ha clasificado el sitio, y por qué.
+
+    Vive fuera de gather_context para poder probarse sin red: el matiz que
+    distingue "no hay señales" de "no hemos podido mirar" es justo el que se
+    coló en producción (ver test_sin_senales_no_culpa_al_acceso).
+    """
+    def T(status, detail):
+        ctx["trail"].append({"step": "detección de tipología", "status": status,
+                             "detail": str(detail)[:300]})
+
+    if typology_override:
+        T("ok", f"{ctx['typology']} (forzada por configuración)")
+        return
+
+    typ_ev = ctx.get("typology_evidence") or {}
+    pts_e = (typ_ev.get("ecommerce") or {}).get("puntos", 0)
+    pts_s = (typ_ev.get("saas") or {}).get("puntos", 0)
+    det = (f"{ctx['typology']} — e-commerce {pts_e} pts "
+           f"{(typ_ev.get('ecommerce') or {}).get('fuertes')}, saas {pts_s} pts "
+           f"{(typ_ev.get('saas') or {}).get('fuertes')}")
+    if pts_e or pts_s:
+        T("ok", det)
+        return
+
+    # "Cero señales" tenía UNA sola lectura ("el sitio nos bloquea") y se
+    # afirmaba siempre. Caso real (batería 6): dnb.no nos sirvió 1,17 MB de
+    # portada por HTTP 200 y aun así el informe decía "la web devuelve
+    # poco/ningún contenido a accesos automatizados". Igual en rijksoverheid.nl
+    # (318 KB), vg.no (431 KB), uu.nl y greenpeace.nl. Un banco, un ministerio,
+    # una universidad, un periódico y una ONG no tienen señales de tienda ni de
+    # SaaS porque NO son eso: la ausencia es correcta y el diagnóstico, falso.
+    # Solo se culpa al acceso cuando de verdad no hemos podido leer la portada.
+    home = ctx.get("home") or {}
+    hb = home.get("body") or ""
+    portada_vista = (len(hb) >= 500 and (home.get("status") == 200
+                                         or home.get("_via") in ("render", "jina")))
+    if portada_vista:
+        T("ok", det + " — sin señales de e-commerce ni de SaaS en una portada que "
+                      f"sí se leyó ({len(hb)} bytes): se clasifica como 'corporativo', "
+                      "que es lo normal en banca, sector público, medios y ONG. "
+                      "Si no lo es, fuerza la tipología en el formulario.")
+    else:
+        T("warn", det + " — SIN señales: la web devuelve poco/ningún contenido a "
+                        "accesos automatizados. Se asume 'corporativo' por defecto; "
+                        "si no lo es, fuerza la tipología en el formulario.")
+
+
 def _abs_url(base, url):
     if url.startswith("//"):
         return "https:" + url
@@ -344,22 +392,7 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     ctx["typology"] = typology_override or typ
     ctx["typology_evidence"] = typ_ev
     _log(f"tipología: {ctx['typology']}")
-    if typology_override:
-        T("detección de tipología", "ok", f"{ctx['typology']} (forzada por configuración)")
-    else:
-        pts_e = (typ_ev.get("ecommerce") or {}).get("puntos", 0)
-        pts_s = (typ_ev.get("saas") or {}).get("puntos", 0)
-        det = (f"{ctx['typology']} — e-commerce {pts_e} pts "
-               f"{(typ_ev.get('ecommerce') or {}).get('fuertes')}, saas {pts_s} pts "
-               f"{(typ_ev.get('saas') or {}).get('fuertes')}")
-        if pts_e == 0 and pts_s == 0:
-            # sin señales: normalmente el sitio bloquea el acceso automatizado
-            T("detección de tipología", "warn",
-              det + " — SIN señales: la web devuelve poco/ningún contenido a accesos "
-                    "automatizados. Se asume 'corporativo' por defecto; si no lo es, "
-                    "fuerza la tipología en el formulario.")
-        else:
-            T("detección de tipología", "ok", det)
+    _trail_tipologia(ctx, typology_override)
 
     _log("muestreo de páginas…")
     buckets, sample = discovery.classify_and_sample(all_urls)
@@ -704,7 +737,24 @@ def _degradar_si_bloqueado(results, ctx):
 
     n = 0
     for r in results:
-        if r["id"] in objetivo and r["score"] == 0:
+        if r["id"] not in objetivo:
+            continue
+        # Hasta aquí solo se degradaba `score == 0`: la ausencia inafirmable.
+        # Pero cuando el cuerpo que hemos leído NO es la web (página de bloqueo
+        # del WAF), una PRESENCIA es igual de inafirmable que una ausencia, y
+        # además puntúa. Caso real (batería 6, bol.com y allegro.pl): ambas
+        # devuelven 403 a todo; el check 3.6 leyó la página de "Access Denied",
+        # no encontró elementos fantasma en ella y se anotó un 1. Como 3.6 era
+        # el ÚNICO check de C3 que sobrevivía, C3 quedó en 1.0 con el peso más
+        # alto del modelo (25) y allegro.pl salió con 64.5 y nivel
+        # "Agent-aware": la MEJOR nota de toda la batería para un sitio que no
+        # hemos visto. Los sitios que más nos bloquean puntuaban más alto.
+        # Solo aplica a los niveles donde el propio contenido no es creíble
+        # ("total" y "marcado"); en "sondas" la portada sí se vio y un >0
+        # procede de una sonda que sí respondió, así que se respeta.
+        contenido_no_creible = (nivel in ("total", "marcado")
+                                and r["id"] in CHECKS_DE_MARCADO)
+        if r["score"] == 0 or (contenido_no_creible and r["score"] is not None):
             r["score"] = None
             r["manual"] = True
             r["evidence"] = f"NO VERIFICABLE — {motivo}. (Sonda: {r['evidence'][:120]})"
