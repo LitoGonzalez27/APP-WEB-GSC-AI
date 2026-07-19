@@ -476,11 +476,21 @@ def detect_typology(home_html, all_urls):
     # clasificaba como e-commerce por su propia jerga).
     structural = bool(e_s & {"schema_product", "ecom_platform"}) \
         or any(s.startswith("catalogo_urls") for s in e_s)
-    if len(s_s) >= 2 and not structural and saas_score >= ecom_score - 2:
+    # Exigir 2 señales FUERTES dejaba fuera a SaaS de manual. Caso real
+    # (validación jul 2026): asana.com (free_trial + docs + login + pricing),
+    # canva.com (signup_url + los mismos tres) y monday.com (schema_software
+    # —o sea "@type":"SoftwareApplication"— + 4 débiles) salían las tres
+    # "corporativo". No es un fallo de render: con el HTML crudo ya tienen 5-6
+    # puntos. Las consecuencias son dobles: pesos equivocados y, en el check
+    # 6.3, la TAREA equivocada (buscar la página de contacto en vez de los
+    # precios). Una fuerte respaldada por tres débiles es tan concluyente como
+    # dos fuertes; lo que no vale es el trío débil solo, que sí tiene cualquier
+    # web corporativa (por eso se mantiene el mínimo de UNA fuerte).
+    saas_suficiente = len(s_s) >= 2 or (len(s_s) == 1 and len(s_w) >= 3)
+    if saas_suficiente and not structural and saas_score >= ecom_score - 2:
         return "saas", ev
     if (e_s or trio_con_carrito) and ecom_score >= saas_score:
         return "ecommerce", ev
-    # saas: exige >=2 señales FUERTES (las débiles las tiene cualquier corporativa)
-    if len(s_s) >= 2 and saas_score > ecom_score:
+    if saas_suficiente and saas_score > ecom_score:
         return "saas", ev
     return "corporativo", ev
