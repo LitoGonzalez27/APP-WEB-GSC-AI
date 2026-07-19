@@ -309,6 +309,14 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
             T("descubrimiento por enlaces", "ok",
               f"sin sitemap utilizable: {len(all_urls)} URLs internas extraídas "
               "de la portada para poder muestrear contenido real")
+        else:
+            # Ni sitemap ni UN SOLO enlace interno. Toda web real enlaza a algo:
+            # esto significa que lo que nos han servido no es la portada, sino
+            # una cáscara. Se marca aquí para que el guardarraíl lo recoja.
+            ctx["cobertura_ciega"] = True
+            T("descubrimiento por enlaces", "warn",
+              "ni sitemap ni un solo enlace interno en lo que nos sirvieron como "
+              "portada: no es una web sin enlaces, es que no estamos viendo la web")
     typ, typ_ev = discovery.detect_typology(ctx["home"]["body"], all_urls)
     ctx["typology"] = typology_override or typ
     ctx["typology_evidence"] = typ_ev
@@ -586,6 +594,28 @@ def _degradar_sin_ficha_producto(results, ctx):
     return results
 
 
+def _cobertura_ciega(ctx):
+    """¿Nos han servido una cáscara en lugar de la web?
+
+    Caso real (batería 5, zalando.de en la segunda pasada): HTTP 200, 11 KB de
+    portada, robots.txt correcto, _human=200… y CERO enlaces internos, CERO
+    páginas muestreadas, CERO señales de tipología. El motor ya avisaba ("SIN
+    señales: la web devuelve poco/ningún contenido a accesos automatizados")
+    y aun así entregaba score 20.3 con score_fiable=True: todos los checks de
+    contenido a 0 "por ausencia" sin haber visto una sola página.
+
+    `_degradar_si_bloqueado` no lo cazaba porque solo mira que la portada pese
+    >=500 bytes y que el UA humano reciba 200 — y una cáscara cumple ambas.
+    La señal buena no es el peso: es que no hay NADA que rastrear.
+    """
+    if not ctx.get("cobertura_ciega"):
+        return False
+    ev = ctx.get("typology_evidence") or {}
+    sin_senales = ((ev.get("ecommerce") or {}).get("puntos", 0) == 0
+                   and (ev.get("saas") or {}).get("puntos", 0) == 0)
+    return not ctx.get("pages") and sin_senales
+
+
 def _degradar_si_bloqueado(results, ctx):
     """Si no hemos podido ver el sitio (o solo en parte), no afirmamos ausencias.
     Distinguir 'no está' de 'no lo he podido mirar' es la diferencia entre un
@@ -600,11 +630,23 @@ def _degradar_si_bloqueado(results, ctx):
     via = (ctx.get("home") or {}).get("_via", "http")
     home_ok = len((ctx.get("home") or {}).get("body") or "") >= 500
 
-    if human == 200 and home_ok and via in ("http", "render"):
+    ciego = _cobertura_ciega(ctx)
+    if human == 200 and home_ok and via in ("http", "render") and not ciego:
         ctx["acceso_degradado"] = None
         return results
 
-    if not home_ok or (human != 200 and via == "render"):
+    if ciego:
+        # La cáscara es indistinguible de una web pobre MIRANDO EL PESO, pero no
+        # mirando lo que contiene: sin un enlace, sin una página y sin una señal
+        # de tipología, no hemos visto la web. Se degrada como bloqueo total y
+        # la puntuación deja de ser entregable.
+        nivel, objetivo = "total", CHECKS_POR_AUSENCIA
+        motivo = (f"lo que el sitio sirve a un acceso automatizado no contiene ni un "
+                  f"enlace interno ni señal alguna de su tipo de negocio (HTTP {human}, "
+                  f"{len((ctx.get('home') or {}).get('body') or '')} bytes). No es una "
+                  f"web vacía: es que no estamos viendo la web, así que ninguna "
+                  f"ausencia es afirmable")
+    elif not home_ok or (human != 200 and via == "render"):
         # sin portada creíble (un render con el humano bloqueado puede ser la
         # página del captcha: no nos fiamos de ese HTML)
         nivel, objetivo = "total", CHECKS_POR_AUSENCIA

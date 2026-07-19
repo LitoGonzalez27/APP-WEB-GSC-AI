@@ -159,6 +159,7 @@ def _run_agents_job(job_id, opts):
         from agent_scanner.agents import run_agent_tests
         engine.LOG_SINK = job["log"]
         dominios = [data["client"]] + [c for c in data["competitors"] if "error" not in c]
+        logrados, fallidos = 0, []
         for i, audit in enumerate(dominios):
             host = audit.get("host", "?")
             job["agents_phase"] = f"Simulando agentes en {host}"
@@ -172,14 +173,36 @@ def _run_agents_job(job_id, opts):
                     # rigor completo en el cliente, una pasada en competidores
                     repeticiones=(int(opts.get("agent_reps") or 3) if i == 0 else 1))
                 _aplicar_agentes(audit, at)
+                logrados += 1
                 job["log"].append(f"  {host}: agentes completados")
             except Exception as exc:
+                fallidos.append(host)
                 logger.warning(f"agentes fallaron en {host}: {exc}")
                 job["log"].append(f"  {host}: fallo en agentes ({str(exc)[:80]})")
-        data["agentes"]["estado"] = "completado"
+        # Antes se marcaba "completado" pasara lo que pasara: si la simulación
+        # reventaba en TODOS los dominios, el panel pintaba igualmente el botón
+        # verde "✓ Agentes simulados". Decir que algo se comprobó sin haberlo
+        # comprobado es el falso positivo que peor acaba: en un informe que un
+        # CMO reenvía a su equipo técnico.
+        if logrados == 0:
+            data["agentes"]["estado"] = "error"
+            data["agentes"]["detalle"] = (
+                f"La simulación no pudo completarse en ningún dominio "
+                f"({', '.join(fallidos) or 'sin dominios'}). El check 6.3 sigue "
+                f"sin evidencia agéntica: no se ha comprobado.")
+        else:
+            data["agentes"]["estado"] = "completado"
+            if fallidos:
+                data["agentes"]["detalle"] = (
+                    f"Simulación completada en {logrados}/{len(dominios)} dominios. "
+                    f"Sin evidencia agéntica en: {', '.join(fallidos)}.")
         _guardar_informe(job_id, data, job.get("user_email"))
-        job["agents_status"] = "done"
-        job["agents_phase"] = "Simulación agéntica completada"
+        job["agents_status"] = "done" if logrados else "error"
+        if not logrados:
+            job["agents_error"] = data["agentes"].get("detalle", "sin resultados")
+        job["agents_phase"] = (
+            f"Simulación agéntica completada ({logrados}/{len(dominios)} dominios)"
+            if logrados else "La simulación agéntica no pudo completarse")
     except Exception as exc:
         logger.exception("Fallo en la simulación agéntica")
         job["agents_status"] = "error"

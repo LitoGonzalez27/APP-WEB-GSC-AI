@@ -461,6 +461,36 @@ def test_hitos_ecommerce_multiidioma():
           f"{idioma}: añadir al carrito no detectado ({sorted(reached)})")
 
 
+def test_vtex_no_matchea_camelcase():
+    """Bug (batería 5, bahn.de): "vtex" estaba en ECOM_STRONG como PALABRA
+    SUELTA, y la subcadena aparece dentro de identificadores camelCase de lo
+    más corrientes: genericSrOnlyPrev·Text·, Prev·Text·, nav·Text·.
+
+    Deutsche Bahn —un operador ferroviario— salía clasificada como e-commerce
+    por una clave de i18n de su JavaScript, y a continuación el informe le
+    decía "Un agente que compare opciones descartara esta tienda por falta de
+    datos" de envío y devoluciones. El propio módulo ya avisaba de esta clase
+    de error ("marcadores a nivel de ASSET, nunca la palabra suelta"): VTEX
+    fue el que se coló.
+    """
+    pat = discovery.ECOM_STRONG["ecom_platform"]
+    for ident in ("genericSrOnlyPrevText", "PrevText", "navTextLabel",
+                  "srOnlyPrevTextButton"):
+        t("vtex_no_camelcase_" + ident, not re.search(pat, ident, re.I),
+          f"{ident!r} detectado como plataforma de e-commerce")
+    # pero un VTEX de verdad sí debe detectarse (por marcador de asset)
+    for real in ("https://foo.vtexassets.com/arquivos/x.js",
+                 "vtexcommercestable.com.br", "/_v/public/assets/v1"):
+        t("vtex_real_" + real[:24], bool(re.search(pat, real, re.I)),
+          f"{real!r} es VTEX real y no se detecta")
+    # comprobación de fondo: el HTML real de bahn.de no es una tienda
+    html_bahn = ('<html lang="de"><script>{"srOnly":{"genericSrOnlyPrevText":'
+                 '"Weitere Informationen"}}</script><span>ab 17,90 €</span></html>')
+    tip, ev = discovery.detect_typology(html_bahn, [])
+    t("bahn_no_es_tienda", tip != "ecommerce",
+      f"operador ferroviario clasificado como {tip}: {ev['ecommerce']}")
+
+
 def test_plataformas_ecom_coherentes():
     """Bug (batería 5): VTEX estaba en ECOM_STRONG de discovery pero NO en el
     detector de plataforma de 7.1. Una tienda VTEX se clasificaba como
@@ -566,6 +596,59 @@ def test_degradacion_niveles():
     ctx = ctx_base()
     res = engine._degradar_si_bloqueado(resultados(), ctx)
     t("degrada_limpio", ctx["acceso_degradado"] is None, str(ctx["acceso_degradado"]))
+
+
+def test_cascara_no_es_web_vacia():
+    """Bug (batería 5, zalando.de en la segunda pasada): HTTP 200, 11 KB de
+    portada, robots.txt correcto, _human=200… y CERO enlaces internos, CERO
+    páginas muestreadas, CERO señales de tipología.
+
+    El motor YA avisaba en el trail ("SIN señales: la web devuelve poco/ningún
+    contenido a accesos automatizados") y aun así entregaba score 20.3 con
+    score_fiable=True, con todos los checks de contenido a 0 "por ausencia"
+    sin haber visto una sola página. _degradar_si_bloqueado no lo cazaba
+    porque solo mira que la portada pese >=500 bytes y que el humano reciba
+    200 — y una cáscara anti-bot cumple las dos cosas. La señal buena no es el
+    peso: es que no hay NADA que rastrear.
+    """
+    def resultados():
+        return [
+            {"id": "3.1", "cat": "C3", "name": "x", "score": 0, "evidence": "e", "manual": False},
+            {"id": "5.1", "cat": "C5", "name": "x", "score": 0, "evidence": "e", "manual": False},
+            {"id": "1.6", "cat": "C1", "name": "x", "score": 0, "evidence": "e", "manual": False},
+        ]
+    # cáscara: 200, bytes de sobra, pero sin enlaces, sin páginas y sin señales
+    ctx = ctx_base()
+    ctx["home"]["body"] = "<html><body>" + "x" * 11000 + "</body></html>"
+    ctx["cobertura_ciega"] = True
+    ctx["pages"] = []
+    ctx["typology_evidence"] = {"ecommerce": {"puntos": 0}, "saas": {"puntos": 0}}
+    t("cascara_detectada", engine._cobertura_ciega(ctx), "la cáscara no se detecta")
+    res = engine._degradar_si_bloqueado(resultados(), ctx)
+    d = {r["id"]: r["score"] for r in res}
+    t("cascara_degrada_contenido", d["3.1"] is None and d["5.1"] is None,
+      f"se siguen afirmando ausencias sin haber visto la web: {d}")
+    t("cascara_conserva_hostilidad", d["1.6"] == 0,
+      "1.6 mide justo esa hostilidad: debe seguir puntuando")
+    t("cascara_nivel_total", ctx["acceso_degradado"]["nivel"] == "total",
+      str(ctx["acceso_degradado"]))
+    t("cascara_score_no_fiable",
+      ctx["acceso_degradado"]["nivel"] in ("total", "marcado"),
+      "el score seguiría marcándose como entregable")
+    # web pequeña pero REAL: pocas páginas, pero con enlaces y señales -> no toca
+    ctx = ctx_base()
+    ctx["cobertura_ciega"] = False
+    ctx["typology_evidence"] = {"ecommerce": {"puntos": 0}, "saas": {"puntos": 3}}
+    res = engine._degradar_si_bloqueado(resultados(), ctx)
+    t("web_pequena_no_degrada", ctx["acceso_degradado"] is None,
+      f"web real degradada por error: {ctx['acceso_degradado']}")
+    # sin enlaces PERO con señales de tipología: la home sí se vio, no es cáscara
+    ctx = ctx_base()
+    ctx["cobertura_ciega"] = True
+    ctx["pages"] = []
+    ctx["typology_evidence"] = {"ecommerce": {"puntos": 4}, "saas": {"puntos": 0}}
+    t("cascara_no_falso_positivo", not engine._cobertura_ciega(ctx),
+      "una home con señales claras se trató como cáscara")
 
 
 def test_consistencia_agentes():
@@ -756,6 +839,50 @@ def test_persistencia_degrada_sin_bd():
         except Exception as exc:
             t("persist_" + nombre, False,
               f"PROPAGÓ EXCEPCIÓN {type(exc).__name__}: {exc}")
+
+
+def test_agentes_fallidos_no_dicen_completado():
+    """Bug (batería 5): _run_agents_job marcaba estado="completado" pasara lo
+    que pasara. Si la simulación reventaba en TODOS los dominios (los fallos se
+    capturan por dominio y solo se registran), el panel pintaba igualmente el
+    botón verde "✓ Agentes simulados" — afirmar que algo se comprobó sin
+    haberlo comprobado.
+
+    Se comprueba sobre el CÓDIGO porque la función es un job de Flask con
+    _JOBS y hilos: lo que se blinda es que el estado dependa de los éxitos.
+    """
+    import os
+    ruta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "agent_routes.py")
+    if not os.path.exists(ruta):
+        return  # el paquete puede usarse fuera de la app web
+    with open(ruta) as f:
+        cuerpo = f.read()
+    t("agentes_cuenta_logros", "logrados" in cuerpo,
+      "no se cuentan los dominios en los que la simulación SÍ funcionó")
+    t("agentes_estado_condicional",
+      'if logrados == 0:' in cuerpo and 'data["agentes"]["estado"] = "error"' in cuerpo,
+      'estado="completado" incondicional: se afirma una simulación que no ocurrió')
+    t("agentes_status_condicional", '"done" if logrados else "error"' in cuerpo,
+      "agents_status se marca done aunque no se lograra ningún dominio")
+
+
+def test_dns_vs_bloqueo_total():
+    """Bug (batería 5, fnac.fr): el dominio resuelve perfectamente
+    (165.160.13.20) y su WAF descarta nuestras conexiones en silencio, pero le
+    decíamos al cliente "no responde (DNS/conexión). Verifica el dominio" —
+    mandándole a revisar un DNS que está bien, mientras el hallazgo real era el
+    contrario: bloquea el acceso automatizado por completo."""
+    import os
+    ruta = os.path.join(os.path.dirname(__file__), "engine.py")
+    with open(ruta) as f:
+        cuerpo = f.read()
+    t("dns_distingue_no_resuelve", "no resuelve en DNS" in cuerpo,
+      "no se distingue 'no resuelve' de 'resuelve y nos bloquea'")
+    t("dns_no_culpa_al_dominio",
+      "no responde (DNS/conexión). Verifica el dominio." not in cuerpo,
+      "sigue el mensaje que manda a revisar un DNS correcto")
+    t("dns_explica_bloqueo", "rechaza o deja sin respuesta" in cuerpo,
+      "el bloqueo total no se explica como lo que es")
 
 
 def test_scoring_y_catalogo():
