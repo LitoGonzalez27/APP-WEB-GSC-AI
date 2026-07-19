@@ -1079,6 +1079,122 @@ def test_render_espera_domcontentloaded():
       "sin margen tras domcontentloaded, el 4.1 compararía contra HTML sin pintar")
 
 
+def test_bloqueo_no_regala_presencias():
+    """Bug (batería 6, bol.com y allegro.pl): un sitio que nos bloquea del todo
+    puntuaba MÁS ALTO que uno legible.
+
+    Ambos devuelven HTTP 403 a todo, incluido el UA humano. El guardarraíl solo
+    degradaba los checks con `score == 0` ("la ausencia no es afirmable"), así
+    que el 3.6 —que leyó la página de "Access Denied" del WAF, no vio elementos
+    fantasma en ella y se anotó un 1— sobrevivía intacto. Como era el único
+    check de C3 que quedaba, C3 salía 1.0 con el peso mayor del modelo (25):
+    allegro.pl = 64.5 y nivel "Agent-aware", la mejor nota de los 22 dominios de
+    la batería, sobre una web que no llegamos a ver. Una PRESENCIA medida sobre
+    la página de bloqueo es tan inafirmable como una ausencia.
+    """
+    def resultados():
+        return [
+            # medidos sobre el cuerpo del WAF: ni el 1 ni el 0 son afirmables
+            {"id": "3.6", "cat": "C3", "name": "x", "score": 1, "evidence": "e", "manual": False},
+            {"id": "6.2", "cat": "C6", "name": "x", "score": 0.5, "evidence": "e", "manual": False},
+            {"id": "3.1", "cat": "C3", "name": "x", "score": 0, "evidence": "e", "manual": False},
+            # evidencia INDEPENDIENTE de la portada: la sonda del sitemap sí
+            # respondió, así que su 1 es real y debe conservarse
+            {"id": "1.4", "cat": "C1", "name": "x", "score": 1, "evidence": "e", "manual": False},
+        ]
+    ctx = ctx_base()
+    ctx["bot_matrix"]["_human"] = 403
+    ctx["home"]["status"] = 403
+    ctx["home"]["body"] = "<html><body>Access Denied</body></html>" + "x" * 600
+    res = engine._degradar_si_bloqueado(resultados(), ctx)
+    d = {r["id"]: r["score"] for r in res}
+    t("bloqueo_nivel_total", ctx["acceso_degradado"]["nivel"] == "total",
+      str(ctx.get("acceso_degradado")))
+    t("bloqueo_degrada_presencia_de_marcado", d["3.6"] is None,
+      f"3.6=1 medido sobre la página de bloqueo del WAF debe ser NO VERIFICABLE: {d}")
+    t("bloqueo_degrada_presencia_parcial", d["6.2"] is None,
+      f"6.2=0.5 sobre el cuerpo del WAF debe ser NO VERIFICABLE: {d}")
+    t("bloqueo_degrada_ausencia", d["3.1"] is None, f"{d}")
+    t("bloqueo_conserva_evidencia_independiente", d["1.4"] == 1,
+      f"1.4 sale del sitemap, que sí respondió: degradarlo sería sobre-corregir: {d}")
+
+    # nivel SONDAS (la portada SÍ se vio): un >0 procede de una sonda que
+    # respondió, así que se respeta. Este es el lado que no debe cambiar.
+    ctx = ctx_base()
+    ctx["bot_matrix"]["_human"] = 403           # sondas bloqueadas, home ok
+    res = engine._degradar_si_bloqueado(resultados(), ctx)
+    d = {r["id"]: r["score"] for r in res}
+    t("sondas_no_toca_marcado_visto", d["3.6"] == 1 and d["6.2"] == 0.5,
+      f"con portada vista el marcado es evidencia buena: {d}")
+
+
+def test_sin_senales_no_culpa_al_acceso():
+    """Bug (batería 6): a dnb.no le leímos 1,17 MB de portada por HTTP 200 y el
+    informe decía "la web devuelve poco/ningún contenido a accesos automatizados".
+
+    Mismo caso en rijksoverheid.nl (318 KB), vg.no (431 KB), uu.nl y
+    greenpeace.nl: todos servidos con normalidad, todos sin señales de tienda ni
+    de SaaS, porque un banco, un ministerio, un periódico, una universidad y una
+    ONG no son ninguna de las dos cosas. "Cero señales" tenía una única lectura
+    ("nos bloquean") y se afirmaba aunque la portada se hubiera leído entera:
+    culpar a la web ajena de una ausencia que es correcta.
+    """
+    def trail_de(home_body, status):
+        ctx = {"home": {"body": home_body, "status": status, "_via": "http"},
+               "typology_evidence": {"ecommerce": {"puntos": 0, "fuertes": []},
+                                     "saas": {"puntos": 0, "fuertes": []}},
+               "typology": "corporativo", "trail": []}
+        engine._trail_tipologia(ctx, None)
+        return ctx["trail"][-1]
+
+    visto = trail_de("<html>" + "contenido " * 2000 + "</html>", 200)
+    t("sin_senales_portada_vista_no_es_warn", visto["status"] == "ok",
+      f"portada de 20 KB leída con 200: no es un aviso de acceso: {visto}")
+    t("sin_senales_portada_vista_no_acusa",
+      "poco/ningún contenido" not in visto["detail"],
+      f"afirmar que no sirve contenido una web que sí lo sirvió: {visto['detail']}")
+    t("sin_senales_portada_vista_explica",
+      "corporativo" in visto["detail"], visto["detail"])
+
+    # y cuando de verdad estamos ciegos, el aviso se mantiene
+    ciego = trail_de("x", 403)
+    t("sin_senales_bloqueado_sigue_avisando",
+      ciego["status"] == "warn" and "poco/ningún contenido" in ciego["detail"],
+      f"con la portada bloqueada el aviso debe seguir: {ciego}")
+
+
+def test_senales_tienda_pl_y_nordicas():
+    """Bug (batería 6): ninguna señal de e-commerce cubría polaco ni nórdicos.
+
+    empik.com (gran retailer polaco) sirve "dodaj do koszyka", "koszyk" 11 veces
+    y 8 precios en zł: las tres regex fallaban y solo se salvó de ser
+    "corporativo" porque su HTML lleva un "/cart" inglés suelto. komputronik.pl,
+    igual, con 17 precios en zł. Una tienda PL/nórdica sin esa casualidad caía a
+    corporativo y arrastraba toda la categoría C7 a "N/A (no es e-commerce)".
+    Cadenas tomadas del HTML real de esos dominios.
+    """
+    add = re.compile(discovery.ECOM_STRONG["add_to_cart"], re.I)
+    for frase in ["dodaj do koszyka", "Legg i handlekurv", "Lägg i varukorgen",
+                  "Læg i kurven", "Lisää ostoskoriin"]:
+        t(f"add_to_cart_{frase[:12]}", bool(add.search(frase)), frase)
+
+    url = re.compile(discovery.ECOM_STRONG["cart_url"], re.I)
+    for u in ['href="/koszyk/"', 'href="/handlekurv"', 'href="/varukorg"',
+              'href="/ostoskori/"']:
+        t(f"cart_url_{u[8:18]}", bool(url.search(u)), u)
+
+    word = re.compile(discovery.ECOM_WEAK["cart_word"], re.I)
+    t("cart_word_koszyk", bool(word.search("Twój koszyk jest pusty")), "koszyk")
+
+    price = re.compile(discovery.ECOM_WEAK["price_tag"], re.I)
+    for p in ["129,99 zł", "1299,00 PLN", "249,50 kr", "199,00 DKK"]:
+        t(f"price_tag_{p}", bool(price.search(p)), p)
+    # el precio SIN decimales no cuenta: "\d+ kr" convertiría en tienda a
+    # cualquier web escandinava que cite un número seguido de esas dos letras
+    t("price_tag_sin_decimales_no_cuenta", not price.search("dnb 1299 kr"),
+      "un número suelto + kr no es prueba de tienda")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

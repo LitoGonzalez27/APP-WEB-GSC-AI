@@ -80,13 +80,25 @@ ECOM_STRONG = {
                    r'|ajouter au panier|mettre au panier|acheter maintenant'       # FR
                    r'|aggiungi al carrello|acquista ora'                           # IT
                    r'|adicionar ao carrinho|comprar agora'                         # PT
-                   r'|in winkelwagen|voeg toe aan winkelwagen',                    # NL
+                   r'|in winkelwagen|voeg toe aan winkelwagen'                     # NL
+                   # PL/nórdicos (batería 6): empik.com sirve "dodaj do koszyka"
+                   # y "koszyk" 11 veces, y ni una de nuestras regex lo veía. Se
+                   # salvó de ser "corporativo" solo porque su HTML lleva un
+                   # "/cart" inglés suelto. Una tienda polaca o nórdica sin esa
+                   # casualidad caía a corporativo y con ella toda la C7.
+                   r'|dodaj do koszyka|kup teraz'                                  # PL
+                   r'|legg i handlekurv|kjøp nå'                                   # NO
+                   r'|lägg i varukorgen|köp nu'                                    # SE
+                   r'|læg i kurven|køb nu'                                         # DK
+                   r'|lisää ostoskoriin|osta nyt',                                 # FI
     "cart_url": r'/(carrito|cart|cesta|checkout'
                 r'|warenkorb|einkaufswagen|kasse'      # DE
                 r'|panier|commande'                    # FR
                 r'|carrello'                           # IT
                 r'|carrinho'                           # PT
                 r'|winkelwagen|winkelmandje'           # NL
+                r'|koszyk|zamowienie|zamówienie'       # PL
+                r'|handlekurv|varukorg|kurv|ostoskori' # NO/SE/DK/FI
                 r')(/|"|\'|\?|$)',
     # Solo marcadores a nivel de ASSET, nunca la palabra suelta: stripe.com
     # menciona "WooCommerce" y "Shopify" como clientes en su marketing y se
@@ -103,7 +115,8 @@ ECOM_STRONG = {
                      r'|demandware\.static|/on/demandware',
 }
 ECOM_WEAK = {
-    "cart_word": r'\b(carrito|cesta|warenkorb|panier|carrello|carrinho|winkelwagen)\b',
+    "cart_word": r'\b(carrito|cesta|warenkorb|panier|carrello|carrinho|winkelwagen'
+                 r'|koszyk|handlekurv|varukorg|indkøbskurv|ostoskori)\b',
     "shop_url": r'/(tienda|shop|store|productos?'
                 r'|produkte|kategorien'      # DE
                 r'|boutique|produits'        # FR
@@ -113,8 +126,15 @@ ECOM_WEAK = {
     # El precio no siempre lleva el símbolo DETRÁS ni es el euro: UK usa "£19.99"
     # y muchos sitios internacionales "$19.99". Con el patrón anterior (solo
     # sufijo €/EUR) johnlewis.com y cualquier tienda en libras perdían la señal.
+    # Se exigen SIEMPRE los dos decimales, también en las divisas nuevas: un
+    # "\d+ kr" suelto matchearía cualquier número seguido de esas dos letras y
+    # convertiría en tienda a media Escandinavia. Un falso positivo de tipología
+    # arrastra toda la categoría C7, así que aquí se prefiere no ver una tienda
+    # a inventarse una. Divisas de la batería 6: empik.com y komputronik.pl
+    # marcan precios en zł (17 coincidencias) que no contaba ninguna señal.
     "price_tag": r'\d+[.,]\d{2}\s*(€|EUR|£|GBP|CHF|USD|\$)'
-                 r'|(€|£|\$|CHF)\s?\d+[.,]\d{2}',
+                 r'|(€|£|\$|CHF)\s?\d+[.,]\d{2}'
+                 r'|\d+[.,]\d{2}\s*(zł|PLN|kr|NOK|SEK|DKK|Kč|Ft)',
     # Un Offer suelto NO es señal de tienda: lo llevan SoftwareApplication,
     # Service, Event, Course… La app de BBVA tiene Offer y es un banco.
     # Solo cuenta como fuerte cuando va acompañado de Product (ver ECOM_STRONG).
