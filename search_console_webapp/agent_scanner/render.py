@@ -67,7 +67,20 @@ def _render_playwright(url, timeout, interactive=False):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
             page = browser.new_page(viewport={"width": 1280, "height": 900})
-            resp = page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
+            # MEDIDO, no supuesto (batería 5, 6 dominios × 3 variantes):
+            #   veepee.es    networkidle 2.3s / dcl+3s 4.0s → HTML IDÉNTICO
+            #   ikea.com     networkidle 4.5s / dcl+3s 4.4s → HTML IDÉNTICO
+            #   mediamarkt   networkidle TIMEOUT 90s, 0 bytes / dcl+3s 3.9s, 942 KB
+            #   gymshark     networkidle TIMEOUT 90s, 0 bytes / dcl+3s 4.5s, 2,9 MB
+            # Mismo texto, mismos <a href> y mismos bloques JSON-LD en los que
+            # comparan; en los dos que llevan sockets de analítica siempre
+            # abiertos, networkidle NUNCA se cumple y nos quedábamos sin render
+            # (gymshark salió con render_ok=False y mediamarkt con 4.1 degradado
+            # a heurístico). domcontentloaded no pierde contenido: lo rescata.
+            # Esperar 6s en vez de 3s no añadió nada en ningún dominio.
+            resp = page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
+            # margen para que el JS de cliente pinte lo que el check 4.1 compara
+            page.wait_for_timeout(3000)
             html = page.content()
             status = resp.status if resp else 200
             boxes = None

@@ -220,6 +220,14 @@ def psi_cls(url):
 
 def gather_context(base, typology_override=None, skip_render=False, with_psi=False):
     """Pipeline de recogida. Cada etapa deja rastro en ctx['trail'] (fiabilidad)."""
+    # `audit_domain` ya normaliza, pero a gather_context se le llama también
+    # directamente (regresiones de tipología, herramientas sueltas) con el
+    # dominio pelado. Sin esquema, urlparse deja netloc vacío, assert_public_url
+    # falla con "esquema no permitido" y el error acababa traducido a
+    # "cloudflare.com no resuelve en DNS. Verifica el dominio": mandábamos al
+    # cliente a revisar un DNS impecable por un fallo de formato nuestro.
+    # normalize() es idempotente, así que llamarla dos veces no molesta.
+    base = discovery.normalize(base)
     ctx = {"base": base, "trail": []}
 
     def T(step, status, detail=""):
@@ -260,6 +268,14 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
         T("home", "fail", "sin contenido por ninguna vía: checks de contenido sin evidencia")
     elif via != "http":
         T("home", "warn", f"obtenida vía {via} (acceso simple bloqueado/vacío): dato relevante")
+    elif ctx["home"]["status"] != 200:
+        # Un cuerpo grande con estado de error es la página del WAF, no la
+        # portada. Decir "ok | HTTP 403" en el trail (mediamarkt.es, batería 5)
+        # es justo lo que impide al analista ver que no vimos el sitio.
+        T("home", "warn",
+          f"HTTP {ctx['home']['status']} con {len(ctx['home']['body'])} bytes: "
+          f"el cuerpo NO es la portada, es la respuesta de error/bloqueo del "
+          f"servidor. Los checks de contenido no pueden apoyarse en él")
     else:
         T("home", "ok", f"HTTP {ctx['home']['status']}, {len(ctx['home']['body'])} bytes, TTFB {ctx['home']['ttfb']}s")
 
@@ -281,8 +297,14 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
         try:
             assert_public_url(base)
             resuelve = True
-        except BlockedURLError:
+            motivo_bloqueo = ""
+        except BlockedURLError as exc:
             resuelve = False
+            # BlockedURLError NO significa solo "no resuelve": también cubre
+            # esquema inválido y IP privada/reservada (guardarraíl SSRF).
+            # Traducirlo todo a "no resuelve en DNS" manda al cliente a mirar
+            # donde no es. Se conserva la causa real.
+            motivo_bloqueo = str(exc)
         if resuelve:
             raise RuntimeError(
                 f"{base} resuelve en DNS pero rechaza o deja sin respuesta TODAS "
@@ -291,7 +313,8 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
                 f"Eso mismo le ocurriría a un agente, pero no podemos auditar lo que "
                 f"no podemos ver: repite el análisis desde otra IP o con el sitio "
                 f"en lista blanca.")
-        raise RuntimeError(f"{base} no resuelve en DNS. Verifica el dominio.")
+        raise RuntimeError(f"no se pudo acceder a {base}: {motivo_bloqueo}. "
+                           f"Verifica el dominio.")
 
     _log("superficie agéntica (.well-known)…")
     ctx["wellknown"], ctx["wellknown_meta"] = probe_wellknown(base)
@@ -628,7 +651,21 @@ def _degradar_si_bloqueado(results, ctx):
     """
     human = (ctx.get("bot_matrix") or {}).get("_human", 0)
     via = (ctx.get("home") or {}).get("_via", "http")
-    home_ok = len((ctx.get("home") or {}).get("body") or "") >= 500
+    home_status = (ctx.get("home") or {}).get("status", 0)
+    # El peso NO acredita que hayamos visto la portada: una página de bloqueo de
+    # WAF pesa de sobra. Caso real (batería 5, mediamarkt.es): HTTP 403 a TODAS
+    # las peticiones (incluido el UA humano) con 13.656 bytes de "Access
+    # Denied". Como el cuerpo pasaba el listón de 500 bytes y la vía seguía
+    # siendo "http", se caía en la rama `else` y se etiquetaba nivel "sondas",
+    # cuyo texto afirma "la portada se obtuvo con normalidad" y deja
+    # score_fiable=True. Resultado entregable: mediamarkt.es = 🔴 "Invisible
+    # para agentes. Riesgo alto", score 20.8 marcado como fiable, calculado
+    # sobre la página de error del WAF. Es exactamente el sesgo que perseguimos:
+    # culpar a la web ajena de nuestra propia ceguera.
+    # Una portada es creíble si el servidor la dio por buena (200) o si la
+    # rescatamos por otra vía (render/jina), que sí sustituyen el cuerpo.
+    home_ok = (len((ctx.get("home") or {}).get("body") or "") >= 500
+               and (home_status == 200 or via in ("render", "jina")))
 
     ciego = _cobertura_ciega(ctx)
     if human == 200 and home_ok and via in ("http", "render") and not ciego:

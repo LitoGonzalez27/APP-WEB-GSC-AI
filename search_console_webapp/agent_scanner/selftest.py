@@ -8,6 +8,7 @@ vivos (CALIBRACION.md en el proyecto web-agentica), no sustituto.
 
 Sin dependencias de test externas: asserts planos, exit code 1 si algo falla.
 """
+import os
 import re
 import sys
 
@@ -899,6 +900,183 @@ def test_scoring_y_catalogo():
     mios = set(catalog.check_ids())
     t("catalogo_sincronizado", reales == mios,
       f"faltan={sorted(reales - mios)} sobran={sorted(mios - reales)}")
+
+
+def test_pagina_de_bloqueo_no_es_portada():
+    """Bug (batería 5, mediamarkt.es): el WAF devolvió HTTP 403 a TODAS las
+    peticiones —incluido el UA humano— con 13.656 bytes de "Access Denied".
+
+    `_degradar_si_bloqueado` daba la portada por vista porque solo miraba el
+    PESO del cuerpo (>=500 bytes), y una página de bloqueo pesa de sobra. Como
+    la vía seguía siendo "http", caía en la rama `else` y etiquetaba nivel
+    "sondas", cuyo texto afirma "la portada se obtuvo con normalidad" y deja
+    score_fiable=True. Lo entregable quedó así: mediamarkt.es = 🔴 "Invisible
+    para agentes. Ni te leen ni te usan. Riesgo alto", score 20.8 marcado como
+    fiable, calculado sobre la página de error del WAF. Cero páginas
+    muestreadas, cero enlaces, cero señales de tipología.
+
+    Es el sesgo de la casa: culpar a la web ajena de nuestra propia ceguera.
+    """
+    def resultados():
+        return [
+            {"id": "3.1", "cat": "C3", "name": "x", "score": 0, "evidence": "e", "manual": False},
+            {"id": "5.1", "cat": "C5", "name": "x", "score": 0, "evidence": "e", "manual": False},
+        ]
+    ctx = ctx_base()
+    ctx["home"] = {"status": 403, "body": "<html><body>Access Denied" + "x" * 13600 + "</body></html>",
+                   "headers": "", "ttfb": 0.06, "_via": "http"}
+    ctx["bot_matrix"] = {"GPTBot": 403, "ClaudeBot": 403, "_human": 403}
+    ctx["pages"] = []
+    ctx["typology_evidence"] = {"ecommerce": {"puntos": 0}, "saas": {"puntos": 0}}
+    engine._degradar_si_bloqueado(resultados(), ctx)
+    deg = ctx["acceso_degradado"]
+    t("bloqueo_no_es_portada_nivel", deg and deg["nivel"] == "total",
+      f"una página de bloqueo de 13 KB se tomó por portada válida: {deg}")
+    t("bloqueo_no_es_portada_no_fiable",
+      deg and deg["nivel"] in ("total", "marcado"),
+      "el score se entregaría como fiable habiendo leído solo el error del WAF")
+    t("bloqueo_no_es_portada_sin_normalidad",
+      deg and "con normalidad" not in deg["motivo"],
+      f"el informe afirma que la portada se obtuvo con normalidad: {deg['motivo']}")
+
+    # Contraprueba: 403 al humano pero portada RESCATADA por jina. El cuerpo sí
+    # es contenido real, así que no debe tratarse como bloqueo total.
+    ctx = ctx_base()
+    ctx["home"] = {"status": 403, "body": "texto real " * 200, "headers": "",
+                   "ttfb": 0.2, "_via": "jina"}
+    ctx["bot_matrix"] = {"GPTBot": 403, "ClaudeBot": 403, "_human": 403}
+    engine._degradar_si_bloqueado(resultados(), ctx)
+    t("rescate_jina_sigue_siendo_marcado",
+      ctx["acceso_degradado"]["nivel"] == "marcado",
+      f"el rescate vía jina se degradó de más: {ctx['acceso_degradado']['nivel']}")
+
+    # Contraprueba: web sana (200 por http) no se degrada.
+    ctx = ctx_base()
+    engine._degradar_si_bloqueado(resultados(), ctx)
+    t("web_sana_no_se_degrada", ctx["acceso_degradado"] is None,
+      f"web con HTTP 200 degradada por error: {ctx['acceso_degradado']}")
+
+
+def test_sitemap_no_muestrea_dominios_ajenos():
+    """Bug (batería 5, revisando el filtro de host que ejercita blog.hubspot.es):
+    `get_sitemap_urls` filtraba con `host in urlparse(u).netloc`, una comparación
+    por SUBCADENA. Para host='ikea.com' aceptaba 'notikea.com', 'ikea.com.mx' y
+    'ikea.com.evil.net'. Esas páginas se muestreaban y se puntuaban dentro del
+    informe del cliente: afirmar sobre su web cosas medidas en la web de otro.
+
+    `harvest_links` ya comparaba por igualdad exacta, así que las dos vías de
+    descubrimiento no coincidían entre sí.
+    """
+    base = "https://www.ikea.com"
+    t("sitemap_acepta_host_propio", discovery.mismo_sitio(base, "https://www.ikea.com/es/es/p/x/"),
+      "se rechaza una URL del propio sitio")
+    t("sitemap_acepta_subdominio_propio", discovery.mismo_sitio(base, "https://shop.ikea.com/x"),
+      "se rechaza un subdominio propio")
+    t("sitemap_rechaza_dominio_que_contiene_host",
+      not discovery.mismo_sitio(base, "https://notikea.com/fake/"),
+      "'notikea.com' se cuela como si fuera del cliente")
+    t("sitemap_rechaza_otro_ccTLD",
+      not discovery.mismo_sitio(base, "https://www.ikea.com.mx/otro/"),
+      "'ikea.com.mx' es otra entidad y se cuela como del cliente")
+    t("sitemap_rechaza_sufijo_malicioso",
+      not discovery.mismo_sitio(base, "https://ikea.com.evil.net/x"),
+      "'ikea.com.evil.net' se cuela como del cliente")
+    # subdominio como base (blog.hubspot.es): no debe arrastrar el dominio padre
+    t("subdominio_base_no_arrastra_padre",
+      not discovery.mismo_sitio("https://blog.hubspot.es", "https://www.hubspot.es/x"),
+      "auditando el subdominio se muestrea el dominio padre")
+    t("subdominio_base_acepta_lo_suyo",
+      discovery.mismo_sitio("https://blog.hubspot.es", "https://blog.hubspot.es/marketing"),
+      "se rechaza una URL del propio subdominio")
+    # 'www.' es un prefijo, no una subcadena a borrar donde sea
+    t("www_solo_como_prefijo",
+      discovery._host_base("shop.wwwidgets.com") == "shop.wwwidgets.com",
+      "replace('www.','') corrompe hosts que contienen 'www.' en medio")
+
+
+def test_dominio_pelado_no_es_fallo_de_dns():
+    """Bug (batería 5, montando la regresión de tipologías): a gather_context se
+    le pasa el dominio pelado ('cloudflare.com') y no normalizaba, así que
+    urlparse dejaba netloc vacío, assert_public_url fallaba con "esquema no
+    permitido" y el motor lo traducía a "cloudflare.com no resuelve en DNS.
+    Verifica el dominio". Es decir: mandábamos al cliente a revisar un DNS
+    impecable por un fallo de formato NUESTRO. Falló en los 15 dominios de la
+    regresión, incluidos cloudflare.com y stripe.com.
+
+    Se comprueba sin red: normalize es idempotente y assert_public_url acepta
+    lo que produce.
+    """
+    from .httpfetch import assert_public_url, BlockedURLError
+    for pelado in ("cloudflare.com", "www.bbva.es", "https://stripe.com"):
+        norm = discovery.normalize(pelado)
+        t(f"normaliza_{pelado}", norm.startswith("http"),
+          f"'{pelado}' no adquiere esquema: {norm}")
+        t(f"idempotente_{pelado}", discovery.normalize(norm) == norm,
+          "normalize no es idempotente: gather_context la aplicaría dos veces")
+        try:
+            assert_public_url(norm)
+            ok = True
+        except BlockedURLError as exc:
+            ok = f"BlockedURLError: {exc}"
+        t(f"url_normalizada_valida_{pelado}", ok is True,
+          f"la URL normalizada se rechaza y acabaría como 'no resuelve en DNS': {ok}")
+    # El mensaje ya no puede afirmar DNS sin haberlo comprobado.
+    # Se mira el cuerpo de gather_context en concreto: audit_domain YA
+    # normalizaba, así que buscar la llamada en todo el módulo no distingue.
+    import inspect
+    cuerpo = inspect.getsource(engine.gather_context)
+    src = open(os.path.join(os.path.dirname(__file__), "engine.py")).read()
+    t("gather_context_normaliza", "discovery.normalize(base)" in cuerpo,
+      "gather_context vuelve a confiar en que le den la base ya normalizada")
+    t("sin_mensaje_dns_generico", 'no resuelve en DNS. Verifica el dominio.' not in src,
+      "se sigue atribuyendo a DNS cualquier BlockedURLError (esquema, IP privada)")
+
+
+def test_sitemap_homogeneo_no_deja_muestra_de_dos():
+    """Bug (batería 5, ikea.com): sitemap de 800 URLs, las 800 de producto y el
+    resto de buckets a cero. Se tomaban 2 de producto, ningún otro bucket
+    aportaba y el respaldo de relleno solo miraba "otras", que estaba vacía.
+    Resultado: 2 páginas de 800 sosteniendo TODOS los checks de contenido, con
+    score 49,8 y score_fiable=True — se generaliza a un catálogo entero desde
+    dos fichas sin avisar de que la muestra es esa.
+    """
+    urls = [f"https://www.ikea.com/es/es/p/articulo-{i}/" for i in range(800)]
+    buckets, sample = discovery.classify_and_sample(urls)
+    t("sitemap_homogeneo_bucket_unico", len(buckets["producto"]) == 800,
+      "el escenario ya no reproduce el caso de ikea.com")
+    t("sitemap_homogeneo_muestra_suficiente", len(sample) >= 5,
+      f"solo {len(sample)} páginas muestreadas de 800 disponibles")
+    # el caso que ya cubría el respaldo original (wikipedia: todo en "otras")
+    # debe seguir funcionando igual
+    urls2 = [f"https://es.wikipedia.org/wiki/Tema_{i}" for i in range(50)]
+    _, sample2 = discovery.classify_and_sample(urls2)
+    t("relleno_otras_sigue_funcionando", len(sample2) >= 5,
+      f"se rompió el relleno desde 'otras': {len(sample2)} páginas")
+    # sitio realmente pequeño: no se inventan páginas que no existen
+    _, sample3 = discovery.classify_and_sample(["https://x.example/a"])
+    t("sitio_pequeno_no_infla_muestra", len(sample3) == 1,
+      f"se muestrean {len(sample3)} páginas de 1 URL disponible")
+
+
+def test_render_espera_domcontentloaded():
+    """Medición (batería 5, 6 dominios × 3 variantes): con wait_until=networkidle,
+    mediamarkt.es y gymshark.com agotaban los 90 s y devolvían CERO bytes —sus
+    sockets de analítica nunca dejan la red en reposo—, así que gymshark salió
+    con render_ok=False y mediamarkt con el check 4.1 degradado a heurístico.
+    Con domcontentloaded + 3 s: 942 KB y 2,9 MB en ~4 s.
+
+    En los dominios donde networkidle SÍ terminaba (veepee.es, ikea.com) el HTML
+    resultó idéntico: mismo texto, mismos <a href>, mismos bloques JSON-LD. El
+    check 4.1 compara HTML crudo contra renderizado, así que este test fija que
+    no volvemos a una espera que se salda sin render.
+    """
+    src = open(os.path.join(os.path.dirname(__file__), "render.py")).read()
+    t("render_no_usa_networkidle", 'wait_until="networkidle"' not in src,
+      "networkidle deja sin render a los sitios con analítica persistente")
+    t("render_usa_domcontentloaded", 'wait_until="domcontentloaded"' in src,
+      "falta la espera medida como equivalente en contenido")
+    t("render_espera_tras_domcontentloaded", "wait_for_timeout" in src,
+      "sin margen tras domcontentloaded, el 4.1 compararía contra HTML sin pintar")
 
 
 def main():

@@ -264,6 +264,32 @@ _LOC_RE = re.compile(r"<loc>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)\s*(?:\]\]>)?\s*</l
 _LASTMOD_RE = re.compile(r"<lastmod>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)\s*(?:\]\]>)?\s*</lastmod>", re.I)
 
 
+def _host_base(netloc):
+    """Host normalizado. `replace("www.", "")` borra la subcadena DONDE SEA:
+    'shop.wwwidgets.com' se convertia en 'shop.idgets.com'. Aqui solo se quita
+    el prefijo."""
+    host = (netloc or "").lower().split(":")[0]
+    return host[4:] if host.startswith("www.") else host
+
+
+def mismo_sitio(base, url):
+    """¿`url` pertenece al sitio auditado?
+
+    El filtro del sitemap era `host in urlparse(u).netloc`, una comparacion por
+    SUBCADENA: para host='ikea.com' aceptaba 'notikea.com', 'ikea.com.mx' y
+    'ikea.com.evil.net' como si fueran del cliente. Esas paginas se muestreaban
+    y se puntuaban dentro del informe del cliente, que es afirmar sobre su web
+    cosas medidas en la web de otro. `harvest_links` ya comparaba por igualdad
+    exacta, asi que las dos vias de descubrimiento no coincidian.
+
+    La frontera correcta es el host exacto o un subdominio propio: se acepta
+    'shop.ikea.com', se rechaza 'notikea.com' y 'ikea.com.mx'.
+    """
+    host = _host_base(urlparse(base).netloc)
+    otro = _host_base(urlparse(url).netloc)
+    return bool(host) and (otro == host or otro.endswith("." + host))
+
+
 def get_sitemap_urls(base, robots, cap=800):
     """Recoge URLs de sitemaps (indices incluidos) hasta `cap`. Tambien lastmods."""
     # Las rutas convencionales SIEMPRE se prueban, aunque robots declare otra:
@@ -290,8 +316,7 @@ def get_sitemap_urls(base, robots, cap=800):
             continue
         urls.extend(_LOC_RE.findall(body))
         lastmods.extend(_LASTMOD_RE.findall(body))
-    host = urlparse(base).netloc.replace("www.", "")
-    urls = [u for u in urls if host in urlparse(u).netloc][:cap]
+    urls = [u for u in urls if mismo_sitio(base, u)][:cap]
     # "No encontrado" y "bloqueado" NO son lo mismo: el sitemap de zalando.es
     # existe pero la conexión se corta (status 0). Afirmar "sin sitemap" en ese
     # caso sería atribuir una carencia no comprobada (guardarraíl de fidelidad).
@@ -307,7 +332,6 @@ def harvest_links(base, home_html, cap=60):
     Sin esto, sitios sin sitemap público (es.wikipedia.org, github.com) se
     auditaban SOLO con la home y los checks de contenido quedaban ciegos.
     """
-    host = urlparse(base).netloc.replace("www.", "")
     out, seen = [], set()
     for href in re.findall(r'href=["\']([^"\'#]+)', home_html or ""):
         if href.startswith(("mailto:", "tel:", "javascript:", "data:")):
@@ -326,7 +350,7 @@ def harvest_links(base, home_html, cap=60):
             url = href
         else:
             continue
-        if urlparse(url).netloc.replace("www.", "") != host:
+        if not mismo_sitio(base, url):
             continue
         url = url.split("?")[0].rstrip("/")
         if url and url != base and url not in seen:
@@ -369,15 +393,27 @@ def classify_and_sample(urls, per_bucket=2, max_total=10):
             sample.append({"url": u, "bucket": name})
         if len(sample) >= max_total:
             break
-    # Relleno desde "otras": en sitios cuyas URLs no encajan en ningún patrón
-    # (wikipedia, github, muchas SPAs) TODO cae en "otras", de la que solo se
-    # tomaba 1 página — y los checks de contenido se quedaban casi ciegos.
+    # Relleno cuando la muestra se queda corta. Nació mirando solo "otras": en
+    # sitios cuyas URLs no encajan en ningún patrón (wikipedia, github, muchas
+    # SPAs) TODO cae ahí y solo se tomaba 1 página.
+    #
+    # Pero el mismo agujero aparece al revés, con el sitemap HOMOGÉNEO. Caso
+    # real (batería 5, ikea.com): 800 URLs, las 800 de producto y el resto de
+    # buckets a cero. Se tomaban 2 de producto, los demás buckets no aportaban
+    # nada y el respaldo miraba "otras", que estaba vacía: 2 páginas de 800
+    # para sostener TODOS los checks de contenido, con score 49,8 y
+    # score_fiable=True. Generalizar a "rellena desde donde haya sobrante"
+    # cubre los dos extremos con la misma regla.
     if len(sample) < 5:
         ya = {s["url"] for s in sample}
-        for u in buckets["otras"]:
-            if u in ya:
-                continue
-            sample.append({"url": u, "bucket": "otras"})
+        for name in ("otras", "producto", "categoria", "servicio", "blog", "legal"):
+            for u in buckets.get(name, []):
+                if u in ya:
+                    continue
+                ya.add(u)
+                sample.append({"url": u, "bucket": name})
+                if len(sample) >= 5:
+                    break
             if len(sample) >= 5:
                 break
     return buckets, sample[:max_total]
