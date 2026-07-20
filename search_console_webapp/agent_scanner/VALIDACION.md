@@ -8,6 +8,23 @@ volvamos a dar por bueno lo que no lo está.
 Regla que ordena todo lo de abajo: **una nota que no se ha validado se presenta
 como hipótesis, no como medida.**
 
+## Qué mide esta herramienta y qué NO
+
+Mide **preparación agéntica**, y solo eso: si un agente puede (1) alcanzar y
+leer la web, (2) interpretarla lo bastante bien para actuar sobre ella, y (3)
+operarla hasta completar una tarea.
+
+**La visibilidad generativa —que una IA te cite en sus respuestas— NO es de esta
+herramienta: es de Clicandseo.** Las dos se complementan y no se solapan. Esto
+importa al juzgar los factores: aquí un factor solo se justifica por lo que
+aporta al comportamiento agéntico. "Ayuda a que te encuentren" no es defensa
+válida en este modelo, porque esa pregunta se responde en otro producto.
+
+Consecuencia directa: C3 (datos estructurados) y C5 (contenido y confianza)
+pesan el 40% del modelo y, contra las dos cosas que sabemos medir aquí, dan
+−0,01 y 0,11. La coartada que les quedaba era la de visibilidad, y esa coartada
+pertenece a otro producto.
+
 ---
 
 ## Estudio 1 — ¿La nota predice que un agente pueda USAR la web?
@@ -72,11 +89,22 @@ calidad técnica del sitio, en webs que van de 15 a 82 puntos. Para la
 interpretación *básica*, los datos estructurados aportan mucho menos de lo que
 el sector —y nuestro modelo— asumen.
 
-**Lo que este estudio NO demuestra.** Mide extracción de hechos básicos, que es
-fácil. No mide lo difícil: que te citen en una respuesta generativa, que los
-atributos de tu producto salgan correctos en una comparativa, que te distingan
-de un competidor con nombre parecido. **"C3 no sirve" NO está demostrado**; lo
-demostrado es "C3 no cambia la extracción de hechos básicos".
+**El error de diseño, y es mío: medí el tipo de interpretación equivocado.**
+Pregunté "¿a qué se dedica esta empresa?", "¿cuál es su teléfono?". Eso es
+interpretación ENCICLOPÉDICA, y a un agente no le sirve de nada. Por eso salió
+con techo: es fácil.
+
+Lo que un agente necesita interpretar es OPERATIVO: cuál de estos 40 enlaces es
+el producto que busco; si este precio es el final o antes de impuestos, del
+producto o de un accesorio; si mi clic funcionó y el artículo entró en el
+carrito; si este botón avanza o abre un desplegable; si queda stock de esta
+talla. Ahí es donde una web es clara o ambigua para un agente, ahí no debería
+haber techo, y ahí es donde los datos estructurados tendrían su oportunidad
+real de demostrar que sirven.
+
+**"C3 no sirve" NO está demostrado.** Lo demostrado es "C3 no cambia la
+extracción de hechos básicos", que es una pregunta que a un agente no le
+importa. Queda pendiente el estudio 3.
 
 **Señal secundaria útil:** el anclaje sí caza alucinación donde el contenido es
 pobre. asana.com y coolblue.nl dieron 0% (el modelo se inventó precio/contacto);
@@ -98,8 +126,26 @@ modelos extrajeron valores distintos, o sea que son ambiguos para una IA.
 - Que la nota ordene correctamente el tramo medio.
 - Que los datos estructurados y el contenido (40% del peso) aporten a ninguno
   de los dos resultados que sabemos medir hoy.
-- Nada sobre visibilidad generativa real (citas en respuestas de IA): **no se ha
-  medido nunca**.
+
+## Estudio 3 — pendiente, y es el que falta de verdad
+
+**¿Interpreta el agente lo que necesita para ACTUAR?** El eslabón (2) de los
+tres, el único sin medir bien. No se le pregunta al modelo qué hace la empresa,
+sino lo que un agente se juega en cada paso, con la página delante:
+
+- de una lista de N controles, ¿cuál lleva al producto pedido?
+- este precio, ¿es el final, antes de impuestos, del producto o de un accesorio?
+- tras el clic, ¿entró en el carrito? (estado observable, no opinión)
+- este botón, ¿avanza el flujo o abre un desplegable?
+- ¿queda stock de esta variante?
+
+Se puntúa contra la verdad observable de la propia página (URL resultante, DOM
+tras la acción), no contra el criterio de un humano. Y se mide con DOS modelos:
+si discrepan sobre qué hace un control, la web es ambigua para un agente,
+que es exactamente el defecto que esta herramienta debe saber detectar.
+
+Esta es la prueba donde C3 y C5 pueden justificar su peso. Si tampoco aportan
+aquí, el modelo hay que repesarlo — con conjunto de validación aparte.
 
 ## Antes de repesar factores (no hacerlo aún)
 
