@@ -383,6 +383,13 @@ summary:hover{color:var(--text-2)}
         <div class="switch-row"><div><div class="t">Render JavaScript</div>
           <div class="d">Compara lo que ven los bots vs un navegador real. +2 min.</div></div>
           <label class="switch"><input type="checkbox" id="opt-render" checked><i></i></label></div>
+        <div class="switch-row"><div><div class="t">Leer como Googlebot si nos bloquean</div>
+          <div class="d">Solo para <b>verificar los factores</b> cuando ninguna otra vía obtiene
+          contenido. No toca la medición de acceso: qué bots de IA entran se sigue midiendo con su
+          UA real y el bloqueo se reporta igual. Actívalo únicamente en dominios propios o con
+          permiso del cliente: suplantar a Googlebot desde una IP que no es de Google puede
+          bloquearse más, no menos.</div></div>
+          <label class="switch"><input type="checkbox" id="opt-googlebot"><i></i></label></div>
         <div class="switch-row"><div><div class="t">Pruebas agénticas reales (check 6.3)</div>
           <div class="d">ChatGPT, Gemini y Claude pilotan un navegador real e intentan una tarea
           en tu web y en la de los competidores (carrito→checkout con datos rellenos /
@@ -594,6 +601,7 @@ $("#go").addEventListener("click",async()=>{
   $("#go").disabled=true;$("#err").textContent="";
   const payload={urls,cats,checks,render:$("#opt-render").checked,type:$("#typ").value||null,
     agents:$("#opt-agents").checked,allow_submit:$("#opt-agents").checked&&$("#opt-submit").checked,
+    ua_googlebot:$("#opt-googlebot").checked,
     agent_reps:parseInt($("#opt-reps").value||"3",10)};
   try{
     const r=await fetch("/agent/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
@@ -783,6 +791,10 @@ function paneResumen(d){
     <div class="panel" style="text-align:center">
       <div class="label">${c.level.cobertura_parcial?"Puntuación parcial":"Puntuación global"}</div>
       ${gaugeSVG(c.score,col)}
+      ${(c.via_lectura&&c.via_lectura!=="http")
+        ?`<div class="note" style="margin:-6px 0 10px">Contenido leído vía
+           <b>${esc(c.via_lectura.replace("ua:",""))}</b>${c.via_lectura.startsWith("ua:")
+           ?" — el acceso normal estaba bloqueado; el acceso real de cada bot de IA se mide aparte":""}</div>`:""}
       ${c.level.cobertura_parcial&&c.cobertura_score!=null
         ?`<div class="note" style="margin:-6px 0 10px">Cubre el
            <b>${Math.round(c.cobertura_score*100)}%</b> del modelo: solo lo que se pudo verificar</div>`:""}

@@ -12,7 +12,8 @@ from urllib.parse import urlparse
 
 from . import checks as checks_mod
 from . import discovery, scoring
-from .config import WELLKNOWN_PATHS, UA_HUMAN, BOT_UAS, get_key
+from .config import (WELLKNOWN_PATHS, UA_HUMAN, BOT_UAS, UA_ESCALERA,
+                     UA_GOOGLEBOT, get_key)
 from .httpfetch import (bot_access_matrix, fetch, jina_read, rapid_fire,
                         status_only, assert_public_url, BlockedURLError)
 from .render import render as render_page
@@ -155,8 +156,10 @@ def _trail_tipologia(ctx, typology_override):
     # Solo se culpa al acceso cuando de verdad no hemos podido leer la portada.
     home = ctx.get("home") or {}
     hb = home.get("body") or ""
+    _via = home.get("_via") or "http"
     portada_vista = (len(hb) >= 500 and (home.get("status") == 200
-                                         or home.get("_via") in ("render", "jina")))
+                                         or _via in ("render", "jina")
+                                         or _via.startswith("ua:")))
     if portada_vista:
         T("ok", det + " — sin señales de e-commerce ni de SaaS en una portada que "
                       f"sí se leyó ({len(hb)} bytes): se clasifica como 'corporativo', "
@@ -266,7 +269,8 @@ def psi_cls(url):
         return None
 
 
-def gather_context(base, typology_override=None, skip_render=False, with_psi=False):
+def gather_context(base, typology_override=None, skip_render=False, with_psi=False,
+                   ua_googlebot=False):
     """Pipeline de recogida. Cada etapa deja rastro en ctx['trail'] (fiabilidad)."""
     # `audit_domain` ya normaliza, pero a gather_context se le llama también
     # directamente (regresiones de tipología, herramientas sueltas) con el
@@ -334,25 +338,48 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     T("matriz de acceso de bots", "ok" if human == 200 else "warn",
       codes + ("" if human == 200 else " — el UA humano no recibe 200: WAF puede distorsionar"))
 
-    # RESCATE: si a nosotros nos cierran la puerta pero a un bot de IA no, la
-    # web SÍ es legible para un agente y hay que leerla como él. Antes se
-    # declaraba "no evaluable" mirando solo nuestro UA de navegador, ignorando
-    # que la matriz de bots ya tenía la respuesta. Además es lo más fiel al
-    # objeto de la auditoría: nos interesa lo que ve un bot de IA, no un Chrome.
+    # ESCALERA DE LECTURA (capa 1: verificar QUÉ tiene la web).
+    #
+    # Si la vía normal no da contenido, se prueban otras identidades. Esto NO
+    # toca la capa agéntica: la matriz de bots de arriba y los checks 1.6/2.4/4.4
+    # miden el ACCESO con el UA real de cada bot y nunca se falsean. Un sitio que
+    # deje entrar a Googlebot y rechace a GPTBot debe seguir saliendo con ese
+    # hallazgo en primer plano; leerlo por otra vía sirve para poder auditar sus
+    # ficheros, no para disimular el bloqueo.
+    #
+    # Se registran TODOS los intentos con su código, entren o no. Ese registro es
+    # el que responde a la pregunta abierta: si ninguna identidad entra, el
+    # bloqueo es por rango de IP (y cambiar de UA no lo va a arreglar); si alguna
+    # entra, era por user agent.
     if len(ctx["home"].get("body", "")) < 500 or ctx["home"]["status"] != 200:
-        for nombre, ua in BOT_UAS.items():
-            if ctx["bot_matrix"].get(nombre) != 200:
-                continue
+        escalera = [(n, BOT_UAS[n]) for n in BOT_UAS
+                    if ctx["bot_matrix"].get(n) == 200]
+        escalera += list(UA_ESCALERA.items())
+        if ua_googlebot:
+            escalera += list(UA_GOOGLEBOT.items())
+        intentos = []
+        for nombre, ua in escalera:
             res = fetch(base + "/", ua=ua)
-            if res["status"] == 200 and len(res["body"] or "") >= 500:
+            ok = res["status"] == 200 and len(res["body"] or "") >= 500
+            intentos.append(f"{nombre}={res['status']}"
+                            + (f"/{len(res['body'] or '')}B" if ok else ""))
+            if ok:
                 ctx["home"] = res
-                ctx["home"]["_via"] = f"bot:{nombre}"
+                ctx["home"]["_via"] = f"ua:{nombre}"
                 via = ctx["home"]["_via"]
-                T("home (rescate)", "ok",
-                  f"el acceso con UA de navegador no daba contenido, pero {nombre} "
-                  f"recibe HTTP 200 con {len(res['body'])} bytes: se analiza lo que "
-                  f"el sitio le sirve a un bot de IA, que es justo lo que auditamos")
                 break
+        ctx["escalera_intentos"] = intentos
+        entro = via.startswith("ua:")
+        if intentos:
+            T("escalera de lectura", "ok" if entro else "warn",
+              ("entramos como " + via[3:] + f" tras probar: {', '.join(intentos)}. "
+               "El bloqueo era por USER AGENT: se audita el contenido por esta vía y "
+               "el acceso real de cada bot sigue medido aparte en la matriz."
+               if entro else
+               f"ninguna identidad obtuvo contenido ({', '.join(intentos)}). "
+               "Con el UA de navegador tampoco: el filtro no mira quién dices ser, "
+               "así que apunta a bloqueo por RANGO DE IP del servidor que escanea. "
+               "Cambiar de user agent no lo resuelve."))
 
     if ctx["home"]["status"] == 0 and all(v == 0 for v in ctx["bot_matrix"].values()):
         # "No resuelve" y "resuelve pero nos deja colgados" NO son lo mismo.
@@ -755,7 +782,7 @@ def _degradar_si_bloqueado(results, ctx):
     # "bot:<nombre>" = la portada se rescató leyéndola como un bot de IA que SÍ
     # recibe 200. Es contenido real del sitio, y además el más pertinente para
     # esta auditoría: es lo que el sitio le sirve a una IA.
-    via_creible = via in ("render", "jina") or via.startswith("bot:")
+    via_creible = via in ("render", "jina") or via.startswith("ua:")
     home_ok = (len((ctx.get("home") or {}).get("body") or "") >= 500
                and (home_status == 200 or via_creible))
 
@@ -763,7 +790,7 @@ def _degradar_si_bloqueado(results, ctx):
     # La portada vale si la vimos como navegador con 200, o si la rescatamos
     # leyéndola como un bot de IA al que el sitio SÍ responde.
     acceso_ok = ((human == 200 and via in ("http", "render"))
-                 or via.startswith("bot:"))
+                 or via.startswith("ua:"))
     if home_ok and acceso_ok and not ciego:
         ctx["acceso_degradado"] = None
         return results
@@ -843,11 +870,13 @@ def _degradar_si_bloqueado(results, ctx):
 
 def audit_domain(base, typology_override=None, skip_render=False, with_psi=False,
                  categories=None, with_agents=False, allow_submit=False,
-                 check_ids=None, agent_repeticiones=3, agentes_pendientes=False):
+                 check_ids=None, agent_repeticiones=3, agentes_pendientes=False,
+                 ua_googlebot=False):
     """Audita un dominio y devuelve el dict de resultados (apto para JSON/UI)."""
     base = discovery.normalize(base)
     assert_public_url(base)  # anti-SSRF antes de nada
-    ctx = gather_context(base, typology_override, skip_render, with_psi)
+    ctx = gather_context(base, typology_override, skip_render, with_psi,
+                         ua_googlebot=ua_googlebot)
     # las pruebas agenticas se lanzan aparte desde el informe: el check 6.3 lo
     # dice asi en vez de pedir que se active algo que ya esta activado
     ctx["agentes_pendientes"] = bool(agentes_pendientes) and not with_agents
@@ -918,6 +947,11 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
         # aplica). Baja cuando hay categorías que NO pudimos medir, y su peso
         # ya no se reparte sobre las demás para no inflarlas.
         "cobertura_score": cobertura,
+        # con qué identidad se consiguió leer el contenido, y qué se probó.
+        # Va al informe: no es lo mismo un 40 leído como Chrome que uno
+        # leído como Googlebot en una web que rechaza a los bots de IA.
+        "via_lectura": (ctx.get("home") or {}).get("_via", "http"),
+        "escalera_intentos": ctx.get("escalera_intentos"),
         "checks": results,
         "bot_matrix": ctx["bot_matrix"],
         "buckets": ctx["buckets_size"],

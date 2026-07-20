@@ -12,6 +12,27 @@ import re
 UA_HUMAN = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 
+# Peldaños EXTRA de la escalera de lectura, solo para la capa 1 (verificar qué
+# tiene la web). NUNCA se usan en la matriz de acceso ni en la capa agéntica:
+# allí el UA es el objeto de la medición y falsearlo destruiría el dato.
+#
+# Googlebot va aparte y DESACTIVADO por defecto a propósito. Google publica sus
+# rangos y recomienda verificar por DNS inverso; los WAF serios lo comprueban,
+# así que un "soy Googlebot" desde una IP de centro de datos es una firma de
+# suplantación y puede bloquearse MÁS que un visitante anónimo. Además, esto
+# audita también dominios de terceros: se activa por decisión explícita de quien
+# audita, para su propio dominio o con permiso del cliente.
+UA_ESCALERA = {
+    "Bingbot": ("Mozilla/5.0 (compatible; bingbot/2.0; "
+                "+http://www.bing.com/bingbot.htm)"),
+}
+UA_GOOGLEBOT = {
+    "Googlebot-Smartphone": (
+        "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile "
+        "Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"),
+}
+
 BOT_UAS = {
     "GPTBot": ("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; "
                "GPTBot/1.2; +https://openai.com/gptbot"),

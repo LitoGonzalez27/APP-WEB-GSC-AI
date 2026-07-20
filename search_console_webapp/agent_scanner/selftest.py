@@ -1463,6 +1463,47 @@ def test_cierre_de_cookies_multiidioma():
       and "cookiebot" in js.lower(), "faltan los selectores de OneTrust/Cookiebot")
 
 
+def test_escalera_de_lectura():
+    """Idea de Carlos: si nos bloquean, probar otras identidades para poder
+    verificar los 40 factores — como hace Screaming Frog.
+
+    Se implementa con tres condiciones que la hacen honesta:
+      1. Solo afecta a la capa 1 (QUÉ tiene la web). La matriz de acceso y los
+         checks 1.6/2.4/4.4 siguen midiendo con el UA real de cada bot: si un
+         sitio deja entrar a Googlebot y rechaza a GPTBot, ESE es el hallazgo y
+         no puede quedar tapado por haber entrado por otra puerta.
+      2. Googlebot va DESACTIVADO por defecto: suplantarlo desde una IP que no
+         es de Google es una firma de spoofing que los WAF serios penalizan, y
+         esto audita también dominios de terceros.
+      3. Se registran TODOS los intentos con su código. Ese registro es el que
+         dirá si el bloqueo de producción es por user agent o por rango de IP,
+         que hoy no lo sabemos.
+    """
+    from .config import UA_ESCALERA, UA_GOOGLEBOT, BOT_UAS, UA_HUMAN
+    t("escalera_tiene_bingbot", any("bingbot" in v.lower() for v in UA_ESCALERA.values()),
+      "falta un peldaño intermedio antes de recurrir a Googlebot")
+    t("googlebot_va_aparte", "Googlebot-Smartphone" in UA_GOOGLEBOT
+      and not any("googlebot" in v.lower() for v in UA_ESCALERA.values()),
+      "Googlebot no puede estar en la escalera por defecto")
+    t("googlebot_fuera_de_la_matriz",
+      not any("googlebot" in v.lower() for v in BOT_UAS.values()),
+      "la matriz mide bots de IA: meter a Googlebot ahí falsearía el acceso")
+
+    src = open(os.path.join(os.path.dirname(__file__), "engine.py")).read()
+    t("escalera_googlebot_es_opt_in", "if ua_googlebot:" in src,
+      "Googlebot solo entra en la escalera si quien audita lo activa")
+    t("escalera_registra_intentos", 'ctx["escalera_intentos"] = intentos' in src,
+      "sin el registro de intentos no sabremos si el bloqueo es por IP o por UA")
+    t("escalera_distingue_ip_de_ua", "RANGO DE IP" in src and "por USER AGENT" in src,
+      "el trail debe decir cuál de las dos cosas está pasando")
+    t("escalera_no_tapa_el_bloqueo", "sigue medido aparte en la matriz" in src,
+      "hay que dejar dicho que el acceso real se mide con el UA de cada bot")
+
+    # la vía usada viaja al informe: un 40 leído como Googlebot no es un 40
+    # leído como Chrome, y quien lo lee tiene que poder distinguirlo
+    t("via_lectura_en_el_resultado", '"via_lectura":' in src, "falta exponer la vía")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
