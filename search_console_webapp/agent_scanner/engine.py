@@ -334,6 +334,26 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     T("matriz de acceso de bots", "ok" if human == 200 else "warn",
       codes + ("" if human == 200 else " — el UA humano no recibe 200: WAF puede distorsionar"))
 
+    # RESCATE: si a nosotros nos cierran la puerta pero a un bot de IA no, la
+    # web SÍ es legible para un agente y hay que leerla como él. Antes se
+    # declaraba "no evaluable" mirando solo nuestro UA de navegador, ignorando
+    # que la matriz de bots ya tenía la respuesta. Además es lo más fiel al
+    # objeto de la auditoría: nos interesa lo que ve un bot de IA, no un Chrome.
+    if len(ctx["home"].get("body", "")) < 500 or ctx["home"]["status"] != 200:
+        for nombre, ua in BOT_UAS.items():
+            if ctx["bot_matrix"].get(nombre) != 200:
+                continue
+            res = fetch(base + "/", ua=ua)
+            if res["status"] == 200 and len(res["body"] or "") >= 500:
+                ctx["home"] = res
+                ctx["home"]["_via"] = f"bot:{nombre}"
+                via = ctx["home"]["_via"]
+                T("home (rescate)", "ok",
+                  f"el acceso con UA de navegador no daba contenido, pero {nombre} "
+                  f"recibe HTTP 200 con {len(res['body'])} bytes: se analiza lo que "
+                  f"el sitio le sirve a un bot de IA, que es justo lo que auditamos")
+                break
+
     if ctx["home"]["status"] == 0 and all(v == 0 for v in ctx["bot_matrix"].values()):
         # "No resuelve" y "resuelve pero nos deja colgados" NO son lo mismo.
         # Caso real (batería 5): fnac.fr resuelve perfectamente (165.160.13.20)
@@ -676,6 +696,37 @@ def _cobertura_ciega(ctx):
     return not ctx.get("pages") and sin_senales
 
 
+def _veredicto_de_acceso(ctx):
+    """¿Qué podemos AFIRMAR sobre el acceso, con la evidencia que tenemos?
+
+    Antes esto era un único "puerta cerrada a agentes" que se disparaba solo con
+    que nuestro UA de navegador no recibiera contenido — ignorando la matriz de
+    bots, que ya tenía la mitad de la respuesta. Caso real: argal.com y noel.es
+    salían "puerta cerrada" desde el servidor de producción y desde otra red
+    servían 136 KB y 85 KB sin problema. Estábamos describiendo el bloqueo de un
+    rango de IPs como si fuera la política del cliente hacia los agentes.
+
+    Tres situaciones distintas:
+      puerta_cerrada : vimos la web con navegador Y vimos que rechaza a los bots
+                       de IA. Hallazgo agéntico, con las dos mitades probadas.
+      no_evaluable   : no la pudimos leer, y los bots tampoco. No se distingue
+                       "bloquea toda automatización" de "bloquea nuestra IP", así
+                       que no se afirma ninguna de las dos.
+      None           : se pudo leer (por navegador o rescatada como bot) y la
+                       nota va por la escala normal.
+    """
+    bm = ctx.get("bot_matrix") or {}
+    bots = {k: v for k, v in bm.items() if k != "_human"}
+    algun_bot_entra = any(v == 200 for v in bots.values())
+    humano_entra = bm.get("_human") == 200
+
+    if humano_entra and bots and not algun_bot_entra:
+        return "puerta_cerrada"
+    if (ctx.get("acceso_degradado") or {}).get("nivel") == "total":
+        return "no_evaluable"
+    return None
+
+
 def _degradar_si_bloqueado(results, ctx):
     """Si no hemos podido ver el sitio (o solo en parte), no afirmamos ausencias.
     Distinguir 'no está' de 'no lo he podido mirar' es la diferencia entre un
@@ -701,11 +752,19 @@ def _degradar_si_bloqueado(results, ctx):
     # culpar a la web ajena de nuestra propia ceguera.
     # Una portada es creíble si el servidor la dio por buena (200) o si la
     # rescatamos por otra vía (render/jina), que sí sustituyen el cuerpo.
+    # "bot:<nombre>" = la portada se rescató leyéndola como un bot de IA que SÍ
+    # recibe 200. Es contenido real del sitio, y además el más pertinente para
+    # esta auditoría: es lo que el sitio le sirve a una IA.
+    via_creible = via in ("render", "jina") or via.startswith("bot:")
     home_ok = (len((ctx.get("home") or {}).get("body") or "") >= 500
-               and (home_status == 200 or via in ("render", "jina")))
+               and (home_status == 200 or via_creible))
 
     ciego = _cobertura_ciega(ctx)
-    if human == 200 and home_ok and via in ("http", "render") and not ciego:
+    # La portada vale si la vimos como navegador con 200, o si la rescatamos
+    # leyéndola como un bot de IA al que el sitio SÍ responde.
+    acceso_ok = ((human == 200 and via in ("http", "render"))
+                 or via.startswith("bot:"))
+    if home_ok and acceso_ok and not ciego:
         ctx["acceso_degradado"] = None
         return results
 
@@ -837,9 +896,7 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
 
     total, cat_scores, weights, cobertura = scoring.total_score(results, ctx["typology"])
     adjusted, penalties = scoring.apply_governance_gate(total, results, ctx["typology"])
-    # el sitio nos cerró la puerta del todo: no hay nota que interpretar
-    bloqueado = (ctx.get("acceso_degradado") or {}).get("nivel") == "total"
-    level = scoring.level_for(adjusted, bloqueado=bloqueado)
+    level = scoring.level_for(adjusted, veredicto=_veredicto_de_acceso(ctx))
 
     from .knowledge import advice_for
     for r in results:
