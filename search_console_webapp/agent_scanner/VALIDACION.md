@@ -165,42 +165,49 @@ muestra sesgada hacia webs que no se protegen.
 
 ---
 
-## Estudio 4 — interpretación operativa con muestra suficiente (jul 2026)
+## Estudio 4 — interpretación operativa, con el arreglo de cookies (jul 2026)
 
-**Método.** El mismo del estudio 3, que ya demostró separar webs, pero en
-RECORRIDO: cada modelo da 5 pasos seguidos y en cada uno predice qué pasará
-antes de pulsar. Así los clics cubren portada → listado → ficha de forma
-natural, que es el camino de "ChatGPT, entra y cómprame esto". Si un clic falla
-se vuelve a la portada y se sigue, para no perder los pasos restantes.
-**221 observaciones** sobre 24 dominios con >=4 clics cada uno.
+**Método.** Recorrido de 5 pasos por modelo (portada → listado → ficha): en cada
+paso el modelo predice qué pasará antes de pulsar, se pulsa y se clasifica lo
+ocurrido contra la verdad observable. Relanzado tras corregir el descarte de
+banners, que en la primera pasada dejó 13 dominios sin datos.
+**27 dominios, 242 observaciones.**
 
-**Fiabilidad de la medida: r=0,71 entre los dos modelos.** Coinciden bastante
-sobre qué webs son claras, así que la medida no es ruido y el techo de
-correlación es alto (~0,85). Esto importa: significa que si la nota no
-correlaciona, no es porque el termómetro falle.
+**Lo que SÍ es estable — el dato de mercado:**
 
-**Resultado principal — el dato de mercado de esta herramienta:**
+> **Un modelo puntero acierta solo el 27-28% de las veces qué va a pasar al
+> pulsar un control.** Dos ejecuciones independientes: 27% (221 clics) y 28%
+> (242 clics). Es un agregado sobre cientos de observaciones y no se mueve.
 
-> **Un modelo puntero acierta solo el 27% de las veces qué va a pasar al pulsar
-> un control.** 221 clics reales, 24 webs reales.
+Separa mucho (desviación 32%): stripe.com y cloudflare.com al 100%, canva.com y
+noel.es al 80%, frente a 12 dominios al 0%. Ahí es donde muere la venta
+agéntica, y es lo que esta herramienta debe saber señalar.
 
-Y separa muchísimo (desviación 32%): stripe.com y cloudflare.com aciertan el
-100%, canva.com el 90%, noel.es el 80% — frente a 8 dominios en el 0%
-(empik.com, funda.nl, gov.pl, hema.nl, komputronik.pl, mailchimp.com,
-pccomponentes.com, uu.nl). Ahí es donde se pierde la venta agéntica.
+**Lo que NO se puede afirmar, y aquí está la lección del estudio.**
 
-**¿Predice la nota? Sigue sin poder afirmarse.** r=0,27 (Spearman 0,21) con
-n=24: no se distingue de cero. Por categoría, C1 0,38 · C6 0,23 · C3 0,16 ·
-C2 0,13 · C4 −0,07 · C5 −0,03. Ojo al vuelco: C4 era el mejor predictor de
-completar la tarea (0,53) y aquí es el peor.
+La correlación global sale r=0,26 (Spearman 0,21). Parece un "no predice". Pero
+al partir los 27 dominios por la mitad para validar de verdad:
 
-**Por qué este estudio TAMPOCO cierra la pregunta, y es culpa nuestra:** 13 de
-37 dominios se quedaron sin una sola observación por un bug propio — el
-descarte de banners de cookies exigía texto exacto de una palabra y no cerraba
-"Godta alle" ni "Allow all cookies", así que el overlay interceptaba todos los
-clics. Corregido después de medir (main `d7301ec`). **La muestra de 24 está
-sesgada hacia webs cuyo banner sí cerrábamos, y la correlación hay que
-recalcularla con el arreglo puesto antes de tocar los pesos.**
+| Mitad de prueba | Nota ACTUAL | Nota REPESADA con la otra mitad |
+|---|---|---|
+| A → B (n=13) | **r = 0,80** | r = 0,13 |
+| B → A (n=14) | **r = −0,17** | r = −0,32 |
+
+**La misma nota da 0,80 en una mitad y −0,17 en la otra.** Con n≈27 la
+estimación está dominada por qué dominios caen en la muestra. Es decir:
+
+1. **Repesar NO está justificado.** Los pesos derivados de una mitad empeoran en
+   la otra. Y son contradictorios: en la mitad A ninguna categoría da señal; en
+   la B, C1=0,61 y C6=0,71. Eso es ruido, no estructura.
+2. **Tampoco está justificado concluir "la nota no predice".** Ni el 0,26
+   global, ni los valores por categoría de este documento, son estables a este
+   tamaño. Incluye a los que aparecen más arriba: hay que leerlos como
+   indicios, nunca como medidas.
+
+**Cuánta muestra haría falta.** Para distinguir con confianza un r≈0,3 de cero
+hacen falta del orden de **85-100 dominios medibles**, no 27. Y "medibles" es la
+palabra: hoy 10 de 37 siguen sin dar un solo clic verificable, así que habría
+que partir de un panel bastante mayor.
 
 ---
 
@@ -213,8 +220,12 @@ recalcularla con el arreglo puesto antes de tocar los pesos.**
 | 3 | Interpretación operativa (1 clic) | −0,12 |
 | 4 | Interpretación operativa (221 clics) | **+0,16** |
 
-Cuatro formas distintas de preguntarlo. La cuarta, que es la de mejor muestra,
-por fin da positivo — pero flojo y sobre una submuestra sesgada. **Sigue sin estar
+Cuatro formas distintas de preguntarlo, ninguna con relación clara. Pero
+**ninguno de estos números es estable a n=27** (ver la validación cruzada del
+estudio 4), así que la tabla vale como indicio de por dónde mirar y para nada
+más. C3 sigue siendo el primer candidato a revisar cuando haya muestra —
+pesa 20 sobre 100 y no ha aparecido con fuerza en ninguna medición— pero
+**tocarlo hoy sería ajustar a ruido.** **Sigue sin estar
 demostrado que C3 no sirva** (los estudios 2 y 3 tienen los límites que se
 detallan arriba), pero pesa 20 sobre 100 y no ha aparecido ni una vez. Es el
 primer candidato a revisar cuando haya datos para repesar.
