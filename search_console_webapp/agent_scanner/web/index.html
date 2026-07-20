@@ -781,8 +781,11 @@ function paneResumen(d){
     tarde o desde otra red antes de usar estos datos.</div></div>`:"";
   return aviso+`<div class="score-grid">
     <div class="panel" style="text-align:center">
-      <div class="label">${c.level.sin_nota?"Veredicto":"Puntuación global"}</div>
-      ${c.level.sin_nota?muroSVG():gaugeSVG(c.score,col)}
+      <div class="label">${c.level.cobertura_parcial?"Puntuación parcial":"Puntuación global"}</div>
+      ${gaugeSVG(c.score,col)}
+      ${c.level.cobertura_parcial&&c.cobertura_score!=null
+        ?`<div class="note" style="margin:-6px 0 10px">Cubre el
+           <b>${Math.round(c.cobertura_score*100)}%</b> del modelo: solo lo que se pudo verificar</div>`:""}
       <div class="lvl" style="justify-content:center"><span class="lvl-dot" style="background:${col}"></span>${esc(c.level.name)}</div>
       <div class="lvl-msg">${esc(c.level.msg)}</div>${pens}
       ${countersHTML(c)}
@@ -806,7 +809,7 @@ function paneComparativa(d){
   /* Un dominio sin nota (nos cerró la puerta) no compite por "el mejor": su
      número no mide lo mismo que el de los demás. Antes podía llevarse la
      corona con una nota calculada sobre lo poco que dejó ver. */
-  const conNota=audits.filter(a=>!a.level.sin_nota);
+  const conNota=audits.filter(a=>!a.level.cobertura_parcial);
   /* Tipologías distintas NO se coronan entre sí. Al validar el modelo con
      agentes reales (21 dominios, jul 2026) la tarea de e-commerce
      —producto → carrito → checkout → datos— resultó mucho más dura que la de
@@ -830,10 +833,10 @@ function paneComparativa(d){
     quédate con el desglose por categoría de abajo, que sí es comparable.</div></div>`:"";
   const cards=audits.map((a,i)=>{
     const col=LVL[a.level.emoji]||"#94A3B8";
-    return`<div class="vs-card${(!a.level.sin_nota&&best!==null&&a.score===best)?" win":""}">
+    return`<div class="vs-card${(!a.level.cobertura_parcial&&best!==null&&a.score===best)?" win":""}">
     <div class="label">${i===0?"Tu web":"Competidor "+i}</div>
     <div class="vs-host"><span class="vs-dot" style="background:${SERIES[i%3]}"></span>${esc(a.host)}</div>
-    <div class="ring">${a.level.sin_nota?muroSVG(118):ringSVG(a.score,col)}</div>
+    <div class="ring">${ringSVG(a.score,col)}</div>
     <div class="vs-lvl">${a.level.emoji} ${esc(a.level.name)} · ${esc(a.typology)}</div></div>`}).join("");
 
   /* mapa de calor: categorías × dominios, el vistazo de 2 segundos */

@@ -89,11 +89,13 @@ def build_pdf(data):
                      fontName="Helvetica-Bold", fontSize=8.5, fillColor=DARK))
         return d
 
-    def donut(pct, size=3.4 * cm):
-        """Donut del score global, coloreado por nivel."""
+    def donut(pct, size=3.4 * cm, parcial=False):
+        """Donut del score global. `parcial` = la nota solo cubre lo que se pudo
+        verificar (el sitio no nos dejó leer su contenido): se pinta en gris y
+        se rotula, en vez de ocultarla, que dejaba al cliente sin informe."""
         d = Drawing(size, size)
         r, cx, cy = size / 2, size / 2, size / 2
-        col = color_for(pct)
+        col = GREY if parcial else color_for(pct)
         d.add(Circle(cx, cy, r, fillColor=colors.HexColor("#EEF2F7"), strokeColor=None))
         ang = max(min(pct, 100), 0) * 3.6
         if ang > 0:
@@ -101,7 +103,8 @@ def build_pdf(data):
         d.add(Circle(cx, cy, r * 0.68, fillColor=colors.white, strokeColor=None))
         d.add(String(cx, cy + 1, f"{pct:g}", fontName="Helvetica-Bold", fontSize=21,
                      fillColor=DARK, textAnchor="middle"))
-        d.add(String(cx, cy - 11, "de 100", fontName="Helvetica", fontSize=7,
+        d.add(String(cx, cy - 11, "parcial" if parcial else "de 100",
+                     fontName="Helvetica", fontSize=7,
                      fillColor=GREY, textAnchor="middle"))
         return d
 
@@ -157,11 +160,11 @@ def build_pdf(data):
             if vals:
                 etapas_txt.append(f"{label} <b>{round(sum(vals)/len(vals)*100)}%</b>")
 
-        sin_nota = bool(lvl.get("sin_nota"))
-        if sin_nota:
+        parcial = bool(lvl.get("cobertura_parcial"))
+        if parcial:
             lvl_color = GREY
         verdict = Table([[
-            muro() if sin_nota else donut(score),
+            donut(score, parcial=parcial),
             Paragraph(f'<b><font size="14" color="{lvl_color.hexval()}">{esc(lvl.get("name",""))}</font></b><br/>'
                       f'<font size="9.5" color="#0F172A">{esc(lvl.get("msg",""))}</font><br/><br/>'
                       f'<font size="8.5" color="#64748B">{" &nbsp;·&nbsp; ".join(etapas_txt)}</font>', BODY),

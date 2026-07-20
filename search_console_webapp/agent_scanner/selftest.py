@@ -1231,35 +1231,70 @@ def test_peso_no_medido_no_se_reparte():
       f"ciego={total}/cob{cob} vs na={total_na}/cob{cob_na}")
 
 
-def test_bloqueado_no_tiene_nota():
-    """Decisión de producto (batería 6): un sitio que cierra la puerta a cal y
-    canto no pertenece a la escala 0-100.
+def test_veredicto_de_acceso_usa_la_matriz_de_bots():
+    """Bug en producción: argal.com y noel.es salían "Puerta cerrada a agentes"
+    desde el servidor, y desde otra red servían 136 KB y 85 KB sin problema.
 
-    allegro.pl salía con 59.6 y la etiqueta "Agent-aware" —la segunda mejor del
-    modelo— sin que hubiéramos visto ni una de sus páginas. Un 0 tampoco sería
-    cierto: su llms.txt (12 KB curados) y su OAuth funcionan de verdad,
-    verificados a mano. Así que sale con veredicto propio y sin nota.
+    El veredicto se decidía SOLO con nuestro UA de navegador, ignorando la matriz
+    de bots — que ya tenía media respuesta. Estábamos describiendo el bloqueo del
+    rango de IPs de Railway como si fuera la política del cliente hacia los
+    agentes. Tres situaciones que no son la misma:
+      - humano 200 y bots bloqueados -> puerta cerrada, EVIDENCIADO
+      - todo bloqueado               -> no evaluable desde nuestra red
+      - humano bloqueado, bots 200   -> se lee como bot y se analiza normal
     """
-    normal = scoring.level_for(59.6)
-    t("nivel_normal_sigue_igual", normal["name"] == "Agent-aware" and not normal.get("sin_nota"),
-      str(normal))
-    bloq = scoring.level_for(59.6, bloqueado=True)
-    t("bloqueado_no_es_agent_aware", bloq["name"] != "Agent-aware", str(bloq))
-    t("bloqueado_marca_sin_nota", bloq.get("sin_nota") is True, str(bloq))
-    t("bloqueado_explica_el_muro", "no sirve contenido" in bloq["msg"], bloq["msg"])
-    # el JSON que consumen las IAs no puede llevar el número: promediarlo o
-    # compararlo contra otros dominios sería tratarlo como si midiera lo mismo
+    def ctx_con(matrix, nivel=None):
+        c = {"bot_matrix": matrix}
+        if nivel:
+            c["acceso_degradado"] = {"nivel": nivel}
+        return c
+
+    cerrada = ctx_con({"_human": 200, "GPTBot": 403, "ClaudeBot": 403})
+    t("veredicto_puerta_cerrada", engine._veredicto_de_acceso(cerrada) == "puerta_cerrada",
+      "vimos la web Y la vimos rechazar bots: eso sí es un hallazgo agéntico")
+
+    todo = ctx_con({"_human": 403, "GPTBot": 403, "ClaudeBot": 403}, nivel="total")
+    t("veredicto_no_evaluable", engine._veredicto_de_acceso(todo) == "no_evaluable",
+      "si nos bloquean a todos no se puede afirmar nada sobre agentes")
+
+    solo_a_nosotros = ctx_con({"_human": 403, "GPTBot": 200, "ClaudeBot": 200})
+    t("veredicto_bots_entran_no_es_bloqueo",
+      engine._veredicto_de_acceso(solo_a_nosotros) is None,
+      "si los bots de IA entran con 200, la web NO está cerrada a agentes")
+
+    normal = ctx_con({"_human": 200, "GPTBot": 200})
+    t("veredicto_normal", engine._veredicto_de_acceso(normal) is None, "acceso correcto")
+
+    # y los niveles resultantes dicen cosas distintas
+    lv_c = scoring.level_for(30.0, veredicto="puerta_cerrada")
+    lv_n = scoring.level_for(30.0, veredicto="no_evaluable")
+    t("nivel_cerrada_no_es_parcial", not lv_c.get("cobertura_parcial"),
+      "la puerta cerrada está evidenciada: la nota es real, no parcial")
+    t("nivel_no_evaluable_es_parcial", lv_n.get("cobertura_parcial") is True, str(lv_n))
+    t("nivel_no_evaluable_no_acusa", "no podemos distinguirlo" in lv_n["msg"],
+      "no se puede afirmar que el sitio bloquee si puede ser nuestra IP")
+
+
+def test_nota_parcial_se_entrega():
+    """Nos pasamos de frenada: al dejar de puntuar los sitios que no podíamos
+    leer, el cliente se quedaba SIN informe. En argal.com se verifican robots,
+    sitemap, cabeceras, .well-known y DNS sin necesidad de ver la portada: eso
+    es entregable si se dice qué cubre.
+    """
     from . import report_json
+    lv = scoring.level_for(22.5, veredicto="no_evaluable")
     payload = report_json.build_json({
-        "client": {"host": "h", "score": 59.6, "score_pre_gate": 64.6,
-                   "level": bloq, "checks": [], "category_scores": {},
+        "client": {"host": "h", "score": 22.5, "score_pre_gate": 27.5, "level": lv,
+                   "checks": [], "category_scores": {}, "cobertura_score": 0.45,
                    "score_fiable": False,
                    "acceso_degradado": {"nivel": "total", "motivo": "m", "degradados": 12}},
         "competitors": [], "generated": "2026-07-19"})
     p = payload["cliente"]["puntuacion"]
-    t("json_bloqueado_sin_numero", p["global_0_a_100"] is None, str(p))
-    t("json_bloqueado_dice_por_que", p["hay_nota"] is False and p["motivo_sin_nota"],
-      str(p))
+    t("json_entrega_la_nota_parcial", p["global_0_a_100"] == 22.5,
+      f"la nota de lo verificado SÍ se entrega: {p}")
+    t("json_marca_cobertura_parcial", p["cobertura_parcial"] is True, str(p))
+    t("json_dice_que_cubre", p["cobertura_del_modelo"] == 0.45, str(p))
+    t("json_explica_el_limite", bool(p["aviso_cobertura"]), str(p))
 
 
 def test_agente_bloqueado_no_es_fallo_de_la_web():

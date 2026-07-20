@@ -28,6 +28,48 @@ def _estado(score, manual=False):
     return "falla"
 
 
+def _bloque_llms(a):
+    """Capa 2 del informe: qué pasó al soltar LLMs reales sobre la web.
+
+    Se presenta aparte de la verificación de factores porque responde a otra
+    pregunta y con otro tipo de evidencia: la capa 1 comprueba si los ficheros
+    están y están bien; esta ejecuta una tarea y mira si se completa.
+    """
+    at = a.get("agent_tests")
+    if not at:
+        return {"ejecutada": False,
+                "como_ejecutarla": "Pulsa «Simular agentes» en el informe (10-15 min).",
+                "por_que_importa": ("La verificación de factores dice si tienes las "
+                                    "piezas puestas; esta prueba dice si un agente "
+                                    "real consigue completar la tarea.")}
+    agentes = at.get("agents") or {}
+    medidos = {k: v for k, v in agentes.items()
+               if v.get("outcome") not in ("no_disponible", "no_verificable", None)}
+    ciegos = [k for k, v in agentes.items() if v.get("outcome") == "no_verificable"]
+    return {
+        "ejecutada": True,
+        "tarea": at.get("typology"),
+        "hitos_de_la_tarea": at.get("hitos_tarea"),
+        "modelos_usados": sorted(agentes),
+        "repeticiones_por_modelo": at.get("repeticiones"),
+        "resultado_por_modelo": {
+            k: {"desenlace": v.get("outcome"),
+                "intentos": v.get("intentos"),
+                "exitos": v.get("exitos"),
+                "consistencia_0_a_1": v.get("consistencia"),
+                "recorrido": v.get("progreso"),
+                "limite_de_nuestro_metodo": bool(v.get("limite_de_metodo")),
+                "detalle": v.get("detail")}
+            for k, v in agentes.items()},
+        "sin_evidencia_por_bloqueo": ciegos,
+        "lectura": ("Ningún modelo pudo ver la web: esta capa no aporta evidencia "
+                    "ni a favor ni en contra." if not medidos else
+                    "Compara este resultado con la nota de factores: una web puede "
+                    "tener las piezas puestas y aun así atascar al agente."),
+        "envio_de_formularios_reales": at.get("envios_reales", 0),
+    }
+
+
 def _domain_block(a):
     if not a or "error" in (a or {}):
         return {"error": (a or {}).get("error", "sin datos"), "domain": (a or {}).get("domain")}
@@ -64,7 +106,7 @@ def _domain_block(a):
 
     # Fiabilidad primero: si el sitio bloqueó el acceso, cualquier IA que consuma
     # este JSON debe toparse con el aviso ANTES que con la puntuación.
-    sin_nota = bool((a.get("level") or {}).get("sin_nota"))
+    parcial = bool((a.get("level") or {}).get("cobertura_parcial"))
     fiable = a.get("score_fiable", True)
     fiabilidad = {"puntuacion_fiable": fiable}
     deg = a.get("acceso_degradado")
@@ -94,13 +136,16 @@ def _domain_block(a):
         # número, para que una IA que consuma esto no pueda promediarlo ni
         # compararlo con otros dominios como si midieran lo mismo.
         "puntuacion": {
-            "global_0_a_100": None if sin_nota else a.get("score"),
-            "hay_nota": not sin_nota,
-            "motivo_sin_nota": ((a.get("level") or {}).get("msg") if sin_nota else None),
+            "global_0_a_100": a.get("score"),
+            # La nota se entrega SIEMPRE, pero cuando la cobertura es parcial hay
+            # que decirlo aquí mismo: ocultarla dejaba al cliente sin informe, y
+            # darla sin contexto era el bug contrario.
+            "cobertura_parcial": parcial,
+            "aviso_cobertura": ((a.get("level") or {}).get("msg") if parcial else None),
             # qué fracción del modelo cubre la nota (1.0 = todo lo que aplica).
             # Baja cuando hubo categorías que no se pudieron medir.
             "cobertura_del_modelo": a.get("cobertura_score"),
-            "antes_de_penalizaciones": None if sin_nota else a.get("score_pre_gate"),
+            "antes_de_penalizaciones": a.get("score_pre_gate"),
             "penalizaciones": [{"motivo": p[0], "puntos": p[1]} for p in (a.get("penalties") or [])],
             "nivel": (a.get("level") or {}).get("name"),
             "nivel_significado": (a.get("level") or {}).get("msg"),
@@ -122,7 +167,12 @@ def _domain_block(a):
         "superficie_agentica_encontrada": list((a.get("wellknown") or {}).keys()),
         "paginas_muestreadas": a.get("pages_sampled"),
         "cobertura": a.get("coverage"),
-        "pruebas_agenticas": a.get("agent_tests"),
+        # DOS CAPAS SEPARADAS a propósito (ver `_meta.dos_capas`):
+        #  1) verificación de factores -> todo lo de arriba, comprobación objetiva
+        #  2) prueba con LLMs reales   -> esto, evidencia empírica aparte
+        # Estaban mezcladas: el resultado de los agentes entraba en la nota como
+        # un factor más (6.3) y no se leía como lo que es, una prueba de campo.
+        "prueba_con_llms": _bloque_llms(a),
         "trazabilidad_procesos": a.get("trail"),
     }
 
@@ -154,6 +204,15 @@ def build_json(data):
                               "'puntuacion_fiable' es false, el sitio bloqueó nuestro acceso: "
                               "NO uses su puntuación ni lo compares contra otros. Los factores "
                               "no comprobables figuran como 'no_aplica_o_no_medido', no como fallo.",
+                "dos_capas": {
+                    "1_verificacion_de_factores": "Comprobación objetiva de qué tiene "
+                        "la web y si está bien puesto (robots, llms.txt, datos "
+                        "estructurados, formularios…). De aquí sale la puntuación.",
+                    "2_prueba_con_llms": "Se sueltan modelos reales a completar una "
+                        "tarea en la web y se mide qué consiguen. Va en "
+                        "'prueba_con_llms' de cada dominio. Es evidencia empírica, "
+                        "no una comprobación de ficheros: léelas por separado.",
+                },
                 "sugerencias_de_uso_con_ia": [
                     "Genera un plan de implementación priorizado por impacto/esfuerzo a partir de 'hallazgos_accionables'.",
                     "Redacta tickets técnicos usando 'accion.como_se_arregla' y 'evidencia' de cada check.",

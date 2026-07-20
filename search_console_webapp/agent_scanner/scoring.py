@@ -29,18 +29,33 @@ LEVELS = [
     (76, 100, "🟢", "Agent-ready", "Ventaja competitiva real. A mantener trimestralmente."),
 ]
 
-# Un sitio que cierra la puerta a todo acceso automatizado no pertenece a la
-# escala: ponerle un 59.6 y la etiqueta "Agent-aware" (caso real: allegro.pl)
-# describe lo poco que dejó medir, no lo que un agente encontraría. Y ponerle un
-# 0 tampoco sería cierto cuando su llms.txt y su OAuth SÍ funcionan. Sale con
-# veredicto propio y sin nota.
-NIVEL_BLOQUEADO = {
+# Dos situaciones que ANTES se confundían en un solo veredicto, y no son lo
+# mismo ni de lejos (caso real: argal.com y noel.es salían "puerta cerrada" en
+# producción y desde otra red servían 136 KB y 85 KB sin problema).
+#
+# 1) PUERTA CERRADA: sí vimos la web con UA de navegador, y vimos cómo rechaza
+#    a los bots de IA. Es un hallazgo AGÉNTICO y está evidenciado: tenemos las
+#    dos mitades de la prueba.
+NIVEL_PUERTA_CERRADA = {
     "emoji": "🚫",
     "name": "Puerta cerrada a agentes",
-    "msg": ("El sitio no sirve contenido a accesos automatizados. Un agente de IA "
-            "sale del mismo tipo de red que nosotros, así que se encontraría el "
-            "mismo muro. No hay nota: lo que no se ha podido ver no se puntúa."),
-    "sin_nota": True,
+    "msg": ("La web se sirve con normalidad a un navegador, pero rechaza a los "
+            "bots de IA. No es un problema de nuestra red: hemos visto las dos "
+            "caras. Un agente que intente leerla se topa con el muro."),
+}
+# 2) NO EVALUABLE: nos bloquearon a NOSOTROS, y también a los bots de IA que
+#    probamos. No podemos distinguir "bloquea toda automatización" de "bloquea
+#    el rango de IPs desde el que escaneamos". Afirmar lo primero sería inventar:
+#    la nota se entrega con lo que sí se pudo verificar y su cobertura a la vista.
+NIVEL_NO_EVALUABLE = {
+    "emoji": "⚠️",
+    "name": "No evaluable desde nuestra red",
+    "msg": ("No hemos podido leer el contenido desde donde escaneamos. Puede ser "
+            "que el sitio bloquee toda automatización, o solo el rango de IPs de "
+            "nuestro servidor: no podemos distinguirlo, así que no lo afirmamos. "
+            "La nota cubre únicamente lo verificado (robots, sitemap, cabeceras, "
+            ".well-known, DNS); mira el porcentaje de cobertura antes de usarla."),
+    "cobertura_parcial": True,
 }
 
 
@@ -107,13 +122,18 @@ def apply_governance_gate(total, results, typology):
     return round(adjusted, 1), penalties
 
 
-def level_for(score, bloqueado=False):
-    """Veredicto. `bloqueado` = no se pudo ver el sitio (nivel de degradacion
-    'total'): entonces no hay nota que interpretar, hay un muro que reportar.
+def level_for(score, bloqueado=False, veredicto=None):
+    """Veredicto. `veredicto` fuerza uno de los especiales:
+      'puerta_cerrada' -> vimos la web y la vimos rechazar bots de IA.
+      'no_evaluable'   -> no pudimos leerla desde nuestra red; la nota es parcial
+                          y se entrega con su cobertura, no se oculta.
     Nace aqui a proposito: web, PDF y JSON leen todos `level`, asi que el
-    veredicto nuevo llega a los tres canales sin poder desincronizarse."""
-    if bloqueado:
-        return dict(NIVEL_BLOQUEADO)
+    veredicto llega a los tres canales sin poder desincronizarse.
+    `bloqueado` se mantiene por compatibilidad y equivale a 'no_evaluable'."""
+    if veredicto == "puerta_cerrada":
+        return dict(NIVEL_PUERTA_CERRADA)
+    if veredicto == "no_evaluable" or bloqueado:
+        return dict(NIVEL_NO_EVALUABLE)
     for lo, hi, emoji, name, msg in LEVELS:
         if lo <= score <= hi:
             return {"emoji": emoji, "name": name, "msg": msg}
