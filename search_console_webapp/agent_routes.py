@@ -83,6 +83,9 @@ def _run_job(job_id, urls, opts):
                     # más lento (10-15 min) y bloqueaban la lectura del panel.
                     # Se lanzan aparte desde el informe con "Simular agentes".
                     with_agents=False,
+                    # identidad de Googlebot: solo si quien audita lo activa
+                    # a conciencia (dominio propio o con permiso del cliente)
+                    ua_googlebot=bool(opts.get("ua_googlebot")),
                     agentes_pendientes=bool(opts.get("agents")))
                 audits.append(a)
                 job["domains"][i].update(state="done", score=a["score"],
