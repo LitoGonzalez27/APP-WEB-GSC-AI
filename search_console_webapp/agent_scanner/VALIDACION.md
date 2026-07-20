@@ -127,59 +127,64 @@ modelos extrajeron valores distintos, o sea que son ambiguos para una IA.
 - Que los datos estructurados y el contenido (40% del peso) aporten a ninguno
   de los dos resultados que sabemos medir hoy.
 
-## Estudio 3 — pendiente, y es el que falta de verdad
+## Estudio 3 — interpretación OPERATIVA (hecho, jul 2026)
 
-**¿Interpreta el agente lo que necesita para ACTUAR?** El eslabón (2) de los
-tres, el único sin medir bien. No se le pregunta al modelo qué hace la empresa,
-sino lo que un agente se juega en cada paso, con la página delante:
+**Método.** Se le da al modelo la lista de controles reales de la portada y se
+le pide lo que hace un agente de compra en cada paso: elige el control que
+pulsarías para avanzar hacia comprar, y **predice qué va a pasar** de una lista
+cerrada (ficha_producto, listado_categoria, carrito, buscador, despliega_menu,
+otra_pagina, no_pasa_nada). Después se pulsa de verdad y se clasifica lo que
+ocurrió con esa misma lista. Se puntúa contra la **verdad observable** (URL
+resultante y cambio de DOM), no contra criterio humano. Dos modelos.
+25 dominios con al menos un clic verificable, de 37 lanzados.
 
-- de una lista de N controles, ¿cuál lleva al producto pedido?
-- este precio, ¿es el final, antes de impuestos, del producto o de un accesorio?
-- tras el clic, ¿entró en el carrito? (estado observable, no opinión)
-- este botón, ¿avanza el flujo o abre un desplegable?
-- ¿queda stock de esta variante?
+**El instrumento SÍ separa**, al revés que el del estudio 2: acierto medio 46%
+con desviación 42%, y dominios repartidos de 0% a 100%.
 
-Se puntúa contra la verdad observable de la propia página (URL resultante, DOM
-tras la acción), no contra el criterio de un humano. Y se mide con DOS modelos:
-si discrepan sobre qué hace un control, la web es ambigua para un agente,
-que es exactamente el defecto que esta herramienta debe saber detectar.
+**Resultado principal, y es el dato de mercado de esta herramienta:**
+**un modelo puntero acierta menos de la mitad de las veces qué va a pasar al
+pulsar un control.** Ejemplos: hema.nl pulsa "bekijk je winkelmandje" esperando
+el carrito y solo se abre un desplegable; rijksoverheid.nl pulsa el buscador y
+no pasa nada; funda.nl y notion.com prometen una cosa y llevan a otra. Frente a
+noel.es, gov.pl o stripe.com, donde los dos modelos aciertan siempre.
 
-Esta es la prueba donde C3 y C5 pueden justificar su peso. Si tampoco aportan
-aquí, el modelo hay que repesarlo — con conjunto de validación aparte.
+**Pero la nota tampoco predice esto.** Todo entre −0,12 y +0,17; NOTA GLOBAL
+0,11. C3 (datos estructurados) da −0,12: **tercera medición distinta en la que
+no aparece relación con el comportamiento agéntico.**
 
-## Antes de repesar factores (no hacerlo aún)
+**Límite honesto de este estudio:** solo 1-2 clics por dominio, así que la nota
+por sitio es 0 / 0,5 / 1, muy gruesa. Esa aspereza atenúa cualquier correlación
+por construcción. El 46% agregado (sobre ~46 observaciones) es sólido; el
+r=0,11 por dominio NO es concluyente. Para correlacionar de verdad hacen falta
+~10 clics por dominio, en varias páginas, no uno en la portada.
 
-1. n=21 y n=36 son pequeños: un r=0,4 ahí tiene un margen enorme (grosso modo
-   de 0 a 0,7). Diferencias como 0,53 vs 0,30 **no son distinguibles**.
-2. Probando combinaciones sobre los mismos datos aparecen correlaciones altas
-   (C1+C4 dio 0,57). Es selección sobre la muestra y **no aguanta con datos
-   nuevos**. Cualquier repesado necesita conjunto de validación aparte.
-3. La mitad de las tiendas grandes es inmedible (8 de 16 bloquean), así que la
-   muestra de e-commerce está sesgada hacia las que no se protegen.
+**Otro límite, nuestro:** 12 de 37 dominios se cayeron, 5 de ellos porque el
+navegador headless no vio ni un control (mango.com, coolblue.nl,
+elcorteingles.es, sephora.es, pzu.pl). Mientras eso siga así, medimos sobre una
+muestra sesgada hacia webs que no se protegen.
 
-## Bugs que salieron de validar, ya corregidos
+---
 
-Validar salió a cuenta aunque el modelo no se confirmara:
+## Estudio 4 — pendiente: el mismo, pero con muestra suficiente
 
-- El check 6.3 acusaba a la web cuando el bloqueo era nuestro (mango.com servía
-  "Access Denied" al navegador y lo registrábamos como fallo del sitio).
-- SaaS de manual (asana, canva, monday) clasificados "corporativo", lo que
-  además les daba la TAREA equivocada en el 6.3.
-- Gemini perdía el 39% de sus pasos por un presupuesto de salida corto (los
-  modelos que razonan gastan tokens pensando del mismo saco), y la web pagaba
-  ese "no conseguido".
-- El panel comparativo coronaba a la mejor de dos tipologías con varas
-  distintas.
+El estudio 3 acertó con el instrumento y se quedó corto de datos. Repetirlo con
+**~10 clics por dominio** (portada, listado y ficha, no solo la portada) para
+que la nota por sitio deje de ser 0/0,5/1. Solo entonces tiene sentido mirar la
+correlación con la nota y, si sigue plana, repesar el modelo con conjunto de
+validación aparte.
 
-## Cómo reproducir
+Y antes de eso conviene arreglar lo nuestro: 5 de 37 dominios no expusieron ni
+un control al navegador headless. Mientras no los veamos, medimos sesgado.
 
-Los scripts de los estudios no viven en el repo (son de análisis, no de
-producto). Lo que hay que rehacer:
+## Dónde está C3 después de tres medidas
 
-1. Nota + agentes reales por dominio (`audit_domain` + `run_agent_tests` con
-   `allow_submit=False`), 2 proveedores × 2 pasadas.
-2. Correlación de la nota y de cada categoría contra la fracción de hitos.
-3. Estudio de interpretación: corpus servido → 5 hechos → acuerdo y anclaje.
+| Estudio | Qué mide | r de C3 |
+|---|---|---|
+| 1 | Completar la tarea | −0,01 |
+| 2 | Interpretación enciclopédica | −0,08 |
+| 3 | Interpretación operativa | −0,12 |
 
-Descartar siempre, y contarlo: dominios sin nota (bloqueo total), intentos
-`no_verificable` y los marcados `limite_de_metodo`.
+Tres formas distintas de preguntarlo, ninguna relación. **Sigue sin estar
+demostrado que C3 no sirva** (los estudios 2 y 3 tienen los límites que se
+detallan arriba), pero pesa 20 sobre 100 y no ha aparecido ni una vez. Es el
+primer candidato a revisar cuando haya datos para repesar.
