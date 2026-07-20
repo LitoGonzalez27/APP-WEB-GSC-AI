@@ -165,26 +165,56 @@ muestra sesgada hacia webs que no se protegen.
 
 ---
 
-## Estudio 4 — pendiente: el mismo, pero con muestra suficiente
+## Estudio 4 — interpretación operativa con muestra suficiente (jul 2026)
 
-El estudio 3 acertó con el instrumento y se quedó corto de datos. Repetirlo con
-**~10 clics por dominio** (portada, listado y ficha, no solo la portada) para
-que la nota por sitio deje de ser 0/0,5/1. Solo entonces tiene sentido mirar la
-correlación con la nota y, si sigue plana, repesar el modelo con conjunto de
-validación aparte.
+**Método.** El mismo del estudio 3, que ya demostró separar webs, pero en
+RECORRIDO: cada modelo da 5 pasos seguidos y en cada uno predice qué pasará
+antes de pulsar. Así los clics cubren portada → listado → ficha de forma
+natural, que es el camino de "ChatGPT, entra y cómprame esto". Si un clic falla
+se vuelve a la portada y se sigue, para no perder los pasos restantes.
+**221 observaciones** sobre 24 dominios con >=4 clics cada uno.
 
-Y antes de eso conviene arreglar lo nuestro: 5 de 37 dominios no expusieron ni
-un control al navegador headless. Mientras no los veamos, medimos sesgado.
+**Fiabilidad de la medida: r=0,71 entre los dos modelos.** Coinciden bastante
+sobre qué webs son claras, así que la medida no es ruido y el techo de
+correlación es alto (~0,85). Esto importa: significa que si la nota no
+correlaciona, no es porque el termómetro falle.
 
-## Dónde está C3 después de tres medidas
+**Resultado principal — el dato de mercado de esta herramienta:**
+
+> **Un modelo puntero acierta solo el 27% de las veces qué va a pasar al pulsar
+> un control.** 221 clics reales, 24 webs reales.
+
+Y separa muchísimo (desviación 32%): stripe.com y cloudflare.com aciertan el
+100%, canva.com el 90%, noel.es el 80% — frente a 8 dominios en el 0%
+(empik.com, funda.nl, gov.pl, hema.nl, komputronik.pl, mailchimp.com,
+pccomponentes.com, uu.nl). Ahí es donde se pierde la venta agéntica.
+
+**¿Predice la nota? Sigue sin poder afirmarse.** r=0,27 (Spearman 0,21) con
+n=24: no se distingue de cero. Por categoría, C1 0,38 · C6 0,23 · C3 0,16 ·
+C2 0,13 · C4 −0,07 · C5 −0,03. Ojo al vuelco: C4 era el mejor predictor de
+completar la tarea (0,53) y aquí es el peor.
+
+**Por qué este estudio TAMPOCO cierra la pregunta, y es culpa nuestra:** 13 de
+37 dominios se quedaron sin una sola observación por un bug propio — el
+descarte de banners de cookies exigía texto exacto de una palabra y no cerraba
+"Godta alle" ni "Allow all cookies", así que el overlay interceptaba todos los
+clics. Corregido después de medir (main `d7301ec`). **La muestra de 24 está
+sesgada hacia webs cuyo banner sí cerrábamos, y la correlación hay que
+recalcularla con el arreglo puesto antes de tocar los pesos.**
+
+---
+
+## Dónde está C3 después de cuatro medidas
 
 | Estudio | Qué mide | r de C3 |
 |---|---|---|
 | 1 | Completar la tarea | −0,01 |
 | 2 | Interpretación enciclopédica | −0,08 |
-| 3 | Interpretación operativa | −0,12 |
+| 3 | Interpretación operativa (1 clic) | −0,12 |
+| 4 | Interpretación operativa (221 clics) | **+0,16** |
 
-Tres formas distintas de preguntarlo, ninguna relación. **Sigue sin estar
+Cuatro formas distintas de preguntarlo. La cuarta, que es la de mejor muestra,
+por fin da positivo — pero flojo y sobre una submuestra sesgada. **Sigue sin estar
 demostrado que C3 no sirva** (los estudios 2 y 3 tienen los límites que se
 detallan arriba), pero pesa 20 sobre 100 y no ha aparecido ni una vez. Es el
 primer candidato a revisar cuando haya datos para repesar.
