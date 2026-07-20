@@ -1398,6 +1398,36 @@ def test_ruido_del_llm_no_es_fallo_de_la_web():
       "el informe debe decir de quién es el problema")
 
 
+def test_cierre_de_cookies_multiidioma():
+    """Bug (estudio 4, jul 2026): el banner de cookies interceptaba TODOS los
+    clics y la web se llevaba el "no conseguido".
+
+    El patrón exigía coincidencia EXACTA de una palabra suelta (/^aceptar$/) y
+    máximo 20 caracteres. Los botones reales casi nunca son así: dnb.no ofrece
+    "Godta alle" y hawkersco.com "Allow all cookies" — en ambos se cerraban CERO
+    banners, el overlay tapaba la página y los 5 pasos se iban en timeouts que
+    se apuntaban como fallo del sitio. 13 de 37 dominios se quedaron sin una
+    sola observación. Tras el arreglo, hawkersco.com pasa de 0 clics a operar.
+    """
+    src = open(os.path.join(os.path.dirname(__file__), "agents.py")).read()
+    ini = src.index("_CERRAR_JS")
+    js = src[ini:src.index("def _despejar")]
+    t("cookies_no_exige_texto_exacto", "^(aceptar|accept|entendido" not in js,
+      "el patrón anclado a una palabra no casa con 'Allow all cookies'")
+    for frase, etq in [("godta", "noruego (dnb.no: 'Godta alle')"),
+                       ("allow all", "inglés (hawkersco: 'Allow all cookies')"),
+                       ("aceitar", "portugués"), ("akkoord", "neerlandés"),
+                       ("hyväksy", "finés"), ("zaakceptuj", "polaco")]:
+        t(f"cookies_cubre_{frase[:9]}", frase in js.lower(), f"falta {etq}")
+    # privacidad: si hay opción de rechazar, se pulsa esa
+    t("cookies_prefiere_rechazar", js.index("RECHAZO") < js.index("ACEPTA")
+      and "for (const patron of [RECHAZO, ACEPTA])" in js,
+      "hay que intentar rechazar antes que aceptar")
+    # los selectores exactos de plataforma no pueden pulsar otra cosa por error
+    t("cookies_usa_selectores_conocidos", "onetrust" in js.lower()
+      and "cookiebot" in js.lower(), "faltan los selectores de OneTrust/Cookiebot")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

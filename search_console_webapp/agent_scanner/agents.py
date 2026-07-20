@@ -329,21 +329,76 @@ _CERRAR_JS = r"""
   // vería y los cerraría; el nuestro recibe una lista de elementos y no sabe
   // que algo los tapa, así que los clics fallaban por "elemento no accionable"
   // y acabábamos atribuyendo a la web un atasco que era nuestro.
-  const PATRON = /^(aceptar|accept|entendido|got it|ok|cerrar|close|rechazar|
-                    reject|continuar|dismiss|x)$/i;
+  //
+  // El patrón anterior exigía coincidencia EXACTA de una palabra suelta
+  // (/^aceptar$/) y como mucho 20 caracteres. Los botones reales casi nunca son
+  // así. Medido (estudio 4, jul 2026): dnb.no ofrece "Godta alle",
+  // hawkersco.com "Allow all cookies" — el patrón cerraba CERO en ambos, el
+  // banner interceptaba todos los clics y los 5 pasos se iban en timeouts que
+  // se apuntaban como fallo de la web. 13 de 37 dominios se quedaron sin una
+  // sola observación por esto.
+  //
+  // Primero los selectores de las plataformas de consentimiento conocidas, que
+  // son exactos y no pueden pulsar otra cosa por error. Después, texto.
+  // Se prefiere SIEMPRE rechazar sobre aceptar: es lo más respetuoso con la
+  // privacidad y desbloquea igual la interfaz.
+  const SELECTORES = [
+    '#onetrust-reject-all-handler', '.ot-pc-refuse-all-handler',
+    '#CybotCookiebotDialogBodyButtonDecline',
+    '#didomi-notice-disagree-button',
+    'button[data-testid="uc-deny-all-button"]',
+    '#onetrust-accept-btn-handler',
+    '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
+    '#CybotCookiebotDialogBodyButtonAccept',
+    '#didomi-notice-agree-button',
+    'button[data-testid="uc-accept-all-button"]',
+    '[aria-label*="accept" i][role=button]',
+  ];
   let cerrados = 0;
-  for (const el of document.querySelectorAll('button,a,[role=button],[aria-label]')) {
-    const txt = (el.innerText || el.getAttribute('aria-label') || '').trim();
-    if (!txt || txt.length > 20) continue;
-    if (!PATRON.test(txt)) continue;
+  const pulsa = (el) => {
+    if (!el) return false;
     const r = el.getBoundingClientRect();
-    if (r.width < 1 || r.height < 1) continue;
-    try { el.click(); cerrados++; } catch (e) {}
-    if (cerrados >= 3) break;
+    if (r.width < 1 || r.height < 1) return false;
+    try { el.click(); cerrados++; return true; } catch (e) { return false; }
+  };
+  for (const s of SELECTORES) {
+    try { if (pulsa(document.querySelector(s))) break; } catch (e) {}
+  }
+  // Texto: por CONTENIDO, no exacto, y multiidioma. Se ordena para que las
+  // fórmulas de rechazo se prueben antes que las de aceptación.
+  const RECHAZO = /(rechazar|reject|decline|solo (las )?necesarias|only necessary|
+                    kun nødvendige|endast nödvändiga|vain välttämättömät|
+                    alleen noodzakelijke|apenas essenciais|tylko niezbędne|
+                    nur notwendige|uniquement nécessaires)/i;
+  const ACEPTA = /(aceptar|accept|allow all|allow cookies|entendido|got it|
+                    de acuerdo|godta|godkj|godkänn|acceptera|hyväksy|
+                    accepter|akzeptieren|alle akzeptieren|aceitar|akkoord|
+                    alles accepteren|zaakceptuj|zgadzam się|accetta|
+                    tout accepter|continuar|continue)/i;
+  const cands = [...document.querySelectorAll(
+    'button,a[role=button],[role=button],input[type=button],input[type=submit]')];
+  for (const patron of [RECHAZO, ACEPTA]) {
+    if (cerrados) break;
+    for (const el of cands) {
+      const txt = (el.innerText || el.value || el.getAttribute('aria-label') || '')
+        .trim().replace(/\s+/g, ' ');
+      // Tope generoso pero no infinito: "Godta alle" o "Allow all cookies" caben,
+      // y un párrafo de política de privacidad clicable no.
+      if (!txt || txt.length > 45) continue;
+      if (!patron.test(txt)) continue;
+      if (pulsa(el)) break;
+    }
+  }
+  // Y por último lo genérico de cerrar overlays, que no es de cookies
+  if (!cerrados) {
+    for (const el of cands) {
+      const txt = (el.innerText || el.getAttribute('aria-label') || '').trim();
+      if (/^(cerrar|close|dismiss|x|×)$/i.test(txt) && pulsa(el)) break;
+    }
   }
   return cerrados;
 }
-""".replace("\n                    ", "")
+""".replace("\n                    ", " ")
 
 
 def _despejar(page):
