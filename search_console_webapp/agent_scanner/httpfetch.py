@@ -57,7 +57,21 @@ BROWSER_HEADERS = {
 }
 
 
-def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public=True):
+# Códigos que NO son una respuesta del sitio sino un tropiezo del camino: no hay
+# servicio ahora mismo, o nos han frenado por ritmo. Un 403/404/418 SÍ es una
+# respuesta deliberada y no se reintenta: reintentarlo sería insistir a quien ya
+# nos ha dicho que no, y además borraría un hallazgo real del informe.
+TRANSITORIOS = {0, 429, 502, 503, 504, 408, 425}
+REINTENTOS = 1          # un segundo intento basta para el ruido de red
+PAUSA_REINTENTO = 1.5
+
+
+def _es_transitorio(status):
+    return status in TRANSITORIOS
+
+
+def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public=True,
+          reintentar=True):
     """GET con requests. Devuelve dict homogéneo (compatible con el motor)."""
     result = {"status": 0, "body": "", "headers": "", "ttfb": None,
               "total": None, "size": 0, "url": url, "error": None}
@@ -95,11 +109,29 @@ def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public
         })
     except requests.exceptions.RequestException as exc:
         result["error"] = type(exc).__name__
+    # Sin esto, una petición perdida se leía como "la web no tiene esa cosa".
+    # En un análisis salen ~50 peticiones por dominio (21 rutas .well-known, la
+    # matriz de bots, el muestreo de páginas…): basta que UNA se pierda para
+    # reportar como ausente algo que sí está. Es el sesgo del proyecto —
+    # confundir "no está" con "no lo he podido mirar" — a escala de factor.
+    if reintentar and _es_transitorio(result["status"]):
+        time.sleep(PAUSA_REINTENTO)
+        segundo = fetch(url, ua=ua, timeout=timeout, headers=headers,
+                        verify_public=verify_public, reintentar=False)
+        if not _es_transitorio(segundo["status"]):
+            segundo["_reintentado"] = True
+            return segundo
     return result
 
 
-def status_only(url, ua=UA_HUMAN, timeout=12, verify_public=True):
-    """Solo el código HTTP (más rápido). 0 si falla."""
+def status_only(url, ua=UA_HUMAN, timeout=12, verify_public=True, reintentar=True):
+    """Solo el código HTTP (más rápido). 0 si falla.
+
+    Reintenta una vez ante códigos transitorios. Importa especialmente en la
+    matriz de acceso de bots: un ClaudeBot=0 por timeout (visto en noel.es) o un
+    GPTBot=503 pasajero (visto en elpozo.com) se publicaban como si el sitio
+    bloqueara a ese bot a propósito. Eso es una acusación, no una medición.
+    """
     if verify_public:
         try:
             assert_public_url(url)
@@ -113,9 +145,13 @@ def status_only(url, ua=UA_HUMAN, timeout=12, verify_public=True):
                             allow_redirects=True, stream=True)
         code = resp.status_code
         resp.close()
-        return code
     except requests.exceptions.RequestException:
-        return 0
+        code = 0
+    if reintentar and _es_transitorio(code):
+        time.sleep(PAUSA_REINTENTO)
+        return status_only(url, ua=ua, timeout=timeout,
+                           verify_public=verify_public, reintentar=False)
+    return code
 
 
 def bot_access_matrix(url):
@@ -126,8 +162,15 @@ def bot_access_matrix(url):
 
 
 def rapid_fire(url, ua, n=10, timeout=10):
-    """N peticiones seguidas para observar rate limiting."""
-    return [status_only(url, ua=ua, timeout=timeout) for _ in range(n)]
+    """N peticiones seguidas para observar rate limiting.
+
+    SIN reintentos, y es deliberado: aquí un 429 no es un tropiezo del camino,
+    es EL hallazgo que venimos a medir. Reintentar con pausa destruiría las dos
+    cosas que hacen válida la sonda —el ritmo y el significado— y el check 2.4
+    dejaría de ver el baneo que sí está ocurriendo.
+    """
+    return [status_only(url, ua=ua, timeout=timeout, reintentar=False)
+            for _ in range(n)]
 
 
 def jina_read(url, timeout=90):

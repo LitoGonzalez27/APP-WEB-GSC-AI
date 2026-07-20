@@ -1504,6 +1504,38 @@ def test_escalera_de_lectura():
     t("via_lectura_en_el_resultado", '"via_lectura":' in src, "falta exponer la vía")
 
 
+def test_reintento_solo_en_fallos_transitorios():
+    """Una petición perdida se leía como "la web no tiene esa cosa".
+
+    En un análisis salen ~50 peticiones por dominio y `fetch` no reintentaba
+    ninguna. Visto hoy en vivo: noel.es devolvió ClaudeBot=0 (timeout) y
+    elpozo.com GPTBot=503 pasajero, mientras el resto de UAs recibía 200. Eso se
+    publicaba como si esos sitios bloquearan a esos bots a propósito, que es una
+    acusación y no una medición.
+
+    La distinción que hace esto correcto: un 403/404/418 ES una respuesta
+    deliberada del sitio y no se reintenta —insistir borraría un hallazgo real—;
+    un timeout o un 503 es la AUSENCIA de respuesta y sí se reintenta.
+    """
+    from . import httpfetch as hf
+    for code in (0, 429, 503, 502, 504):
+        t(f"transitorio_{code}", hf._es_transitorio(code),
+          f"{code} es un tropiezo del camino, hay que reintentarlo")
+    for code in (200, 403, 404, 418, 301):
+        t(f"deliberado_{code}", not hf._es_transitorio(code),
+          f"{code} es una respuesta del sitio: reintentarla borraría el hallazgo")
+
+    src = open(os.path.join(os.path.dirname(__file__), "httpfetch.py")).read()
+    # rapid_fire mide el baneo por ritmo: ahí un 429 es EL dato, no ruido
+    ini = src.index("def rapid_fire")
+    cuerpo = src[ini:src.index("def jina_read")]
+    t("rapid_fire_sin_reintento", "reintentar=False" in cuerpo,
+      "reintentar en la sonda de rate limiting destruiría lo que mide")
+    # y el segundo intento no puede quedarse peor que el primero
+    t("reintento_solo_si_mejora", "if not _es_transitorio(segundo[\"status\"]):" in src,
+      "si el reintento vuelve a fallar hay que conservar el resultado original")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
