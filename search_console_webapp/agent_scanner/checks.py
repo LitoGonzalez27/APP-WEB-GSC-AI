@@ -335,7 +335,53 @@ def run_c3(ctx):
     out.append(R("3.5", "C3", "HTML semantico", score,
                  f"h1={h1s}, h2={h2s}, landmarks={semantic}/5, button={buttons} vs div-onclick={divs_click}"))
 
-    # 3.6 elementos fantasma vs semanticos (brecha semantica en el arbol de accesibilidad)
+    # 3.6 controles que el agente ve pero no entiende.
+    #
+    # Se mide sobre el ARBOL DE ACCESIBILIDAD REAL cuando hay render: es el mismo
+    # que consumen los agentes de navegacion (el nuestro incluido, que nombra
+    # cada control con innerText/aria-label/alt, o sea el nombre accesible).
+    # Antes solo existia el heuristico de regex sobre HTML crudo de mas abajo, y
+    # se parecia poco al arbol de verdad: r=0.35 medido sobre 14 dominios. Un
+    # check que dice medir el arbol de accesibilidad tiene que leerlo.
+    ax = (ctx.get("rendered_home") or {}).get("ax")
+    if ax and ax.get("accionables"):
+        n = ax["accionables"]
+        ciegos = ax["sin_nombre"] + ax["nombre_generico"]
+        pct = ciegos / n
+        # Umbrales calibrados con los 23 dominios medidos: la mediana de
+        # controles sin nombre es 0% y la media 2%. Exigir literalmente CERO
+        # castigaba a webs impecables — stripe.com bajaba a 0.5 por UN nombre
+        # generico entre 189 controles (0.5%), que no atasca a ningun agente.
+        # Por encima del 10% ya es una anomalia clara frente a lo que hace todo
+        # el mundo, y ahi si merece salir como fallo en el informe.
+        if pct <= 0.02:
+            score = 1
+        elif pct <= 0.10:
+            score = 0.5
+        else:
+            score = 0
+        muestra = "; ".join(
+            f"<{e['rol']}> {e['problema']}" + (f" ('{e['nombre']}')" if e.get("nombre") else "")
+            for e in (ax.get("ejemplos") or [])[:3])
+        ev = (f"Arbol de accesibilidad real: {n} controles accionables, "
+              f"{ax['sin_nombre']} sin nombre y {ax['nombre_generico']} con nombre "
+              f"generico ({pct:.0%}). Un agente los ve pero no sabe que hacen.")
+        if muestra:
+            ev += f" Ejemplos: {muestra}."
+        if score == 1:
+            # Sin afirmar "todos": con el umbral en 2% puede quedar alguno suelto,
+            # y decir que estan todos seria afirmar lo que no hemos comprobado.
+            ev = (f"Arbol de accesibilidad real: {n - ciegos} de {n} controles "
+                  f"accionables tienen nombre propio ({1 - pct:.0%}). Un agente "
+                  f"puede saber que hace cada uno.")
+            if ciegos:
+                ev += (f" Quedan {ciegos} sin nombre util, por debajo de lo que "
+                       f"atasca a un agente.")
+        out.append(R("3.6", "C3", "Controles legibles por un agente", score, ev))
+        return out
+
+    # Sin render no hay arbol: se cae al heuristico de HTML crudo, que aproxima
+    # peor pero no deja el check sin medir.
     ghost, mitigated, native = 0, 0, 0
     corpus_pages = [ctx["home"]] + [p["fetch"] for p in pages[:5]]
     for f in corpus_pages:
@@ -355,8 +401,11 @@ def run_c3(ctx):
     elif ghost <= 3 or (mitigated and ghost <= mitigated):
         score, ev = 0.5, f"{ghost} elementos fantasma (div/span clicables sin semantica) vs {native} nativos"
     else:
-        score, ev = 0, f"{ghost} elementos fantasma: invisibles como interactivos en el arbol de accesibilidad ({native} nativos)"
-    out.append(R("3.6", "C3", "Elementos fantasma vs semanticos", score, ev))
+        score, ev = 0, f"{ghost} elementos fantasma: invisibles como interactivos ({native} nativos)"
+    ev += (" [APROXIMADO: sin render no se pudo leer el arbol de accesibilidad real; "
+           "esto se estima con el HTML crudo y aproxima peor. Activa el render JS "
+           "para medirlo de verdad]")
+    out.append(R("3.6", "C3", "Controles legibles por un agente", score, ev))
     return out
 
 
