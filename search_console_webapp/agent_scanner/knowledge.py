@@ -104,9 +104,9 @@ KB = {
         "esfuerzo": "Medio", "impacto": "Medio",
     },
     "3.6": {
-        "titulo": "Hay botones 'fantasma' que los agentes no pueden usar",
-        "por_que": "El navegador convierte tu web en un árbol de accesibilidad: es lo que leen los lectores de pantalla Y los agentes de IA. Un <div> disfrazado de botón es invisible en ese árbol — el agente visual lo ve, pero el estructural no sabe que es interactivo. Cada botón fantasma es una acción (comprar, reservar, contactar) que un agente no puede ejecutar.",
-        "como": "Sustituir los <div>/<span> clicables por <button> y <a> nativos. Donde no sea posible, añadir role='button' + tabindex='0' + manejo de teclado. Regla: si se puede clicar, debe existir en el árbol de accesibilidad.",
+        "titulo": "Hay controles que un agente ve pero no sabe qué hacen",
+        "por_que": "El navegador convierte tu web en un árbol de accesibilidad, y es lo que consumen los agentes de IA: reciben una lista de controles con su rol y su NOMBRE. Un botón sin nombre, o llamado 'link' o 'ver más', llega al agente como una casilla en blanco: puede pulsarla, pero no puede decidir si debe. Ahí es donde un agente se pierde o pulsa lo que no toca — y donde se cae la compra que alguien le pidió hacer en tu web.",
+        "como": "Dar nombre propio a cada control accionable: texto visible dentro del <button>/<a>, o aria-label si es un icono ('Añadir al carrito', no 'Añadir'). Los enlaces de solo imagen necesitan alt descriptivo. Sustituye los textos genéricos ('ver más', 'aquí', 'link') por lo que hacen de verdad. Compruébalo tú: en Chrome, Inspeccionar → Elements → Accessibility → Show Accessibility Tree.",
         "esfuerzo": "Medio", "impacto": "Alto",
     },
     "4.1": {

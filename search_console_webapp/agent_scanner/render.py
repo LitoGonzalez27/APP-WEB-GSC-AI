@@ -58,6 +58,55 @@ def render(url, timeout=90, interactive=False):
     return {"ok": False, "error": "sin backend de render disponible", "html": "", "status": 0}
 
 
+# Roles del árbol que un agente puede ACCIONAR. Un nodo con uno de estos roles
+# y sin nombre accesible es un control que el agente ve pero no sabe para qué
+# sirve: puede pulsarlo, no puede decidir si debe.
+ROLES_ACCIONABLES = {"button", "link", "textbox", "combobox", "checkbox",
+                     "radio", "menuitem", "tab", "searchbox", "switch",
+                     "slider", "spinbutton", "listbox", "option"}
+# Nombres que existen pero no dicen nada: el agente sigue sin saber qué hace.
+NOMBRES_VACIOS = {"", "link", "button", "enlace", "botón", "boton", "más",
+                  "mas", "more", "click here", "clic aquí", "leer más",
+                  "read more", "ver más", "ver mas", "aquí", "aqui", "here",
+                  "…", "...", ">", "<", "→", "x"}
+
+
+def _resumen_ax(nodo):
+    """Resume el árbol de accesibilidad en lo que le importa a un agente.
+
+    No se guarda el árbol entero (son cientos de nodos y acabaría en el JSON del
+    informe): solo el recuento y una muestra de los controles problemáticos, que
+    es lo accionable para quien tiene que arreglarlo.
+    """
+    if not nodo:
+        return None
+    total = accionables = sin_nombre = generico = 0
+    ejemplos = []
+
+    def rec(n, profundidad=0):
+        nonlocal total, accionables, sin_nombre, generico
+        total += 1
+        rol = (n.get("role") or "").lower()
+        if rol in ROLES_ACCIONABLES:
+            accionables += 1
+            nombre = (n.get("name") or "").strip()
+            if not nombre:
+                sin_nombre += 1
+                if len(ejemplos) < 8:
+                    ejemplos.append({"rol": rol, "nombre": None, "problema": "sin nombre"})
+            elif nombre.lower().strip(" .:·-") in NOMBRES_VACIOS:
+                generico += 1
+                if len(ejemplos) < 8:
+                    ejemplos.append({"rol": rol, "nombre": nombre[:40],
+                                     "problema": "nombre genérico"})
+        for h in (n.get("children") or []):
+            rec(h, profundidad + 1)
+
+    rec(nodo)
+    return {"nodos": total, "accionables": accionables, "sin_nombre": sin_nombre,
+            "nombre_generico": generico, "ejemplos": ejemplos}
+
+
 def _render_playwright(url, timeout, interactive=False):
     try:
         from playwright.sync_api import sync_playwright
@@ -83,15 +132,24 @@ def _render_playwright(url, timeout, interactive=False):
             page.wait_for_timeout(3000)
             html = page.content()
             status = resp.status if resp else 200
-            boxes = None
+            boxes = ax = None
             if interactive:
                 try:
                     boxes = page.evaluate(INTERACTIVE_JS)
                 except Exception:
                     boxes = None
+                # Árbol de accesibilidad REAL, el mismo que consumen los agentes
+                # de navegación. Se toma en la misma pasada que boxes: no cuesta
+                # ni una navegación más. Antes el check 3.6 lo aproximaba con
+                # regex sobre el HTML crudo y se parecía poco al árbol de verdad
+                # (medido: r=0.35 sobre 14 dominios).
+                try:
+                    ax = _resumen_ax(page.accessibility.snapshot())
+                except Exception:
+                    ax = None
             browser.close()
             return {"ok": True, "status": status, "html": html[:2_000_000],
-                    "boxes": boxes, "error": None}
+                    "boxes": boxes, "ax": ax, "error": None}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:300], "html": "", "status": 0}
 

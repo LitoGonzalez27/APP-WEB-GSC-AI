@@ -35,7 +35,7 @@ CHECKS = [
     ("3.3", "C3", "Product/Offer operativo", "price, priceCurrency, availability en fichas"),
     ("3.4", "C3", "Atributos ricos en el marcado", "GTIN, brand, reviews, fechas, specs"),
     ("3.5", "C3", "HTML semántico", "Jerarquía de headings, landmarks, botones reales"),
-    ("3.6", "C3", "Elementos fantasma", "div/span clicables invisibles en el árbol de accesibilidad"),
+    ("3.6", "C3", "Controles legibles por un agente", "Controles del árbol de accesibilidad sin nombre propio: el agente los ve pero no sabe qué hacen"),
 
     ("4.1", "C4", "Contenido sin ejecutar JS", "HTML crudo vs renderizado: lo que ven los bots de IA"),
     ("4.2", "C4", "Precio y CTA sin JS", "El precio y el botón de compra existen sin JavaScript"),

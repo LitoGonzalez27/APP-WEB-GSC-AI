@@ -1536,6 +1536,68 @@ def test_reintento_solo_en_fallos_transitorios():
       "si el reintento vuelve a fallar hay que conservar el resultado original")
 
 
+def test_36_lee_el_arbol_de_accesibilidad_real():
+    """El check que decía medir el árbol de accesibilidad no lo leía.
+
+    Se estimaba con regex sobre el HTML crudo (contando div/span clicables).
+    Medido contra el árbol REAL de Chrome en 14 dominios: r=0.35. Un check que
+    afirma medir el árbol de accesibilidad tiene que leerlo, no aproximarlo.
+
+    Y lo que importa a un agente NO es que el control sea un <div> o un
+    <button>: es que TENGA NOMBRE. Nuestro propio harness nombra cada control
+    con innerText/aria-label/alt —el nombre accesible— y con ese nombre decide
+    qué pulsar. Un botón sin nombre le llega como una casilla en blanco.
+    """
+    def con_ax(ax):
+        ctx = ctx_base()
+        ctx["rendered_home"] = {"ok": True, "ax": ax}
+        return by_id(checks.run_c3(ctx), "3.6")
+
+    perfecto = con_ax({"nodos": 303, "accionables": 189, "sin_nombre": 0,
+                       "nombre_generico": 0, "ejemplos": []})
+    t("ax_perfecto_puntua_1", perfecto["score"] == 1, str(perfecto))
+    t("ax_cita_el_arbol_real", "Arbol de accesibilidad real" in perfecto["evidence"],
+      "la evidencia debe dejar claro que se leyó el árbol, no una estimación")
+
+    # caso real medido: noel.es, 13 de 82 controles sin nombre
+    malo = con_ax({"nodos": 124, "accionables": 82, "sin_nombre": 13,
+                   "nombre_generico": 0,
+                   "ejemplos": [{"rol": "link", "nombre": None, "problema": "sin nombre"}]})
+    t("ax_16pct_suspende", malo["score"] == 0, f"16% sin nombre es un fallo: {malo}")
+    t("ax_da_ejemplos", "Ejemplos:" in malo["evidence"],
+      "sin ejemplos concretos el cliente no sabe qué arreglar")
+
+    leve = con_ax({"nodos": 50, "accionables": 40, "sin_nombre": 2,
+                   "nombre_generico": 1, "ejemplos": []})
+    t("ax_leve_es_parcial", leve["score"] == 0.5, str(leve))
+
+    # Calibración: exigir CERO castigaba a webs impecables. stripe.com bajaba a
+    # 0.5 por UN nombre genérico entre 189 controles (0.5%), que no atasca a
+    # nadie. Con la mediana medida en 0% y la media en 2%, el corte va en 2%.
+    casi = con_ax({"nodos": 300, "accionables": 189, "sin_nombre": 0,
+                   "nombre_generico": 1, "ejemplos": []})
+    t("ax_1_de_189_sigue_siendo_bueno", casi["score"] == 1,
+      f"0.5% de controles flojos no es un fallo: {casi}")
+    t("ax_no_afirma_que_esten_todos", "de 189 controles" in casi["evidence"],
+      f"con el umbral en 2% no se puede decir 'todos': {casi['evidence'][:120]}")
+
+    # un nombre que existe pero no dice nada cuenta como ilegible
+    from .render import _resumen_ax
+    r = _resumen_ax({"role": "WebArea", "name": "x", "children": [
+        {"role": "link", "name": "ver más"}, {"role": "button", "name": ""},
+        {"role": "button", "name": "Añadir al carrito"}]})
+    t("ax_generico_cuenta", r["nombre_generico"] == 1 and r["sin_nombre"] == 1,
+      f"'ver más' no le dice nada a un agente: {r}")
+    t("ax_nombre_bueno_no_penaliza", r["accionables"] == 3, str(r))
+
+    # sin render no se inventa: se avisa de que es aproximado
+    ctx = ctx_base()
+    ctx["rendered_home"] = None
+    sin = by_id(checks.run_c3(ctx), "3.6")
+    t("ax_sin_render_avisa", "APROXIMADO" in sin["evidence"],
+      f"sin árbol hay que decir que la medida es peor: {sin['evidence'][-80:]}")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
