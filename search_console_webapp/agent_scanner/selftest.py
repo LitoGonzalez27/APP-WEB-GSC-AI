@@ -1647,6 +1647,19 @@ def test_429_se_respeta_el_ritmo_que_pide_el_sitio():
       "pasada la ventana hay que olvidar el freno")
     hf._HOSTS_FRENADOS.clear()
 
+    # Techo de paciencia: sin él, un sitio que devuelve 429 a todo hacía que un
+    # análisis (~52 peticiones) se fuera a varios minutos SOLO esperando, y el
+    # panel parecía colgado. Pasado el presupuesto se deja de esperar y el
+    # guardarraíl marca el informe como no verificable, que es lo correcto.
+    hf._ESPERA_GASTADA.clear()
+    t("presupuesto_empieza_entero", hf._queda_paciencia("https://x.test/"), "")
+    hf._gastar("https://x.test/", hf.PRESUPUESTO_ESPERA_429 + 1)
+    t("presupuesto_se_agota", not hf._queda_paciencia("https://x.test/"),
+      "pasado el techo hay que dejar de esperar, no seguir sumando minutos")
+    t("presupuesto_es_por_host", hf._queda_paciencia("https://y.test/"),
+      "gastar la paciencia con un dominio no puede penalizar al siguiente")
+    hf._ESPERA_GASTADA.clear()
+
     # la sonda que MIDE el rate limiting no puede ir espaciada ni reintentar:
     # ahí el 429 es el hallazgo, no un tropiezo
     src = open(os.path.join(os.path.dirname(__file__), "httpfetch.py")).read()
@@ -1655,6 +1668,34 @@ def test_429_se_respeta_el_ritmo_que_pide_el_sitio():
     so = src[src.index("def status_only"):src.index("def bot_access_matrix")]
     t("espaciado_solo_si_reintenta", "if reintentar:\n        _esperar_si_frenado" in so,
       "rapid_fire pasa reintentar=False, así que no debe espaciarse")
+
+
+def test_panel_no_se_mata_con_su_propio_limitador():
+    """El panel se autobloqueaba y el informe parecía colgado para siempre.
+
+    El límite por defecto de la app es 200/hora y aplicaba también a
+    /agent/api/status. El panel sondeaba cada 1.5s = 40 peticiones/minuto, así
+    que a los 5 minutos EXACTOS empezaba a recibir 429 de su propia API. Y el
+    código trataba cualquier respuesta no-ok como "análisis no encontrado" y
+    MATABA el sondeo: el análisis seguía corriendo por detrás y el panel se
+    quedaba enseñando "¿servidor reiniciado?" indefinidamente.
+    """
+    src = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    frag = src[src.index("async function poll("):src.index("/* resume por URL */")]
+    t("poll_distingue_429", "r.status===429" in frag,
+      "un 429 es nuestro limitador, no un análisis perdido")
+    t("poll_no_muere_con_429", "setTimeout(()=>poll(id,intentos+1),10000)" in frag,
+      "ante un 429 hay que reintentar más despacio, no abandonar")
+    t("poll_solo_404_es_no_encontrado", "r.status===404" in frag,
+      "solo un 404 significa de verdad que el análisis no existe")
+    t("poll_espaciado_progresivo", "_esperaSondeo" in src,
+      "sondear cada 1.5s durante 15 min son 600 peticiones")
+    # y el endpoint necesita límite propio: con el general se agota solo
+    app_src = open(os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "app.py")).read()
+    t("status_tiene_limite_propio",
+      "agent_scanner.status" in app_src and "override_defaults=True" in app_src,
+      "el endpoint de sondeo no puede compartir el límite general de 200/hora")
 
 
 def main():

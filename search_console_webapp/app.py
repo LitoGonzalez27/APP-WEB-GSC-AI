@@ -3983,6 +3983,16 @@ except Exception as e:
 try:
     from agent_routes import agent_bp
     app.register_blueprint(agent_bp)
+    # El panel sondea el estado del análisis cada pocos segundos, y un análisis
+    # puede durar 15 minutos. Con el límite por defecto (200/hora) el propio
+    # panel se autobloqueaba: a los 5 minutos exactos empezaba a recibir 429 de
+    # su propia API y el informe parecía colgado para siempre. Son lecturas de
+    # un dict en memoria y ya van autenticadas, así que llevan límite propio y
+    # ancho en vez del general.
+    for _vista in ("agent_scanner.status", "agent_scanner.agents_status"):
+        if _vista in app.view_functions:
+            app.view_functions[_vista] = limiter.limit(
+                "120 per minute", override_defaults=True)(app.view_functions[_vista])
     logger.info("✅ Agent-Ready Scanner registered at /agent")
 except Exception as e:
     logger.warning(f"⚠️ Could not register Agent-Ready Scanner: {e}")
