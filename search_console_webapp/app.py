@@ -6,7 +6,7 @@ import logging
 import traceback
 import zipfile
 from io import BytesIO
-from datetime import datetime, timedelta # Importación añadida
+from datetime import datetime, timedelta, timezone # Importación añadida
 from urllib.parse import quote
 from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
 from flask_limiter import Limiter
@@ -688,9 +688,15 @@ def get_data():
                     'error': 'En dispositivos móviles, se recomienda analizar períodos de máximo 90 días para evitar timeouts. Selecciona un período más corto.'
                 }), 400
                 
-            # Validar que las fechas estén dentro del rango permitido por GSC
-            max_date = datetime.now().date() - timedelta(days=3)  # GSC tiene delay
-            min_date = max_date - timedelta(days=16*30)  # ~16 meses atrás
+            # Validar que las fechas estén dentro del rango permitido por GSC.
+            # Fecha UTC explícita (igual que el frontend) y con 1 día de margen:
+            # un cliente cuyo día local va por delante del servidor (madrugada en
+            # España con servidor en UTC) pedía legítimamente "hoy_local - 3" y
+            # recibía un 400. Si GSC aún no tiene datos de un día, simplemente
+            # devuelve filas vacías, no hace falta rechazar la petición.
+            utc_today = datetime.now(timezone.utc).date()
+            max_date = utc_today - timedelta(days=2)
+            min_date = utc_today - timedelta(days=3 + 16*30)  # ~16 meses atrás
             
             if current_start < min_date or current_end > max_date:
                 return jsonify({'error': f'Las fechas deben estar entre {min_date} y {max_date}.'}), 400
