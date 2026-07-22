@@ -13,13 +13,12 @@ export class DateRangeSelector {
         };
         this.comparisonMode = 'none'; // 'none', 'custom', 'pop', 'yoy'
         
-        // ✅ ARREGLO: Límites de GSC corregidos (máximo 16 meses hacia atrás)
-        this.maxDate = new Date();
-        this.maxDate.setDate(this.maxDate.getDate() - 3); // GSC tiene delay de ~3 días
-        
-        this.minDate = new Date();
-        this.minDate.setMonth(this.minDate.getMonth() - 16);
-        
+        // Límites de GSC calculados sobre la fecha UTC: el backend valida con la
+        // fecha del servidor (UTC en Railway); usar la fecha local aquí adelantaba
+        // un día entre las 00:00 y las ~02:00 (hora española) y el servidor
+        // rechazaba el rango con "Las fechas deben estar entre...".
+        this.computeDateLimits();
+
         this.isModalOpen = false;
         
         // ✅ DEBUGGING: Log de límites de fechas
@@ -35,6 +34,45 @@ export class DateRangeSelector {
         this.attachEventListeners();
         this.loadSavedDates();
         this.setDefaultDates();
+    }
+
+    // Calcula min/max sobre el día UTC actual, a medianoche local (sin hora),
+    // para que las comparaciones con fechas de los inputs (también a medianoche)
+    // sean consistentes.
+    computeDateLimits() {
+        const now = new Date();
+        const utcToday = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+        this.maxDate = new Date(utcToday);
+        this.maxDate.setDate(this.maxDate.getDate() - 3); // GSC tiene delay de ~3 días
+
+        this.minDate = new Date(utcToday);
+        this.minDate.setMonth(this.minDate.getMonth() - 16);
+    }
+
+    // Recalcula los límites y sincroniza los inputs del modal. Se llama al abrir
+    // el modal: una pestaña abierta durante días conservaba límites viejos.
+    refreshDateLimits() {
+        const previousMax = this.maxDate?.getTime();
+        this.computeDateLimits();
+        if (previousMax === this.maxDate.getTime()) return;
+
+        const minStr = this.formatDate(this.minDate);
+        const maxStr = this.formatDate(this.maxDate);
+        ['currentStartDate', 'currentEndDate', 'comparisonStartDate', 'comparisonEndDate'].forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.min = minStr;
+                input.max = maxStr;
+            }
+        });
+
+        const rangeHint = document.getElementById('dateAvailableRangeHint');
+        if (rangeHint) {
+            rangeHint.textContent = `Data available from ${this.formatDateForDisplay(this.minDate)} to ${this.formatDateForDisplay(this.maxDate)}`;
+        }
+
+        console.log('📅 Límites de fechas GSC actualizados:', minStr, '→', maxStr);
     }
 
     createHTML() {
@@ -224,7 +262,7 @@ export class DateRangeSelector {
                                     <i class="fas fa-exclamation-triangle"></i>
                                     <div class="info-content">
                                         <strong>GSC Limits:</strong>
-                                        <span>Data available from ${this.formatDateForDisplay(this.minDate)} to ${this.formatDateForDisplay(this.maxDate)}</span>
+                                        <span id="dateAvailableRangeHint">Data available from ${this.formatDateForDisplay(this.minDate)} to ${this.formatDateForDisplay(this.maxDate)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -326,6 +364,7 @@ export class DateRangeSelector {
         const modal = document.getElementById('dateModal');
 
         if (overlay && modal) {
+            this.refreshDateLimits();
             this.isModalOpen = true;
             overlay.style.display = 'flex';
             // NOTE: We intentionally do NOT add body.modal-open anymore.
