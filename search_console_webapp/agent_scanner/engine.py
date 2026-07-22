@@ -158,7 +158,7 @@ def _trail_tipologia(ctx, typology_override):
     hb = home.get("body") or ""
     _via = home.get("_via") or "http"
     portada_vista = (len(hb) >= 500 and (home.get("status") == 200
-                                         or _via in ("render", "jina")
+                                         or _via in ("render", "jina", "jina-html")
                                          or _via.startswith("ua:")))
     if portada_vista:
         T("ok", det + " — sin señales de e-commerce ni de SaaS en una portada que "
@@ -325,8 +325,11 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
         if not _home_creible(ctx["home"]):
             jina = jina_read(base + "/")
             if jina:
-                ctx["home"]["body"] = jina
-                ctx["home"]["_via"] = "jina"
+                ctx["home"]["body"] = jina["body"]
+                # jina-html trae marcado real; jina (texto) no. La distinción
+                # decide si los checks de estructura se degradan o no.
+                ctx["home"]["_via"] = "jina-html" if jina.get("html") else "jina"
+                ctx["home"]["status"] = 200
     via = ctx["home"].get("_via", "http")
     if len(ctx["home"].get("body", "")) < 500:
         T("home", "fail", "sin contenido por ninguna vía: checks de contenido sin evidencia")
@@ -462,9 +465,9 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
         if res["status"] != 200 or len(res["body"]) < 300:
             jina = jina_read(item["url"], timeout=60)
             if jina:
-                res["body"] = jina
-                res["status"] = res["status"] or 200
-                res["_via"] = "jina"
+                res["body"] = jina["body"]
+                res["status"] = 200
+                res["_via"] = "jina-html" if jina.get("html") else "jina"
         pages.append({"url": item["url"], "bucket": item["bucket"], "fetch": res})
     ctx["pages"] = pages
     ok_pages = sum(1 for p in pages if p["fetch"]["status"] == 200)
@@ -624,10 +627,12 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
 
     _log("vista LLM (Jina)…")
     jina = jina_read(base + "/")
-    ctx["jina_home_excerpt"] = (jina or "")[:3000]
+    cuerpo = jina["body"] if jina else ""
+    ctx["jina_home_excerpt"] = cuerpo[:3000]
     ctx["jina_ok"] = bool(jina)
     T("vista LLM (Jina)", "ok" if jina else "warn",
-      f"{len(jina)} chars" if jina else "Jina sin contenido (rate limit/bloqueo)")
+      (f"{len(cuerpo)} chars" + (" (HTML con marcado)" if jina.get("html") else " (texto)"))
+      if jina else "Jina sin contenido (rate limit/bloqueo)")
 
     ctx["psi_cls"] = psi_cls(base + "/") if with_psi else None
     if with_psi:
@@ -806,7 +811,7 @@ def _degradar_si_bloqueado(results, ctx):
     # "bot:<nombre>" = la portada se rescató leyéndola como un bot de IA que SÍ
     # recibe 200. Es contenido real del sitio, y además el más pertinente para
     # esta auditoría: es lo que el sitio le sirve a una IA.
-    via_creible = via in ("render", "jina") or via.startswith("ua:")
+    via_creible = via in ("render", "jina", "jina-html") or via.startswith("ua:")
     home_ok = (len((ctx.get("home") or {}).get("body") or "") >= 500
                and (home_status == 200 or via_creible))
 
@@ -837,10 +842,19 @@ def _degradar_si_bloqueado(results, ctx):
         motivo = (f"el sitio no sirve contenido a un acceso automatizado (UA humano "
                   f"recibe HTTP {human}). No es posible afirmar que esto falte: no "
                   f"hemos podido comprobarlo")
+    elif via == "jina-html":
+        # Jina devolvió HTML renderizado real: el marcado (JSON-LD, formularios)
+        # SÍ es observable, así que NO se degrada. Solo caen las sondas directas,
+        # que siguen bloqueadas desde nuestra red. Es el mejor rescate posible.
+        nivel, objetivo = "sondas", CHECKS_DE_SONDA
+        motivo = ("la portada se leyó vía Jina en HTML, con su marcado intacto, "
+                  "pero las sondas directas (robots, sitemap, .well-known, matriz "
+                  "de bots) siguen bloqueadas desde nuestra red: solo esas "
+                  "ausencias concretas quedan sin afirmar")
     elif via == "jina":
         nivel, objetivo = "marcado", CHECKS_DE_MARCADO | CHECKS_DE_SONDA
-        motivo = ("la página solo se pudo leer vía jina, que devuelve texto sin "
-                  "marcado, y el acceso directo está limitado. El HTML real no es "
+        motivo = ("la página solo se pudo leer vía Jina en texto (sin marcado) "
+                  "y el acceso directo está limitado. El HTML real no es "
                   "observable, así que no afirmamos nada sobre él")
     else:
         # portada vista por HTTP normal, pero sondas posteriores bloqueadas

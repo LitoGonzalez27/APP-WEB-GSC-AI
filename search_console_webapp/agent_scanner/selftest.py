@@ -1773,6 +1773,74 @@ def test_aviso_degradado_informa_sin_alarmar():
     t("json_sin_grito", "NO FIABLE" not in str(fi), str(fi)[:100])
 
 
+def test_jina_html_rescata_el_marcado():
+    """Objetivo de Carlos: que Jina rescate el máximo de factores cuando nos
+    bloquean. Clave: Jina puede devolver HTML RENDERIZADO (con JSON-LD y
+    formularios), no solo texto — y entonces los checks de estructura SÍ se
+    pueden evaluar aunque el acceso directo esté cerrado.
+
+    Dos vías con degradación distinta:
+      via='jina'      (texto) -> el marcado no es observable: se degrada.
+      via='jina-html' (HTML)  -> el marcado SÍ está: solo caen las sondas
+                                 directas, y la nota sigue siendo fiable.
+    """
+    def resultados():
+        return [
+            {"id": "3.1", "cat": "C3", "name": "JSON-LD", "score": 0, "evidence": "e", "manual": False},
+            {"id": "3.2", "cat": "C3", "name": "Org", "score": 0, "evidence": "e", "manual": False},
+            {"id": "5.5", "cat": "C5", "name": "llms.txt", "score": 0, "evidence": "e", "manual": False},
+            {"id": "1.6", "cat": "C1", "name": "sin login", "score": 0, "evidence": "e", "manual": False},
+        ]
+
+    # via JINA TEXTO: el marcado (3.1, 3.2) no es observable -> se degrada
+    ctx = ctx_base()
+    ctx["bot_matrix"]["_human"] = 429
+    ctx["home"] = {"body": "texto " * 200, "status": 200, "_via": "jina"}
+    engine._degradar_si_bloqueado(resultados(), ctx)
+    d = {r["id"]: r["score"] for r in engine._degradar_si_bloqueado(resultados(), ctx)}
+    t("jina_texto_nivel_marcado", ctx["acceso_degradado"]["nivel"] == "marcado",
+      str(ctx.get("acceso_degradado")))
+    t("jina_texto_degrada_json_ld", d["3.1"] is None,
+      "en texto plano no hay JSON-LD observable: no se puede afirmar")
+
+    # via JINA HTML: el marcado SÍ está -> NO se degrada; solo las sondas
+    ctx = ctx_base()
+    ctx["bot_matrix"]["_human"] = 429
+    ctx["home"] = {"body": "<html><script type='application/ld+json'>{}</script>" + "x" * 600 + "</html>",
+                   "status": 200, "_via": "jina-html"}
+    res = engine._degradar_si_bloqueado(resultados(), ctx)
+    d = {r["id"]: r["score"] for r in res}
+    t("jina_html_nivel_sondas", ctx["acceso_degradado"]["nivel"] == "sondas",
+      f"con HTML de Jina el marcado es observable, solo caen sondas: {ctx.get('acceso_degradado')}")
+    t("jina_html_conserva_marcado", d["3.1"] == 0 and d["3.2"] == 0,
+      f"el marcado NO se degrada con jina-html: {d}")
+    t("jina_html_degrada_sondas", d["5.5"] is None,
+      f"las sondas directas (llms.txt) siguen bloqueadas: {d}")
+    # y la nota sigue siendo FIABLE (nivel sondas no la invalida)
+    t("jina_html_score_fiable",
+      ctx["acceso_degradado"]["nivel"] not in ("total", "marcado"),
+      "rescatar con marcado deja una nota entregable, no un 'no evaluable'")
+
+
+def test_jina_read_degrada_sin_romper():
+    """Bug latente que introduje al añadir el soporte de clave: una JINA_API_KEY
+    sin saldo devuelve 402, y usarla a ciegas daba PEOR resultado que no tener
+    clave (el tier anónimo sí responde 200). Verificado en vivo con la clave
+    real de Carlos, que está a 402. jina_read debe caer a anónimo, nunca romper,
+    y devolver dict {body, html}.
+    """
+    hf = open(os.path.join(os.path.dirname(__file__), "httpfetch.py")).read()
+    frag = hf[hf.index("def jina_read"):]
+    t("jina_intenta_html_con_clave", '"X-Return-Format: html"' in frag,
+      "con clave con saldo hay que pedir HTML, que trae el marcado")
+    t("jina_cae_a_anonimo", frag.count('fetch(endpoint') >= 2,
+      "si la clave falla (402/403), segundo intento anónimo")
+    t("jina_devuelve_dict", '"html": True' in frag and '"html": False' in frag,
+      "el retorno distingue HTML (con marcado) de texto")
+    t("jina_valida_html_real", 'len(body) > 500 and "<" in body' in frag,
+      "un 402 con placeholder no puede pasar por HTML bueno")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

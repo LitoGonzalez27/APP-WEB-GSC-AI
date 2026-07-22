@@ -277,22 +277,35 @@ def rapid_fire(url, ua, n=10, timeout=10):
 
 
 def jina_read(url, timeout=90):
-    """Vista LLM vía Jina Reader (r.jina.ai). Fallback de contenido.
+    """Vista LLM vía Jina Reader (r.jina.ai). Red de seguridad del contenido.
 
-    Jina descarga el sitio desde SU infraestructura: cuando el problema es la
-    reputación de nuestra IP de salida (Railway), esta es la vía que lo esquiva
-    para la capa de contenido. Con JINA_API_KEY (opcional, hay tier gratuito en
-    jina.ai) el límite de peticiones es de la clave y no de la IP — relevante
-    porque la IP compartida del servidor puede tener la cuota anónima agotada
-    por otros inquilinos.
+    Jina descarga el sitio desde SU infraestructura, así que esquiva el bloqueo
+    por reputación de NUESTRA IP (Railway). Devuelve dict {"body", "html"} o None:
+      html=True  -> HTML renderizado real (lleva JSON-LD, formularios, marcado):
+                    los checks de estructura SÍ se pueden evaluar.
+      html=False -> texto markdown: sirve para contenido y enlaces, no marcado.
+
+    Escalera de degradación SEGURA, para que "tener clave" nunca dé peor que "no
+    tenerla" (medido: una clave sin saldo devuelve 402):
+      1) clave + HTML  -> lo mejor: contenido CON marcado. Solo si la clave
+         responde 200 con HTML de verdad (con saldo).
+      2) anónimo texto -> gratis y casi siempre disponible; sin marcado.
+    Una clave caducada/sin saldo (401/402/403/429) cae al paso 2 sin ruido.
     """
-    hdrs = None
+    endpoint = "https://r.jina.ai/" + url
     key = os.environ.get("JINA_API_KEY")
+
     if key:
-        hdrs = [f"Authorization: Bearer {key.strip()}"]
-    res = fetch("https://r.jina.ai/" + url, ua=UA_HUMAN, timeout=timeout,
-                headers=hdrs,
-                verify_public=False)  # r.jina.ai es el destino, ya es público
-    if res["status"] == 200 and len(res["body"]) > 200:
-        return res["body"]
+        r = fetch(endpoint, ua=UA_HUMAN, timeout=timeout, verify_public=False,
+                  headers=[f"Authorization: Bearer {key.strip()}",
+                           "X-Return-Format: html"])
+        body = r.get("body") or ""
+        # HTML de verdad: 200, con cuerpo y con etiquetas. Un 402/403/placeholder
+        # no cumple esto y seguimos al modo anónimo.
+        if r["status"] == 200 and len(body) > 500 and "<" in body[:3000]:
+            return {"body": body, "html": True}
+
+    r = fetch(endpoint, ua=UA_HUMAN, timeout=timeout, verify_public=False)
+    if r["status"] == 200 and len(r.get("body") or "") > 200:
+        return {"body": r["body"], "html": False}
     return None
