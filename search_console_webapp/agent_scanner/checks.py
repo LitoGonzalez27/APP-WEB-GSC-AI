@@ -178,9 +178,14 @@ def run_c1(ctx):
                  1 if link_h else 0,
                  link_h.group(1)[:120] if link_h else "Sin cabeceras Link (minoria hoy; oportunidad, no error)"))
 
-    # 1.6 contenido clave accesible sin login
+    # 1.6 contenido clave accesible sin login.
+    # Cuenta el acceso DIRECTO (_status_directo): una pagina que solo Jina pudo
+    # leer NO es accesible para el agente que la pide sin sesion, aunque su
+    # cuerpo este rescatado para los checks de contenido. La politica del
+    # proyecto es que en 1.6/2.4/4.4 el bloqueo ES el hallazgo.
     pages = ctx["pages"]
-    ok = sum(1 for p in pages if p["fetch"]["status"] == 200
+    ok = sum(1 for p in pages
+             if p["fetch"].get("_status_directo", p["fetch"]["status"]) == 200
              and len(visible_text(p["fetch"]["body"])) > 500)
     total = max(len(pages), 1)
     ratio = ok / total
@@ -250,10 +255,20 @@ def run_c2(ctx):
     hard = sum(1 for c in rapid if c in (403, 0))
     if hard >= len(rapid) // 2:
         score, ev = 0, f"Baneo tras pocas peticiones: {rapid}"
-    elif n200 == len(rapid) or n429 > 0:
-        score, ev = 1, f"Estable o throttling suave: {n200}x200, {n429}x429"
+    elif n200 == len(rapid):
+        score, ev = 1, f"Estable: {n200}x200 sin frenos"
+    elif n429 and n200 >= len(rapid) * 0.7:
+        # throttling SUAVE de verdad: sirve la mayoria y frena el exceso con
+        # 429, que es el comportamiento que el consejo del check recomienda
+        score, ev = 1, f"Throttling suave: {n200}x200, {n429}x429"
     else:
-        score, ev = 0.5, f"Comportamiento mixto: {rapid}"
+        # Antes `n429 > 0` puntuaba 1 directamente: un sitio que respondia 429 a
+        # las DIEZ peticiones (0x200, el bot no obtiene nada) salia con nota
+        # perfecta en "rate limiting razonable". Educado si, razonable no: el
+        # limite razonable sirve la mayoria del trafico y frena el exceso.
+        score, ev = 0.5, (f"Throttling agresivo o mixto: {n200}x200, {n429}x429, "
+                          f"{hard}x(403/0) — el bot obtiene poco contenido durante "
+                          f"una rafaga")
     out.append(R("2.4", "C2", "Rate limiting razonable", score, ev))
     return out
 
@@ -470,12 +485,21 @@ def run_c4(ctx):
         score, ev = None, "No medido"
     out.append(R("4.3", "C4", "Velocidad para bots (TTFB)", score, ev))
 
-    # 4.4 deep-linking
-    ok = sum(1 for p in ctx["pages"] if p["fetch"]["status"] == 200)
+    # 4.4 deep-linking. Mide el acceso DIRECTO (_status_directo): el rescate por
+    # Jina recupera el contenido para otros checks, pero no cambia lo que recibe
+    # un agente que pide la URL a pelo. Contarlo como 200 inflaba el check.
+    ok = sum(1 for p in ctx["pages"]
+             if p["fetch"].get("_status_directo", p["fetch"]["status"]) == 200)
     total = max(len(ctx["pages"]), 1)
+    rescatadas = sum(1 for p in ctx["pages"]
+                     if str(p["fetch"].get("_via", "")).startswith("jina")
+                     and p["fetch"].get("_status_directo") != 200)
     score = 1 if ok == total else 0.5 if ok / total >= 0.7 else 0
-    out.append(R("4.4", "C4", "Deep-linking estable", score,
-                 f"{ok}/{total} URLs profundas responden 200 en acceso directo sin sesion"))
+    ev = f"{ok}/{total} URLs profundas responden 200 en acceso directo sin sesion"
+    if rescatadas:
+        ev += (f" ({rescatadas} solo legibles via Jina: su contenido existe, "
+               f"pero el acceso directo esta bloqueado)")
+    out.append(R("4.4", "C4", "Deep-linking estable", score, ev))
 
     # 4.5 API detectable
     api_hits = [p for p, c in ctx["wellknown"].items()
@@ -679,7 +703,14 @@ def run_c5(ctx):
         score, ev = 0, "Sin paginas de contenido analizables"
     out.append(R("5.2", "C5", "Estructura chunkeable (H2/H3)", score, ev))
 
-    # 5.3 E-E-A-T verificable
+    # 5.3 E-E-A-T verificable.
+    # Con articulos de blog en la muestra se exige lo fuerte: autoria + fecha
+    # POR articulo. Sin blog, antes el check se quedaba en N/A — medido en el
+    # barrido de factores: sin puntuar en 8 de 12 dominios, dos tercios de los
+    # sitios sin este factor. Pero la pregunta de fondo aplica a cualquier web:
+    # ¿puede una IA saber QUIEN responde de este contenido y DE CUANDO es?
+    # Una web sin fecha ni responsable en ninguna pagina es contenido que un
+    # LLM no puede fechar ni atribuir, sea blog o corporativa.
     blog_pages = [p for p in ctx["pages"] if p["bucket"] == "blog" and p["fetch"]["status"] == 200]
     if blog_pages:
         hits = 0
@@ -694,7 +725,40 @@ def run_c5(ctx):
         score = 1 if ratio >= 0.85 else 0.5 if ratio >= 0.4 else 0
         ev = f"Autoria+fecha verificables en {hits}/{len(blog_pages)} articulos muestreados"
     else:
-        score, ev = None, "Sin paginas de blog en el muestreo"
+        contenido = [p["fetch"]["body"] for p in ctx["pages"]
+                     if p["fetch"]["status"] == 200 and p["bucket"] != "legal"]
+        contenido.append(ctx["home"]["body"] or "")
+        corpus = " ".join(c or "" for c in contenido[:6])
+        if len(corpus) < 500:
+            score, ev = None, "Sin paginas de contenido analizables"
+        else:
+            valid, _ = jsonld_blocks(corpus)
+            js = json.dumps(valid)
+            fecha = ('"datePublished"' in js or '"dateModified"' in js
+                     or bool(re.search(r"(?i)<time[\s>]", corpus))
+                     or bool(re.search(r'(?i)(article:published_time|og:updated_time)', corpus))
+                     or bool(re.search(r"(?i)(ultima actualizacion|última actualización|"
+                                       r"last updated|actualizado el)", corpus)))
+            autoria = (bool(find_nodes(valid, "Person")) or '"author"' in js
+                       or bool(re.search(r'(?i)<meta[^>]+name=["\']author', corpus))
+                       or bool(re.search(r"(?i)class=[\"'][^\"']*(author|byline)", corpus)))
+            senales = [s for s, hay in (("fechas", fecha), ("autoria/responsable", autoria)) if hay]
+            # Sin articulos en la muestra no se puede exigir E-E-A-T pleno: el 1
+            # se reserva para quien SI expone frescura (fecha/actualizacion), que
+            # es la señal que un agente usa para juzgar vigencia. La ausencia NO
+            # baja de 0.5: no sabemos si es que la web no tiene E-E-A-T o que su
+            # contenido editorial no entro en el muestreo (caso real: cloudflare
+            # tiene blog con autoria y fecha, pero la muestra pillo landings).
+            # Castigar con 0 seria culpar a la web de un limite nuestro.
+            score = 1 if fecha else 0.5
+            ev = ("Sin articulos en la muestra: se evaluan señales de frescura y "
+                  f"autoria en {len(contenido)} paginas de contenido. Encontradas: "
+                  f"{', '.join(senales) or 'ninguna'}. "
+                  + ("El contenido es fechable, que es lo que un agente necesita "
+                     "para juzgar su vigencia." if fecha else
+                     "Sin fecha visible en lo muestreado: si el sitio publica "
+                     "contenido informativo, conviene marcar autoria y fecha "
+                     "(puede que su blog no entrara en la muestra)."))
     out.append(R("5.3", "C5", "E-E-A-T verificable", score, ev))
 
     # (la citacion real en respuestas de IA — el antiguo 5.4 — se mide con Clicandseo)

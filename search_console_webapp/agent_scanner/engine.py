@@ -462,6 +462,12 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     pages = []
     for item in sample:
         res = fetch(item["url"], ua=UA_HUMAN, timeout=20)
+        # El status del acceso DIRECTO se preserva siempre: los checks de
+        # hostilidad (1.6, 4.4) miden lo que sufre un agente que pide la URL
+        # directamente, y el rescate por Jina no cambia esa experiencia. Sin
+        # esto, poner status=200 tras el rescate los inflaba: una página que
+        # solo Jina pudo leer salía como "accesible en acceso directo".
+        res["_status_directo"] = res["status"]
         if res["status"] != 200 or len(res["body"]) < 300:
             jina = jina_read(item["url"], timeout=60)
             if jina:

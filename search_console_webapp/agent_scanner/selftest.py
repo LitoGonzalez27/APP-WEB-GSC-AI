@@ -1887,6 +1887,81 @@ def test_46_cls_se_mide_sin_pagespeed():
       "hay que medir el CLS real, no inventarlo")
 
 
+def test_53_eeat_se_mide_sin_blog():
+    """Barrido: E-E-A-T (5.3) se quedaba N/A en 8 de 12 dominios porque solo
+    miraba páginas de blog. Ahora, sin blog, evalúa frescura y autoría en el
+    resto del contenido — pero con cuidado de no castigar por un límite nuestro
+    de muestreo (cloudflare tiene blog con fecha/autor, pero la muestra pilló
+    sus landings).
+    """
+    def ctx_contenido(html_extra, con_blog=False):
+        c = ctx_base()
+        pg = {"url": "https://x.test/sobre", "bucket": "servicio",
+              "fetch": {"status": 200, "body": "<html>" + html_extra + "texto " * 200 + "</html>"}}
+        c["pages"] = [pg]
+        c["home"] = {"body": "<html>" + "hola " * 200 + "</html>", "status": 200,
+                     "headers": "", "ttfb": 0.2, "_via": "http"}
+        return c
+
+    # con fecha visible -> 1 (fechable, que es lo que importa a un agente)
+    con_fecha = ctx_contenido('<time datetime="2026-01-01">1 ene</time>')
+    c = by_id(checks.run_c5(con_fecha), "5.3")
+    t("eeat_con_fecha_puntua_alto", c["score"] == 1,
+      f"contenido con fecha es fechable: {c}")
+    t("eeat_ya_no_es_null", c["score"] is not None,
+      "el factor debe medirse, no quedar N/A por no haber blog")
+
+    # sin ninguna señal -> 0.5, NUNCA 0 (podría ser límite de muestreo)
+    sin_nada = ctx_contenido("")
+    c = by_id(checks.run_c5(sin_nada), "5.3")
+    t("eeat_sin_senales_no_castiga_a_cero", c["score"] == 0.5,
+      f"sin señales no baja de 0.5: castigar con 0 culparía a la web de nuestro "
+      f"muestreo: {c}")
+    t("eeat_sin_senales_lo_explica", "muestra" in c["evidence"].lower(),
+      "hay que decir que su blog pudo no entrar en la muestra")
+
+
+def test_24_rate_limiting_no_regala_el_1():
+    """Barrido: 2.4 daba 1 con cualquier 429 (`n429 > 0`). Un sitio que responde
+    429 a las DIEZ peticiones —el bot no obtiene NADA— salía con nota perfecta
+    en 'rate limiting razonable'. Educado sí, razonable no.
+    """
+    def con(rapid):
+        c = ctx_base(); c["rapid"] = rapid
+        return by_id(checks.run_c2(c), "2.4")
+
+    t("rl_estable_es_1", con([200] * 10)["score"] == 1, "todo 200 -> 1")
+    t("rl_throttling_suave_es_1", con([200] * 8 + [429, 429])["score"] == 1,
+      "sirve la mayoría y frena el exceso -> throttling suave, 1")
+    t("rl_todo_429_no_es_1", con([429] * 10)["score"] != 1,
+      "429 a TODAS las peticiones: el bot no obtiene nada, eso no es razonable")
+    t("rl_todo_429_penaliza", con([429] * 10)["score"] == 0.5, str(con([429] * 10)))
+    t("rl_baneo_duro_es_0", con([403] * 10)["score"] == 0, "baneo -> 0")
+
+
+def test_44_deeplinking_cuenta_acceso_directo():
+    """El rescate por Jina recupera el contenido de una página bloqueada, pero
+    no cambia lo que recibe un agente que pide la URL directamente. 4.4 (y 1.6)
+    miden el acceso DIRECTO: contar una página rescatada como 200 los inflaba —
+    'accesible en acceso directo' cuando en realidad solo Jina pudo leerla.
+    """
+    c = ctx_base()
+    c["pages"] = [
+        {"url": "https://x.test/a", "bucket": "servicio",
+         "fetch": {"status": 200, "_status_directo": 200, "ttfb": 0.2,
+                   "headers": "", "body": "texto " * 200}},
+        {"url": "https://x.test/b", "bucket": "servicio",
+         # rescatada por Jina: cuerpo presente, pero acceso directo era 403
+         "fetch": {"status": 200, "_status_directo": 403, "_via": "jina-html",
+                   "ttfb": 0.2, "headers": "", "body": "rescatado " * 200}},
+    ]
+    c44 = by_id(checks.run_c4(c), "4.4")
+    t("deeplink_no_cuenta_rescatada", "1/2" in c44["evidence"],
+      f"solo 1 de 2 es accesible en directo; la otra la salvó Jina: {c44['evidence']}")
+    t("deeplink_avisa_del_rescate", "Jina" in c44["evidence"],
+      "hay que decir que una página solo era legible vía Jina")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
