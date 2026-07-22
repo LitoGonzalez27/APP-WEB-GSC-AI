@@ -6,6 +6,7 @@ Incluye validación anti-SSRF: rechaza URLs a IPs privadas/loopback/link-local,
 imprescindible cuando la URL la mete un usuario en un servidor público.
 """
 import ipaddress
+import os
 import socket
 import time
 from urllib.parse import urlparse
@@ -276,8 +277,21 @@ def rapid_fire(url, ua, n=10, timeout=10):
 
 
 def jina_read(url, timeout=90):
-    """Vista LLM vía Jina Reader (r.jina.ai). Fallback de contenido."""
+    """Vista LLM vía Jina Reader (r.jina.ai). Fallback de contenido.
+
+    Jina descarga el sitio desde SU infraestructura: cuando el problema es la
+    reputación de nuestra IP de salida (Railway), esta es la vía que lo esquiva
+    para la capa de contenido. Con JINA_API_KEY (opcional, hay tier gratuito en
+    jina.ai) el límite de peticiones es de la clave y no de la IP — relevante
+    porque la IP compartida del servidor puede tener la cuota anónima agotada
+    por otros inquilinos.
+    """
+    hdrs = None
+    key = os.environ.get("JINA_API_KEY")
+    if key:
+        hdrs = [f"Authorization: Bearer {key.strip()}"]
     res = fetch("https://r.jina.ai/" + url, ua=UA_HUMAN, timeout=timeout,
+                headers=hdrs,
                 verify_public=False)  # r.jina.ai es el destino, ya es público
     if res["status"] == 200 and len(res["body"]) > 200:
         return res["body"]

@@ -111,11 +111,21 @@ def _domain_block(a):
     fiabilidad = {"puntuacion_fiable": fiable}
     deg = a.get("acceso_degradado")
     if deg:
+        # El texto del aviso sale del veredicto (scoring.py) cuando lo hay: mismo
+        # mensaje en web, PDF y JSON. "NO FIABLE: no usar" afirmaba de más — un
+        # bloqueo desde nuestra red no es un veredicto sobre la web auditada.
+        if parcial:
+            aviso = ((a.get("level") or {}).get("msg")
+                     or "No evaluable desde nuestra red: la nota cubre solo lo verificado")
+        elif not fiable:
+            aviso = ("Lectura limitada: parte del contenido no fue observable desde "
+                     "nuestra red. Los factores afectados figuran como «no verificable», "
+                     "no como fallo. La nota cubre lo que sí se pudo comprobar")
+        else:
+            aviso = ("Puntuación utilizable, con matiz: algunas sondas fueron "
+                     "bloqueadas y esas ausencias concretas no son afirmables")
         fiabilidad.update({
-            "aviso": ("PUNTUACIÓN NO FIABLE: no usar como dato firme ni comparar "
-                      "contra otros dominios") if not fiable else
-                     ("Puntuación utilizable, con matiz: algunas sondas fueron "
-                      "bloqueadas y esas ausencias concretas no son afirmables"),
+            "aviso": aviso,
             "nivel_degradacion": deg.get("nivel"),
             "motivo": deg.get("motivo"),
             "factores_degradados_a_no_verificable": deg.get("degradados"),

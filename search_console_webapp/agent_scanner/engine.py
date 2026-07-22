@@ -304,13 +304,25 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
 
     _log("home…")
     ctx["home"] = fetch(base + "/", ua=UA_HUMAN)
-    if ctx["home"]["status"] != 200 or len(ctx["home"]["body"]) < 500:
+    if not _home_creible(ctx["home"]):
         if not skip_render:
             rendered = render_page(base + "/")
             if rendered.get("ok") and rendered.get("html"):
                 ctx["home"]["body"] = rendered["html"]
                 ctx["home"]["_via"] = "render"
-        if len(ctx["home"].get("body", "")) < 500:
+                # El render trae su propio código de estado: si el navegador SÍ
+                # obtuvo la página de verdad, el 429/403 del fetch plano ya no
+                # describe lo que tenemos entre manos (y sin esto, el rescate
+                # de Jina de abajo pisaría un render bueno con texto plano).
+                if rendered.get("status"):
+                    ctx["home"]["status"] = rendered["status"]
+        # Jina lee el sitio desde SU infraestructura, no desde nuestra IP: es
+        # literalmente el "inténtalo desde otra red" automático. Antes solo se
+        # disparaba con cuerpos de <500 bytes, y las páginas de error de un WAF
+        # son grandes — caso real: finistore.es devolvió su 429 con 79.602
+        # bytes y el rescate nunca llegó a intentarse. La pregunta correcta no
+        # es cuánto pesa el cuerpo, sino si es creíble como portada.
+        if not _home_creible(ctx["home"]):
             jina = jina_read(base + "/")
             if jina:
                 ctx["home"]["body"] = jina
@@ -723,6 +735,18 @@ def _cobertura_ciega(ctx):
     return not ctx.get("pages") and sin_senales
 
 
+def _home_creible(home):
+    """¿Lo que tenemos es la portada de verdad, o la página de error de un WAF?
+
+    Las dos condiciones importan: un 429/403 con cuerpo grande es el cartel de
+    bloqueo (finistore.es: 429 con 79 KB), y un 200 diminuto es una cáscara.
+    Cualquier fallback (render, Jina, escalera de UAs) debe decidirse con esta
+    pregunta, no con el peso del cuerpo a secas.
+    """
+    return (home.get("status") == 200
+            and len(home.get("body") or "") >= 500)
+
+
 def _veredicto_de_acceso(ctx):
     """¿Qué podemos AFIRMAR sobre el acceso, con la evidencia que tenemos?
 
@@ -856,8 +880,9 @@ def _degradar_si_bloqueado(results, ctx):
     ctx["acceso_degradado"] = {"nivel": nivel, "motivo": motivo, "degradados": n,
                                "human_status": human, "via": via}
     if n:
-        aviso_final = ("La puntuación global queda marcada como NO FIABLE: no debe "
-                       "entregarse sin repetir el análisis"
+        aviso_final = ("La puntuación queda como PARCIAL: cubre solo lo que sí se "
+                       "pudo verificar. No comparar contra otros dominios sin "
+                       "repetir el análisis"
                        if nivel in ("total", "marcado") else
                        "La puntuación sigue siendo utilizable: cubre lo que sí se "
                        "pudo comprobar")
