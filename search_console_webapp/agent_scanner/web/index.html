@@ -613,10 +613,28 @@ $("#go").addEventListener("click",async()=>{
 });
 
 /* ---------- polling / loading ---------- */
-async function poll(id){
+/* Espaciado progresivo: un análisis puede durar 15 min y sondear cada 1.5s todo
+   el rato son 600 peticiones. Los primeros segundos interesa ver el progreso
+   fino; después basta con refrescar más despacio. */
+function _esperaSondeo(intentos){
+  if(intentos<20)return 1500;      // primeros ~30s: progreso al detalle
+  if(intentos<60)return 3000;      // hasta ~2,5 min
+  return 6000;                     // a partir de ahí, análisis largo
+}
+async function poll(id,intentos){
+  intentos=intentos||0;
   try{
     const r=await fetch("/agent/api/status/"+id);
-    if(!r.ok){$("#phase").textContent="Análisis no encontrado (¿servidor reiniciado?)";return}
+    /* Un 429 es nuestro propio limitador, NO un análisis perdido. Antes se
+       trataba como "no encontrado" y se MATABA el sondeo: el análisis seguía
+       corriendo por detrás y el panel se quedaba colgado para siempre
+       enseñando "¿servidor reiniciado?". */
+    if(r.status===429){
+      $("#phase").textContent="Análisis en curso (esperando al servidor)…";
+      setTimeout(()=>poll(id,intentos+1),10000);return;
+    }
+    if(r.status===404){$("#phase").textContent="Análisis no encontrado (¿servidor reiniciado?)";return}
+    if(!r.ok){setTimeout(()=>poll(id,intentos+1),5000);return}
     const s=await r.json();
     $("#phase").textContent=s.phase||"…";
     const m=Math.floor(s.elapsed/60),sec=String(s.elapsed%60).padStart(2,"0");
@@ -628,8 +646,8 @@ async function poll(id){
     con.scrollTop=con.scrollHeight;
     if(s.status==="done"){const rr=await fetch("/agent/api/result/"+id);renderReport(await rr.json(),s.outdir,id);return}
     if(s.status==="error"){$("#phase").textContent="✗ "+(s.error||"Error en el análisis");return}
-    setTimeout(()=>poll(id),1500);
-  }catch(e){setTimeout(()=>poll(id),3000)}
+    setTimeout(()=>poll(id,intentos+1),_esperaSondeo(intentos));
+  }catch(e){setTimeout(()=>poll(id,intentos+1),5000)}
 }
 
 /* resume por URL */

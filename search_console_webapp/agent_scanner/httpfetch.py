@@ -77,7 +77,23 @@ RETRY_AFTER_MAX = 30
 # disparando 50 peticiones a quien acaba de pedir calma solo alarga el castigo.
 ESPACIADO_TRAS_429 = 1.0
 VENTANA_FRENO = 180          # segundos que dura el espaciado
+# Techo de paciencia por host. Sin esto, un sitio que devuelve 429 a todo hacía
+# que un análisis (~52 peticiones) se fuera a varios minutos solo esperando, y
+# el panel parecía colgado. Pasado el presupuesto se deja de esperar: el
+# guardarraíl ya marca el informe como no verificable, que es lo correcto.
+PRESUPUESTO_ESPERA_429 = 45.0
 _HOSTS_FRENADOS = {}         # host -> momento del último 429
+_ESPERA_GASTADA = {}         # host -> segundos ya gastados esperando a este host
+
+
+def _queda_paciencia(url):
+    return _ESPERA_GASTADA.get(_host_de(url), 0.0) < PRESUPUESTO_ESPERA_429
+
+
+def _gastar(url, segundos):
+    h = _host_de(url)
+    if h:
+        _ESPERA_GASTADA[h] = _ESPERA_GASTADA.get(h, 0.0) + segundos
 
 
 def _es_transitorio(status):
@@ -116,7 +132,10 @@ def _esperar_si_frenado(url):
     if time.monotonic() - t0 > VENTANA_FRENO:
         _HOSTS_FRENADOS.pop(h, None)
         return
+    if not _queda_paciencia(url):
+        return
     time.sleep(ESPACIADO_TRAS_429)
+    _gastar(url, ESPACIADO_TRAS_429)
 
 
 def _espera_indicada(status, retry_after):
@@ -184,7 +203,11 @@ def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public
     if reintentar and _es_transitorio(result["status"]):
         if result["status"] == 429:
             _marcar_frenado(url)
-        time.sleep(_espera_indicada(result["status"], retry_after))
+            if not _queda_paciencia(url):
+                return result          # ya hemos esperado bastante a este host
+        espera = _espera_indicada(result["status"], retry_after)
+        time.sleep(espera)
+        _gastar(url, espera)
         segundo = fetch(url, ua=ua, timeout=timeout, headers=headers,
                         verify_public=verify_public, reintentar=False)
         if not _es_transitorio(segundo["status"]):
@@ -223,7 +246,11 @@ def status_only(url, ua=UA_HUMAN, timeout=12, verify_public=True, reintentar=Tru
     if reintentar and _es_transitorio(code):
         if code == 429:
             _marcar_frenado(url)
-        time.sleep(_espera_indicada(code, retry_after))
+            if not _queda_paciencia(url):
+                return code
+        espera = _espera_indicada(code, retry_after)
+        time.sleep(espera)
+        _gastar(url, espera)
         return status_only(url, ua=ua, timeout=timeout,
                            verify_public=verify_public, reintentar=False)
     return code
