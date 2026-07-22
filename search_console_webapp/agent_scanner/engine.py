@@ -634,10 +634,15 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
       (f"{len(cuerpo)} chars" + (" (HTML con marcado)" if jina.get("html") else " (texto)"))
       if jina else "Jina sin contenido (rate limit/bloqueo)")
 
+    # CLS: PageSpeed si se pidió (dato de campo, el mejor), y si no, el que midió
+    # el navegador durante el render (dato de laboratorio, siempre disponible).
+    # Antes solo existía la vía PSI y en producción nunca se activa: el check 4.6
+    # era un factor fantasma que jamás puntuaba.
     ctx["psi_cls"] = psi_cls(base + "/") if with_psi else None
     if with_psi:
         T("PageSpeed (CLS)", "ok" if ctx["psi_cls"] is not None else "fail",
           f"CLS={ctx['psi_cls']}" if ctx["psi_cls"] is not None else "PSI sin respuesta")
+    ctx["render_cls"] = (ctx.get("rendered_home") or {}).get("cls")
 
     ctx.setdefault("agent_tests", None)
     return ctx

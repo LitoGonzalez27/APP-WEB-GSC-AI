@@ -49,6 +49,23 @@ INTERACTIVE_JS = """
 """
 
 
+# Cumulative Layout Shift real: suma los saltos de layout que NO responden a una
+# interacción (hadRecentInput=false), que son los que descolocan a un agente que
+# captura pantalla entre acciones. buffered:true recoge también los saltos
+# ocurridos antes de instalar el observer.
+_CLS_JS = """
+() => new Promise(resolve => {
+  let cls = 0;
+  try {
+    new PerformanceObserver(list => {
+      for (const e of list.getEntries()) { if (!e.hadRecentInput) cls += e.value; }
+    }).observe({type: 'layout-shift', buffered: true});
+  } catch (e) { return resolve(null); }
+  setTimeout(() => resolve(Math.round(cls * 1000) / 1000), 2000);
+})
+"""
+
+
 def render(url, timeout=90, interactive=False):
     backend = render_backend()
     if backend == "playwright":
@@ -132,12 +149,20 @@ def _render_playwright(url, timeout, interactive=False):
             page.wait_for_timeout(3000)
             html = page.content()
             status = resp.status if resp else 200
-            boxes = ax = None
+            boxes = ax = cls = None
             if interactive:
                 try:
                     boxes = page.evaluate(INTERACTIVE_JS)
                 except Exception:
                     boxes = None
+                # CLS real, medido en el navegador. El check 4.6 dependía de
+                # PageSpeed (with_psi), que en producción NUNCA se activa: era un
+                # factor de los 40 que jamás puntuaba. Aquí se mide en la misma
+                # pasada de render, sin API externa ni clave.
+                try:
+                    cls = page.evaluate(_CLS_JS)
+                except Exception:
+                    cls = None
                 # Árbol de accesibilidad REAL, el mismo que consumen los agentes
                 # de navegación. Se toma en la misma pasada que boxes: no cuesta
                 # ni una navegación más. Antes el check 3.6 lo aproximaba con
@@ -149,7 +174,7 @@ def _render_playwright(url, timeout, interactive=False):
                     ax = None
             browser.close()
             return {"ok": True, "status": status, "html": html[:2_000_000],
-                    "boxes": boxes, "ax": ax, "error": None}
+                    "boxes": boxes, "ax": ax, "cls": cls, "error": None}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:300], "html": "", "status": 0}
 
