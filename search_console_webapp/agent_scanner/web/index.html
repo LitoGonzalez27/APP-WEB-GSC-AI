@@ -794,17 +794,34 @@ function paneResumen(d){
   const c=d.client,col=LVL[c.level.emoji]||"#94A3B8";
   const pens=(c.penalties||[]).map(p=>`<div class="pen">⚠ ${esc(p[0])} (${p[1]})</div>`).join("");
   const qw=c.checks.filter(x=>x.advice&&x.advice.esfuerzo==="Bajo"&&(IMPORD[x.advice.impacto]??3)<=2&&x.score<1);
-  // Si el sitio nos bloqueó, la puntuación NO se puede entregar como buena.
-  // Avisar arriba del todo es más importante que la estética del panel.
+  /* El aviso rojo alarmista quedó de una etapa anterior y asustaba más de lo
+     que informaba: gritaba que el informe no se podía usar, cuando lo honesto
+     es "no evaluable desde nuestra red, y esto es lo que SÍ se verificó". El
+     título y el cuerpo salen ahora del propio veredicto (scoring.py), que ya
+     lo dice en lenguaje humano — así web, PDF y JSON cuentan lo mismo y no
+     pueden volver a desincronizarse. */
   const deg=c.acceso_degradado;
-  const aviso=(c.score_fiable===false&&deg)?`<div class="panel sec" style="margin-bottom:18px;
-    border-left:4px solid var(--bad);background:rgba(240,110,110,.07)">
-    <div style="font-weight:700;color:var(--bad);margin-bottom:6px">
-      ⚠ Puntuación NO fiable — no entregar este informe</div>
+  let aviso="";
+  if(deg&&c.level.cobertura_parcial){
+    aviso=`<div class="panel sec" style="margin-bottom:18px;
+    border-left:4px solid var(--warn,#F2A65A);background:rgba(242,166,90,.08)">
+    <div style="font-weight:700;color:var(--warn,#F2A65A);margin-bottom:6px">
+      ⚠ ${esc(c.level.name)}</div>
+    <div style="font-size:.88rem;color:var(--text-2)">${esc(c.level.msg)}
+    ${deg.degradados?` Hay <b>${deg.degradados}</b> factores marcados como «no verificable»
+    porque no se pudieron comprobar — no cuentan como fallo.`:""}
+    ${c.cobertura_score!=null?` Esta nota cubre el <b>${Math.round(c.cobertura_score*100)}%</b> del modelo.`:""}
+    Puedes reintentar más tarde: si el sitio solo estaba limitando el ritmo, el siguiente análisis saldrá completo.</div></div>`;
+  }else if(c.score_fiable===false&&deg){
+    aviso=`<div class="panel sec" style="margin-bottom:18px;
+    border-left:4px solid var(--warn,#F2A65A);background:rgba(242,166,90,.08)">
+    <div style="font-weight:700;color:var(--warn,#F2A65A);margin-bottom:6px">
+      ⚠ Lectura limitada</div>
     <div style="font-size:.88rem;color:var(--text-2)">${esc(deg.motivo)}.
-    Se han marcado <b>${deg.degradados}</b> factores como «no verificable» en vez de
-    contarlos como fallo, porque no hemos podido comprobarlos. Repite el análisis más
-    tarde o desde otra red antes de usar estos datos.</div></div>`:"";
+    Hay <b>${deg.degradados}</b> factores marcados como «no verificable» porque no se
+    pudieron comprobar — no cuentan como fallo. Puedes repetir el análisis más tarde
+    o desde otra red.</div></div>`;
+  }
   return aviso+`<div class="score-grid">
     <div class="panel" style="text-align:center">
       <div class="label">${c.level.cobertura_parcial?"Puntuación parcial":"Puntuación global"}</div>

@@ -1698,6 +1698,81 @@ def test_panel_no_se_mata_con_su_propio_limitador():
       "el endpoint de sondeo no puede compartir el límite general de 200/hora")
 
 
+def test_jina_entra_cuando_la_pagina_de_error_es_grande():
+    """Bug (finistore.es desde producción): el rescate por Jina nunca se intentó.
+
+    Jina Reader descarga el sitio desde SU infraestructura, no desde nuestra IP:
+    es el "inténtalo desde otra red" automático, y es justo lo que hace falta
+    cuando el bloqueo es por reputación del rango de IPs del servidor. Pero el
+    gate era `len(body) < 500`, y las páginas de error de un WAF son GRANDES:
+    finistore devolvió su 429 con 79.602 bytes, así que la vía de escape que ya
+    estaba construida no se disparó justo cuando más falta hacía. La pregunta
+    correcta no es cuánto pesa el cuerpo: es si es creíble como portada.
+    """
+    t("429_grande_no_es_creible",
+      not engine._home_creible({"status": 429, "body": "x" * 79602}),
+      "el caso finistore exacto: 429 con 79 KB es el cartel del WAF, no la web")
+    t("200_normal_si_es_creible",
+      engine._home_creible({"status": 200, "body": "x" * 600}), "")
+    t("cascara_no_es_creible",
+      not engine._home_creible({"status": 200, "body": "x" * 100}),
+      "un 200 diminuto es una cáscara")
+    t("sin_body_no_revienta", not engine._home_creible({"status": 200}), "")
+
+    src = open(os.path.join(os.path.dirname(__file__), "engine.py")).read()
+    ini = src.index('_log("home…")')
+    bloque = src[ini:src.index('via = ctx["home"].get("_via", "http")')]
+    t("jina_gate_usa_credibilidad", 'if not _home_creible(ctx["home"]):' in bloque,
+      "el rescate debe decidirse por credibilidad de la portada, no por peso")
+    t("render_actualiza_status", 'ctx["home"]["status"] = rendered["status"]' in bloque,
+      "sin esto, un render bueno seguiría pareciendo un 429 y Jina lo pisaría")
+
+    hf = open(os.path.join(os.path.dirname(__file__), "httpfetch.py")).read()
+    t("jina_acepta_api_key", 'os.environ.get("JINA_API_KEY")' in hf,
+      "con clave, el límite de Jina es de la clave y no de la IP compartida")
+
+
+def test_aviso_degradado_informa_sin_alarmar():
+    """Petición de Carlos: el banner rojo "Puntuación NO fiable — no entregar
+    este informe" asustaba más de lo que informaba, y afirmaba de más.
+
+    El texto honesto ya existía (NIVEL_NO_EVALUABLE en scoring.py) pero el
+    banner viejo lo pisaba: quedó de una etapa anterior y nadie lo actualizó al
+    crear el veredicto. Ahora los tres canales leen título y cuerpo DEL
+    veredicto, en naranja, y explican qué se verificó y qué no.
+    """
+    web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    t("web_sin_no_entregar", "no entregar este informe" not in web,
+      "el texto alarmista no puede seguir en el panel")
+    t("web_titulo_del_veredicto", "${esc(c.level.name)}" in web,
+      "el título del banner debe salir del veredicto, no estar cableado")
+    t("web_cuerpo_del_veredicto", "${esc(c.level.msg)}" in web,
+      "el cuerpo también: así web/PDF/JSON no se desincronizan")
+    t("web_banner_naranja", 'var(--warn,#F2A65A);background:rgba(242,166,90' in web,
+      "naranja informativo, no rojo de alarma")
+    t("web_dice_que_no_cuentan_como_fallo", "no cuentan como fallo" in web,
+      "lo tranquilizador es explicar qué pasa con los factores no verificables")
+
+    pdf = open(os.path.join(os.path.dirname(__file__), "report_pdf.py")).read()
+    t("pdf_sin_grito", "PUNTUACIÓN NO FIABLE" not in pdf,
+      "el PDF viaja solo: menos aún puede gritar")
+    t("pdf_titulo_del_veredicto", 'lvl.get("name", "No evaluable desde nuestra red")' in pdf, "")
+
+    # el JSON, que consumen IAs, lleva el mismo mensaje del veredicto
+    from . import report_json
+    lv = scoring.level_for(22.5, veredicto="no_evaluable")
+    payload = report_json.build_json({
+        "client": {"host": "h", "score": 22.5, "score_pre_gate": 27.5, "level": lv,
+                   "checks": [], "category_scores": {}, "cobertura_score": 0.45,
+                   "score_fiable": False,
+                   "acceso_degradado": {"nivel": "total", "motivo": "m", "degradados": 13}},
+        "competitors": [], "generated": "2026-07-22"})
+    fi = payload["cliente"]["fiabilidad"]
+    t("json_aviso_es_el_veredicto", fi["aviso"] == lv["msg"],
+      f"el aviso del JSON debe ser el mensaje del veredicto: {str(fi)[:120]}")
+    t("json_sin_grito", "NO FIABLE" not in str(fi), str(fi)[:100])
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

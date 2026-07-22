@@ -182,21 +182,35 @@ def build_pdf(data):
         # la vía de exportación (la que viaja sola, sin nadie que la matice) era la
         # única sin guardarraíl.
         def _aviso_fiabilidad(dom, etiqueta):
+            # El rojo "NO FIABLE — no usar este informe" alarmaba más de lo que
+            # informaba, y afirmaba de más: un bloqueo desde nuestra red no es un
+            # veredicto sobre la web. El título y el cuerpo salen del veredicto
+            # (scoring.py), como en la web y el JSON, y el tono pasa a naranja:
+            # "esto es lo que sí se verificó y esto es lo que no", sin gritar.
             deg = dom.get("acceso_degradado")
             if dom.get("score_fiable", True) or not deg:
                 return None
+            lvl = dom.get("level") or {}
+            if lvl.get("cobertura_parcial"):
+                titulo = lvl.get("name", "No evaluable desde nuestra red")
+                cuerpo = lvl.get("msg", "")
+            else:
+                titulo = "Lectura limitada"
+                cuerpo = deg.get("motivo", "")
+            cob = dom.get("cobertura_score")
+            extra = (f' Esta nota cubre el <b>{round(cob * 100)}%</b> del modelo.'
+                     if isinstance(cob, (int, float)) else "")
             warn_tbl = Table([[Paragraph(
-                f'<b><font color="{BAD.hexval()}" size="11">⚠ PUNTUACIÓN NO FIABLE — '
-                f'no usar este informe como dato firme</font></b><br/>'
-                f'<font size="9">{esc(etiqueta)}: {esc(deg.get("motivo", ""))}. '
-                f'Se han marcado <b>{deg.get("degradados", 0)}</b> factores como '
-                f'«no verificable» en lugar de contarlos como fallo. La puntuación '
-                f'cubre solo lo que sí pudo comprobarse: repite el análisis más tarde '
-                f'o desde otra red antes de tomar decisiones con estos datos.</font>', BODY)]],
+                f'<b><font color="{WARN.hexval()}" size="11">⚠ {esc(titulo)}</font></b><br/>'
+                f'<font size="9">{esc(etiqueta)}: {esc(cuerpo)} '
+                f'Hay <b>{deg.get("degradados", 0)}</b> factores marcados como '
+                f'«no verificable» porque no se pudieron comprobar — no cuentan como '
+                f'fallo.{extra} Puedes repetir el análisis más tarde o desde otra '
+                f'red.</font>', BODY)]],
                 colWidths=[16 * cm])
             warn_tbl.setStyle(TableStyle([
-                ("BOX", (0, 0), (-1, -1), 1.2, BAD),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FDF1F1")),
+                ("BOX", (0, 0), (-1, -1), 1.2, WARN),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FDF6EC")),
                 ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
                 ("LEFTPADDING", (0, 0), (-1, -1), 12), ("RIGHTPADDING", (0, 0), (-1, -1), 12),
             ]))
