@@ -1841,6 +1841,52 @@ def test_jina_read_degrada_sin_romper():
       "un 402 con placeholder no puede pasar por HTML bueno")
 
 
+def test_46_cls_se_mide_sin_pagespeed():
+    """Barrido de factores fantasma: el 4.6 (estabilidad visual/CLS) NUNCA
+    puntuaba en producción.
+
+    Solo se medía vía PageSpeed (with_psi), y en producción with_psi es siempre
+    False: medido en 12 dominios con render, salió NULL en los 12. Un factor de
+    los 40 que jamás contaba. Ahora el CLS lo mide el propio navegador durante
+    el render (Layout Instability API), sin API externa ni clave.
+    """
+    # con CLS del render y sin PSI, el check puntúa
+    ctx = ctx_base()
+    ctx["psi_cls"] = None
+    ctx["render_cls"] = 0.02
+    c = by_id(checks.run_c4(ctx), "4.6")
+    t("cls_render_puntua", c["score"] == 1,
+      f"CLS 0.02 medido en el navegador debe puntuar, no quedar NULL: {c}")
+    t("cls_render_dice_la_fuente", "navegador" in c["evidence"],
+      "hay que decir que es dato de laboratorio, no de campo")
+
+    # umbrales de Web Vitals
+    ctx["render_cls"] = 0.18
+    t("cls_medio", by_id(checks.run_c4(ctx), "4.6")["score"] == 0.5, "0.1<CLS<=0.25 -> parcial")
+    ctx["render_cls"] = 0.4
+    t("cls_malo", by_id(checks.run_c4(ctx), "4.6")["score"] == 0, "CLS>0.25 -> fallo")
+
+    # PageSpeed (campo) tiene prioridad sobre el laboratorio si está
+    ctx["psi_cls"] = 0.05
+    ctx["render_cls"] = 0.9
+    c = by_id(checks.run_c4(ctx), "4.6")
+    t("cls_psi_manda", c["score"] == 1 and "campo" in c["evidence"],
+      "el dato de campo (PageSpeed) manda sobre el de laboratorio")
+
+    # sin render Y sin PSI, sigue siendo no medido (honesto)
+    ctx["psi_cls"] = None
+    ctx["render_cls"] = None
+    t("cls_sin_datos_es_null", by_id(checks.run_c4(ctx), "4.6")["score"] is None,
+      "sin ninguna fuente, no se inventa: queda no medido")
+
+    # y el render de verdad expone el CLS
+    src = open(os.path.join(os.path.dirname(__file__), "render.py")).read()
+    t("render_define_cls_js", "\n_CLS_JS = " in src or src.startswith("_CLS_JS"),
+      "_CLS_JS debe estar definido a nivel de módulo, no solo usado")
+    t("render_mide_layout_shift", "layout-shift" in src and "hadRecentInput" in src,
+      "hay que medir el CLS real, no inventarlo")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

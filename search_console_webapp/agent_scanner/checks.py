@@ -486,15 +486,23 @@ def run_c4(ctx):
                  else "Sin OpenAPI/Swagger en rutas estandar"))
 
     # 4.6 estabilidad visual (CLS): los rediseños dinamicos confunden a agentes
-    # que toman capturas entre acciones
+    # que toman capturas entre acciones. Se prefiere PageSpeed (dato de campo);
+    # si no, el CLS que midio el navegador durante el render (dato de
+    # laboratorio, siempre disponible cuando hay render). Antes solo existia PSI
+    # y en produccion nunca se activaba: 4.6 era un factor que jamas puntuaba.
     cls = ctx.get("psi_cls")
+    fuente = "PageSpeed (campo)"
+    if cls is None:
+        cls = ctx.get("render_cls")
+        fuente = "medido en el navegador (laboratorio)"
     if cls is None:
         out.append(R("4.6", "C4", "Estabilidad visual (CLS)", None,
-                     "No medido (ejecutar con --psi para medir via PageSpeed)", manual=True))
+                     "No medido: sin render disponible en este analisis", manual=True))
     else:
         score = 1 if cls <= 0.1 else 0.5 if cls <= 0.25 else 0
         out.append(R("4.6", "C4", "Estabilidad visual (CLS)", score,
-                     f"CLS={cls:.3f} (bueno <=0.1): los saltos de layout confunden a agentes que capturan entre acciones"))
+                     f"CLS={cls:.3f} (bueno <=0.1, {fuente}): los saltos de layout "
+                     "confunden a un agente que captura pantalla entre acciones"))
 
     # 4.7 zonas de clic operables — medidas en el LAYOUT REAL, no en el HTML.
     # Un agente que pilota un navegador clica por coordenadas: un control de
