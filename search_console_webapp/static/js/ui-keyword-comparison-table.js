@@ -138,7 +138,3 @@ export function clearKeywordComparisonTable() {
   }
 }
 
-// ✅ NUEVO: Función para obtener la instancia de Grid.js (para cleanup desde ui-render)
-export function getKeywordComparisonGridTable() {
-  return keywordComparisonGridTable;
-}

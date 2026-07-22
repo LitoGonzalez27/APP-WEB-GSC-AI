@@ -1,17 +1,8 @@
 // ui-render.js - ACTUALIZADO para manejar períodos específicos en lugar de meses
 import { elems } from './utils.js';
-import { 
-  formatInteger, 
-  formatDecimal, 
-  formatPercentage,
-  formatPosition, 
-  formatPercentageChange, 
-  formatPositionDelta,
-  parseNumericValue, 
-  parseIntegerValue,
-  getStandardUrlTableConfig,
-  registerDataTableSortingTypes,
-  escapeHtml as escapeHtmlUtil
+import {
+  formatInteger,
+  formatDecimal
 } from './number-utils.js';
 import { createUrlsGridTable } from './ui-urls-gridjs.js';
 import { createUrlKeywordsGridTable } from './ui-url-keywords-gridjs.js';
@@ -143,68 +134,6 @@ function getUrlAnalysisType(urlData, periods = null) {
   return hasMultiplePeriods ? 'comparison' : 'single';
 }
 
-// ✅ NUEVA función para actualizar headers de tabla de URLs
-function updateUrlTableHeaders(analysisType) {
-  const table = document.getElementById('resultsTable');
-  if (!table) return;
-  
-  const headers = table.querySelectorAll('thead th');
-  
-  if (analysisType === 'single') {
-    // Headers para período único
-    if (headers[2]) headers[2].textContent = 'Clicks P1';
-    if (headers[3]) headers[3].style.display = 'none'; // Ocultar P2
-    if (headers[4]) headers[4].style.display = 'none'; // Ocultar Delta
-    if (headers[5]) headers[5].textContent = 'Impressions P1';
-    if (headers[6]) headers[6].style.display = 'none'; // Ocultar P2
-    if (headers[7]) headers[7].style.display = 'none'; // Ocultar Delta
-    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
-    if (headers[9]) headers[9].style.display = 'none'; // Ocultar P2
-    if (headers[10]) headers[10].style.display = 'none'; // Ocultar Delta
-    if (headers[11]) headers[11].textContent = 'Pos P1';
-    if (headers[12]) headers[12].style.display = 'none'; // Ocultar P2
-    if (headers[13]) headers[13].style.display = 'none'; // Ocultar Delta
-  } else {
-    // Headers para comparación (mostrar todos)
-    if (headers[2]) headers[2].textContent = 'Clicks P1';
-    if (headers[3]) {
-      headers[3].style.display = '';
-      headers[3].textContent = 'Clicks P2';
-    }
-    if (headers[4]) {
-      headers[4].style.display = '';
-      headers[4].textContent = 'ΔClicks (%)';
-    }
-    if (headers[5]) headers[5].textContent = 'Impressions P1';
-    if (headers[6]) {
-      headers[6].style.display = '';
-      headers[6].textContent = 'Impressions P2';
-    }
-    if (headers[7]) {
-      headers[7].style.display = '';
-      headers[7].textContent = 'ΔImp. (%)';
-    }
-    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
-    if (headers[9]) {
-      headers[9].style.display = '';
-      headers[9].textContent = 'CTR P2 (%)';
-    }
-    if (headers[10]) {
-      headers[10].style.display = '';
-      headers[10].textContent = 'ΔCTR (%)';
-    }
-    if (headers[11]) headers[11].textContent = 'Pos P1';
-    if (headers[12]) {
-      headers[12].style.display = '';
-      headers[12].textContent = 'Pos P2';
-    }
-    if (headers[13]) {
-      headers[13].style.display = '';
-      headers[13].textContent = 'ΔPos';
-    }
-  }
-}
-
 // ✅ FUNCIÓN CORREGIDA: processUrlsData en ui-render.js
 function processUrlsData(pages) {
   const urlsData = [];
@@ -289,115 +218,6 @@ function calculatePercentageChange(p1, p2) {
     return 0;
   }
   return ((p1 / p2) - 1) * 100;
-}
-
-// Genera la tarjeta de categoría para palabras clave
-function buildCatCard(title, stat = { current: 0, new: 0, lost: 0, stay: 0 }) {
-  return `
-    <div class="category-card">
-      <div class="value">${stat.current}</div>
-      <div class="subtitle">${title}</div>
-      <div class="entry">New: <strong>+${stat.new}</strong></div>
-      <div class="exit">Lost: <strong>-${stat.lost}</strong></div>
-      <div class="maintain">Maintained: <strong>${stat.stay}</strong></div>
-    </div>
-  `;
-}
-
-// ✅ ACTUALIZADA: Función para crear mini-gráficos que maneja períodos específicos
-function createMiniChart(canvasId, data, color, labels, type = 'line') {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return null;
-  
-  const ctx = canvas.getContext('2d');
-  
-  if (canvas.chart) {
-    canvas.chart.destroy();
-  }
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, 60);
-  gradient.addColorStop(0, `${color}40`);
-  gradient.addColorStop(1, `${color}08`);
-  
-  const chartConfig = {
-    type: 'line',
-    data: {
-      labels: labels || ['P1', 'P2'], // Etiquetas por defecto para períodos
-      datasets: [{
-        data: data,
-        borderColor: color,
-        backgroundColor: gradient,
-        borderWidth: 2.5,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        pointBackgroundColor: color,
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointHoverBackgroundColor: color,
-        pointHoverBorderColor: '#ffffff',
-        pointHoverBorderWidth: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        intersect: false,
-        mode: 'index',
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: { 
-          enabled: true,
-          mode: 'index',
-          intersect: false,
-          bodyFont: { size: 12 },
-          titleFont: { size: 12 },
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#fff',
-          bodyColor: '#fff',
-          borderColor: color,
-          borderWidth: 1,
-          cornerRadius: 6,
-          displayColors: false,
-          callbacks: {
-            title: function(context) {
-              return labels ? labels[context[0].dataIndex] : `Período ${context[0].dataIndex + 1}`;
-            },
-            label: function(context) {
-              const value = context.parsed.y;
-              if (canvasId.includes('ctr')) return `${value.toFixed(2)}%`;
-              if (canvasId.includes('position')) return value.toFixed(1);
-              return Number.isInteger(value) ? formatInteger(value) : value;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { 
-          display: false,
-          grid: { display: false }
-        },
-        y: { 
-          display: false,
-          grid: { display: false },
-          beginAtZero: true
-        }
-      },
-      animation: {
-        duration: 1000,
-        easing: 'easeInOutQuart'
-      },
-      hover: {
-        animationDuration: 200
-      }
-    }
-  };
-  
-  canvas.chart = new Chart(ctx, chartConfig);
-  return canvas.chart;
 }
 
 // ✅ ACTUALIZADA: Renderiza el bloque de resumen con períodos específicos
@@ -1388,29 +1208,6 @@ export function renderTableError() {
   }
 }
 
-// ✅ NUEVO: Función para filtrar keywords por rango de posiciones
-function filterKeywordsByPosition(keywordData, positionRange) {
-  if (!keywordData || keywordData.length === 0) return [];
-  
-  return keywordData.filter(keyword => {
-    const position = keyword.position_m1;
-    if (typeof position !== 'number') return false;
-    
-    switch (positionRange) {
-      case 'top3':
-        return position >= 1 && position <= 3;
-      case 'top10':
-        return position >= 4 && position <= 10;
-      case 'top20':
-        return position >= 11 && position <= 20;
-      case 'top20plus':
-        return position > 20;
-      default:
-        return true;
-    }
-  });
-}
-
 // ✅ MIGRADO A GRID.JS: Variables para almacenar datos pre-procesados y Grid.js del modal
 let preProcessedModalData = createInitialKeywordModalState();
 
@@ -1473,129 +1270,6 @@ function getAnalysisTypeModal(keywordData) {
 }
 
 // ✅ REMOVIDO: Funciones Modal duplicadas - ahora se usan las del módulo centralizado
-
-function updateModalTableHeaders(analysisType) {
-  const table = document.getElementById('keywordModalTable');
-  if (!table) return;
-  
-  const headers = table.querySelectorAll('thead th');
-  
-  if (analysisType === 'single') {
-    // Headers para período único
-    if (headers[2]) headers[2].textContent = 'Clicks';
-    if (headers[3]) headers[3].style.display = 'none'; // Ocultar P2
-    if (headers[4]) headers[4].style.display = 'none'; // Ocultar Delta
-    if (headers[5]) headers[5].textContent = 'Impressions';
-    if (headers[6]) headers[6].style.display = 'none'; // Ocultar P2
-    if (headers[7]) headers[7].style.display = 'none'; // Ocultar Delta
-    if (headers[8]) headers[8].textContent = 'CTR (%)';
-    if (headers[9]) headers[9].style.display = 'none'; // Ocultar P2
-    if (headers[10]) headers[10].style.display = 'none'; // Ocultar Delta
-    if (headers[11]) headers[11].textContent = 'Position';
-    if (headers[12]) headers[12].style.display = 'none'; // Ocultar P2
-    if (headers[13]) headers[13].style.display = 'none'; // Ocultar Delta
-  } else {
-    // Headers para comparación (mostrar todos)
-    if (headers[2]) headers[2].textContent = 'Clicks P1';
-    if (headers[3]) {
-      headers[3].style.display = '';
-      headers[3].textContent = 'Clicks P2';
-    }
-    if (headers[4]) {
-      headers[4].style.display = '';
-      headers[4].textContent = 'ΔClicks (%)';
-    }
-    if (headers[5]) headers[5].textContent = 'Impressions P1';
-    if (headers[6]) {
-      headers[6].style.display = '';
-      headers[6].textContent = 'Impressions P2';
-    }
-    if (headers[7]) {
-      headers[7].style.display = '';
-      headers[7].textContent = 'ΔImp. (%)';
-    }
-    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
-    if (headers[9]) {
-      headers[9].style.display = '';
-      headers[9].textContent = 'CTR P2 (%)';
-    }
-    if (headers[10]) {
-      headers[10].style.display = '';
-      headers[10].textContent = 'ΔCTR (%)';
-    }
-    if (headers[11]) headers[11].textContent = 'Pos P1';
-    if (headers[12]) {
-      headers[12].style.display = '';
-      headers[12].textContent = 'Pos P2';
-    }
-    if (headers[13]) {
-      headers[13].style.display = '';
-      headers[13].textContent = 'ΔPos';
-    }
-  }
-}
-
-// ✅ NUEVO: Función para actualizar headers de la tabla según el tipo de análisis para un rango específico
-function updateModalTableHeadersForRange(range, analysisType) {
-  const table = document.getElementById(`keywordModalTable-${range}`);
-  if (!table) return;
-  
-  const headers = table.querySelectorAll('thead th');
-  
-  if (analysisType === 'single') {
-    // Headers para período único
-    if (headers[2]) headers[2].textContent = 'Clicks';
-    if (headers[3]) headers[3].style.display = 'none'; // Ocultar P2
-    if (headers[4]) headers[4].style.display = 'none'; // Ocultar Delta
-    if (headers[5]) headers[5].textContent = 'Impressions';
-    if (headers[6]) headers[6].style.display = 'none'; // Ocultar P2
-    if (headers[7]) headers[7].style.display = 'none'; // Ocultar Delta
-    if (headers[8]) headers[8].textContent = 'CTR (%)';
-    if (headers[9]) headers[9].style.display = 'none'; // Ocultar P2
-    if (headers[10]) headers[10].style.display = 'none'; // Ocultar Delta
-    if (headers[11]) headers[11].textContent = 'Position';
-    if (headers[12]) headers[12].style.display = 'none'; // Ocultar P2
-    if (headers[13]) headers[13].style.display = 'none'; // Ocultar Delta
-  } else {
-    // Headers para comparación (mostrar todos)
-    if (headers[2]) headers[2].textContent = 'Clicks P1';
-    if (headers[3]) {
-      headers[3].style.display = '';
-      headers[3].textContent = 'Clicks P2';
-    }
-    if (headers[4]) {
-      headers[4].style.display = '';
-      headers[4].textContent = 'ΔClicks (%)';
-    }
-    if (headers[5]) headers[5].textContent = 'Impressions P1';
-    if (headers[6]) {
-      headers[6].style.display = '';
-      headers[6].textContent = 'Impressions P2';
-    }
-    if (headers[7]) {
-      headers[7].style.display = '';
-      headers[7].textContent = 'ΔImp. (%)';
-    }
-    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
-    if (headers[9]) {
-      headers[9].style.display = '';
-      headers[9].textContent = 'CTR P2 (%)';
-    }
-    if (headers[10]) {
-      headers[10].style.display = '';
-      headers[10].textContent = 'ΔCTR (%)';
-    }
-    if (headers[11]) headers[11].textContent = 'Pos P1';
-    if (headers[12]) {
-      headers[12].style.display = '';
-      headers[12].textContent = 'Pos P2';
-    }
-    if (headers[13]) {
-      headers[13].style.display = '';
-      headers[13].textContent = 'ΔPos';
-    }
-  }
-}
 
 // ✅ NUEVO: Función para abrir el modal de keywords (versión optimizada con pre-procesamiento)
 function openKeywordModal(modalKey, label = '') {
@@ -2488,73 +2162,6 @@ function processKeywordsForGridUpdate(keywords, hasComparison) {
 
   return data;
 }
-
-// ✅ NUEVO: Función para crear filas de keywords
-function createUrlKeywordRow(keyword, hasComparison) {
-  // Calcular clases para deltas
-  const deltaClicksClass = getDeltaClass(keyword.delta_clicks_percent);
-  const deltaImprClass = getDeltaClass(keyword.delta_impressions_percent);
-  const deltaCtrClass = getDeltaClass(keyword.delta_ctr_percent);
-  const deltaPosClass = getDeltaClassPosition(keyword.delta_position_absolute);
-  
-  return `
-    <tr>
-      <td class="dt-body-center">
-        <i class="fas fa-search serp-icon"
-           data-keyword="${escapeHtmlUtil(keyword.keyword)}"
-           data-url="${escapeHtmlUtil(keyword.url)}"
-           title="View SERP for ${escapeHtmlUtil(keyword.keyword)}"
-           style="cursor:pointer;"></i>
-      </td>
-      <td class="dt-body-left">${escapeHtmlUtil(keyword.keyword)}</td>
-      <td>${formatInteger(keyword.clicks_m1 || 0)}</td>
-      ${hasComparison ? `<td>${formatInteger(keyword.clicks_m2 || 0)}</td>` : ''}
-      ${hasComparison ? `<td class="${deltaClicksClass}">${formatPercentageChange(keyword.delta_clicks_percent)}</td>` : ''}
-      <td>${formatInteger(keyword.impressions_m1 || 0)}</td>
-      ${hasComparison ? `<td>${formatInteger(keyword.impressions_m2 || 0)}</td>` : ''}
-      ${hasComparison ? `<td class="${deltaImprClass}">${formatPercentageChange(keyword.delta_impressions_percent)}</td>` : ''}
-      <td>${formatPercentage(keyword.ctr_m1)}</td>
-      ${hasComparison ? `<td>${formatPercentage(keyword.ctr_m2)}</td>` : ''}
-      ${hasComparison ? `<td class="${deltaCtrClass}">${formatPercentageChange(keyword.delta_ctr_percent, true)}</td>` : ''}
-      <td>${formatPosition(keyword.position_m1)}</td>
-      ${hasComparison ? `<td>${formatPosition(keyword.position_m2)}</td>` : ''}
-      ${hasComparison ? `<td class="${deltaPosClass}">${formatPositionDelta(keyword.delta_position_absolute, keyword.position_m1, keyword.position_m2)}</td>` : ''}
-    </tr>
-  `;
-}
-
-// ✅ NUEVO: Funciones auxiliares para clases CSS
-function getDeltaClass(value) {
-  if (value === 'New' || value === 'Infinity' || (typeof value === 'number' && value > 0)) {
-    return 'positive-change';
-  } else if (value === 'Lost' || (typeof value === 'number' && value < 0)) {
-    return 'negative-change';
-  }
-  return '';
-}
-
-function getDeltaClassPosition(value) {
-  // Para posiciones, negativo es bueno (mejor posición)
-  if (value === 'New' || (typeof value === 'number' && value < 0)) {
-    return 'positive-change';
-  } else if (value === 'Lost' || (typeof value === 'number' && value > 0)) {
-    return 'negative-change';
-  }
-  return '';
-}
-
-// ✅ NUEVO: Event listener para los iconos de keywords en la tabla de URLs
-document.addEventListener('DOMContentLoaded', function() {
-  // Delegación de eventos para los iconos de keywords
-  document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('keywords-icon')) {
-      const url = e.target.dataset.url;
-      if (url) {
-        openUrlKeywordsModal(url);
-      }
-    }
-  });
-});
 
 // ✅ NUEVO: Hacer funciones disponibles globalmente
 window.openUrlKeywordsModal = openUrlKeywordsModal;

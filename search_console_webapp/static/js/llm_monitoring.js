@@ -9,7 +9,6 @@ class LLMMonitoring {
         this.baseUrl = '/api/llm-monitoring';
         this.currentProject = null;
         this.charts = {};
-        this.comparisonGrid = null;
         this.queriesGrid = null;
         this.historyChart = null; // ✨ NUEVO: Gráfica de historial en el modal
 

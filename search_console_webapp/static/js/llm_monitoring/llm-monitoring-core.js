@@ -570,11 +570,6 @@ setupEventListeners() {
             }
         });
 
-        // Export comparison
-        document.getElementById('btnExportComparison')?.addEventListener('click', () => {
-            this.exportComparison();
-        });
-
         // ✅ NUEVO: Gestión de prompts - Abrir modal
         document.getElementById('btnManagePrompts')?.addEventListener('click', () => {
             this.showPromptsManagementModal();
@@ -974,16 +969,6 @@ renderMiniTrend(trend) {
         return `<span class="branded-trend branded-trend--stable" title="${titleText}">= stable</span>`;
     },
 
-formatDelta(current, previous) {
-        if (previous === null || previous === undefined) return '<span class="delta delta--new">&mdash;</span>';
-        if (previous === 0) return current > 0 ? '<span class="delta delta--up">&uarr;</span>' : '';
-        const change = ((current - previous) / previous) * 100;
-        if (Math.abs(change) < 2) return '<span class="delta delta--stable">=</span>';
-        return change > 0
-            ? `<span class="delta delta--up">&uarr;+${Math.abs(change).toFixed(1)}%</span>`
-            : `<span class="delta delta--down">&darr;${change.toFixed(1)}%</span>`;
-    },
-
 updateProgressBar(elementId, value) {
         const bar = document.getElementById(elementId);
         if (bar) {
@@ -1109,23 +1094,6 @@ bindDetailButtonsDelegation(container) {
         };
 
         container.addEventListener('click', this._onQueryDetailsClick);
-    },
-
-formatRelativeTime(dateString) {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffSeconds = Math.floor(diffMs / 1000);
-        const diffMinutes = Math.floor(diffSeconds / 60);
-        const diffHours = Math.floor(diffMinutes / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffSeconds < 60) return 'just now';
-        if (diffMinutes < 60) return `${diffMinutes} min ago`;
-        if (diffHours < 24) return `${diffHours} hours ago`;
-        if (diffDays < 7) return `${diffDays} days ago`;
-
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     },
 
 showDownloadButtons(show = true) {
@@ -1360,49 +1328,6 @@ getLLMColor(llm) {
             'perplexity': '#f59e0b'
         };
         return colors[llm] || '#6b7280';
-    },
-
-formatPositionWithBadge(avgPosition, positionSource, details) {
-        if (!avgPosition) return 'N/A';
-
-        const positionStr = `#${avgPosition.toFixed(1)}`;
-
-        // Si no hay información de source, solo mostrar posición
-        if (!positionSource) {
-            return positionStr;
-        }
-
-        // Mapeo de badges
-        const badges = {
-            'text': '📝',
-            'link': '🔗',
-            'both': '📝🔗'
-        };
-
-        const badge = badges[positionSource] || '';
-
-        // Crear tooltip con detalles (en inglés)
-        let tooltipText = 'Position source: ';
-        if (positionSource === 'text') {
-            tooltipText += 'Detected in response text';
-        } else if (positionSource === 'link') {
-            tooltipText += 'Detected in cited URLs (default position 15)';
-        } else if (positionSource === 'both') {
-            tooltipText += 'Detected in text and URLs';
-        }
-
-        // Si hay detalles, añadirlos
-        if (details && (details.text_count || details.link_count || details.both_count)) {
-            tooltipText += ` | Text: ${details.text_count || 0}, URLs: ${details.link_count || 0}, Both: ${details.both_count || 0}`;
-        }
-
-        // Grid.js soporta HTML en celdas, pero para tooltip necesitamos un wrapper
-        return gridjs.html(`
-            <span title="${tooltipText}" style="display: inline-flex; align-items: center; gap: 4px;">
-                <span>${positionStr}</span>
-                <span style="font-size: 12px;">${badge}</span>
-            </span>
-        `);
     },
 
 formatDate(dateStr) {
@@ -1733,30 +1658,6 @@ updateCompareView() {
                 </div>
             `;
         }).join('');
-    },
-
-formatMarkdownSimple(text) {
-        if (!text) return '<em>No content</em>';
-        
-        let html = this.escapeHtml(text);
-        
-        // Headers
-        html = html.replace(/^### (.+)$/gm, '<strong style="font-size: 1.1em;">$1</strong><br>');
-        html = html.replace(/^## (.+)$/gm, '<strong style="font-size: 1.15em;">$1</strong><br>');
-        html = html.replace(/^# (.+)$/gm, '<strong style="font-size: 1.2em;">$1</strong><br>');
-        
-        // Bold
-        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        
-        // Lists
-        html = html.replace(/^- (.+)$/gm, '• $1<br>');
-        html = html.replace(/^\d+\. (.+)$/gm, '$&<br>');
-        
-        // Line breaks
-        html = html.replace(/\n\n/g, '<br><br>');
-        html = html.replace(/\n/g, '<br>');
-        
-        return html;
     },
 
 getSummaryText(response) {
