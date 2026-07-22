@@ -386,16 +386,6 @@ function parseInteger(str) {
 }
 
 /**
- * Función auxiliar para parsear porcentajes para ordenamiento
- * @param {string} str - String con porcentaje
- * @returns {number} - Número parseado
- */
-function parsePercentageForSort(str) {
-    if (!str || str === '-' || str === '0%') return 0;
-    return parseFloat(str.replace(/[%+]/g, '')) || 0;
-}
-
-/**
  * Obtiene la clase CSS para deltas
  * @param {string} value - Valor del delta
  * @returns {string} - Clase CSS
