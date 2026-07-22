@@ -64,10 +64,74 @@ BROWSER_HEADERS = {
 TRANSITORIOS = {0, 429, 502, 503, 504, 408, 425}
 REINTENTOS = 1          # un segundo intento basta para el ruido de red
 PAUSA_REINTENTO = 1.5
+# Un 429 no es ruido de red: es el servidor pidiendo que vayamos más despacio.
+# Reintentarlo a 1.5s es no hacerle caso. Caso real (finistore.es desde el
+# servidor de producción): tienda Shopify sana —desde otra red da 200, 592 KB y
+# nota 65.8— que devolvía 429 con su página de error de 79 KB. El guardarraíl
+# hacía bien en no puntuarla, pero el análisis se perdía por completo.
+PAUSA_429 = 6.0
+# Tope: sin esto, un Retry-After de 300 dejaría el análisis colgado 5 minutos
+# en cada una de las ~52 peticiones que hace un dominio.
+RETRY_AFTER_MAX = 30
+# Tras el primer 429 se espacian las siguientes sondas AL MISMO HOST. Seguir
+# disparando 50 peticiones a quien acaba de pedir calma solo alarga el castigo.
+ESPACIADO_TRAS_429 = 1.0
+VENTANA_FRENO = 180          # segundos que dura el espaciado
+_HOSTS_FRENADOS = {}         # host -> momento del último 429
 
 
 def _es_transitorio(status):
     return status in TRANSITORIOS
+
+
+def _host_de(url):
+    try:
+        return (urlparse(url).hostname or "").lower()
+    except Exception:
+        return ""
+
+
+def _marcar_frenado(url):
+    h = _host_de(url)
+    if not h:
+        return
+    # El proceso web vive semanas: sin poda, este dict crece con cada host que
+    # alguna vez nos frenó. Se limpia lo caducado antes de añadir.
+    if len(_HOSTS_FRENADOS) > 200:
+        ahora = time.monotonic()
+        for k, t0 in list(_HOSTS_FRENADOS.items()):
+            if ahora - t0 > VENTANA_FRENO:
+                _HOSTS_FRENADOS.pop(k, None)
+    _HOSTS_FRENADOS[h] = time.monotonic()
+
+
+def _esperar_si_frenado(url):
+    """Espacia la siguiente sonda si este host ya nos pidió calma hace poco."""
+    h = _host_de(url)
+    if not h:
+        return
+    t0 = _HOSTS_FRENADOS.get(h)
+    if t0 is None:
+        return
+    if time.monotonic() - t0 > VENTANA_FRENO:
+        _HOSTS_FRENADOS.pop(h, None)
+        return
+    time.sleep(ESPACIADO_TRAS_429)
+
+
+def _espera_indicada(status, retry_after):
+    """Cuánto esperar antes de reintentar. El servidor manda si lo dice él.
+
+    `Retry-After` puede venir en segundos o como fecha HTTP; solo se interpreta
+    la forma numérica, que es la que usan los limitadores de ritmo.
+    """
+    if retry_after:
+        try:
+            segundos = int(str(retry_after).strip())
+            return max(0.0, min(float(segundos), RETRY_AFTER_MAX))
+        except (TypeError, ValueError):
+            pass
+    return PAUSA_429 if status == 429 else PAUSA_REINTENTO
 
 
 def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public=True,
@@ -94,9 +158,12 @@ def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public
         if ":" in h:
             k, v = h.split(":", 1)
             hdrs[k.strip()] = v.strip()
+    _esperar_si_frenado(url)
+    retry_after = None
     t0 = time.monotonic()
     try:
         resp = _SESSION.get(url, headers=hdrs, timeout=timeout, allow_redirects=True)
+        retry_after = resp.headers.get("Retry-After")
         ttfb = time.monotonic() - t0
         result.update({
             "status": resp.status_code,
@@ -115,7 +182,9 @@ def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public
     # reportar como ausente algo que sí está. Es el sesgo del proyecto —
     # confundir "no está" con "no lo he podido mirar" — a escala de factor.
     if reintentar and _es_transitorio(result["status"]):
-        time.sleep(PAUSA_REINTENTO)
+        if result["status"] == 429:
+            _marcar_frenado(url)
+        time.sleep(_espera_indicada(result["status"], retry_after))
         segundo = fetch(url, ua=ua, timeout=timeout, headers=headers,
                         verify_public=verify_public, reintentar=False)
         if not _es_transitorio(segundo["status"]):
@@ -140,15 +209,21 @@ def status_only(url, ua=UA_HUMAN, timeout=12, verify_public=True, reintentar=Tru
     hdrs = {"User-Agent": ua}
     if ua == UA_HUMAN:
         hdrs.update(BROWSER_HEADERS)  # misma línea base que fetch(), o no comparan
+    if reintentar:
+        _esperar_si_frenado(url)
+    retry_after = None
     try:
         resp = _SESSION.get(url, headers=hdrs, timeout=timeout,
                             allow_redirects=True, stream=True)
         code = resp.status_code
+        retry_after = resp.headers.get("Retry-After")
         resp.close()
     except requests.exceptions.RequestException:
         code = 0
     if reintentar and _es_transitorio(code):
-        time.sleep(PAUSA_REINTENTO)
+        if code == 429:
+            _marcar_frenado(url)
+        time.sleep(_espera_indicada(code, retry_after))
         return status_only(url, ua=ua, timeout=timeout,
                            verify_public=verify_public, reintentar=False)
     return code

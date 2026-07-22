@@ -11,6 +11,7 @@ Sin dependencias de test externas: asserts planos, exit code 1 si algo falla.
 import os
 import re
 import sys
+import time
 
 from . import checks, discovery, engine, scoring
 from .agents import _aggregate, hitos_aplicables
@@ -1596,6 +1597,64 @@ def test_36_lee_el_arbol_de_accesibilidad_real():
     sin = by_id(checks.run_c3(ctx), "3.6")
     t("ax_sin_render_avisa", "APROXIMADO" in sin["evidence"],
       f"sin árbol hay que decir que la medida es peor: {sin['evidence'][-80:]}")
+
+
+def test_429_se_respeta_el_ritmo_que_pide_el_sitio():
+    """Un 429 es el servidor pidiendo calma, y lo reintentábamos a 1.5s.
+
+    Caso real (finistore.es desde el servidor de producción): tienda Shopify
+    sana —desde otra red da HTTP 200, 592 KB y nota 65.8— que devolvía 429 con
+    su página de error de 79 KB. El guardarraíl hacía bien en no puntuar esa
+    página, pero el análisis se perdía entero. Y nosotros no ayudábamos: un
+    análisis lanza ~52 peticiones al mismo dominio, así que tras el primer 429
+    seguíamos disparando y alargando el castigo.
+
+    Dos arreglos: respetar `Retry-After` cuando el servidor lo manda, y espaciar
+    las sondas siguientes al mismo host.
+    """
+    from . import httpfetch as hf
+
+    # el servidor manda: si dice cuánto esperar, se le hace caso
+    t("429_respeta_retry_after", hf._espera_indicada(429, "12") == 12.0,
+      "si el servidor dice 12 segundos, son 12")
+    t("429_retry_after_con_espacios", hf._espera_indicada(429, " 5 ") == 5.0, "")
+    # ...pero con tope: un Retry-After de 300 colgaría el análisis 5 min por sonda
+    t("429_retry_after_con_tope",
+      hf._espera_indicada(429, "300") == hf.RETRY_AFTER_MAX,
+      f"hay que topar en {hf.RETRY_AFTER_MAX}s o el análisis no termina nunca")
+    # formato de fecha HTTP: no se interpreta, se cae al valor por defecto
+    t("429_fecha_http_no_rompe",
+      hf._espera_indicada(429, "Wed, 21 Oct 2026 07:28:00 GMT") == hf.PAUSA_429, "")
+    # sin cabecera, un 429 espera MUCHO más que un timeout: no es lo mismo
+    t("429_sin_cabecera_espera_mas",
+      hf._espera_indicada(429, None) == hf.PAUSA_429
+      and hf.PAUSA_429 > hf.PAUSA_REINTENTO,
+      f"429={hf.PAUSA_429}s vs transitorio={hf.PAUSA_REINTENTO}s")
+    t("timeout_no_espera_de_mas",
+      hf._espera_indicada(0, None) == hf.PAUSA_REINTENTO, "")
+
+    # espaciado por host: tras un 429 se va más despacio con ESE host
+    hf._HOSTS_FRENADOS.clear()
+    hf._marcar_frenado("https://ejemplo.test/x")
+    t("freno_es_por_host", "ejemplo.test" in hf._HOSTS_FRENADOS, str(hf._HOSTS_FRENADOS))
+    t("freno_no_afecta_a_otros",
+      hf._host_de("https://otro.test/") not in hf._HOSTS_FRENADOS,
+      "frenar un host no puede ralentizar el análisis de otro")
+    # y caduca solo: un 429 de hace media hora no debe seguir penalizando
+    hf._HOSTS_FRENADOS["ejemplo.test"] = time.monotonic() - hf.VENTANA_FRENO - 1
+    hf._esperar_si_frenado("https://ejemplo.test/x")
+    t("freno_caduca", "ejemplo.test" not in hf._HOSTS_FRENADOS,
+      "pasada la ventana hay que olvidar el freno")
+    hf._HOSTS_FRENADOS.clear()
+
+    # la sonda que MIDE el rate limiting no puede ir espaciada ni reintentar:
+    # ahí el 429 es el hallazgo, no un tropiezo
+    src = open(os.path.join(os.path.dirname(__file__), "httpfetch.py")).read()
+    cuerpo = src[src.index("def rapid_fire"):src.index("def jina_read")]
+    t("rapid_fire_sigue_sin_frenos", "reintentar=False" in cuerpo, "")
+    so = src[src.index("def status_only"):src.index("def bot_access_matrix")]
+    t("espaciado_solo_si_reintenta", "if reintentar:\n        _esperar_si_frenado" in so,
+      "rapid_fire pasa reintentar=False, así que no debe espaciarse")
 
 
 def main():
