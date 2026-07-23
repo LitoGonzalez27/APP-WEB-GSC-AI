@@ -318,16 +318,41 @@ summary:hover{color:var(--text-2)}
   border-radius:99px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s}
 .pill-select button.active{border-color:var(--accent);color:var(--accent);background:var(--accent-subtle)}
 .ghost-btn{border:1px solid var(--border-strong);background:none;color:var(--text-2);
-  border-radius:99px;padding:8px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s}
+  border-radius:99px;padding:8px 18px;font-size:.85rem;font-weight:600;cursor:pointer;
+  transition:all .15s;display:inline-flex;align-items:center;gap:7px}
 .ghost-btn:hover{color:var(--text);border-color:var(--text-3)}
+/* secundaria destacada: borde de acento (descargas, prompt IA, simular) */
 .ghost-btn.dl{border-color:var(--accent);color:var(--accent)}
 .ghost-btn.dl:hover{background:var(--accent-subtle)}
+/* PRIMARIA: verde sólido, la acción de más valor del panel (el entregable PDF) */
+.ghost-btn.primary{background:var(--accent);border-color:var(--accent);color:#0A0A0B;font-weight:700}
+.ghost-btn.primary:hover{filter:brightness(1.06);color:#0A0A0B}
 .ghost-btn:disabled{opacity:.55;cursor:default}
+/* barra de acciones del informe */
+.rep-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+/* header: logo clicable + acciones de navegación */
+.logo{font-weight:800;letter-spacing:-.03em;font-size:1.1rem;cursor:pointer;
+  display:inline-flex;align-items:center;gap:9px;background:none;border:none;font-family:var(--sans)}
+.logo:hover em{filter:brightness(1.1)}
+.hlabel{color:var(--text-3)}
+.hnav{border:1px solid var(--border-strong);background:none;color:var(--text-2);
+  border-radius:99px;padding:5px 13px;font-size:.8rem;font-weight:600;text-decoration:none;
+  cursor:pointer;transition:all .15s;white-space:nowrap;font-family:var(--sans)}
+.hnav:hover{color:var(--text);border-color:var(--text-3)}
+.hnav.accent{border-color:var(--accent);color:var(--accent)}
+.hnav.accent:hover{background:var(--accent-subtle);border-color:var(--accent)}
 .note{font-size:.78rem;color:var(--text-3);margin-top:12px}
 @media (max-width:840px){
   .grid-form,.score-grid,.flex2{grid-template-columns:1fr}
   .cat{grid-template-columns:1fr 52px}.cat .bar{grid-column:1/-1;order:3}
   .sov-row{grid-template-columns:1fr 100px}.sov-row .bar{grid-column:1/-1}
+}
+@media (max-width:640px){
+  /* header no puede desbordar en horizontal: envuelve y suelta lo decorativo */
+  .hbar{height:auto;flex-wrap:wrap;gap:10px;padding:11px 0}
+  .hlabel{display:none}
+  .hmeta{flex-wrap:wrap;gap:8px;font-size:.75rem}
+  .hnav{padding:4px 11px}
 }
 @media (prefers-reduced-motion:reduce){
   .radar .sweep{animation-duration:6s}
@@ -337,8 +362,13 @@ summary:hover{color:var(--text-2)}
 </head>
 <body>
 <header><div class="wrap hbar">
-  <div class="logo">clicand<em>seo</em></div>
-  <div class="hmeta"><a href="/agent/acceso" id="accessLink" style="display:none;color:var(--text-2);text-decoration:none;font-size:.8rem;border:1px solid var(--border-strong);border-radius:99px;padding:5px 12px">Gestionar accesos</a><span>Agent-Ready Scanner</span><span class="hscore" id="hscore" style="display:none"></span></div>
+  <button class="logo" onclick="location.href='/app'" title="Ir al dashboard">clicand<em>seo</em><span class="hlabel" style="font-weight:600;font-size:.8rem">· Agent-Ready Scanner</span></button>
+  <div class="hmeta">
+    <a href="/app" class="hnav" id="navDashboard" style="display:none">← Dashboard</a>
+    <a href="/agent/" class="hnav accent" id="navNew" style="display:none">＋ Nuevo análisis</a>
+    <a href="/agent/acceso" class="hnav" id="accessLink" style="display:none">Gestionar accesos</a>
+    <span class="hscore" id="hscore" style="display:none"></span>
+  </div>
 </div></header>
 
 <!-- ============ SETUP ============ -->
@@ -395,7 +425,7 @@ summary:hover{color:var(--text-2)}
           en tu web y en la de los competidores (carrito→checkout con datos rellenos /
           formulario / plan más barato). <b>Nunca se paga ni se crean cuentas</b>: los campos
           de tarjeta están bloqueados por código.<br>
-          <b style="color:var(--acc)">No frena el análisis</b>: al activarlo aparecerá un botón
+          <b style="color:var(--accent)">No frena el análisis</b>: al activarlo aparecerá un botón
           «Simular agentes» en el informe, y podrás lanzarlo cuando quieras mientras
           consultas el resto de métricas.</div></div>
           <label class="switch"><input type="checkbox" id="opt-agents"><i></i></label></div>
@@ -451,13 +481,11 @@ summary:hover{color:var(--text-2)}
         <div class="eyebrow" id="rep-date"></div>
         <h1 id="rep-title"></h1>
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="ghost-btn" onclick="location.href='/app'">← Volver al dashboard</button>
-        <button class="ghost-btn" id="btnAgents" style="display:none;border-color:var(--acc);
-          color:var(--acc)">🤖 Simular agentes</button>
-        <button class="ghost-btn dl" id="dlPdf">⤓ Informe PDF</button>
-        <button class="ghost-btn dl" id="dlJson">⤓ JSON completo</button>
-        <button class="ghost-btn" onclick="location.href='/agent/'">Nuevo análisis</button>
+      <div class="rep-actions">
+        <button class="ghost-btn primary" id="dlPdf">⤓ Informe PDF</button>
+        <button class="ghost-btn dl" id="btnAgents" style="display:none">🤖 Simular agentes</button>
+        <button class="ghost-btn dl js-superprompt">📋 Copiar prompt IA</button>
+        <button class="ghost-btn" id="dlJson">⤓ JSON completo</button>
       </div>
     </div>
   </div>
@@ -831,9 +859,7 @@ function paneResumen(d){
     ${c.cobertura_score!=null?` Esta nota cubre el <b>${Math.round(c.cobertura_score*100)}%</b> del modelo.`:""}
     Puedes reintentar más tarde: si el sitio solo estaba limitando el ritmo, el siguiente análisis saldrá completo.
     <div style="margin-top:12px">
-      <button id="btn-superprompt" class="btn" style="background:var(--acc);color:#fff;border:none;
-        padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600">
-        📋 Copiar prompt para completar con IA</button>
+      <button class="ghost-btn dl js-superprompt">📋 Copiar prompt para completar con IA</button>
       <div style="font-size:.82rem;color:var(--text-3);margin-top:6px">
         Aunque nuestra red esté bloqueada, tú sí puedes: copia este prompt, pégalo en ChatGPT o
         Claude, y completa la auditoría con tu propia conexión. Trae los factores que nos faltan
@@ -1270,8 +1296,9 @@ let CURRENT_JOB=null;
    servidor (que lo construye desde lo YA verificado + la metodología de los 40
    factores) y lo copia al portapapeles. */
 document.addEventListener("click",async(ev)=>{
-  const b=ev.target.closest("#btn-superprompt");
-  if(!b||!CURRENT_JOB)return;
+  const b=ev.target.closest(".js-superprompt");
+  if(!b)return;
+  if(!CURRENT_JOB){alert("No hay informe cargado.");return}
   const orig=b.textContent;b.disabled=true;b.textContent="Generando…";
   try{
     const r=await fetch("/agent/api/prompt/"+CURRENT_JOB);
@@ -1349,9 +1376,9 @@ function pintarBotonAgentes(d){
 function bannerAgentes(txt,estado){
   let el=$("#agentsBanner");
   if(!el){el=document.createElement("div");el.id="agentsBanner";
-    el.className="panel";el.style.cssText="margin:0 0 16px;border-left:4px solid var(--acc)";
+    el.className="panel";el.style.cssText="margin:0 0 16px;border-left:4px solid var(--accent)";
     const cont=$("#panes");cont.parentNode.insertBefore(el,cont);}
-  const col=estado==="error"?"var(--bad)":estado==="done"?"var(--ok)":"var(--acc)";
+  const col=estado==="error"?"var(--bad)":estado==="done"?"var(--ok)":"var(--accent)";
   el.style.borderLeftColor=col;
   el.innerHTML=`<div style="font-size:.9rem;color:var(--text-2)">${txt}</div>`;
 }
@@ -1362,7 +1389,7 @@ function arrancarPollAgentes(d){
     catch(e){return}
     if(s.status==="running"){
       const m=Math.floor((s.elapsed||0)/60),seg=(s.elapsed||0)%60;
-      bannerAgentes(`<b style="color:var(--acc)">🤖 ${esc(s.phase||"Simulando agentes…")}</b>
+      bannerAgentes(`<b style="color:var(--accent)">🤖 ${esc(s.phase||"Simulando agentes…")}</b>
         · ${m}m ${seg}s · puedes seguir usando el informe mientras tanto.
         <span style="color:var(--text-3)">${esc((s.log||[]).slice(-1)[0]||"")}</span>`,"running");
       return;
@@ -1390,6 +1417,7 @@ function renderReport(d,outdir,jobId){
   if(jobId)CURRENT_JOB=jobId;
   const c=d.client;
   $("#hscore").style.display="inline-block";$("#hscore").textContent=c.score+"/100";
+  $("#navDashboard").style.display="inline-block";$("#navNew").style.display="inline-block";
   $("#rep-date").textContent="Auditoría de preparación agéntica · "+(d.generated||"").slice(0,10);
   $("#rep-title").innerHTML=`¿Está <span class="acc">${esc(c.host)}</span> lista para la IA?`;
   if(outdir)$("#rep-saved").textContent="Guardado en "+outdir+" (data.json + informe.html entregable)";
