@@ -2081,8 +2081,11 @@ def test_super_prompt_de_rescate():
     """
     from . import superprompt
     from .catalog import CHECKS
+    # bloqueo leve ("sondas"): la portada SÍ se vio, así que lo verificado se
+    # reutiliza y solo se piden los pendientes (la reutilización se apaga en
+    # bloqueo fuerte, cubierto por test_super_prompt_bloqueo_total_delega_todo).
     data = {"client": {"host": "latiendahero.es", "typology": "ecommerce",
-            "cobertura_score": 0.82, "acceso_degradado": {"nivel": "total"},
+            "cobertura_score": 0.82, "acceso_degradado": {"nivel": "sondas"},
             "checks": [
                 {"id": "1.1", "score": 1, "evidence": "robots.txt 200 y parseable", "manual": False},
                 {"id": "3.1", "score": None, "evidence": "NO VERIFICABLE", "manual": True},
@@ -2106,6 +2109,46 @@ def test_super_prompt_de_rescate():
     t("endpoint_prompt_existe", "/api/prompt/<job_id>" in rt, "")
     web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
     t("boton_solo_en_bloqueo", "btn-superprompt" in web and "cobertura_parcial" in web, "")
+
+
+def test_super_prompt_bloqueo_total_delega_todo():
+    """Regla de Carlos: si el scanner se bloqueó, TODO el análisis pasa al LLM,
+    sin excepción. En bloqueo fuerte NO damos por bueno lo que "vimos" (podría
+    ser la página del WAF), así que los 40 factores se delegan — salvo los 3 de
+    hostilidad de acceso (1.6/2.4/4.4), que el bloqueo confirma de primera mano
+    y el LLM con IP limpia no reproduce (bug real allegro/bol: un check leyó la
+    página de 'Access Denied' y se anotó un 1, inflando la nota del bloqueo)."""
+    import re as _re
+    from . import superprompt
+    from .catalog import CHECKS
+    checks_sim = []
+    for cid, cat, nombre, desc in CHECKS:
+        if cid in ("1.6", "2.4", "4.4"):
+            checks_sim.append({"id": cid, "score": 0, "manual": False,
+                               "evidence": "HTTP 403 a nuestra IP: bloquea el acceso automatizado"})
+        elif cid in ("1.1", "4.1", "6.3"):  # sobrevivieron con score pese al bloqueo
+            checks_sim.append({"id": cid, "score": 1, "manual": False,
+                               "evidence": "lectura dudosa sobre la página de bloqueo del WAF"})
+        else:
+            checks_sim.append({"id": cid, "score": None, "manual": True,
+                               "no_verificable": True, "evidence": "NO VERIFICABLE — bloqueo"})
+    data = {"client": {"host": "mango.com", "typology": "ecommerce",
+            "cobertura_score": 0.35, "acceso_degradado": {"nivel": "total"},
+            "checks": checks_sim}}
+    p = superprompt.construir(data)
+    faltan = [c[0] for c in CHECKS if f"[{c[0]}]" not in p]
+    t("bloqueo_total_estan_los_40", not faltan, f"faltan: {faltan}")
+    conf = set(_re.findall(r"\[(\d\.\d)\][^\[]*?CONFIRMADO EN CAMPO", p))
+    t("bloqueo_total_confirma_solo_acceso", conf == {"1.6", "2.4", "4.4"},
+      f"confirmados: {sorted(conf)} (debe ser exactamente los de hostilidad)")
+    pend = set(_re.findall(r"\[(\d\.\d)\][^\[]*?PENDIENTE", p))
+    t("bloqueo_total_delega_37", len(pend) == 37, f"pendientes: {len(pend)}")
+    t("bloqueo_total_no_da_por_bueno_lo_dudoso",
+      {"1.1", "4.1", "6.3"} <= pend,
+      "un factor de contenido leído sobre la página de bloqueo NO puede darse por verificado")
+    t("bloqueo_total_avisa_ip_limpia",
+      "IP limpia" in p and "CONFIRMADO EN CAMPO" in p,
+      "el LLM debe saber que a él quizá no le bloqueen")
 
 
 def main():
