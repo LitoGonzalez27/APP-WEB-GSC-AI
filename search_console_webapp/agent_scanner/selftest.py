@@ -1993,6 +1993,30 @@ def test_proxy_de_salida_opcional():
             os.environ["SCANNER_PROXY_URL"] = prev
 
 
+def test_agents_md_cuenta_como_superficie_agentica():
+    """agents.md es instrucciones para agentes en la raíz (análogo a llms.txt
+    pero orientado a INTERACCIÓN). Lo tienen poquísimos sitios y es señal fuerte
+    de preparación agéntica — finistore.es lo expone y lo referencia en robots,
+    y no lo sondeábamos ni lo premiábamos.
+    """
+    from .config import WELLKNOWN_PATHS
+    t("agents_md_se_sondea", "/agents.md" in WELLKNOWN_PATHS,
+      "hay que pedir /agents.md para poder detectarlo")
+
+    # el check 6.1 lo cuenta como superficie agéntica
+    ctx = ctx_base()
+    ctx["wellknown"] = {"/agents.md": 200}
+    c = by_id(checks.run_c6(ctx), "6.1")
+    t("agents_md_puntua_6_1", c["score"] == 1, f"con agents.md, 6.1 debe puntuar: {c}")
+    t("agents_md_en_evidencia", "/agents.md" in c["evidence"],
+      "el informe debe nombrar agents.md como lo que expone la web")
+
+    # y sin nada agéntico sigue en 0 (no lo rompo)
+    ctx2 = ctx_base(); ctx2["wellknown"] = {}
+    t("sin_superficie_sigue_0", by_id(checks.run_c6(ctx2), "6.1")["score"] == 0,
+      "sin ninguna señal agéntica, 6.1 sigue en 0")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

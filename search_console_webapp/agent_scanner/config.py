@@ -55,7 +55,7 @@ WELLKNOWN_PATHS = [
     "/.well-known/oauth-protected-resource",
     "/auth.md", "/.well-known/skills",
     "/.well-known/x402", "/.well-known/ucp", "/.well-known/mpp",
-    "/mcp", "/ask", "/agents.json", "/llms.txt", "/llms-full.txt",
+    "/mcp", "/ask", "/agents.json", "/agents.md", "/llms.txt", "/llms-full.txt",
     "/openapi.json", "/swagger.json", "/api-docs",
 ]
 
