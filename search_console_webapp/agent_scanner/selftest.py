@@ -2103,6 +2103,8 @@ def test_super_prompt_de_rescate():
       "COMPORTAMIENTO AGÉNTICO" in p and "carrito" in p.lower(),
       "debe cubrir el comportamiento de los agentes")
     t("prompt_lleva_la_escala", "Agent-ready" in p and "Invisible para agentes" in p, "")
+    t("prompt_siempre_pide_pdf", "PDF" in p and "sin preguntar" in p,
+      "Carlos: el informe debe entregarse SIEMPRE en PDF, sin preguntar formato")
     import os
     rt = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "agent_routes.py")).read()
