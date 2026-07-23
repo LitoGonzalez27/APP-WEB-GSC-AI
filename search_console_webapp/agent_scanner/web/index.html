@@ -608,11 +608,28 @@ $("#go").addEventListener("click",async()=>{
     const j=await r.json();
     if(!r.ok)throw new Error(j.error||"error");
     history.replaceState(null,"","/agent/?job="+j.id);
+    ANALISIS_EN_CURSO=j.id;
     show("#view-loading");poll(j.id);
   }catch(e){$("#err").textContent=e.message;$("#go").disabled=false}
 });
 
 /* ---------- polling / loading ---------- */
+/* Análisis en curso: si el usuario abandona (cierra, recarga, vuelve atrás), se
+   avisa al servidor para que corte el trabajo — corre en un hilo que si no
+   seguiría gastando red y bloqueando el siguiente análisis. sendBeacon se
+   entrega aunque la página se esté descargando; se deja de sondear en cuanto el
+   análisis termina o se abandona. */
+let ANALISIS_EN_CURSO=null;
+function cancelarAnalisis(){
+  if(!ANALISIS_EN_CURSO)return;
+  try{navigator.sendBeacon("/agent/api/cancel/"+ANALISIS_EN_CURSO);}catch(e){}
+  ANALISIS_EN_CURSO=null;
+}
+// pagehide cubre cerrar pestaña, navegar fuera y el botón "atrás"; visibilitychange
+// cubre cambiar de pestaña/minimizar en móvil, donde pagehide no siempre dispara.
+window.addEventListener("pagehide",cancelarAnalisis);
+window.addEventListener("beforeunload",cancelarAnalisis);
+
 /* Espaciado progresivo: un análisis puede durar 15 min y sondear cada 1.5s todo
    el rato son 600 peticiones. Los primeros segundos interesa ver el progreso
    fino; después basta con refrescar más despacio. */
@@ -644,8 +661,9 @@ async function poll(id,intentos){
       return `<div class="dom-chip ${d.state}">${esc(d.host)} <span class="st">${st}</span></div>`}).join("");
     const con=$("#console");con.innerHTML=(s.log||[]).map(l=>`<div>${esc(l)}</div>`).join("");
     con.scrollTop=con.scrollHeight;
-    if(s.status==="done"){const rr=await fetch("/agent/api/result/"+id);renderReport(await rr.json(),s.outdir,id);return}
-    if(s.status==="error"){$("#phase").textContent="✗ "+(s.error||"Error en el análisis");return}
+    if(s.status==="done"){ANALISIS_EN_CURSO=null;const rr=await fetch("/agent/api/result/"+id);renderReport(await rr.json(),s.outdir,id);return}
+    if(s.status==="cancelled"){ANALISIS_EN_CURSO=null;$("#phase").textContent="Análisis cancelado";return}
+    if(s.status==="error"){ANALISIS_EN_CURSO=null;$("#phase").textContent="✗ "+(s.error||"Error en el análisis");return}
     setTimeout(()=>poll(id,intentos+1),_esperaSondeo(intentos));
   }catch(e){setTimeout(()=>poll(id,intentos+1),5000)}
 }

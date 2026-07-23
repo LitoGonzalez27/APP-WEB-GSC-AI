@@ -2017,6 +2017,60 @@ def test_agents_md_cuenta_como_superficie_agentica():
       "sin ninguna señal agéntica, 6.1 sigue en 0")
 
 
+def test_analisis_se_cancela_al_abandonar():
+    """Petición de Carlos: al cerrar la app / volver atrás, el análisis debe
+    cortarse de inmediato — y un análisis abandonado no puede bloquear el
+    siguiente ("Ya hay un análisis en curso").
+
+    El análisis corre en un hilo del servidor que no se entera de que cerraste
+    la pestaña. La cancelación es COLABORATIVA: el motor consulta un hook en
+    cada punto de progreso y aborta. El frontend avisa por sendBeacon al salir,
+    y el servidor además detecta el abandono por falta de polls (heartbeat).
+    """
+    # el hook del motor aborta en el siguiente punto de progreso
+    prev = engine.CANCEL_CHECK
+    try:
+        engine.CANCEL_CHECK = lambda: True
+        raised = False
+        try:
+            engine._log("cualquier progreso")
+        except engine.AnalisisCancelado:
+            raised = True
+        t("motor_aborta_si_cancelado", raised,
+          "con el hook activo, cualquier punto de progreso debe abortar")
+
+        engine.CANCEL_CHECK = lambda: False
+        engine._log("sigue")   # no debe lanzar
+        t("motor_no_aborta_si_vivo", True, "")
+    finally:
+        engine.CANCEL_CHECK = prev
+
+    # routes: heartbeat, endpoint de cancelación, y que el lock ignore zombis
+    import os
+    rt = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "agent_routes.py")).read()
+    t("routes_heartbeat_en_status", 'job["last_seen"] = time.time()' in rt,
+      "cada poll debe renovar el latido para detectar abandono")
+    t("routes_endpoint_cancel", '/api/cancel/<job_id>' in rt,
+      "hace falta un endpoint que el beacon llame al salir")
+    t("routes_lock_ignora_abandonados", "_hay_analisis_vivo()" in rt
+      and "not _abandonado(j)" in rt,
+      "un análisis abandonado no puede bloquear el siguiente")
+    t("routes_pasa_hook_al_motor", "engine.CANCEL_CHECK = lambda: _abandonado(job)" in rt,
+      "el job debe darle al motor forma de saber si fue abandonado")
+    t("routes_cancelacion_no_es_error",
+      'except engine.AnalisisCancelado:' in rt and 'job["status"] = "cancelled"' in rt,
+      "abandonar no es un fallo del análisis: es un estado propio")
+
+    # frontend: avisa al salir por sendBeacon (se entrega durante el unload)
+    web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    t("web_beacon_al_salir",
+      "navigator.sendBeacon" in web and "/agent/api/cancel/" in web,
+      "sendBeacon es lo único que se entrega mientras la página se descarga")
+    t("web_escucha_pagehide", 'addEventListener("pagehide"' in web,
+      "pagehide cubre cerrar pestaña, navegar fuera y el botón atrás")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

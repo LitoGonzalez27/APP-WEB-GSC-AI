@@ -60,15 +60,46 @@ _WEB_DIR = os.path.join(os.path.dirname(__file__), "agent_scanner", "web")
 _JOBS = {}
 _JOBS_LOCK = threading.Lock()
 _MAX_JOBS = 50
+# El panel sondea /status cada pocos segundos. Si dejan de llegar polls, quien
+# pidió el análisis se ha ido (cerró la pestaña, volvió atrás): pasado este
+# margen el job se considera ABANDONADO y se cancela. 12s cubre el sondeo más
+# lento (6s) con holgura para un poll perdido.
+_ABANDONO_SEG = 12
+# Tope absoluto: un análisis nunca debería pasar de esto; si lo hace, algo se
+# colgó y no puede bloquear a los siguientes para siempre.
+_JOB_MAX_SEG = 600
+
+
+def _abandonado(job):
+    """¿Nadie está mirando este análisis (o pidió cancelarlo, o se colgó)?"""
+    if job.get("cancel"):
+        return True
+    ahora = time.time()
+    if ahora - job.get("started", ahora) > _JOB_MAX_SEG:
+        return True
+    # last_seen se pone en el primer poll; hasta entonces, cuenta desde started
+    return ahora - job.get("last_seen", job.get("started", ahora)) > _ABANDONO_SEG
+
+
+def _hay_analisis_vivo():
+    """Un análisis 'running' solo bloquea si de verdad sigue vivo: uno
+    abandonado (pestaña cerrada) no puede impedir lanzar otro."""
+    return any(j["status"] == "running" and not _abandonado(j)
+               for j in _JOBS.values())
 
 
 def _run_job(job_id, urls, opts):
     from agent_scanner import engine
     job = _JOBS[job_id]
+    # el motor consulta esto en cada punto de progreso y aborta si el usuario se
+    # fue (pestaña cerrada -> sin polls -> abandonado) o pidió cancelar.
+    engine.CANCEL_CHECK = lambda: _abandonado(job)
     try:
         cats = set(opts.get("cats") or [])
         audits = []
         for i, u in enumerate(urls):
+            if _abandonado(job):
+                raise engine.AnalisisCancelado()
             job["domains"][i]["state"] = "running"
             job["phase"] = f"Auditando {job['domains'][i]['host']}"
             try:
@@ -90,6 +121,8 @@ def _run_job(job_id, urls, opts):
                 audits.append(a)
                 job["domains"][i].update(state="done", score=a["score"],
                                          emoji=a["level"]["emoji"], level=a["level"]["name"])
+            except engine.AnalisisCancelado:
+                raise          # la cancelación no es un error del dominio: sube
             except Exception as exc:
                 audits.append({"domain": u, "error": str(exc)[:200]})
                 job["domains"][i].update(state="error", error=str(exc)[:200])
@@ -114,6 +147,12 @@ def _run_job(job_id, urls, opts):
             job["status"] = "done"
             job["phase"] = "Análisis completado"
             _guardar_informe(job_id, data, job.get("user_email"))
+    except engine.AnalisisCancelado:
+        # el usuario se fue: no es un fallo, es que el trabajo ya no interesa.
+        # Se marca cancelado y se libera el hueco para el siguiente análisis.
+        job["status"] = "cancelled"
+        job["phase"] = "Análisis cancelado (abandonado)"
+        job["log"].append("análisis cancelado: nadie estaba mirando")
     except Exception as exc:
         logger.exception("Fallo en job de agent_scanner")
         job["status"] = "error"
@@ -121,6 +160,7 @@ def _run_job(job_id, urls, opts):
     finally:
         from agent_scanner import engine
         engine.LOG_SINK = None
+        engine.CANCEL_CHECK = None
 
 
 def _aplicar_agentes(audit, agent_tests):
@@ -272,7 +312,12 @@ def index():
 @agent_access_required
 def scan():
     with _JOBS_LOCK:
-        if any(j["status"] == "running" for j in _JOBS.values()):
+        # un análisis abandonado (pestaña cerrada) ya no bloquea: se marca para
+        # que su hilo aborte en el siguiente punto de control, y se deja pasar.
+        for j in _JOBS.values():
+            if j["status"] == "running" and _abandonado(j):
+                j["cancel"] = True
+        if _hay_analisis_vivo():
             return jsonify({"error": "Ya hay un análisis en curso. Espera a que termine."}), 409
     payload = request.get_json(silent=True) or {}
     from agent_scanner.discovery import normalize
@@ -297,7 +342,8 @@ def scan():
         _JOBS[jid] = {
             "status": "running", "phase": "Preparando análisis…", "log": [],
             "user_email": (get_current_user() or {}).get("email"),
-            "started": time.time(), "error": None, "result": None,
+            "started": time.time(), "last_seen": time.time(),
+            "cancel": False, "error": None, "result": None,
             "domains": [{"url": u, "host": urlparse(u).netloc.replace("www.", ""),
                          "state": "pending", "score": None} for u in urls],
         }
@@ -311,10 +357,24 @@ def status(job_id):
     job = _JOBS.get(job_id)
     if not job:
         return jsonify({"error": "análisis desconocido"}), 404
+    # cada poll es la señal de que el usuario sigue mirando: renueva el latido.
+    job["last_seen"] = time.time()
     slim = {k: v for k, v in job.items() if k != "result"}
     slim["log"] = job["log"][-40:]
     slim["elapsed"] = round(time.time() - job["started"])
     return jsonify(slim)
+
+
+@agent_bp.route("/api/cancel/<job_id>", methods=["POST"])
+@agent_access_required
+def cancel(job_id):
+    """El panel llama a esto al salir (cerrar pestaña, volver atrás). Marca el
+    análisis para que su hilo aborte en el siguiente punto de control. Se acepta
+    también por sendBeacon, que no espera respuesta."""
+    job = _JOBS.get(job_id)
+    if job and job["status"] == "running":
+        job["cancel"] = True
+    return jsonify({"cancelado": bool(job)})
 
 
 def _resultado(job_id):

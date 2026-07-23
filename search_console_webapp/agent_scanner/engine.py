@@ -19,9 +19,24 @@ from .httpfetch import (bot_access_matrix, fetch, jina_read, rapid_fire,
 from .render import render as render_page
 
 LOG_SINK = None
+# Hook de cancelación cooperativa. El análisis corre en un hilo del servidor, y
+# Python no permite matar un hilo limpiamente: la cancelación tiene que ser
+# COLABORATIVA. Si CANCEL_CHECK está puesto y devuelve True, el motor aborta en
+# el siguiente punto de progreso. Con logs frecuentes, eso es 1-3s: lo bastante
+# rápido para que "cerrar la pestaña" corte el trabajo casi al instante.
+CANCEL_CHECK = None
+
+
+class AnalisisCancelado(Exception):
+    """El usuario abandonó el análisis (cerró la pestaña, volvió atrás…)."""
 
 
 def _log(msg):
+    # Cada mensaje de progreso es también un punto de cancelación: si quien
+    # pidió el análisis ya no está, no gastamos más red en un informe que nadie
+    # va a leer (ni seguimos ocupando el único hueco de análisis del proceso).
+    if CANCEL_CHECK is not None and CANCEL_CHECK():
+        raise AnalisisCancelado()
     if LOG_SINK is not None:
         LOG_SINK.append(msg)
 
