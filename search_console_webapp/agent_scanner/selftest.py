@@ -1962,6 +1962,37 @@ def test_44_deeplinking_cuenta_acceso_directo():
       "hay que decir que una página solo era legible vía Jina")
 
 
+def test_proxy_de_salida_opcional():
+    """VPS proxy: con SCANNER_PROXY_URL, todo el tráfico del scanner sale por una
+    IP limpia dedicada en vez de la de Railway (bloqueada por reputación de
+    rango). Sin la variable, va directo — para no romper local ni tests.
+    """
+    import os
+    from . import httpfetch as hf
+    from .render import _playwright_proxy
+
+    prev = os.environ.pop("SCANNER_PROXY_URL", None)
+    try:
+        t("proxy_off_por_defecto", hf._proxies() is None and _playwright_proxy() is None,
+          "sin la variable no debe haber proxy: local y tests van directo")
+
+        os.environ["SCANNER_PROXY_URL"] = "http://usuario:secreto@1.2.3.4:8888"
+        pr = hf._proxies()
+        t("proxy_requests_ambos_esquemas",
+          pr == {"http": "http://usuario:secreto@1.2.3.4:8888",
+                 "https": "http://usuario:secreto@1.2.3.4:8888"},
+          f"requests necesita el proxy para http y https: {pr}")
+        pw = _playwright_proxy()
+        t("proxy_playwright_separa_credenciales",
+          pw["server"] == "http://1.2.3.4:8888" and pw["username"] == "usuario"
+          and pw["password"] == "secreto",
+          f"Playwright quiere server sin credenciales y user/pass aparte: {pw}")
+    finally:
+        os.environ.pop("SCANNER_PROXY_URL", None)
+        if prev is not None:
+            os.environ["SCANNER_PROXY_URL"] = prev
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

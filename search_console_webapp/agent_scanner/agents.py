@@ -471,7 +471,9 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                 "no_evaluados": omitidos}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+        from .render import _playwright_proxy
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox"],
+                                    proxy=_playwright_proxy())
         page = browser.new_page()
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=45000)

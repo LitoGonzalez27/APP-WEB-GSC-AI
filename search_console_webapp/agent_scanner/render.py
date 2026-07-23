@@ -15,6 +15,25 @@ import subprocess
 
 from .config import render_backend
 
+
+def _playwright_proxy():
+    """SCANNER_PROXY_URL en el formato que espera Playwright (server + user/pass
+    aparte). Mismo VPS limpio que usa el fetcher, para que el render tampoco
+    salga por la IP quemada de Railway."""
+    import os
+    from urllib.parse import urlparse
+    url = os.environ.get("SCANNER_PROXY_URL")
+    if not url:
+        return None
+    u = urlparse(url)
+    if not u.hostname:
+        return None
+    prox = {"server": f"{u.scheme}://{u.hostname}:{u.port}"}
+    if u.username:
+        prox["username"] = u.username
+        prox["password"] = u.password or ""
+    return prox
+
 _CAMOUFOX_PY = os.path.expanduser("~/Desktop/proyectos/.venv-seo-scraping/bin/python3")
 _CAMOUFOX_PROBE = os.path.join(os.path.dirname(__file__), "_camoufox_probe.py")
 
@@ -131,7 +150,8 @@ def _render_playwright(url, timeout, interactive=False):
         return {"ok": False, "error": "playwright no instalado", "html": "", "status": 0}
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"],
+                                        proxy=_playwright_proxy())
             page = browser.new_page(viewport={"width": 1280, "height": 900})
             # MEDIDO, no supuesto (batería 5, 6 dominios × 3 variantes):
             #   veepee.es    networkidle 2.3s / dcl+3s 4.0s → HTML IDÉNTICO
