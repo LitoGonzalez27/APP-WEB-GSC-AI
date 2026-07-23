@@ -509,6 +509,36 @@ def whoami():
     return jsonify({"email": user.get("email"), "is_admin": user.get("role") == "admin"})
 
 
+@agent_bp.route("/api/diag")
+@admin_required
+def diag():
+    """Diagnóstico de red del scanner: desde qué IP sale de verdad y qué apoyos
+    tiene activos. Para saber, sin adivinar, si el proxy del VPS y Jina están en
+    marcha en este proceso. No expone credenciales, solo si están puestas."""
+    import os
+    from agent_scanner.httpfetch import fetch
+    salida = None
+    try:
+        r = fetch("https://api.ipify.org", verify_public=False, timeout=15)
+        salida = (r.get("body") or "").strip()[:60] or None
+    except Exception as exc:
+        salida = f"error: {str(exc)[:60]}"
+    prox = os.environ.get("SCANNER_PROXY_URL") or ""
+    # de la URL del proxy solo el host:puerto, nunca las credenciales
+    prox_host = None
+    if prox:
+        from urllib.parse import urlparse
+        u = urlparse(prox)
+        prox_host = f"{u.hostname}:{u.port}"
+    return jsonify({
+        "ip_de_salida": salida,
+        "proxy_configurado": bool(prox),
+        "proxy_host": prox_host,
+        "sale_por_el_proxy": bool(prox_host) and (salida or "").split(":")[0] == (prox_host or "").split(":")[0],
+        "jina_configurada": bool(os.environ.get("JINA_API_KEY")),
+    })
+
+
 @agent_bp.route("/acceso")
 @admin_required
 def access_page():
