@@ -812,6 +812,12 @@ def run_c6(ctx):
                      "/.well-known/oauth-authorization-server",
                      "/.well-known/oauth-protected-resource",
                      "/.well-known/ai-plugin.json", "/mcp", "/ask", "/agents.json",
+                     # agents.md: instrucciones para agentes en la raiz (analogo a
+                     # llms.txt pero orientado a INTERACCION, no solo lectura). Lo
+                     # tienen poquisimos sitios y es una señal fuerte de que la web
+                     # piensa en agentes. finistore.es lo expone y lo referencia en
+                     # su robots.txt; antes ni lo sondeabamos.
+                     "/agents.md",
                      "/.well-known/agent.json", "/.well-known/agent-card.json",
                      "/auth.md", "/.well-known/skills"]
     hits = [p for p in agentic_paths if wk.get(p) == 200]
