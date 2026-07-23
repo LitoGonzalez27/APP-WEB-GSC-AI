@@ -2110,7 +2110,13 @@ def test_super_prompt_de_rescate():
                            "agent_routes.py")).read()
     t("endpoint_prompt_existe", "/api/prompt/<job_id>" in rt, "")
     web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
-    t("boton_solo_en_bloqueo", "btn-superprompt" in web and "cobertura_parcial" in web, "")
+    # el prompt de rescate debe estar SIEMPRE disponible (Carlos): botón en la
+    # barra de acciones del informe, no solo dentro del aviso de bloqueo.
+    t("boton_prompt_siempre", "js-superprompt" in web and "rep-actions" in web,
+      "el botón de copiar prompt debe estar en la barra de acciones, siempre visible")
+    t("boton_prompt_tambien_en_bloqueo",
+      web.count("js-superprompt") >= 2 and "cobertura_parcial" in web,
+      "además del global, se mantiene el contextual en el aviso de bloqueo")
 
 
 def test_super_prompt_bloqueo_total_delega_todo():
