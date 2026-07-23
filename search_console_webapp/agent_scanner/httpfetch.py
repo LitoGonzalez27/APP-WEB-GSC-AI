@@ -19,6 +19,15 @@ _SESSION = requests.Session()
 _SESSION.max_redirects = 5
 
 
+def _proxies():
+    """Proxy de salida opcional. Con SCANNER_PROXY_URL, TODO el tráfico del
+    scanner sale por esa IP limpia (VPS dedicado), esquivando el bloqueo por
+    reputación del rango de Railway. Sin la variable, va directo (local/tests).
+    """
+    url = os.environ.get("SCANNER_PROXY_URL")
+    return {"http": url, "https": url} if url else None
+
+
 class BlockedURLError(Exception):
     """La URL apunta a un destino no permitido (IP privada, esquema inválido…)."""
 
@@ -182,7 +191,8 @@ def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public
     retry_after = None
     t0 = time.monotonic()
     try:
-        resp = _SESSION.get(url, headers=hdrs, timeout=timeout, allow_redirects=True)
+        resp = _SESSION.get(url, headers=hdrs, timeout=timeout, allow_redirects=True,
+                            proxies=_proxies())
         retry_after = resp.headers.get("Retry-After")
         ttfb = time.monotonic() - t0
         result.update({
@@ -238,7 +248,7 @@ def status_only(url, ua=UA_HUMAN, timeout=12, verify_public=True, reintentar=Tru
     retry_after = None
     try:
         resp = _SESSION.get(url, headers=hdrs, timeout=timeout,
-                            allow_redirects=True, stream=True)
+                            allow_redirects=True, stream=True, proxies=_proxies())
         code = resp.status_code
         retry_after = resp.headers.get("Retry-After")
         resp.close()
