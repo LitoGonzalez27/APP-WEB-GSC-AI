@@ -185,9 +185,12 @@ hallazgo). Un agente se pierde cuando un control no tiene nombre claro, cuando
 pulsa algo y no pasa lo que esperaba, o cuando un flujo exige registro/JS.
 
 ═══════════════════════════════════════════════════════════════════════
-ENTREGA
+ENTREGA — SIEMPRE UN INFORME EN PDF
 ═══════════════════════════════════════════════════════════════════════
-Devuelve un informe con:
+Entrega el resultado como un DOCUMENTO PDF descargable, sin preguntar formato ni
+ofrecer alternativas: genéralo directamente. Si tu entorno no puede producir un
+PDF, entrégalo en Markdown COMPLETO y listo para exportar a PDF (y dilo en una
+línea), pero nunca te quedes solo en preguntar. El informe debe contener:
 1. Veredicto y nota estimada 0-100, según esta escala:
 {_escala()}
 2. Tabla de los 40 factores: id · nombre · nota · evidencia (o «no verificable»).
