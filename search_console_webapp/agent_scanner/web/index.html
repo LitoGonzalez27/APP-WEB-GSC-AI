@@ -829,7 +829,16 @@ function paneResumen(d){
     ${deg.degradados?` Hay <b>${deg.degradados}</b> factores marcados como «no verificable»
     porque no se pudieron comprobar — no cuentan como fallo.`:""}
     ${c.cobertura_score!=null?` Esta nota cubre el <b>${Math.round(c.cobertura_score*100)}%</b> del modelo.`:""}
-    Puedes reintentar más tarde: si el sitio solo estaba limitando el ritmo, el siguiente análisis saldrá completo.</div></div>`;
+    Puedes reintentar más tarde: si el sitio solo estaba limitando el ritmo, el siguiente análisis saldrá completo.
+    <div style="margin-top:12px">
+      <button id="btn-superprompt" class="btn" style="background:var(--acc);color:#fff;border:none;
+        padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600">
+        📋 Copiar prompt para completar con IA</button>
+      <div style="font-size:.82rem;color:var(--text-3);margin-top:6px">
+        Aunque nuestra red esté bloqueada, tú sí puedes: copia este prompt, pégalo en ChatGPT o
+        Claude, y completa la auditoría con tu propia conexión. Trae los factores que nos faltan
+        con la garantía de que no se inventa nada.</div>
+    </div></div></div>`;
   }else if(c.score_fiable===false&&deg){
     aviso=`<div class="panel sec" style="margin-bottom:18px;
     border-left:4px solid var(--warn,#F2A65A);background:rgba(242,166,90,.08)">
@@ -1256,6 +1265,26 @@ function paneMetodologia(d){
 }
 
 let CURRENT_JOB=null;
+/* Botón "Copiar prompt para completar con IA": se genera dentro del aviso de
+   cobertura parcial, así que se escucha por delegación. Trae el super prompt del
+   servidor (que lo construye desde lo YA verificado + la metodología de los 40
+   factores) y lo copia al portapapeles. */
+document.addEventListener("click",async(ev)=>{
+  const b=ev.target.closest("#btn-superprompt");
+  if(!b||!CURRENT_JOB)return;
+  const orig=b.textContent;b.disabled=true;b.textContent="Generando…";
+  try{
+    const r=await fetch("/agent/api/prompt/"+CURRENT_JOB);
+    const j=await r.json();
+    if(!r.ok||!j.prompt)throw new Error(j.error||"error");
+    await navigator.clipboard.writeText(j.prompt);
+    b.textContent="✓ Copiado — pégalo en ChatGPT o Claude";
+    setTimeout(()=>{b.textContent=orig;b.disabled=false},4000);
+  }catch(e){
+    b.textContent="No se pudo copiar";b.disabled=false;
+    setTimeout(()=>{b.textContent=orig},3000);
+  }
+});
 
 /* descargas: PDF (informe para CMO) y JSON (datos completos para iterar con IA) */
 async function download(kind,btn){

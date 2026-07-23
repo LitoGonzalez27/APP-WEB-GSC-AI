@@ -2071,6 +2071,43 @@ def test_analisis_se_cancela_al_abandonar():
       "pagehide cubre cerrar pestaña, navegar fuera y el botón atrás")
 
 
+def test_super_prompt_de_rescate():
+    """Idea de Carlos: cuando el sitio bloquea nuestra red (Shopify/Akamai) y ni
+    el VPS ni Jina lo esquivan, generar un prompt para que el usuario complete el
+    análisis con un LLM usando SU propia conexión (IP limpia).
+
+    Dos garantías de fidelidad: arranca de lo YA verificado (esos factores no se
+    reevalúan) y prohíbe inventar (cada pendiente exige evidencia o «no verificable»).
+    """
+    from . import superprompt
+    from .catalog import CHECKS
+    data = {"client": {"host": "latiendahero.es", "typology": "ecommerce",
+            "cobertura_score": 0.82, "acceso_degradado": {"nivel": "total"},
+            "checks": [
+                {"id": "1.1", "score": 1, "evidence": "robots.txt 200 y parseable", "manual": False},
+                {"id": "3.1", "score": None, "evidence": "NO VERIFICABLE", "manual": True},
+            ]}}
+    p = superprompt.construir(data)
+    t("prompt_menciona_el_dominio", "latiendahero.es" in p, "")
+    faltan = [c[0] for c in CHECKS if f"[{c[0]}]" not in p]
+    t("prompt_cubre_los_40_factores", not faltan, f"faltan: {faltan}")
+    t("prompt_prohibe_inventar", "NO inventes" in p and "no verificable" in p.lower(),
+      "sin esta regla el LLM alucinaría")
+    t("prompt_reutiliza_lo_verificado",
+      "YA VERIFICADO" in p and "robots.txt 200 y parseable" in p, "")
+    t("prompt_marca_lo_pendiente", "PENDIENTE" in p, "")
+    t("prompt_incluye_comportamiento_agentico",
+      "COMPORTAMIENTO AGÉNTICO" in p and "carrito" in p.lower(),
+      "debe cubrir el comportamiento de los agentes")
+    t("prompt_lleva_la_escala", "Agent-ready" in p and "Invisible para agentes" in p, "")
+    import os
+    rt = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "agent_routes.py")).read()
+    t("endpoint_prompt_existe", "/api/prompt/<job_id>" in rt, "")
+    web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    t("boton_solo_en_bloqueo", "btn-superprompt" in web and "cobertura_parcial" in web, "")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

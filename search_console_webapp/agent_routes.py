@@ -442,6 +442,23 @@ def report_pdf(job_id):
                      download_name=f"agent-readiness_{host}_{fecha}.pdf")
 
 
+@agent_bp.route("/api/prompt/<job_id>")
+@agent_access_required
+def prompt_rescate(job_id):
+    """Super prompt para completar el análisis con un LLM cuando el sitio bloqueó
+    nuestro acceso (Shopify/Akamai que ni el VPS ni Jina esquivan). Se genera
+    on-demand: solo cuando el usuario lo pide."""
+    data = _resultado(job_id)
+    if data is None:
+        return jsonify({"error": "resultado no disponible"}), 404
+    try:
+        from agent_scanner.superprompt import construir
+        return jsonify({"prompt": construir(data)})
+    except Exception as exc:
+        logger.exception("Fallo generando el super prompt")
+        return jsonify({"error": f"no se pudo generar el prompt: {exc}"}), 500
+
+
 @agent_bp.route("/api/report/<job_id>.json")
 @agent_access_required
 def report_json(job_id):
