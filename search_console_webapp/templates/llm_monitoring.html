@@ -2367,49 +2367,45 @@
         <div class="modal-content brand-mentions-modal" role="dialog" aria-modal="true" aria-labelledby="brandMentionsModalTitle" tabindex="-1">
             <div class="modal-header brand-mentions-header">
                 <div class="header-text">
-                    <h3 id="brandMentionsModalTitle">
-                        <i class="fas fa-chart-bar"></i>
-                        Brand Mentions Analysis
-                    </h3>
+                    <h3 id="brandMentionsModalTitle">Brand Mentions Analysis</h3>
                     <p id="brandMentionsModalPrompt" class="brand-mentions-prompt">Loading...</p>
                 </div>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideBrandMentionsModal()">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideBrandMentionsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <!-- ✨ Gráfica de Evolución Histórica (PRIMERO) -->
+
+            <!-- ✨ Resumen del prompt: SOV, Avg Position, Sentiment, Cluster, Top Domains -->
+            <div class="brand-mentions-overview" id="brandMentionsOverview"></div>
+
+            <!-- ✨ Gráfica de Evolución Histórica -->
             <div class="modal-history-section" id="brandMentionsHistorySection">
                 <div class="history-chart-header">
-                    <h4>
-                        <i class="fas fa-chart-line"></i>
-                        Visibility Evolution
-                    </h4>
+                    <h4>Visibility Evolution</h4>
                     <span class="history-chart-period" id="historyChartPeriod">Last 30 days</span>
                 </div>
                 <div class="history-chart-container">
                     <canvas id="brandMentionsHistoryChart"></canvas>
                 </div>
                 <div class="history-chart-loading" id="historyChartLoading">
-                    <i class="fas fa-spinner fa-spin"></i>
+                    <span class="bm-spinner" aria-hidden="true"></span>
                     <span>Loading history...</span>
                 </div>
                 <div class="history-chart-empty" id="historyChartEmpty" style="display: none;">
-                    <i class="fas fa-calendar-times"></i>
                     <span>No historical data available yet</span>
                 </div>
             </div>
-            
-            <!-- Contenido del modal (Your Brand, Competitors, etc.) -->
+
+            <!-- Contenido del modal (Your Brand, Competitors, breakdown por LLM) -->
             <div class="modal-body brand-mentions-body" id="brandMentionsModalBody">
                 <div class="brand-mentions-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
+                    <span class="bm-spinner" aria-hidden="true"></span>
                     <p>Loading analysis...</p>
                 </div>
             </div>
-            
+
             <div class="modal-footer brand-mentions-footer">
                 <button type="button" class="btn-close-modal" onclick="window.llmMonitoring.hideBrandMentionsModal()">
-                    <i class="fas fa-times"></i>
                     Close
                 </button>
             </div>

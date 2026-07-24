@@ -1017,9 +1017,9 @@ async loadQueryHistoryChart(queryId) {
                                     llmProviders.forEach(llm => {
                                         const llmInfo = dayData.by_llm[llm];
                                         if (llmInfo) {
-                                            const icon = llmInfo.mentioned ? '✅' : '❌';
+                                            const status = llmInfo.mentioned ? 'Mentioned' : 'Not mentioned';
                                             const displayName = self.getLLMDisplayName(llm);
-                                            lines.push(`${icon} ${displayName}`);
+                                            lines.push(`${displayName}: ${status}`);
                                         }
                                     });
                                     
@@ -1063,11 +1063,62 @@ async loadQueryHistoryChart(queryId) {
             if (emptyEl) {
                 emptyEl.style.display = 'flex';
                 emptyEl.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
                     <span>Error loading history</span>
                 `;
             }
         }
+    },
+
+// ✨ Resumen compacto del prompt: SOV, Avg Position, Sentiment, Cluster, Top Domains
+renderBrandMentionsOverview(query) {
+        const container = document.getElementById('brandMentionsOverview');
+        if (!container) return;
+
+        const sov = query.share_of_voice;
+        const avgPosition = query.avg_position;
+        const sentiment = query.sentiment || {};
+        const cluster = query.topic_cluster;
+        const topDomains = query.top_domains || [];
+
+        const sentimentMeta = {
+            positive: { color: '#22C55E', label: 'Positive' },
+            neutral: { color: '#94A3B8', label: 'Neutral' },
+            negative: { color: '#EF4444', label: 'Negative' }
+        };
+        const sMeta = sentiment.label
+            ? (sentimentMeta[sentiment.label] || { color: '#94A3B8', label: sentiment.label })
+            : null;
+
+        const domainsHtml = topDomains.length > 0
+            ? topDomains.slice(0, 3).map(d => this.getDomainFaviconHtml(
+                d.domain, `${d.domain} — ${d.mentions} mention${d.mentions === 1 ? '' : 's'}`, 22
+              )).join('')
+            : '<span class="bm-stat-value bm-stat-value--muted">—</span>';
+
+        container.innerHTML = `
+            <div class="bm-stat-tile">
+                <span class="bm-stat-label">Share of Voice</span>
+                <span class="bm-stat-value">${sov != null ? Number(sov).toFixed(1) + '%' : '-'}</span>
+            </div>
+            <div class="bm-stat-tile">
+                <span class="bm-stat-label">Avg. Position</span>
+                <span class="bm-stat-value">${avgPosition != null ? '#' + Number(avgPosition).toFixed(1) : '-'}</span>
+            </div>
+            <div class="bm-stat-tile">
+                <span class="bm-stat-label">Sentiment</span>
+                <span class="bm-stat-value">
+                    ${sMeta ? `<span class="lm-sentiment-dot" style="background:${sMeta.color};"></span>${sMeta.label}` : '-'}
+                </span>
+            </div>
+            <div class="bm-stat-tile">
+                <span class="bm-stat-label">Cluster</span>
+                <span class="bm-stat-value bm-stat-value--text">${cluster ? this.escapeHtml(cluster) : '—'}</span>
+            </div>
+            <div class="bm-stat-tile bm-stat-tile--domains">
+                <span class="bm-stat-label">Top Domains</span>
+                <span class="bm-domain-stack">${domainsHtml}</span>
+            </div>
+        `;
     },
 
 renderBrandMentionsModalContent(query) {
@@ -1077,7 +1128,6 @@ renderBrandMentionsModalContent(query) {
         if (llmNames.length === 0) {
             return `
                 <div class="brand-mentions-empty">
-                    <i class="fas fa-info-circle"></i>
                     <p>No analysis data available for this prompt yet.</p>
                 </div>
             `;
@@ -1097,7 +1147,7 @@ renderBrandMentionsModalContent(query) {
         });
 
         const brandCardClass = brandMentionedCount > 0 ? 'brand-positive' : 'brand-negative';
-        const brandIcon = brandMentionedCount > 0 ? '✅' : '❌';
+        const brandStatusLabel = brandMentionedCount > 0 ? 'Mentioned' : 'Not mentioned';
 
         // Build HTML with CSS classes
         let html = `
@@ -1107,27 +1157,25 @@ renderBrandMentionsModalContent(query) {
                 <div class="brand-summary-card ${brandCardClass}">
                     <div class="brand-summary-card-header">
                         <div class="brand-summary-card-label">Your Brand</div>
-                        <div class="brand-summary-card-icon">${brandIcon}</div>
+                        <div class="brand-summary-card-status">${brandStatusLabel}</div>
                     </div>
                     <div class="brand-summary-card-value">${brandMentionedCount}<span>/${llmNames.length}</span></div>
                     <div class="brand-summary-card-subtitle">LLMs mentioned</div>
                 </div>
-                
+
                 <!-- Competitors Card -->
                 <div class="brand-summary-card competitors">
                     <div class="brand-summary-card-header">
                         <div class="brand-summary-card-label">Competitors</div>
-                        <div class="brand-summary-card-icon">⚔️</div>
                     </div>
                     <div class="brand-summary-card-value">${allCompetitors.size}</div>
                     <div class="brand-summary-card-subtitle">Mentioned total</div>
                 </div>
             </div>
-            
+
             <!-- Detailed Breakdown -->
             <div class="llm-breakdown-section">
                 <div class="llm-breakdown-title">
-                    <i class="fas fa-list-ul"></i>
                     <span>Breakdown by LLM</span>
                 </div>
                 <div class="llm-breakdown-list">
@@ -1137,23 +1185,22 @@ renderBrandMentionsModalContent(query) {
         llmNames.forEach(llm => {
             const data = mentionsByLLM[llm];
             const llmDisplayName = this.getLLMDisplayName(llm);
-            const brandIcon = data.brand_mentioned ? '✅' : '❌';
             const position = data.position ? `#${data.position}` : 'N/A';
             const positionClass = data.brand_mentioned ? 'mentioned' : 'not-mentioned';
             const rowClass = data.brand_mentioned ? 'mentioned' : '';
 
-            // Badge de tipo de mención
+            // Badge de tipo de mención (texto plano, sin emojis)
             let mentionBadge = '';
             if (data.brand_mentioned) {
                 const inText = data.brand_mentioned_in_text;
                 const inUrls = data.brand_mentioned_in_urls;
 
                 if (inText && inUrls) {
-                    mentionBadge = '<span class="llm-row-badge" title="Mentioned in text and URLs">📝🔗</span>';
+                    mentionBadge = '<span class="llm-row-badge">Text + Citation</span>';
                 } else if (inText) {
-                    mentionBadge = '<span class="llm-row-badge" title="Mentioned in text">📝</span>';
+                    mentionBadge = '<span class="llm-row-badge">Text</span>';
                 } else if (inUrls) {
-                    mentionBadge = '<span class="llm-row-badge url-only" title="Mentioned in URLs only">🔗</span>';
+                    mentionBadge = '<span class="llm-row-badge url-only">Citation</span>';
                 }
             }
 
@@ -1161,7 +1208,7 @@ renderBrandMentionsModalContent(query) {
             const competitorKeys = Object.keys(data.competitors || {});
             let competitorsHtml = '';
             if (competitorKeys.length > 0) {
-                competitorsHtml = competitorKeys.map(c => 
+                competitorsHtml = competitorKeys.map(c =>
                     `<span class="llm-row-competitor-tag">${c}</span>`
                 ).join('');
             } else {
@@ -1171,11 +1218,10 @@ renderBrandMentionsModalContent(query) {
             html += `
                 <div class="llm-row ${rowClass}">
                     <div class="llm-row-name">
-                        <i class="${this.getLLMIcon(llm)}" style="color: ${this.getLLMColor(llm)};"></i>
+                        <span class="llm-row-dot" style="background: ${this.getLLMColor(llm)};"></span>
                         ${llmDisplayName}
                     </div>
                     <div class="llm-row-status">
-                        <span class="llm-row-status-icon">${brandIcon}</span>
                         <span class="llm-row-position ${positionClass}">${position}</span>
                         ${mentionBadge}
                     </div>
@@ -1188,28 +1234,6 @@ renderBrandMentionsModalContent(query) {
         });
 
         html += `
-                </div>
-            </div>
-            
-            <!-- Legend -->
-            <div class="brand-mentions-legend">
-                <div class="brand-mentions-legend-title">
-                    <i class="fas fa-info-circle"></i>
-                    <span>Mention Type Legend</span>
-                </div>
-                <div class="brand-mentions-legend-grid">
-                    <div class="brand-mentions-legend-item">
-                        <span class="brand-mentions-legend-badge text">📝</span>
-                        <span class="brand-mentions-legend-text">Text mention</span>
-                    </div>
-                    <div class="brand-mentions-legend-item">
-                        <span class="brand-mentions-legend-badge url">🔗</span>
-                        <span class="brand-mentions-legend-text">URL citation</span>
-                    </div>
-                    <div class="brand-mentions-legend-item">
-                        <span class="brand-mentions-legend-badge both">📝🔗</span>
-                        <span class="brand-mentions-legend-text">Both</span>
-                    </div>
                 </div>
             </div>
         `;

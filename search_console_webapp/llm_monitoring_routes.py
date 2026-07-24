@@ -383,6 +383,23 @@ def _calculate_trend(current, previous, has_previous_data):
     }
 
 
+def _weight_for_position(pos):
+    """
+    Pondera una mención según su posición en la lista de respuesta del LLM.
+    Las primeras posiciones pesan más en el cálculo de Share of Voice.
+    Reutilizable desde /clusters/metrics y /queries (SOV por cluster y por prompt).
+    """
+    if pos is None:
+        return 1.0
+    if pos <= 3:
+        return 2.0
+    if pos <= 5:
+        return 1.5
+    if pos <= 10:
+        return 1.2
+    return 0.8
+
+
 def _get_effective_plan_limits(user: dict) -> dict:
     """
     Devuelve límites efectivos por usuario.
@@ -2579,17 +2596,6 @@ def get_clusters_metrics(project_id):
             for name in defined_clusters
         }
 
-        def _weight_for_position(pos):
-            if pos is None:
-                return 1.0
-            if pos <= 3:
-                return 2.0
-            if pos <= 5:
-                return 1.5
-            if pos <= 10:
-                return 1.2
-            return 0.8
-
         for r in rows:
             cluster = r.get('cluster')
             if not cluster or cluster not in buckets:
@@ -4258,15 +4264,146 @@ def get_project_queries(project_id):
                 'position': row['position_in_list'],
                 'competitors': row['competitors_mentioned'] or {}
             }
-        
+
+        # ✨ NUEVO: Share of Voice, sentimiento y top dominios por prompt (todo el período)
+        # A diferencia de mentions_by_query (solo el resultado más reciente por LLM), aquí se
+        # usan TODOS los resultados del período para que los agregados reflejen la ventana completa.
+        prompt_metrics_sql = """
+            SELECT
+                r.query_id,
+                r.brand_mentioned,
+                r.position_in_list,
+                r.competitors_mentioned,
+                r.sentiment,
+                r.sentiment_score,
+                r.sources
+            FROM llm_monitoring_results r
+            WHERE r.query_id = ANY(%s)
+                AND r.analysis_date >= %s
+                AND r.analysis_date <= %s
+                {llm_filter}
+        """.format(
+            llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+        )
+        prompt_metrics_params = [[q['id'] for q in queries_raw], start_date, end_date]
+        if enabled_llms_filter:
+            prompt_metrics_params.append(enabled_llms_filter)
+        cur.execute(prompt_metrics_sql, prompt_metrics_params)
+
+        prompt_buckets = {}
+        for row in cur.fetchall():
+            qid = row['query_id']
+            bucket = prompt_buckets.setdefault(qid, {
+                'weighted_brand': 0.0,
+                'weighted_competitors': 0.0,
+                'positive': 0,
+                'neutral': 0,
+                'negative': 0,
+                'sentiment_scores': [],
+                'domain_mentions': {}
+            })
+            position = row['position_in_list']
+            weight = _weight_for_position(position)
+
+            if row['brand_mentioned']:
+                bucket['weighted_brand'] += weight
+
+            competitors = row['competitors_mentioned'] or {}
+            if isinstance(competitors, str):
+                try:
+                    competitors = json.loads(competitors)
+                except (json.JSONDecodeError, TypeError):
+                    competitors = {}
+            if isinstance(competitors, dict):
+                for _comp, count in competitors.items():
+                    try:
+                        count_int = int(count)
+                    except (TypeError, ValueError):
+                        continue
+                    if count_int > 0:
+                        bucket['weighted_competitors'] += weight
+
+            sentiment = row['sentiment']
+            if sentiment == 'positive':
+                bucket['positive'] += 1
+            elif sentiment == 'neutral':
+                bucket['neutral'] += 1
+            elif sentiment == 'negative':
+                bucket['negative'] += 1
+            if row['sentiment_score'] is not None:
+                bucket['sentiment_scores'].append(float(row['sentiment_score']))
+
+            sources = row['sources']
+            if isinstance(sources, str):
+                try:
+                    sources = json.loads(sources)
+                except (json.JSONDecodeError, TypeError):
+                    sources = []
+            if isinstance(sources, list):
+                for source in sources:
+                    if not isinstance(source, dict):
+                        continue
+                    url = (source.get('url') or '').strip()
+                    if not url:
+                        continue
+                    netloc = urlparse(url).netloc.lower()
+                    if netloc.startswith('www.'):
+                        netloc = netloc[4:]
+                    if not netloc:
+                        continue
+                    bucket['domain_mentions'][netloc] = bucket['domain_mentions'].get(netloc, 0) + 1
+
+        def _build_prompt_metrics(qid):
+            bucket = prompt_buckets.get(qid)
+            if not bucket:
+                return {
+                    'share_of_voice': None,
+                    'sentiment': {'label': None, 'score': None, 'counts': {'positive': 0, 'neutral': 0, 'negative': 0}},
+                    'top_domains': []
+                }
+
+            weighted_total = bucket['weighted_brand'] + bucket['weighted_competitors']
+            sov = round((bucket['weighted_brand'] / weighted_total) * 100, 1) if weighted_total > 0 else None
+
+            sentiment_counts = {
+                'positive': bucket['positive'],
+                'neutral': bucket['neutral'],
+                'negative': bucket['negative']
+            }
+            total_sentiment = sum(sentiment_counts.values())
+            if total_sentiment == 0:
+                sentiment_label = None
+                sentiment_score = None
+            else:
+                sentiment_label = max(sentiment_counts, key=sentiment_counts.get)
+                sentiment_score = (
+                    round(sum(bucket['sentiment_scores']) / len(bucket['sentiment_scores']), 2)
+                    if bucket['sentiment_scores'] else None
+                )
+
+            top_domains = sorted(
+                bucket['domain_mentions'].items(), key=lambda item: item[1], reverse=True
+            )[:3]
+
+            return {
+                'share_of_voice': sov,
+                'sentiment': {
+                    'label': sentiment_label,
+                    'score': sentiment_score,
+                    'counts': sentiment_counts
+                },
+                'top_domains': [{'domain': domain, 'mentions': count} for domain, count in top_domains]
+            }
+
         # Formatear datos para el frontend
         queries_list = []
         for q in queries_raw:
             query_id = q['id']
-            
+
             # ✨ NUEVO: Añadir información de menciones por LLM
             mentions_detail = mentions_by_query.get(query_id, {})
-            
+            prompt_metrics = _build_prompt_metrics(query_id)
+
             queries_list.append({
                 'id': query_id,
                 'prompt': q['query_text'],
@@ -4283,7 +4420,10 @@ def get_project_queries(project_id):
                 'last_update': q['last_update'].isoformat() if q['last_update'] else None,
                 'last_analysis_date': q['last_analysis_date'].isoformat() if q['last_analysis_date'] else None,
                 'created_at': q['created_at'].isoformat() if q['created_at'] else None,
-                'mentions_by_llm': mentions_detail  # ✨ NUEVO: Detalles para acordeón
+                'mentions_by_llm': mentions_detail,  # ✨ NUEVO: Detalles para acordeón
+                'share_of_voice': prompt_metrics['share_of_voice'],  # ✨ NUEVO
+                'sentiment': prompt_metrics['sentiment'],  # ✨ NUEVO
+                'top_domains': prompt_metrics['top_domains']  # ✨ NUEVO
             })
         
         return jsonify({

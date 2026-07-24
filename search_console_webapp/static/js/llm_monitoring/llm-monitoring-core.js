@@ -1330,6 +1330,24 @@ getLLMColor(llm) {
         return colors[llm] || '#6b7280';
     },
 
+// Favicon de un dominio (logo.dev con fallback a Google Favicons, igual que el ranking de
+// URLs de la sección Sources) envuelto en el tooltip CSS puro .kpi-tooltip (data-tooltip).
+// Reutilizado por: ranking de dominios, columna "Top Domains" de la tabla de prompts, modal Details.
+getDomainFaviconHtml(domain, tooltipText, size = 22) {
+        if (!domain) return '';
+        const safeDomain = this.escapeAttr(domain);
+        const logoUrl = `https://img.logo.dev/${domain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`;
+        const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        const tooltip = this.escapeAttr(tooltipText || domain);
+        return `
+            <span class="kpi-tooltip domain-favicon" data-tooltip="${tooltip}" style="width:${size}px;height:${size}px;">
+                <img src="${logoUrl}" alt="${safeDomain}" width="${size}" height="${size}"
+                     style="width:${size}px;height:${size}px;border-radius:4px;display:block;"
+                     onerror="this.onerror=null; this.src='${fallbackUrl}'">
+            </span>
+        `;
+    },
+
 formatDate(dateStr) {
         if (!dateStr) return 'N/A';
         const date = new Date(dateStr);

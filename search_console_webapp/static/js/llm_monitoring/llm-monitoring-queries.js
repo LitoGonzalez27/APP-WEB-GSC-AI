@@ -83,35 +83,38 @@ renderQueriesTable(queries) {
         const rows = queries.map((q, idx) => {
             const visibilityPct = q.visibility_pct != null ? Number(q.visibility_pct) || 0 : 0;
 
-            // ✨ NUEVO: Botón que abre modal con análisis detallado
+            // ✨ Botón que abre modal con análisis detallado — pill plano (brandbook: sin degradados)
             const viewDetailsBtn = gridjs.html(`
-                <button 
-                    class="view-details-btn" 
+                <button
+                    class="view-details-btn"
                     data-row-idx="${idx}"
                     title="View detailed analysis"
                     style="
-                        background: linear-gradient(135deg, #D8F9B8 0%, #a8e063 100%);
+                        background: #d9f9b8;
                         border: none;
-                        border-radius: 6px;
+                        border-radius: 9999px;
                         cursor: pointer;
-                        padding: 0.35rem 0.7rem;
-                        color: #1a1a1a;
+                        padding: 0.35rem 0.9rem;
+                        color: #0F172A;
                         font-size: 0.75rem;
                         font-weight: 600;
-                        transition: all 0.2s;
-                        box-shadow: 0 2px 4px rgba(216, 249, 184, 0.2);
+                        transition: transform 0.2s ease, box-shadow 0.2s ease;
                         white-space: nowrap;
                     "
-                    onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(216, 249, 184, 0.3)'"
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(216, 249, 184, 0.2)'"
+                    onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 10px rgba(15, 23, 42, 0.15)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
                 >Details</button>
             `);
 
             return [
                 viewDetailsBtn,  // ✨ NUEVO: Botón para ver detalles
                 q.prompt,
-                q.country,
                 q.language ? q.language.toUpperCase() : 'N/A',
+                q.topic_cluster || null,
+                q.share_of_voice != null ? Number(q.share_of_voice) : null,
+                q.avg_position != null ? Number(q.avg_position) : null,
+                q.sentiment || null,
+                q.top_domains || [],
                 // Number() defensivo: la API puede devolver el SUM como string
                 Number(q.total_mentions) || 0,
                 // Dato crudo numérico (la barra se pinta en el formatter) para que ordene bien
@@ -130,13 +133,91 @@ renderQueriesTable(queries) {
             }
         };
 
+        const clusterSort = {
+            compare: (a, b) => (a || '').localeCompare(b || '')
+        };
+
+        const sentimentSort = {
+            compare: (a, b) => {
+                const x = (a && typeof a.score === 'number') ? a.score : -1;
+                const y = (b && typeof b.score === 'number') ? b.score : -1;
+                return x > y ? 1 : (x < y ? -1 : 0);
+            }
+        };
+
+        const sentimentMeta = {
+            positive: { color: '#22C55E', label: 'Positive' },
+            neutral: { color: '#94A3B8', label: 'Neutral' },
+            negative: { color: '#EF4444', label: 'Negative' }
+        };
+
         // Create grid
         this.queriesGrid = new gridjs.Grid({
             columns: [
                 { id: 'expand', name: '', width: '90px', sort: false },  // ✨ Columna para botón Details
-                { id: 'prompt', name: 'Prompt', width: '45%' },
-                { id: 'country', name: 'Country', width: '80px' },
-                { id: 'language', name: 'Language', width: '80px' },
+                { id: 'prompt', name: 'Prompt', width: '26%' },
+                { id: 'language', name: 'Language', width: '75px' },
+                {
+                    id: 'cluster',
+                    name: 'Cluster',
+                    width: '120px',
+                    sort: clusterSort,
+                    formatter: (cluster) => cluster
+                        ? gridjs.html(`<span class="lm-cluster-badge">${this.escapeHtml(cluster)}</span>`)
+                        : gridjs.html('<span class="lm-cell-muted">—</span>')
+                },
+                {
+                    id: 'sov',
+                    name: `SOV % (${this.globalTimeRange}d)`,
+                    width: '100px',
+                    sort: numericSort,
+                    formatter: (sov) => (sov === null || sov === undefined)
+                        ? gridjs.html('<span class="lm-cell-muted">-</span>')
+                        : gridjs.html(`<span class="lm-cell-strong">${Number(sov).toFixed(1)}%</span>`)
+                },
+                {
+                    id: 'avgPosition',
+                    name: 'Avg. Position',
+                    width: '110px',
+                    sort: numericSort,
+                    formatter: (pos) => (pos === null || pos === undefined)
+                        ? gridjs.html('<span class="lm-cell-muted">-</span>')
+                        : gridjs.html(`<span class="lm-cell-strong">#${Number(pos).toFixed(1)}</span>`)
+                },
+                {
+                    id: 'sentiment',
+                    name: 'Sentiment',
+                    width: '120px',
+                    sort: sentimentSort,
+                    formatter: (sentiment) => {
+                        const label = sentiment && sentiment.label;
+                        if (!label) return gridjs.html('<span class="lm-cell-muted">-</span>');
+                        const meta = sentimentMeta[label] || { color: '#94A3B8', label };
+                        return gridjs.html(`
+                            <span class="lm-sentiment-cell">
+                                <span class="lm-sentiment-dot" style="background:${meta.color};"></span>
+                                ${meta.label}
+                            </span>
+                        `);
+                    }
+                },
+                {
+                    id: 'topDomains',
+                    name: 'Top Domains',
+                    width: '110px',
+                    sort: false,
+                    formatter: (domains) => {
+                        if (!domains || domains.length === 0) {
+                            return gridjs.html('<span class="lm-cell-muted">—</span>');
+                        }
+                        const icons = domains.slice(0, 3).map(d => this.getDomainFaviconHtml(
+                            d.domain,
+                            `${d.domain} — ${d.mentions} mention${d.mentions === 1 ? '' : 's'}`,
+                            20
+                        )).join('');
+                        return gridjs.html(`<span class="lm-domain-stack">${icons}</span>`);
+                    }
+                },
                 { id: 'mentions', name: `Total Mentions (${this.globalTimeRange}d)`, width: '130px', sort: numericSort },
                 {
                     id: 'visibility',
