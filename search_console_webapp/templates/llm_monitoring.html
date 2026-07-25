@@ -19,39 +19,51 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
     
+    <!-- Tipografías de marca (Brandbook v1.1). Sin este link, Inter Tight solo
+         se ve en equipos que la tengan instalada y el resto cae a Helvetica. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+
     <!-- Reutilizar estilos existentes para consistencia -->
-    <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='tablas.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='modales-datos.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='tablas.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='modales-datos.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS específico para Manual AI (reusado para LLM Monitoring) -->
-    <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='manual-ai.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✅ Quota UI para consistencia -->
-    <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='quota-ui.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS específico para LLM Monitoring -->
-    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=9" rel="stylesheet">
-    <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=3" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✨ NEW: Share of Voice Metrics UI -->
-    <link href="{{ url_for('static', filename='sov-metrics-ui.css') }}?v=1" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='sov-metrics-ui.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✨ NEW: Response Inspector Modal -->
-    <link href="{{ url_for('static', filename='response-modal.css') }}?v=1" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='response-modal.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS para navbar principal -->
-    <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='navbar.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS para sidebar navigation -->
-    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✅ Paywall Styles para consistencia -->
-    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='paywall.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Design tokens de marca + overrides. Van al FINAL para que sus --cs-* no
+         sean pisados y para poder sobreescribir las hojas compartidas
+         (manual-ai.css, base-y-componentes.css) sin editarlas ni usar !important. -->
+    <link href="{{ url_for('static', filename='brand-dashboard-tokens.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='brand-dashboard-overrides.css') }}?v={{ ASSET_V }}" rel="stylesheet">
     
     <!-- Chart.js para gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1824,19 +1836,19 @@
     <!-- LLM Monitoring: clase base (define LLMMonitoring) + mixins de prototipo (refactor Fase 3).
          Orden: la clase base PRIMERO, luego los mixins (Object.assign al prototipo). Todos cargan
          de forma síncrona antes del DOMContentLoaded que instancia window.llmMonitoring. -->
-    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-core.js') }}?v=13"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-projects.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-prompts.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-queries.js') }}?v=15"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-metrics.js') }}?v=13"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v=14"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v=13"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v=2"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v=13"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-models.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-core.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-projects.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-prompts.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-queries.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-metrics.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-models.js') }}?v={{ ASSET_V }}"></script>
 
     <script>
         // Usuario actual
@@ -2514,6 +2526,6 @@
         </div>
     </div>
     <!-- Banner de invitaciones pendientes (compartido) -->
-    <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v=1"></script>
+    <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v={{ ASSET_V }}"></script>
 </body>
 </html>

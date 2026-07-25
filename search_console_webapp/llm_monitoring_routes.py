@@ -7438,18 +7438,19 @@ def export_project_pdf(project_id):
         # =====================================================================
         output = BytesIO()
 
-        # Color palette
-        CLR_DARK = colors.HexColor('#161616')
+        # Color palette — espejo de static/brand-dashboard-tokens.css (--cs-*).
+        # Si cambian los tokens del panel, cambiar aquí también o el PDF deriva.
+        CLR_DARK = colors.HexColor('#0F172A')       # --cs-text-primary
         CLR_WHITE = colors.white
-        CLR_ACCENT = colors.HexColor('#D8F9B8')
-        CLR_SUBHEADER = colors.HexColor('#F3F4F6')
-        CLR_GREEN_CELL = colors.HexColor('#D1FAE5')
+        CLR_ACCENT = colors.HexColor('#d9f9b8')     # --cs-accent
+        CLR_SUBHEADER = colors.HexColor('#F1F5F9')  # --cs-bg-subtle
+        CLR_GREEN_CELL = colors.HexColor('#E4F4EA')  # tinte de --cs-success
         CLR_YELLOW_CELL = colors.HexColor('#FEF3C7')
-        CLR_RED_CELL = colors.HexColor('#FEE2E2')
-        CLR_BODY = colors.HexColor('#374151')
-        CLR_BORDER = colors.HexColor('#E5E7EB')
-        CLR_LIGHT_GRAY = colors.HexColor('#9CA3AF')
-        CLR_ROW_ALT = colors.HexColor('#F9FAFB')
+        CLR_RED_CELL = colors.HexColor('#FBE9E9')    # tinte de --cs-error
+        CLR_BODY = colors.HexColor('#334155')       # --cs-surface-dark
+        CLR_BORDER = colors.HexColor('#E2E8F0')     # --cs-border
+        CLR_LIGHT_GRAY = colors.HexColor('#94A3B8')  # --cs-text-tertiary
+        CLR_ROW_ALT = colors.HexColor('#F8FAFC')
 
         page_width, page_height = A4
         usable_width = page_width - 4 * cm  # 2cm margins each side
@@ -7607,8 +7608,10 @@ def export_project_pdf(project_id):
             return 'Neutral'
 
         # Delta color helper for KPI paragraphs
-        CLR_DELTA_UP = colors.HexColor('#059669')
-        CLR_DELTA_DOWN = colors.HexColor('#DC2626')
+        # Pasos -text de los estados (--cs-success-text / --cs-error-text): los
+        # tonos base de marca no llegan a contraste de texto.
+        CLR_DELTA_UP = colors.HexColor('#287A4C')
+        CLR_DELTA_DOWN = colors.HexColor('#D13B3B')
         st_kpi_delta_up = ParagraphStyle('KPIDeltaUp', parent=st_kpi_delta, textColor=CLR_DELTA_UP)
         st_kpi_delta_down = ParagraphStyle('KPIDeltaDown', parent=st_kpi_delta, textColor=CLR_DELTA_DOWN)
 

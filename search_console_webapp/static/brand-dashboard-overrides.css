@@ -1,0 +1,245 @@
+/* ============================================================================
+   CLICANDSEO — OVERRIDES DE MARCA PARA PANELES DE DATOS
+   ============================================================================
+
+   Reestiliza al brandbook los componentes que viven en hojas COMPARTIDAS por
+   otras páginas (manual-ai.css lo cargan 7 plantillas, incluidas billing y
+   paywall; base-y-componentes.css, 10). En lugar de editarlas y arriesgar
+   regresiones en facturación, se sobreescribe desde aquí.
+
+   CÓMO FUNCIONA:
+   este archivo se carga como ÚLTIMO <link> de la página, así que a igualdad de
+   especificidad gana. Por eso no hace falta ni un !important ni anidamiento
+   artificial: basta igualar la especificidad del selector al que se gana.
+   Cada bloque indica a qué archivo:línea está ganando.
+
+   NUNCA envolver esto en @layer: las reglas en capa pierden siempre contra las
+   13 hojas sin capa de esta página, y el archivo entero sería un no-op silencioso.
+
+   ALCANCE: solo color y tipografía. Nada de display, position ni layout — en
+   particular .modal-overlay NO lleva display (ver nota más abajo).
+   ============================================================================ */
+
+/* ── Tipografía base ─────────────────────────────────────────────────────────
+   Gana a base-y-componentes.css:142, que fija Jost en body. Sin esto, el
+   Inter Tight del brandbook no se aplica en ningún sitio: era el motivo de que
+   el panel se viera con una tipografía distinta en cada equipo (Inter Tight solo
+   donde estuviera instalada, Helvetica en el resto).
+   ─────────────────────────────────────────────────────────────────────────── */
+body {
+  font-family: var(--cs-font-sans);
+  color: var(--cs-text-primary);
+}
+
+/* Cifras que se alinean en columna (tablas, ticks) con ancho fijo; las cifras
+   grandes y sueltas van proporcionales, que a tamaño display se leen mejor. */
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tabs — gana a manual-ai.css:169-201 ─────────────────────────────────── */
+.nav-tab {
+  color: var(--cs-text-secondary);
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-medium);
+  border-bottom: 2px solid transparent;
+}
+
+.nav-tab:hover {
+  color: var(--cs-text-primary);
+  background: var(--cs-bg-subtle);
+}
+
+.nav-tab.active {
+  color: var(--cs-text-primary);
+  font-weight: var(--cs-weight-semibold);
+  border-bottom-color: var(--cs-text-primary);
+}
+
+/* ── Estados vacíos y de carga — gana a manual-ai.css:437-464 ─────────────────
+   Reutilizados también en #clustersChartEmpty y #noUrlsLLMMessage, con padres
+   distintos: verificar ambos al tocar esto.
+   ─────────────────────────────────────────────────────────────────────────── */
+.empty-state h3,
+.empty-state h4 {
+  color: var(--cs-text-primary);
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-bold);
+  letter-spacing: var(--cs-tracking-tight);
+}
+
+.empty-state p {
+  color: var(--cs-text-secondary);
+}
+
+.empty-state .empty-icon,
+.empty-state > i {
+  color: var(--cs-text-tertiary);
+}
+
+.loading-container {
+  color: var(--cs-text-secondary);
+}
+
+.loading-spinner i {
+  color: var(--cs-text-primary);
+}
+
+/* ── Modales ──────────────────────────────────────────────────────────────────
+   Gana a sov-metrics-ui.css:155. Se quita el backdrop-filter (Brandbook.md:478):
+   el rgba(0,0,0,.6) ya aporta el velo, y el filtro creaba además un contexto de
+   apilamiento innecesario.
+
+   OJO: aquí NO se declara `display`. La apertura/cierre de los 8 modales la
+   gobierna JS por estilo inline (llm-monitoring-modals.js:88/104). Declarar
+   display aquí crearía un segundo mecanismo, más débil, que divergiría del real.
+   ─────────────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: none;
+}
+
+.modal-content {
+  border-radius: var(--cs-radius-md);
+  box-shadow: var(--cs-shadow-lg);
+  font-family: var(--cs-font-sans);
+}
+
+/* ── Botones ──────────────────────────────────────────────────────────────────
+   Gana a llm-monitoring-enhanced.css:64 (que a su vez gana a otras 4 hojas).
+   La pill es legítima aquí: Brandbook.md:254 la reserva a botones y nav links,
+   que es exactamente este caso.
+   ─────────────────────────────────────────────────────────────────────────── */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-semibold);
+  border-radius: var(--cs-radius-pill);
+  letter-spacing: 0;
+  transition: var(--cs-transition);
+}
+
+.btn-primary {
+  background: var(--cs-text-primary);
+  color: var(--cs-text-inverse);
+  border: none;
+}
+
+.btn-primary:hover {
+  background: var(--cs-surface-dark);
+  box-shadow: var(--cs-shadow-md);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--cs-text-primary);
+  border: 1.5px solid var(--cs-border);
+}
+
+.btn-secondary:hover {
+  background: var(--cs-bg-subtle);
+}
+
+/* ── Chips de filtro ─────────────────────────────────────────────────────────
+   Gana a manual-ai.css:1642. No son botones de acción sino controles de filtro,
+   pero sí son controles interactivos, no etiquetas de dato: mantienen forma de
+   control (radio suave) sin caer en la cápsula prohibida para badges.
+   ─────────────────────────────────────────────────────────────────────────── */
+.url-filter-chip {
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-medium);
+  color: var(--cs-text-secondary);
+  border-radius: var(--cs-radius-sm);
+  border: 1px solid var(--cs-border);
+  background: var(--cs-bg-paper);
+}
+
+.url-filter-chip:hover {
+  color: var(--cs-text-primary);
+  border-color: var(--cs-text-tertiary);
+}
+
+/* ── Tooltip informativo — gana a manual-ai.css:5671-5760 ────────────────── */
+.cg-info-tooltip-content {
+  background: var(--cs-chart-tooltip-bg);
+  color: var(--cs-text-inverse);
+  border-radius: var(--cs-radius-sm);
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-xs);
+  line-height: var(--cs-leading-normal);
+}
+
+/* ── Cabeceras de sección y de card ──────────────────────────────────────────
+   Gana a llm-monitoring-enhanced.css:205 (.chart-card) y a los .chart-header
+   repartidos por 3 hojas.
+   ─────────────────────────────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--cs-bg-paper);
+  border: 1px solid var(--cs-border-subtle);
+  border-radius: var(--cs-radius-md);
+  box-shadow: none;
+}
+
+.chart-header h3,
+.chart-card h3 {
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-bold);
+  font-size: var(--cs-text-lg);
+  letter-spacing: var(--cs-tracking-tight);
+  color: var(--cs-text-primary);
+}
+
+/* ── Grid.js: sustituye al tema "mermaid" del CDN ────────────────────────────
+   El tema de la librería trae su propia paleta y tipografía, que competían con
+   la marca. Aquí se le da el aspecto del brandbook.
+   ─────────────────────────────────────────────────────────────────────────── */
+.gridjs-table {
+  font-family: var(--cs-font-sans);
+}
+
+.gridjs-th {
+  background: var(--cs-bg-subtle);
+  color: var(--cs-text-primary);
+  font-weight: var(--cs-weight-semibold);
+  font-size: var(--cs-text-xs);
+  letter-spacing: var(--cs-tracking-wide);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--cs-border);
+}
+
+.gridjs-td {
+  color: var(--cs-text-primary);
+  font-size: var(--cs-text-sm);
+  border-bottom: 1px solid var(--cs-border-subtle);
+}
+
+.gridjs-tr:hover .gridjs-td {
+  background: var(--cs-bg-subtle);
+}
+
+.gridjs-wrapper {
+  box-shadow: none;
+  border: 1px solid var(--cs-border-subtle);
+  border-radius: var(--cs-radius-sm);
+}
+
+.gridjs-footer,
+.gridjs-search-input {
+  font-family: var(--cs-font-sans);
+  color: var(--cs-text-secondary);
+  box-shadow: none;
+}
+
+.gridjs-search-input {
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+}
+
+.gridjs-search-input:focus {
+  outline: 2px solid var(--cs-accent);
+  outline-offset: 1px;
+  border-color: var(--cs-text-tertiary);
+}

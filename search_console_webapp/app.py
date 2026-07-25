@@ -80,6 +80,20 @@ else:
 
 app = Flask(__name__)
 
+# --- Cache-busting de estáticos ---
+# Cambia en cada deploy, así que los navegadores no sirven CSS/JS viejos mezclados
+# con los nuevos (una página a medio tematizar es el peor fallo posible aquí).
+# Railway inyecta RAILWAY_GIT_COMMIT_SHA en runtime; si no está (dev local), cae a
+# la hora de arranque del proceso, que también cambia en cada reinicio.
+ASSET_VERSION = (os.getenv('RAILWAY_GIT_COMMIT_SHA') or '')[:8] or str(int(time.time()))
+
+
+@app.context_processor
+def inject_asset_version():
+    """Expone ASSET_V a todas las plantillas para el ?v= de los estáticos."""
+    return {'ASSET_V': ASSET_VERSION}
+
+
 # --- Rate limiting (global) ---
 def _rate_limit_key():
     user_id = session.get('user_id')

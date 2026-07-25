@@ -1,36 +1,40 @@
 /**
- * LLM Monitoring Enhanced Styles - Colores Corporativos ClicAndSEO
- * 
- * Paleta Corporativa:
- * - Primary (Dark): #161616
- * - Accent (Green): #D8F9B8
- * - Gradients y sombras sutiles
+ * LLM Monitoring Enhanced Styles — alineado al brandbook de Clicandseo
+ *
+ * Los --llm-* son ahora alias de los tokens --cs-* de brand-dashboard-tokens.css.
+ * Se mantienen los nombres porque hay ~120 usos de var(--llm-*) repartidos por
+ * esta hoja: repuntarlos aquí re-tematiza todos de golpe sin tocar selectores.
+ * Para estilos nuevos, usar --cs-* directamente.
+ *
+ * Los grises pasan de la escala gray de Tailwind a los slates del brandbook,
+ * que es la familia neutra de la marca (antes convivían cuatro casi-negros
+ * distintos: #161616, #111827, #0f172a y #0a0a0b).
  */
 
 /* ============================================================================
- * VARIABLES CSS - Colores Corporativos ClicAndSEO
+ * VARIABLES CSS — alias hacia los tokens de marca
  * ============================================================================ */
 
 :root {
-    --llm-primary-dark: #161616;
-    --llm-primary-light: #2d2d2d;
-    --llm-accent-green: #D8F9B8;
+    --llm-primary-dark: var(--cs-text-primary);
+    --llm-primary-light: var(--cs-surface-dark);
+    --llm-accent-green: var(--cs-accent);
     --llm-accent-green-dark: #c4e8a0;
-    --llm-gray-50: #f9fafb;
-    --llm-gray-100: #f3f4f6;
-    --llm-gray-200: #e5e7eb;
-    --llm-gray-300: #d1d5db;
-    --llm-gray-400: #9ca3af;
-    --llm-gray-500: #6b7280;
-    --llm-gray-600: #4b5563;
-    --llm-gray-700: #374151;
-    --llm-gray-800: #1f2937;
-    --llm-gray-900: #111827;
-    
-    --llm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --llm-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --llm-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --llm-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --llm-gray-50: var(--cs-bg-subtle);
+    --llm-gray-100: var(--cs-bg-subtle);
+    --llm-gray-200: var(--cs-border);
+    --llm-gray-300: var(--cs-border);
+    --llm-gray-400: var(--cs-text-tertiary);
+    --llm-gray-500: var(--cs-text-secondary);
+    --llm-gray-600: var(--cs-text-secondary);
+    --llm-gray-700: var(--cs-surface-dark);
+    --llm-gray-800: var(--cs-surface-dark);
+    --llm-gray-900: var(--cs-text-primary);
+
+    --llm-shadow-sm: var(--cs-shadow-sm);
+    --llm-shadow: var(--cs-shadow-md);
+    --llm-shadow-lg: var(--cs-shadow-lg);
+    --llm-shadow-xl: var(--cs-shadow-lg);
 }
 
 /* ============================================================================
