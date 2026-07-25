@@ -20,6 +20,9 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
     
     <!-- Reutilizar estilos existentes para consistencia -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='tablas.css') }}" rel="stylesheet">
@@ -52,6 +55,16 @@
     
     <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
     <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
+
+    <!-- ═══ Sistema de diseño Clicandseo (compartido con LLM Monitoring) ═══
+         Tokens --cs-* + overrides de marca al final para ganar sin !important;
+         tema único de Chart.js; iconos Lucide vía conversor en runtime (Font
+         Awesome queda como red para lo no mapeado). -->
+    <link href="{{ url_for('static', filename='brand-dashboard-tokens.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='brand-dashboard-overrides.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/llm-chart-theme.js') }}?v={{ ASSET_V }}"></script>
+    <script src="https://unpkg.com/lucide@1.27.0/dist/umd/lucide.min.js"></script>
+    <script src="{{ url_for('static', filename='js/brand-icons.js') }}?v={{ ASSET_V }}"></script>
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
     <!-- Google Tag Manager (noscript) -->
