@@ -77,7 +77,8 @@ table th {
 }
 
 .empty-state .empty-icon,
-.empty-state > i {
+.empty-state > i,
+.empty-state > svg.lucide {
   color: var(--cs-text-tertiary);
 }
 
@@ -85,7 +86,8 @@ table th {
   color: var(--cs-text-secondary);
 }
 
-.loading-spinner i {
+.loading-spinner i,
+.loading-spinner svg.lucide {
   color: var(--cs-text-primary);
 }
 
@@ -119,7 +121,11 @@ table th {
 .btn i,
 .btn-primary i,
 .btn-secondary i,
-.btn-ghost i {
+.btn-ghost i,
+.btn svg.lucide,
+.btn-primary svg.lucide,
+.btn-secondary svg.lucide,
+.btn-ghost svg.lucide {
   color: currentColor;
 }
 
@@ -792,4 +798,25 @@ select.form-control:focus,
 #lmDomainsTooltip img.domain-favicon {
   flex-shrink: 0;
   border-radius: 3px;
+}
+
+/* ── Iconos Lucide ────────────────────────────────────────────────────────────
+   brand-icons.js convierte en runtime los <i class="fas fa-x"> a SVG Lucide
+   (outline, trazo 2px — Brandbook.md:234). El SVG hereda el tamaño del texto
+   como hacía el glifo de Font Awesome, y el giro del spinner lo pone
+   .lucide-spin, que sustituye a fa-spin. */
+svg.lucide {
+  width: 1em;
+  height: 1em;
+  stroke-width: 2px;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+
+@keyframes lucideSpin {
+  to { transform: rotate(360deg); }
+}
+
+svg.lucide-spin {
+  animation: lucideSpin 1s linear infinite;
 }

@@ -108,7 +108,8 @@
     transform: scale(1.05);
 }
 
-.response-modal-close i {
+.response-modal-close i,
+.response-modal-close svg.lucide {
     font-size: 1.125rem;
 }
 
@@ -133,7 +134,8 @@
     color: #64748b;
 }
 
-.response-modal-meta .meta-item i {
+.response-modal-meta .meta-item i,
+.response-modal-meta .meta-item svg.lucide {
     color: #94a3b8;
 }
 
@@ -165,7 +167,8 @@
     margin: 0 0 1rem 0;
 }
 
-.response-modal-section h4 i {
+.response-modal-section h4 i,
+.response-modal-section h4 svg.lucide {
     color: #3b82f6;
 }
 
@@ -314,7 +317,8 @@ mark.competitor-mention {
     transform: translateX(4px);
 }
 
-.source-link-modal i {
+.source-link-modal i,
+.source-link-modal svg.lucide {
     color: #94a3b8;
     font-size: 0.875rem;
 }
@@ -445,7 +449,8 @@ mark.competitor-mention {
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.btn-view-full-response i {
+.btn-view-full-response i,
+.btn-view-full-response svg.lucide {
     font-size: 0.875rem;
 }
 

@@ -91,7 +91,8 @@
     gap: 0.75rem;
 }
 
-.modal-header h2 i {
+.modal-header h2 i,
+.modal-header h2 svg.lucide {
     color: #3b82f6;
 }
 
@@ -172,7 +173,8 @@
     gap: 0.5rem;
 }
 
-.info-section h3 i {
+.info-section h3 i,
+.info-section h3 svg.lucide {
     color: #3b82f6;
 }
 
@@ -287,7 +289,8 @@
     color: #92400e;
 }
 
-.metric-recommendation i {
+.metric-recommendation i,
+.metric-recommendation svg.lucide {
     font-size: 20px;
     color: #f59e0b;
 }
@@ -637,7 +640,8 @@
     margin-top: 1.5rem;
 }
 
-.accuracy-note i {
+.accuracy-note i,
+.accuracy-note svg.lucide {
     font-size: 24px;
     color: #10b981;
     flex-shrink: 0;

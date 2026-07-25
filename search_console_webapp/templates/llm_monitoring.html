@@ -76,6 +76,12 @@
     <!-- Tema único de gráficas. Debe ir tras Chart.js y tras los tokens (de los
          que lee los colores), y antes de cualquier new Chart(). -->
     <script src="{{ url_for('static', filename='js/llm-chart-theme.js') }}?v={{ ASSET_V }}"></script>
+
+    <!-- Iconos Lucide (outline 2px, exigencia del brandbook). brand-icons.js
+         convierte los <i class="fas fa-x"> en runtime; Font Awesome sigue
+         cargado como red para lo no mapeado (marcas fab, sin outline en Lucide). -->
+    <script src="https://unpkg.com/lucide@1.27.0/dist/umd/lucide.min.js"></script>
+    <script src="{{ url_for('static', filename='js/brand-icons.js') }}?v={{ ASSET_V }}"></script>
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
     <!-- Google Tag Manager (noscript) -->
