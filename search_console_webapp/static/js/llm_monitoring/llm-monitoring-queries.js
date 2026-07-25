@@ -81,8 +81,6 @@ renderQueriesTable(queries) {
 
         // Formatear datos para la tabla
         const rows = queries.map((q, idx) => {
-            const visibilityPct = q.visibility_pct != null ? Number(q.visibility_pct) || 0 : 0;
-
             // ✨ Botón que abre modal con análisis detallado — pill plano (brandbook: sin degradados)
             const viewDetailsBtn = gridjs.html(`
                 <button
@@ -115,9 +113,7 @@ renderQueriesTable(queries) {
                 Number(q.total_mentions) || 0,
                 q.top_domains || [],
                 q.topic_cluster || null,
-                q.sentiment || null,
-                // Dato crudo numérico (la barra se pinta en el formatter) para que ordene bien
-                visibilityPct
+                q.sentiment || null
             ];
         });
 
@@ -151,7 +147,7 @@ renderQueriesTable(queries) {
         };
 
         // Create grid
-        // Orden: Details | Prompt | SOV | Avg. Position | Mentions | Top Domains | Cluster | Sentiment | Visibility
+        // Orden: Details | Prompt | SOV | Avg. Position | Mentions | Top Domains | Cluster | Sentiment
         // Anchos compactos: la suma de columnas fijas debe caber en el card sin provocar
         // scroll horizontal a nivel de página (el prompt absorbe el espacio restante).
         this.queriesGrid = new gridjs.Grid({
@@ -221,24 +217,6 @@ renderQueriesTable(queries) {
                         `);
                     }
                 },
-                {
-                    id: 'visibility',
-                    name: 'Visibility',
-                    width: '130px',
-                    sort: numericSort,
-                    // Visibility con barra de progreso (el dato de la celda es el % numérico)
-                    formatter: (cell) => {
-                        const pct = Number(cell) || 0;
-                        return gridjs.html(`
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
-                                    <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${pct}%, transparent ${pct}%); width: 100%; border-radius: 9999px;"></div>
-                                </div>
-                                <span style="font-weight: 600; min-width: 45px;">${pct.toFixed(1)}%</span>
-                            </div>
-                        `);
-                    }
-                }
             ],
             data: rows,
             sort: true,
