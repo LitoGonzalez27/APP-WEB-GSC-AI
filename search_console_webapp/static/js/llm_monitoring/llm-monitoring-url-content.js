@@ -400,7 +400,7 @@ renderUrlContentSummary() {
         }
 
         container.innerHTML = `
-            <span class="summary-label"><i class="fas fa-microscope"></i> Content analysis (Top ${this.urlContentData.top_limit || 30}):</span>
+            <span class="summary-label">Content analysis (Top ${this.urlContentData.top_limit || 30}):</span>
             ${chips.join('')}
         `;
     }

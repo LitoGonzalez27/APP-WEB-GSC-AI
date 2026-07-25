@@ -107,9 +107,18 @@ table th {
 }
 
 /* ── Botones ──────────────────────────────────────────────────────────────────
-   Gana a llm-monitoring-enhanced.css:64 (que a su vez gana a otras 4 hojas).
-   La pill es legítima aquí: Brandbook.md:254 la reserva a botones y nav links,
-   que es exactamente este caso.
+   Tres hojas distintas definían :hover para los mismos botones con resultados
+   incompatibles: manual-ai.css ponía fondo lima con texto oscuro,
+   base-y-componentes.css un azul de otra época y llm-monitoring-enhanced.css
+   fondo lima otra vez — este último con `:hover:not(:disabled)`, más específico,
+   así que ganaba y dejaba iconos y texto casi invisibles sobre el lima.
+
+   Aquí se fija un único comportamiento. Se usa `:hover:not(:disabled)` para
+   igualar esa especificidad, y los iconos van con `currentColor` para que nunca
+   puedan quedarse de un color que no contrasta con su fondo.
+
+   La pill es legítima en botones: Brandbook.md:254 la reserva justamente a
+   botones y nav links.
    ─────────────────────────────────────────────────────────────────────────── */
 .btn,
 .btn-primary,
@@ -122,25 +131,89 @@ table th {
   transition: var(--cs-transition);
 }
 
-.btn-primary {
+/* Los iconos heredan el color del botón: si el fondo cambia en hover, el icono
+   cambia con él y nunca desaparece. */
+.btn i,
+.btn-primary i,
+.btn-secondary i,
+.btn-ghost i {
+  color: currentColor;
+}
+
+.btn-primary,
+.btn-primary:not(:disabled) {
   background: var(--cs-text-primary);
   color: var(--cs-text-inverse);
   border: none;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--cs-surface-dark);
-  box-shadow: var(--cs-shadow-md);
+  color: var(--cs-text-inverse);
+  transform: none;
+  box-shadow: none;
 }
 
-.btn-secondary {
-  background: transparent;
+.btn-secondary,
+.btn-secondary:not(:disabled) {
+  background: var(--cs-bg-paper);
   color: var(--cs-text-primary);
-  border: 1.5px solid var(--cs-border);
+  border: 1px solid var(--cs-border);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: var(--cs-bg-subtle);
+  color: var(--cs-text-primary);
+  border-color: var(--cs-text-tertiary);
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--cs-text-secondary);
+  border: 1px solid transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--cs-bg-subtle);
+  color: var(--cs-text-primary);
+  border-color: var(--cs-border);
+  transform: none;
+  box-shadow: none;
+}
+
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Nada de sombras al pasar por encima ──────────────────────────────────────
+   62 reglas repartidas por 4 hojas añadían box-shadow en :hover a cards,
+   paneles y filas. En un panel con doce tarjetas, el contenido "salta" al mover
+   el ratón. Las sombras se quedan para elevación real (modales), no como
+   respuesta al puntero.
+   ─────────────────────────────────────────────────────────────────────────── */
+.chart-card:hover,
+.kpi-card:hover,
+.summary-card:hover,
+.project-card:hover,
+.branded-card:hover,
+.model-card:hover,
+.insight-item:hover,
+.llm-row:hover,
+.url-row:hover,
+.metric-card:hover,
+.quality-item:hover,
+.example-card:hover,
+.llm-cluster-row:hover,
+.responses-filter:hover {
+  box-shadow: none;
+  transform: none;
 }
 
 /* ── Chips de filtro ─────────────────────────────────────────────────────────
@@ -162,14 +235,122 @@ table th {
   border-color: var(--cs-text-tertiary);
 }
 
-/* ── Tooltip informativo — gana a manual-ai.css:5671-5760 ────────────────── */
+/* ── Tooltips: un solo estilo para todos ──────────────────────────────────────
+   Había dos aspectos distintos conviviendo: el de las tarjetas Branded /
+   Non-Branded (.cg-info-tooltip, fondo oscuro y buen padding) y el de los KPI
+   (.kpi-tooltip, un ::after con otro fondo, otro radio y otro tamaño). Se
+   unifican todos al primero, que es el que Carlos quiere.
+   ─────────────────────────────────────────────────────────────────────────── */
 .cg-info-tooltip-content {
-  background: var(--cs-chart-tooltip-bg);
+  background: var(--cs-bg-dark);
+  color: var(--cs-text-inverse);
+  border-radius: var(--cs-radius-sm);
+  border: none;
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-xs);
+  line-height: var(--cs-leading-normal);
+  padding: 0.875rem 1rem;
+  box-shadow: var(--cs-shadow-md);
+}
+
+.kpi-tooltip::after {
+  background: var(--cs-bg-dark);
   color: var(--cs-text-inverse);
   border-radius: var(--cs-radius-sm);
   font-family: var(--cs-font-sans);
   font-size: var(--cs-text-xs);
   line-height: var(--cs-leading-normal);
+  padding: 0.875rem 1rem;
+  max-width: 280px;
+  box-shadow: var(--cs-shadow-md);
+}
+
+.kpi-tooltip::before {
+  border-bottom-color: var(--cs-bg-dark);
+}
+
+/* El icono de información: mismo aspecto en todas las tarjetas. */
+.kpi-tooltip,
+.cg-info-tooltip-trigger {
+  color: var(--cs-text-tertiary);
+}
+
+.kpi-tooltip:hover,
+.cg-info-tooltip-trigger:hover {
+  color: var(--cs-text-secondary);
+}
+
+/* ── Desplegables ─────────────────────────────────────────────────────────────
+   Todos los select del panel (rango de fechas, filtros de LLM, de prompt…) con
+   el mismo aspecto: flecha propia, altura cómoda y sitio de sobra para que el
+   texto de la opción no se corte. Se quita la flecha nativa y se dibuja una en
+   el fondo, para que el aspecto no dependa del sistema operativo.
+   ─────────────────────────────────────────────────────────────────────────── */
+.form-control,
+select.form-control,
+.toolbar-select,
+.enhanced-select,
+.option-select {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-sm);
+  font-weight: var(--cs-weight-medium);
+  color: var(--cs-text-primary);
+  background-color: var(--cs-bg-paper);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+  transition: var(--cs-transition);
+  box-shadow: none;
+}
+
+select.form-control,
+select.toolbar-select,
+select.enhanced-select,
+select.option-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* Espacio a la derecha para la flecha, para que el texto nunca la pise */
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px 8px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.form-control:hover,
+select.form-control:hover,
+.toolbar-select:hover {
+  border-color: var(--cs-text-tertiary);
+}
+
+.form-control:focus,
+select.form-control:focus,
+.toolbar-select:focus,
+.enhanced-select:focus,
+.option-select:focus {
+  outline: 2px solid var(--cs-accent);
+  outline-offset: 1px;
+  border-color: var(--cs-text-primary);
+}
+
+/* Las opciones del desplegable las pinta el sistema; al menos que hereden la
+   familia y no queden en la fuente por defecto. */
+.form-control option,
+.toolbar-select option {
+  font-family: var(--cs-font-sans);
+  color: var(--cs-text-primary);
+}
+
+/* Etiquetas de los filtros */
+.responses-filter label,
+.urls-filter label {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-semibold);
+  color: var(--cs-text-secondary);
+  letter-spacing: 0;
 }
 
 /* ── Cabeceras de sección y de card ──────────────────────────────────────────
@@ -261,16 +442,30 @@ table th {
   justify-content: flex-end;
 }
 
-/* Volver es navegación, no una acción del proyecto: pesa menos que el resto. */
+/* Volver es navegación, no una acción del proyecto: pesa menos que el resto.
+   Compacto y en una sola línea — antes ocupaba 52px de alto porque el texto
+   rompía en dos. */
 #btnBackToProjects {
   color: var(--cs-text-secondary);
-  padding-left: 0;
-  padding-right: var(--cs-space-xs);
+  background: transparent;
+  border: 1px solid var(--cs-border);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-medium);
+  padding: 0.4rem 0.85rem;
+  height: auto;
+  white-space: nowrap;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
-#btnBackToProjects:hover {
+#btnBackToProjects:hover:not(:disabled) {
   color: var(--cs-text-primary);
-  background: transparent;
+  background: var(--cs-bg-subtle);
+  border-color: var(--cs-text-tertiary);
+}
+
+#btnBackToProjects i {
+  font-size: 0.7rem;
 }
 
 /* Borrar es destructivo: visible pero nunca compitiendo con la acción
@@ -388,6 +583,32 @@ table th {
   background: var(--cs-bg-paper);
 }
 
+/* Las 4 tarjetas de modelo reparten todo el ancho del modal a partes iguales;
+   antes quedaban apelotonadas a la izquierda con un hueco muerto a la derecha. */
+.models-modal .models-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cs-space-sm);
+  width: 100%;
+  margin: 0;
+}
+
+.models-modal .model-card {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  box-shadow: none;
+  border: 1px solid var(--cs-border-subtle);
+  border-radius: var(--cs-radius-sm);
+}
+
+@media (max-width: 560px) {
+  .models-modal .models-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .models-modal-intro {
   color: var(--cs-text-secondary);
   font-size: var(--cs-text-sm);
@@ -493,6 +714,138 @@ table th {
   }
 }
 
+/* ── Modal "Compare LLM Responses" ────────────────────────────────────────────
+   Gana a llm-monitoring.css:4637 y siguientes. Se alinea al mismo lenguaje que
+   los otros dos modales del panel: cabecera oscura plana, sin difuminado de
+   fondo (Brandbook.md:478) y leyenda sin cápsulas de color.
+   ─────────────────────────────────────────────────────────────────────────── */
+.compare-modal-overlay {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: none;
+}
+
+.compare-modal {
+  border-radius: var(--cs-radius-md);
+  box-shadow: var(--cs-shadow-lg);
+  font-family: var(--cs-font-sans);
+}
+
+.compare-modal-header {
+  background: var(--cs-bg-dark);
+  color: var(--cs-text-inverse);
+}
+
+.compare-modal-header h3 {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-lg);
+  font-weight: var(--cs-weight-bold);
+  letter-spacing: var(--cs-tracking-tight);
+  color: var(--cs-text-inverse);
+}
+
+.compare-modal-close {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--cs-text-inverse);
+  border-radius: var(--cs-radius-sm);
+  font-size: 1.3rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compare-modal-close:hover {
+  background: var(--cs-accent);
+  border-color: var(--cs-accent);
+  color: var(--cs-text-primary);
+}
+
+.compare-modal-controls {
+  background: var(--cs-bg-subtle);
+  border-bottom: 1px solid var(--cs-border);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.compare-modal-controls label {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-semibold);
+  color: var(--cs-text-secondary);
+  white-space: nowrap;
+}
+
+.compare-modal-controls select {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-sm);
+  color: var(--cs-text-primary);
+  background-color: var(--cs-bg-paper);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* Leyenda: la referencia de color va en el propio texto resaltado, así que los
+   indicadores no necesitan cápsula de color con texto blanco encima. */
+.compare-legend {
+  gap: var(--cs-space-md);
+}
+
+.compare-legend .legend-text {
+  font-size: var(--cs-text-xs);
+  color: var(--cs-text-secondary);
+}
+
+.compare-legend .legend-badge {
+  background: transparent;
+  color: var(--cs-text-primary);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-bold);
+  padding: 0;
+  border-radius: 0;
+}
+
+.compare-legend .legend-badge.brand-badge {
+  color: var(--cs-success-text);
+}
+
+.compare-legend .legend-badge.position-badge {
+  color: var(--cs-text-secondary);
+}
+
+.compare-legend-separator {
+  background: var(--cs-border);
+}
+
+/* Resaltado de menciones dentro de las respuestas: fondo tenue y texto oscuro,
+   que es legible; el color plano saturado con texto blanco no lo era. */
+.compare-modal mark.brand-mention,
+mark.brand-mention {
+  background: rgba(42, 120, 214, 0.16);
+  color: var(--cs-text-primary);
+  font-weight: var(--cs-weight-semibold);
+  padding: 0.05em 0.25em;
+  border-radius: 3px;
+}
+
+.compare-modal mark.competitor-mention,
+mark.competitor-mention {
+  background: rgba(235, 104, 52, 0.16);
+  color: var(--cs-text-primary);
+  padding: 0.05em 0.25em;
+  border-radius: 3px;
+}
+
 /* ── Grid.js: sustituye al tema "mermaid" del CDN ────────────────────────────
    El tema de la librería trae su propia paleta y tipografía, que competían con
    la marca. Aquí se le da el aspecto del brandbook.
@@ -512,14 +865,39 @@ table th {
   border-bottom: 1px solid var(--cs-border);
 }
 
+/* Celdas con aire: antes las columnas quedaban pegadas entre sí y el botón
+   Details rozaba el borde izquierdo de la tabla. */
 .gridjs-td {
   color: var(--cs-text-primary);
   font-size: var(--cs-text-sm);
   border-bottom: 1px solid var(--cs-border-subtle);
+  padding: 1rem 0.875rem;
+  vertical-align: middle;
+}
+
+.gridjs-th {
+  padding: 0.875rem;
+}
+
+/* Primera y última columna, separadas del borde de la tabla. */
+.gridjs-td:first-child,
+.gridjs-th:first-child {
+  padding-left: 1.25rem;
+}
+
+.gridjs-td:last-child,
+.gridjs-th:last-child {
+  padding-right: 1.25rem;
 }
 
 .gridjs-tr:hover .gridjs-td {
   background: var(--cs-bg-subtle);
+}
+
+/* El prompt puede ocupar dos líneas: que respire y no quede pegado al número. */
+.gridjs-td:nth-child(2) {
+  line-height: var(--cs-leading-normal);
+  padding-right: 1.25rem;
 }
 
 .gridjs-wrapper {
