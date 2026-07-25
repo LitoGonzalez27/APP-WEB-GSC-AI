@@ -17,10 +17,6 @@
     gap: 0.75rem;
 }
 
-.header-content h1 i {
-    color: #3b82f6;
-}
-
 .header-subtitle {
     color: #6b7280;
     font-size: 1rem;
@@ -237,10 +233,6 @@
     animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
 .loading-state p {
     margin-top: 1rem;
     color: #6b7280;
@@ -400,14 +392,6 @@
 .project-card-footer .btn-danger:hover i,
 .project-card-footer .btn-warning:hover i {
     color: white !important;
-}
-
-/* KPI Cards */
-.kpis-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
 }
 
 /* KPI card styles removed - Using llm-monitoring-enhanced.css styles instead */
@@ -908,35 +892,6 @@
     padding: 1rem;
 }
 
-.prompt-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    transition: all 0.2s;
-}
-
-.prompt-item:hover {
-    background: #f3f4f6;
-    border-color: #d1d5db;
-}
-
-.prompt-text {
-    font-size: 0.95rem;
-    color: #111827;
-    line-height: 1.5;
-}
-
-.prompt-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
 .badge {
     display: inline-flex;
     align-items: center;
@@ -1223,29 +1178,6 @@
     min-height: 300px;
 }
 
-.response-item {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    transition: all 0.2s ease;
-}
-
-.response-item:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: #d1d5db;
-}
-
-.response-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid #e5e7eb;
-}
-
 .response-header-left h4 {
     font-size: 1rem;
     font-weight: 600;
@@ -1345,31 +1277,6 @@
 
 .response-body {
     margin-bottom: 1rem;
-}
-
-.mention-contexts {
-    margin-top: 1rem;
-}
-
-.mention-contexts h5 {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #111827;
-    margin: 0 0 0.75rem 0;
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-}
-
-.context-item {
-    background: #fef3c7;
-    border-left: 3px solid #f59e0b;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    color: #92400e;
-    font-style: italic;
 }
 
 .competitors-list {
@@ -1682,10 +1589,6 @@
     transform: translateY(-1px);
 }
 
-.chip-text {
-    user-select: none;
-}
-
 .chip-remove {
     background: none;
     border: none;
@@ -1730,16 +1633,6 @@
     }
 }
 
-/* ============================================================================
- * GRÁFICO DE SHARE OF VOICE DE ANCHO COMPLETO
- * ============================================================================ */
-
-/* Contenedor del gráfico de ancho completo */
-.chart-card-full-width {
-    width: 100%;
-    margin-bottom: 2rem;
-}
-
 .chart-card-full-width .chart-header {
     display: flex;
     flex-direction: column;
@@ -1747,28 +1640,6 @@
     padding-bottom: 1rem;
     border-bottom: 2px solid #f3f4f6;
     margin-bottom: 1.5rem;
-}
-
-.chart-card-full-width .chart-header h3 {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 1.375rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 0;
-}
-
-.chart-card-full-width .chart-header h3 i {
-    color: #3b82f6;
-    font-size: 1.25rem;
-}
-
-.chart-subtitle {
-    font-size: 0.875rem;
-    color: #6b7280;
-    font-weight: 400;
-    margin: 0;
 }
 
 /* Contenedor del canvas para timeline */
@@ -1781,93 +1652,6 @@
 
 .chart-container-timeline canvas {
     max-height: 380px !important;
-}
-
-/* Chart HTML Legends - Replicate Manual AI Styles */
-.chart-html-legend {
-    margin-top: 12px;
-    padding: 8px 0;
-    border-top: 1px solid rgba(229, 231, 235, 0.6);
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    justify-content: flex-start !important;
-    align-items: center !important;
-}
-
-.chart-html-legend ul {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    list-style: none !important;
-    justify-content: flex-start !important;
-    align-items: center !important;
-    gap: 8px !important;
-}
-
-.chart-html-legend li {
-    display: flex !important;
-    align-items: center !important;
-    cursor: pointer !important;
-    margin: 4px 8px !important;
-    padding: 4px 8px !important;
-    border-radius: 6px !important;
-    transition: all 0.2s ease !important;
-    background-color: transparent !important;
-}
-
-.chart-html-legend li:hover {
-    background-color: rgba(243, 244, 246, 0.8) !important;
-    transform: translateY(-1px) !important;
-}
-
-.chart-html-legend span {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-}
-
-/* Legacy support for old legend structure */
-.chart-html-legend .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    background: #f9fafb;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    user-select: none;
-}
-
-.chart-html-legend .legend-item:hover {
-    background: #f3f4f6;
-    transform: translateY(-2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.chart-html-legend .legend-item .legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 2px solid white;
-    flex-shrink: 0;
-}
-
-.chart-html-legend .legend-item .legend-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #666;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-.chart-html-legend .legend-item.hidden {
-    opacity: 0.4;
-}
-
-.chart-html-legend .legend-item.hidden:hover {
-    opacity: 0.6;
 }
 
 /* Responsive para gráfico de ancho completo */
@@ -3839,6 +3623,8 @@ label:not(.search-form label) {
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 280px;
+    /* fusionado desde la copia duplicada eliminada */
+    user-select: none;
 }
 
 .chip-add-icon {
@@ -4124,22 +3910,6 @@ label:not(.search-form label) {
     .tips-grid {
         gap: 0.75rem;
     }
-}
-
-/* ============================================================================
-   RESPONSES INSPECTOR - ENHANCED FEATURES
-   ============================================================================ */
-
-/* ✨ Quick Stats Bar */
-.responses-quick-stats {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
 }
 
 .quick-stat-item {
@@ -4910,11 +4680,15 @@ label:not(.search-form label) {
     border-radius: 12px;
     transition: all 0.2s cubic-bezier(0.2,0.8,0.2,1);
     position: relative;
+    /* fusionado desde la copia duplicada eliminada */
+    align-items: flex-start;
 }
 
 .prompt-item:hover {
     border-color: rgba(217,249,184,0.5);
     box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+    /* fusionado desde la copia duplicada eliminada */
+    background: #f3f4f6;
 }
 
 /* Row 1: meta badges top-left */
