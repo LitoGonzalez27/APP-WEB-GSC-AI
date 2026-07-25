@@ -72,10 +72,18 @@
         'spinner': 'loader-circle', 'circle-notch': 'loader-circle'
     };
 
+    /**
+     * Iconos CON ESTADO que otro script muta vía className y que por tanto no
+     * pueden convertirse a SVG (en SVG className es de solo lectura): el toggle
+     * de tema del navbar alterna fa-sun/fa-moon en runtime (navbar.js:220).
+     */
+    const STATEFUL_IDS = new Set(['themeIcon', 'mobileThemeIcon', 'dropdownThemeIcon']);
+
     function convert(root) {
         const nodes = (root || document).querySelectorAll('i[class*="fa-"]:not([data-lucide])');
         let converted = 0;
         nodes.forEach(el => {
+            if (el.id && STATEFUL_IDS.has(el.id)) return;
             const classes = Array.from(el.classList);
             // Solo la familia solid/regular; las marcas (fab) no tienen outline en Lucide
             if (classes.includes('fab')) return;
