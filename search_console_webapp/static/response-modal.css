@@ -348,7 +348,7 @@ mark.competitor-mention {
 
 .source-link-modal .source-label.brand-label {
     padding: 3px 8px;
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
     border-radius: 4px;
     font-size: 0.75rem;
@@ -368,7 +368,7 @@ mark.competitor-mention {
 
 .source-link-modal .source-label.competitor-label {
     padding: 3px 8px;
-    background: #f97316;
+    background: #c2410c;
     color: white;
     border-radius: 4px;
     font-size: 0.75rem;
@@ -425,7 +425,7 @@ mark.competitor-mention {
 }
 
 .btn-view-full-response {
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
     border: none;
     padding: 0.625rem 1.25rem;

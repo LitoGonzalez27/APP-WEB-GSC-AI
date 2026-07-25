@@ -39,7 +39,7 @@
     width: 28px;
     height: 28px;
     border: none;
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
     border-radius: 50%;
     cursor: pointer;
@@ -121,7 +121,7 @@
 }
 
 .toggle-switch input[type="radio"]:checked + .toggle-option {
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
@@ -290,7 +290,7 @@
 }
 
 .metric-weighted {
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
 }
 
@@ -325,22 +325,22 @@
 }
 
 .weight-excellent {
-    background: #10b981;
+    background: #059669;
     color: white;
 }
 
 .weight-good {
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
 }
 
 .weight-average {
-    background: #f59e0b;
+    background: #d97706;
     color: white;
 }
 
 .weight-low {
-    background: #ef4444;
+    background: #dc2626;
     color: white;
 }
 
@@ -636,12 +636,12 @@
 }
 
 .method-high-confidence {
-    background: #10b981;
+    background: #059669;
     color: white;
 }
 
 .method-context {
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
 }
 
@@ -818,22 +818,22 @@
 }
 
 .pos-top3 {
-    background: #10b981;
+    background: #059669;
     color: white;
 }
 
 .pos-top5 {
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
 }
 
 .pos-mid {
-    background: #f59e0b;
+    background: #d97706;
     color: white;
 }
 
 .pos-low {
-    background: #ef4444;
+    background: #dc2626;
     color: white;
 }
 
@@ -985,12 +985,12 @@
 }
 
 .badge-high {
-    background: #10b981;
+    background: #059669;
     color: white;
 }
 
 .badge-medium {
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
 }
 
