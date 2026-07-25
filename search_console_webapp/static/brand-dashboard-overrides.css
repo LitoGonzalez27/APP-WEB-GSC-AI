@@ -876,28 +876,30 @@ mark.competitor-mention {
   border-bottom: 1px solid var(--cs-border);
 }
 
-/* Celdas con aire: antes las columnas quedaban pegadas entre sí y el botón
-   Details rozaba el borde izquierdo de la tabla. */
-.gridjs-td {
+/* Celdas con aire vertical, pero sin el padding horizontal de 24px del tema
+   mermaid: con columnas de ancho fijo, esos 48px por celda se comían el texto de
+   las cabeceras ("Avg. Pos." salía como "Avg..."). Los selectores llevan
+   .gridjs-table delante para ganar en especificidad al tema del CDN. */
+.gridjs-table .gridjs-td {
   color: var(--cs-text-primary);
   font-size: var(--cs-text-sm);
   border-bottom: 1px solid var(--cs-border-subtle);
-  padding: 1rem 0.875rem;
+  padding: 1rem 0.75rem;
   vertical-align: middle;
 }
 
-.gridjs-th {
-  padding: 0.875rem;
+.gridjs-table .gridjs-th {
+  padding: 0.875rem 0.75rem;
 }
 
 /* Primera y última columna, separadas del borde de la tabla. */
-.gridjs-td:first-child,
-.gridjs-th:first-child {
+.gridjs-table .gridjs-td:first-child,
+.gridjs-table .gridjs-th:first-child {
   padding-left: 1.25rem;
 }
 
-.gridjs-td:last-child,
-.gridjs-th:last-child {
+.gridjs-table .gridjs-td:last-child,
+.gridjs-table .gridjs-th:last-child {
   padding-right: 1.25rem;
 }
 
@@ -906,9 +908,17 @@ mark.competitor-mention {
 }
 
 /* El prompt puede ocupar dos líneas: que respire y no quede pegado al número. */
-.gridjs-td:nth-child(2) {
+.gridjs-table .gridjs-td:nth-child(2) {
   line-height: var(--cs-leading-normal);
   padding-right: 1.25rem;
+}
+
+/* Las cabeceras no se truncan: si algún día no cabe, parte en dos líneas antes
+   que recortar la palabra. */
+.gridjs-table .gridjs-th .gridjs-th-content {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .gridjs-wrapper {
