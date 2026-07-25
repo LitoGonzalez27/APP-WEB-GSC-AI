@@ -369,6 +369,11 @@ async renderShareOfVoiceChart() {
                         ...ds,
                         borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
                         order: idx === 0 ? 2 : 1,
+                        // Grosor normalizado aquí y no en el backend: la rama scoped
+                        // servía competidores a 1.5px frente a 2.5px de la marca, y
+                        // un punteado más estrecho que la línea sólida de debajo
+                        // apenas asoma cuando coinciden en valor.
+                        borderWidth: idx === 0 ? 3 : 2.5,
                         pointBackgroundColor: ds.borderColor,
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: ds.borderColor,
@@ -497,6 +502,7 @@ async renderMentionsTimelineChart() {
                         ...ds,
                         borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
                         order: idx === 0 ? 2 : 1,
+                        borderWidth: idx === 0 ? 3 : 2.5,
                         pointBackgroundColor: ds.borderColor,
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: ds.borderColor,

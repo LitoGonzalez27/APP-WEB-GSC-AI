@@ -270,6 +270,22 @@ table th {
   z-index: 1200;
 }
 
+/* El tooltip vive DENTRO de su tarjeta, y las tarjetas hermanas posteriores en
+   el DOM se pintaban por encima de él (todas son position:relative, así que
+   entre iguales gana el orden del documento). Al apuntar cualquier tarjeta que
+   contiene un tooltip, esta sube sobre sus hermanas y el panel se ve completo.
+   Solo se eleva en hover: sin él, el orden de apilado queda como estaba. */
+.kpi-card,
+.branded-card {
+  position: relative;
+}
+
+.kpi-card:hover,
+.branded-card:hover,
+.chart-card:hover {
+  z-index: 40;
+}
+
 .kpi-tooltip::after {
   background: var(--cs-bg-dark);
   color: var(--cs-text-inverse);
