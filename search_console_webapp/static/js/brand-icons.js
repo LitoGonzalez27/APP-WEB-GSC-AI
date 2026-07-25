@@ -58,6 +58,16 @@
         'times-circle': 'circle-x', 'trash': 'trash-2', 'trash-alt': 'trash-2',
         'trophy': 'trophy', 'user-circle': 'circle-user', 'user-minus': 'user-minus',
         'user-shield': 'shield-user', 'users': 'users',
+        // Iconos que solo usan Manual AI / AI Mode / AI Summary
+        'balance-scale': 'scale', 'calendar-alt': 'calendar-days',
+        'circle-info': 'info', 'clock-rotate-left': 'history',
+        'comment-alt': 'message-square', 'flag': 'flag', 'history': 'history',
+        'lock': 'lock', 'moon': 'moon', 'newspaper': 'newspaper',
+        'percentage': 'percent', 'project-diagram': 'git-fork',
+        'share-alt': 'share-2', 'sign-in-alt': 'log-in',
+        'sliders-h': 'sliders-horizontal', 'sort-numeric-down': 'arrow-down-0-1',
+        'sticky-note': 'sticky-note', 'table': 'table', 'unlink': 'unlink',
+        'user-plus': 'user-plus', 'video': 'video', 'x': 'x',
         // Spinners: el giro lo pone la clase .lucide-spin (animación CSS propia)
         'spinner': 'loader-circle', 'circle-notch': 'loader-circle'
     };
