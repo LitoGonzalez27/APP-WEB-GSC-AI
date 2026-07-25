@@ -4893,13 +4893,17 @@ def get_share_of_voice_history(project_id):
             'pointHoverRadius': 6
         })
         
-        # Datasets para competidores (ahora agrupados)
+        # Datasets para competidores (ahora agrupados).
+        # Slots 2..6 de la paleta de datos (--cs-series-* en
+        # static/brand-dashboard-tokens.css); el slot 1 queda para la marca
+        # propia. Mantener sincronizado con CSChartTheme.seriesExtended o el
+        # donut dirá un color y el resto de gráficas otro.
         competitor_colors = [
-            '#ef4444',  # Red
-            '#f97316',  # Orange
-            '#22c55e',  # Green
-            '#a855f7',  # Purple
-            '#ec4899'   # Pink
+            '#1baf7a',  # --cs-series-2
+            '#eb6834',  # --cs-series-3
+            '#4a3aa7',  # --cs-series-4
+            '#eda100',  # --cs-series-5
+            '#e87ba4'   # --cs-series-6
         ]
         
         # ✨ NEW: Obtener lista única de dominios de competidores
@@ -4998,7 +5002,9 @@ def get_share_of_voice_history(project_id):
         # Preparar datos del donut
         donut_labels = [brand_name]
         donut_values = [round(total_brand_mentions_period / grand_total * 100, 2) if grand_total > 0 else 0]
-        donut_colors = ['#3b82f6']
+        # Slot 1 de la paleta de datos: la marca propia siempre en el mismo color
+        # y el más contrastado. Debe coincidir con CSChartTheme.series[0].
+        donut_colors = ['#2a78d6']
         
         for idx, competitor_domain in enumerate(sorted(all_competitor_domains)):
             display_name = competitor_display_names.get(competitor_domain, get_display_name(competitor_domain))

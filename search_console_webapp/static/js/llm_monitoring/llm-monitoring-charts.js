@@ -154,40 +154,28 @@ renderMentionRateChart(data) {
         const prevRates = llms.map(llm => prevByLLM[llm]?.avg_mention_rate ?? null);
         const hasPrev = prevRates.some(v => v !== null);
 
-        const barColors = [
-            'rgba(59, 130, 246, 0.8)',
-            'rgba(16, 185, 129, 0.8)',
-            'rgba(249, 115, 22, 0.8)',
-            'rgba(139, 92, 246, 0.8)'
-        ];
-        const borderColors = [
-            'rgb(59, 130, 246)',
-            'rgb(16, 185, 129)',
-            'rgb(249, 115, 22)',
-            'rgb(139, 92, 246)'
-        ];
+        // Color por entidad (cada LLM tiene el suyo fijo), no por posici\u00f3n en el
+        // array: si se filtra un LLM, los que quedan conservan su color.
+        const barColors = llms.map((llm, i) => CSChartTheme.seriesColorFor(llm, i));
 
         const datasets = [{
             label: 'Mention Rate (%)',
             data: mentionRates,
-            backgroundColor: barColors,
-            borderColor: borderColors,
-            borderWidth: 1
+            backgroundColor: barColors
         }];
 
-        // Add previous period as ghost bars if available
+        // Periodo anterior como barras de contexto: mismo color, muy atenuado,
+        // para que se lea como "lo de antes" y no como una segunda categor\u00eda.
         if (hasPrev) {
             datasets.push({
                 label: 'Previous Period',
                 data: prevRates,
-                backgroundColor: barColors.map(c => c.replace(/[\d.]+\)$/, '0.25)')),
-                borderColor: borderColors.map(c => c.replace('rgb', 'rgba').replace(')', ', 0.3)')),
-                borderWidth: 1,
-                borderDash: [4, 4]
+                backgroundColor: CSChartTheme.seriesMuted
             });
         }
 
-        // Create chart
+        // Create chart \u2014 tipograf\u00eda, grid, tooltip y marcas vienen del tema
+        // global (static/js/llm-chart-theme.js).
         this.charts.mentionRate = new Chart(canvas, {
             type: 'bar',
             data: {
@@ -196,31 +184,10 @@ renderMentionRateChart(data) {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: value => value + '%'
-                        }
-                    }
-                },
+                scales: { y: CSChartTheme.percentAxis() },
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        titleColor: '#f1f5f9',
-                        bodyColor: '#e2e8f0',
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        borderWidth: 1,
-                        padding: 14,
-                        cornerRadius: 10,
-                        titleFont: { size: 13, weight: '600' },
-                        bodyFont: { size: 12 },
-                        boxPadding: 6,
                         callbacks: {
                             title: ctx => ctx[0].label,
                             label: ctx => {
@@ -262,10 +229,6 @@ renderMentionRateChartScoped(scope) {
             openai: 'ChatGPT', anthropic: 'Claude',
             google: 'Gemini', perplexity: 'Perplexity'
         };
-        const providerColors = {
-            openai: 'rgba(16, 163, 127, 0.85)', anthropic: 'rgba(204, 153, 0, 0.85)',
-            google: 'rgba(66, 133, 244, 0.85)', perplexity: 'rgba(96, 91, 255, 0.85)'
-        };
         const providerOrder = ['openai', 'anthropic', 'google', 'perplexity'];
 
         if (!byLlm || Object.keys(byLlm).length === 0) {
@@ -282,7 +245,7 @@ renderMentionRateChartScoped(scope) {
             if (byLlm[prov] !== undefined) {
                 labels.push(providerLabels[prov] || prov);
                 data.push(byLlm[prov]);
-                colors.push(providerColors[prov] || 'rgba(107, 114, 128, 0.8)');
+                colors.push(CSChartTheme.seriesColorFor(prov));
             }
         }
         // Include any providers not in the fixed order
@@ -290,7 +253,7 @@ renderMentionRateChartScoped(scope) {
             if (!providerOrder.includes(prov)) {
                 labels.push(providerLabels[prov] || prov);
                 data.push(rate);
-                colors.push('rgba(107, 114, 128, 0.8)');
+                colors.push(CSChartTheme.seriesMuted);
             }
         }
 
@@ -403,49 +366,20 @@ async renderShareOfVoiceChart() {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     interaction: {
                         mode: 'index',
                         intersect: false
                     },
                     scales: {
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                font: {
-                                    size: 12,
-                                    weight: '500'
-                                },
-                                color: '#6b7280'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: value => `${value}%`,
-                                font: {
-                                    size: 12,
-                                    weight: '500'
-                                },
-                                color: '#6b7280'
-                            },
-                            grid: {
-                                color: '#f3f4f6',
-                                drawBorder: false
-                            },
+                        x: { grid: { display: false } },
+                        y: CSChartTheme.percentAxis({
                             title: {
                                 display: true,
                                 text: 'Share of Voice (%)',
-                                font: {
-                                    size: 13,
-                                    weight: '600'
-                                },
-                                color: '#374151'
+                                color: CSChartTheme.ink.secondary,
+                                font: { size: 12, weight: '600' }
                             }
-                        }
+                        })
                     },
                     plugins: {
                         legend: {
@@ -554,46 +488,20 @@ async renderMentionsTimelineChart() {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     interaction: {
                         mode: 'index',
                         intersect: false
                     },
                     scales: {
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                font: {
-                                    size: 12,
-                                    weight: '500'
-                                },
-                                color: '#6b7280'
-                            }
-                        },
+                        x: { grid: { display: false } },
                         y: {
                             beginAtZero: true,
-                            ticks: {
-                                callback: value => Math.round(value),
-                                font: {
-                                    size: 12,
-                                    weight: '500'
-                                },
-                                color: '#6b7280'
-                            },
-                            grid: {
-                                color: '#f3f4f6',
-                                drawBorder: false
-                            },
+                            ticks: { callback: value => Math.round(value) },
                             title: {
                                 display: true,
                                 text: 'Total Mentions',
-                                font: {
-                                    size: 13,
-                                    weight: '600'
-                                },
-                                color: '#374151'
+                                color: CSChartTheme.ink.secondary,
+                                font: { size: 12, weight: '600' }
                             }
                         }
                     },
@@ -663,43 +571,14 @@ async renderShareOfVoiceDonutChart() {
                     datasets: [{
                         data: donut_data.values,
                         backgroundColor: donut_data.colors,
-                        borderWidth: 3,
-                        borderColor: '#fff',
                         hoverOffset: 10
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 15,
-                                font: {
-                                    size: 13,
-                                    weight: '500'
-                                },
-                                color: '#374151',
-                                usePointStyle: true,
-                                pointStyle: 'circle'
-                            }
-                        },
+                        legend: { position: 'bottom' },
                         tooltip: {
-                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            borderColor: '#374151',
-                            borderWidth: 1,
-                            padding: 12,
-                            titleFont: {
-                                size: 13,
-                                weight: '600'
-                            },
-                            bodyFont: {
-                                size: 12
-                            },
                             callbacks: {
                                 label: context => {
                                     const label = context.label || '';
@@ -805,10 +684,13 @@ async renderSentimentDistributionChart() {
                     avgNeutral.toFixed(1),
                     avgNegative.toFixed(1)
                 ],
+                // El sentimiento SÍ significa bueno/malo, así que va con los
+                // colores de estado de la marca, nunca con los de serie: un
+                // color de estado no debe hacerse pasar por una categoría.
                 colors: [
-                    'rgba(34, 197, 94, 0.8)',   // Green for positive
-                    'rgba(245, 158, 11, 0.8)',  // Orange for neutral
-                    'rgba(239, 68, 68, 0.8)'    // Red for negative
+                    CSChartTheme.status.success,
+                    CSChartTheme.status.neutral,
+                    CSChartTheme.status.error
                 ]
             };
 
@@ -820,15 +702,11 @@ async renderSentimentDistributionChart() {
                     datasets: [{
                         data: data.values,
                         backgroundColor: data.colors,
-                        borderWidth: 3,
-                        borderColor: '#fff',
                         hoverOffset: 10
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
                     // ✨ Click en un segmento → LLM Responses Inspector con el
                     // filtro de sentimiento correspondiente activo
                     onHover: (event, elements) => {
@@ -842,39 +720,14 @@ async renderSentimentDistributionChart() {
                         this.goToResponsesWithSentiment(String(label).toLowerCase());
                     },
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 15,
-                                font: {
-                                    size: 13,
-                                    weight: '500'
-                                },
-                                color: '#374151',
-                                usePointStyle: true,
-                                pointStyle: 'circle'
-                            }
-                        },
+                        legend: { position: 'bottom' },
                         tooltip: {
-                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            borderColor: '#374151',
-                            borderWidth: 1,
-                            padding: 12,
-                            titleFont: {
-                                size: 13,
-                                weight: '600'
-                            },
-                            bodyFont: {
-                                size: 12
-                            },
                             footerFont: {
                                 size: 11,
                                 style: 'italic',
                                 weight: '400'
                             },
-                            footerColor: '#D8F9B8',
+                            footerColor: CSChartTheme.ink.tertiary,
                             callbacks: {
                                 label: context => {
                                     const label = context.label || '';
@@ -934,14 +787,6 @@ async loadQueryHistoryChart(queryId) {
                 return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             });
 
-            // Colores para los LLMs
-            const llmColors = {
-                'openai': { bg: 'rgba(16, 163, 127, 0.2)', border: '#10A37F' },
-                'anthropic': { bg: 'rgba(204, 148, 102, 0.2)', border: '#CC9466' },
-                'google': { bg: 'rgba(66, 133, 244, 0.2)', border: '#4285F4' },
-                'perplexity': { bg: 'rgba(32, 178, 170, 0.2)', border: '#20B2AA' }
-            };
-
             // Dataset principal: Visibility Rate total (% de LLMs que mencionan)
             const visibilityData = data.history.map(h => h.visibility_rate);
             
@@ -955,21 +800,18 @@ async loadQueryHistoryChart(queryId) {
                 this.historyChart.destroy();
             }
 
-            // ✨ Solo una línea: Overall Visibility (más limpio y claro)
+            // ✨ Una sola línea: Overall Visibility. Al ser serie única no lleva
+            // leyenda — el título de la sección ya la nombra — y usa el slot 1
+            // de la paleta con un relleno tenue del mismo tono.
             const datasets = [
                 {
                     label: 'Visibility Rate',
                     data: visibilityData,
-                    borderColor: '#8BC34A',
-                    backgroundColor: 'rgba(139, 195, 74, 0.2)',
-                    borderWidth: 3,
+                    borderColor: CSChartTheme.series[0],
+                    backgroundColor: 'rgba(42, 120, 214, 0.08)',
                     fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#8BC34A',
-                    pointBorderColor: 'white',
-                    pointBorderWidth: 2
+                    pointBackgroundColor: CSChartTheme.series[0],
+                    pointBorderColor: CSChartTheme.surface.paper
                 }
             ];
 
@@ -980,7 +822,6 @@ async loadQueryHistoryChart(queryId) {
                 data: { labels, datasets },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
                     interaction: {
                         intersect: false,
                         mode: 'index'
@@ -990,11 +831,6 @@ async loadQueryHistoryChart(queryId) {
                             display: false
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(22, 22, 22, 0.95)',
-                            titleColor: '#fff',
-                            bodyColor: '#e5e7eb',
-                            padding: 14,
-                            cornerRadius: 10,
                             displayColors: false,
                             callbacks: {
                                 title: function(context) {
@@ -1031,26 +867,12 @@ async loadQueryHistoryChart(queryId) {
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { 
-                                color: '#6b7280',
-                                font: { size: 11 },
-                                maxRotation: 45
-                            }
+                            ticks: { maxRotation: 45 }
                         },
-                        y: {
+                        y: CSChartTheme.percentAxis({
                             min: 0,
-                            max: 100,
-                            grid: { 
-                                color: 'rgba(0, 0, 0, 0.06)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#6b7280',
-                                callback: value => `${value}%`,
-                                font: { size: 11 },
-                                stepSize: 25
-                            }
-                        }
+                            ticks: { callback: value => `${value}%`, stepSize: 25 }
+                        })
                     }
                 }
             });
@@ -1316,16 +1138,29 @@ renderClustersPerformanceChart(data, metric) {
         container.style.display = '';
         emptyBox.style.display = 'none';
 
-        const labels = clustersWithData.map(c => c.cluster);
-        const sovData = clustersWithData.map(c => c.share_of_voice || 0);
-        const posData = clustersWithData.map(c => c.avg_position == null ? null : c.avg_position);
+        // Ordenado de mayor a menor Share of Voice: la pregunta que responde este
+        // gráfico es "en qué temas soy fuerte y en cuáles no", y ordenar la
+        // contesta de un vistazo (antes salían en orden de inserción).
+        const ordered = clustersWithData.slice().sort(
+            (a, b) => (b.share_of_voice || 0) - (a.share_of_voice || 0)
+        );
+
+        const labels = ordered.map(c => c.cluster);
+        const sovData = ordered.map(c => c.share_of_voice || 0);
 
         if (this.charts.clustersPerformance) {
             try { this.charts.clustersPerformance.destroy(); } catch (_) {}
         }
 
         // Store cluster data for the rich tooltip
-        this._clusterChartData = clustersWithData;
+        this._clusterChartData = ordered;
+
+        // La posición media acompaña como texto bajo cada barra, no como una
+        // segunda serie. Antes vivía en un eje derecho propio: dos escalas cuya
+        // alineación es arbitraria sugieren una correlación que no está en los
+        // datos, y encima aquí una métrica mejora subiendo (SOV) y la otra
+        // bajando (posición), así que las barras se leían al revés.
+        this.renderClustersPositionStrip(ordered);
 
         const self = this;
         const ctx = canvas.getContext('2d');
@@ -1337,44 +1172,18 @@ renderClustersPerformanceChart(data, metric) {
                     {
                         label: metric === 'weighted' ? 'Share of Voice (weighted)' : 'Share of Voice',
                         data: sovData,
-                        backgroundColor: 'rgba(15, 23, 42, 0.82)',
-                        borderColor: '#0F172A',
-                        borderWidth: 0,
-                        borderRadius: { topLeft: 6, topRight: 6 },
-                        yAxisID: 'y',
-                        categoryPercentage: 0.65,
-                        barPercentage: 0.85,
-                        order: 1
-                    },
-                    {
-                        label: 'Avg position',
-                        data: posData,
-                        backgroundColor: 'rgba(217, 249, 184, 0.85)',
-                        borderColor: '#D9F9B8',
-                        borderWidth: 0,
-                        borderRadius: { topLeft: 6, topRight: 6 },
-                        yAxisID: 'y1',
-                        categoryPercentage: 0.65,
-                        barPercentage: 0.85,
-                        order: 2
+                        backgroundColor: CSChartTheme.series[0],
+                        categoryPercentage: 0.7,
+                        barPercentage: 0.85
                     }
                 ]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            usePointStyle: true,
-                            pointStyle: 'rectRounded',
-                            padding: 18,
-                            font: { size: 12, family: "'Inter Tight', sans-serif", weight: '500' },
-                            color: '#64748B'
-                        }
-                    },
+                    // Serie única: el título de la card ya dice qué se mide.
+                    legend: { display: false },
                     tooltip: {
                         enabled: false,
                         external: (context) => self.renderClustersChartTooltip(context)
@@ -1383,52 +1192,51 @@ renderClustersPerformanceChart(data, metric) {
                 scales: {
                     x: {
                         grid: { display: false },
-                        border: { display: false },
                         ticks: {
-                            color: '#0F172A',
-                            font: { weight: '600', size: 12, family: "'Inter Tight', sans-serif" }
+                            color: CSChartTheme.ink.primary,
+                            font: { weight: '600', size: 12 }
                         }
                     },
-                    y: {
-                        type: 'linear',
-                        position: 'left',
-                        beginAtZero: true,
+                    y: CSChartTheme.percentAxis({
+                        max: undefined,
                         suggestedMax: 100,
                         title: {
                             display: true,
                             text: 'Share of Voice (%)',
-                            color: '#64748B',
+                            color: CSChartTheme.ink.secondary,
                             font: { size: 11 }
-                        },
-                        ticks: {
-                            callback: (v) => `${v}%`,
-                            color: '#94A3B8',
-                            font: { size: 11 }
-                        },
-                        grid: { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false }
-                    },
-                    y1: {
-                        type: 'linear',
-                        position: 'right',
-                        beginAtZero: true,
-                        // Both bars grow upward from 0. Lower position = smaller bar.
-                        // The tooltip explains that lower is better.
-                        title: {
-                            display: true,
-                            text: 'Avg position',
-                            color: '#64748B',
-                            font: { size: 11 }
-                        },
-                        ticks: {
-                            callback: (v) => `#${v}`,
-                            color: '#94A3B8',
-                            font: { size: 11 }
-                        },
-                        grid: { drawOnChartArea: false, drawBorder: false }
-                    }
+                        }
+                    })
                 }
             }
         });
+    },
+
+/**
+ * Posición media por cluster, alineada bajo las barras. Texto plano: el
+ * brandbook reserva las formas de cápsula a botones y nav links, así que el
+ * estado de un dato se comunica con texto, icono y color.
+ */
+renderClustersPositionStrip(clusters) {
+        const strip = document.getElementById('clustersPositionStrip');
+        if (!strip) return;
+
+        if (!clusters || clusters.length === 0) {
+            strip.innerHTML = '';
+            return;
+        }
+
+        strip.innerHTML = clusters.map(c => {
+            const pos = c.avg_position;
+            const value = pos != null ? `#${pos.toFixed(1)}` : '—';
+            const cls = pos != null ? 'cluster-pos-value' : 'cluster-pos-value is-empty';
+            return `
+                <div class="cluster-pos-item">
+                    <span class="cluster-pos-label">Avg pos</span>
+                    <span class="${cls}">${value}</span>
+                </div>
+            `;
+        }).join('');
     },
 
 renderClustersChartTooltip(context) {

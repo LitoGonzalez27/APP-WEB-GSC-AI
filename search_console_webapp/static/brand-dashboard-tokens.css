@@ -71,6 +71,12 @@
   --cs-series-3:          #eb6834;   /* naranja */
   --cs-series-4:          #4a3aa7;   /* violeta */
 
+  /* Slots 5 y 6 solo para comparativas con más entidades (marca + hasta 5
+     competidores en el donut). Validados en la lista de pares adyacentes, que
+     es la que aplica a un donut o a barras: no usarlos en dispersión. */
+  --cs-series-5:          #eda100;   /* amarillo */
+  --cs-series-6:          #e87ba4;   /* magenta */
+
   /* Serie de-enfatizada, para destacar una y silenciar el resto */
   --cs-series-muted:      #CBD5E1;
 

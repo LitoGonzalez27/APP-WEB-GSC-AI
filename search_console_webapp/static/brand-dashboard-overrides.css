@@ -192,6 +192,52 @@ table th {
   color: var(--cs-text-primary);
 }
 
+/* ── Posición media por cluster ───────────────────────────────────────────────
+   Reparte los valores en tantas columnas como barras para que cada uno caiga
+   bajo la suya. Texto plano, sin cápsulas (Brandbook.md:254).
+   ─────────────────────────────────────────────────────────────────────────── */
+.clusters-position-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--cs-space-xs);
+  padding: var(--cs-space-sm) 0 0;
+  margin-top: var(--cs-space-xs);
+  border-top: 1px solid var(--cs-border-subtle);
+}
+
+.clusters-position-strip:empty {
+  display: none;
+}
+
+.cluster-pos-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cluster-pos-label {
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-semibold);
+  letter-spacing: var(--cs-tracking-wide);
+  text-transform: uppercase;
+  color: var(--cs-text-tertiary);
+}
+
+.cluster-pos-value {
+  font-size: var(--cs-text-sm);
+  font-weight: var(--cs-weight-bold);
+  color: var(--cs-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cluster-pos-value.is-empty {
+  color: var(--cs-text-tertiary);
+  font-weight: var(--cs-weight-medium);
+}
+
 /* ── Grid.js: sustituye al tema "mermaid" del CDN ────────────────────────────
    El tema de la librería trae su propia paleta y tipografía, que competían con
    la marca. Aquí se le da el aspecto del brandbook.

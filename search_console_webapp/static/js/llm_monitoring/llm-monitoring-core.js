@@ -1320,14 +1320,23 @@ getLLMIcon(llm) {
         return icons[llm] || 'fas fa-robot';
     },
 
+// Color de cada LLM. Delega en el tema único de gráficas para que el color de
+// una entidad sea el mismo en todo el producto (antes había tres paletas
+// distintas repartidas por el código). La paleta anterior era además
+// inaccesible: Gemini (#3b82f6) y Claude (#a855f7) resultaban indistinguibles
+// bajo deuteranopia (ΔE 0.9), o sea el mismo color para ~8% de los hombres.
 getLLMColor(llm) {
+        if (window.CSChartTheme) {
+            return CSChartTheme.seriesColorFor(llm);
+        }
+        // Fallback si el tema no cargó: los mismos valores validados.
         const colors = {
-            'openai': '#10b981',
-            'anthropic': '#a855f7',
-            'google': '#3b82f6',
-            'perplexity': '#f59e0b'
+            'openai': '#1baf7a',
+            'anthropic': '#eb6834',
+            'google': '#2a78d6',
+            'perplexity': '#4a3aa7'
         };
-        return colors[llm] || '#6b7280';
+        return colors[llm] || '#CBD5E1';
     },
 
 // Favicon de un dominio (logo.dev con fallback a Google Favicons, igual que el ranking de
