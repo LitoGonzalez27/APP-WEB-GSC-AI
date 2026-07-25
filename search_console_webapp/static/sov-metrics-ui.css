@@ -134,6 +134,30 @@
     margin-bottom: 2.5rem;
 }
 
+/* Variantes de aviso: fondo plano con línea de acento a la izquierda.
+   Antes vivían como estilos inline en el template. */
+.info-section--notice {
+    background: #FEF6E0;
+    border-left: 4px solid #f59e0b;
+    padding: 1.5rem;
+    border-radius: var(--cs-radius-sm);
+}
+
+.info-section--reference {
+    background: #EEF1FE;
+    border-left: 4px solid #6366f1;
+    padding: 1.5rem;
+    border-radius: var(--cs-radius-sm);
+}
+
+/* Subrayado de marca sobre términos clave del modal SOV (patrón highlight del
+   brandbook). Antes: el mismo estilo inline repetido 15 veces en el template. */
+.sov-highlight {
+    background: linear-gradient(to top, var(--cs-accent) 40%, transparent 40%);
+    font-weight: 500;
+    padding: 2px 4px;
+}
+
 .info-section:last-child {
     margin-bottom: 0;
 }
