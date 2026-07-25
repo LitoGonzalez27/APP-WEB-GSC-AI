@@ -990,7 +990,7 @@
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+    background: #3b82f6;
     border-radius: 9999px;
     transition: width 0.3s;
 }
@@ -1238,7 +1238,7 @@
     font-size: 0.75rem;
     font-weight: 600;
     border-radius: 9999px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #667eea;
     color: white;
     flex-shrink: 0;
 }
@@ -1260,13 +1260,13 @@
 
 /* Success button variant */
 .btn-success.btn-enhanced {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
     color: white;
     font-weight: 600;
 }
 
 .btn-success.btn-enhanced:hover:not(:disabled) {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: #059669;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
@@ -1278,7 +1278,7 @@
 /* ✨ NEW: Responses count and load more */
 .responses-count {
     padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, rgba(216, 249, 184, 0.05) 0%, rgba(216, 249, 184, 0) 100%);
+    background: rgba(216, 249, 184, 0.05);
     border-bottom: 1px solid rgba(216, 249, 184, 0.3);
     border-radius: 8px 8px 0 0;
     margin-bottom: 0.5rem;
@@ -1925,7 +1925,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.375rem 0.75rem;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #3b82f6;
     color: white;
     border-radius: 1rem;
     font-size: 0.875rem;
@@ -1947,7 +1947,7 @@
 }
 
 .chip:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: #2563eb;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
 }
@@ -1990,19 +1990,19 @@
 
 /* Variantes de color para diferentes tipos de chips */
 .chip.chip-domain {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
 }
 
 .chip.chip-domain:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: #059669;
 }
 
 .chip.chip-competitor {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
 }
 
 .chip.chip-competitor:hover {
-    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    background: #d97706;
 }
 
 /* Empty state para chips */
@@ -2221,7 +2221,7 @@ label:not(.search-form label) {
 
 /* Header mejorado */
 .create-project-modal .create-header {
-    background: linear-gradient(135deg, #161616 0%, #2d2d2d 100%);
+    background: #161616;
     color: white;
     padding: 1.5rem 2rem;
     border-radius: 12px 12px 0 0;
@@ -2289,7 +2289,7 @@ label:not(.search-form label) {
 
 /* Intro card mejorada */
 .create-project-modal .create-intro {
-    background: linear-gradient(135deg, rgba(216, 249, 184, 0.3) 0%, rgba(216, 249, 184, 0.1) 100%);
+    background: rgba(216, 249, 184, 0.3);
     border: 1px solid rgba(216, 249, 184, 0.5);
     border-radius: 12px;
     padding: 1.25rem 1.5rem;
@@ -2891,14 +2891,14 @@ label:not(.search-form label) {
     color: #0F172A;
 }
 
+/* Texto plano, sin cápsula: el brandbook reserva las formas envolventes a
+   botones y nav links, y pide comunicar el estado de un dato con texto, icono y
+   color (Brandbook.md:254). */
 .lm-cluster-badge {
     display: inline-block;
-    background: #F1F5F9;
-    color: #0F172A;
-    border-radius: 9999px;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.72rem;
-    font-weight: 600;
+    color: var(--cs-text-secondary);
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-semibold);
     white-space: nowrap;
 }
 
@@ -3158,23 +3158,21 @@ label:not(.search-form label) {
     font-weight: 600;
 }
 
+/* Estado en texto plano con color, sin cápsula (Brandbook.md:254). */
 .brand-summary-card-status {
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.2rem 0.6rem;
-    border-radius: var(--bm-radius-full);
-    background: var(--bm-color-bg-subtle);
+    font-size: 0.7rem;
+    font-weight: var(--cs-weight-semibold);
+    letter-spacing: var(--cs-tracking-wide);
+    text-transform: uppercase;
     color: var(--bm-color-text-secondary);
 }
 
 .brand-summary-card.brand-positive .brand-summary-card-status {
-    background: rgba(34, 197, 94, 0.12);
-    color: #15803d;
+    color: var(--cs-success-text);
 }
 
 .brand-summary-card.brand-negative .brand-summary-card-status {
-    background: rgba(239, 68, 68, 0.12);
-    color: #b91c1c;
+    color: var(--cs-error-text);
 }
 
 .brand-summary-card-value {
@@ -3276,20 +3274,17 @@ label:not(.search-form label) {
     color: var(--bm-color-text-tertiary);
 }
 
+/* Tipo de mención en texto, sin cápsula (Brandbook.md:254). */
 .llm-row-badge {
-    background: rgba(34, 197, 94, 0.12);
-    color: #15803d;
-    padding: 0.125rem 0.5rem;
-    border-radius: var(--bm-radius-sm);
+    color: var(--cs-success-text);
     font-size: 0.66rem;
-    font-weight: 700;
+    font-weight: var(--cs-weight-semibold);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: var(--cs-tracking-wide);
 }
 
 .llm-row-badge.url-only {
-    background: rgba(59, 130, 246, 0.12);
-    color: #1d4ed8;
+    color: var(--cs-text-secondary);
 }
 
 .llm-row-competitors {
@@ -3305,13 +3300,17 @@ label:not(.search-form label) {
     font-weight: 600;
 }
 
+/* Competidores como lista de texto separada por comas, sin cápsulas
+   (Brandbook.md:254). La coma la pone el ::after de cada elemento. */
 .llm-row-competitor-tag {
-    background: var(--bm-color-text-primary);
-    color: var(--bm-color-text-inverse);
-    padding: 0.25rem 0.625rem;
-    border-radius: var(--bm-radius-sm);
-    font-size: 0.75rem;
-    font-weight: 500;
+    color: var(--bm-color-text-primary);
+    font-size: 0.78rem;
+    font-weight: var(--cs-weight-medium);
+}
+
+.llm-row-competitor-tag:not(:last-child)::after {
+    content: ',';
+    color: var(--bm-color-text-tertiary);
 }
 
 .llm-row-no-competitors {
@@ -3453,7 +3452,7 @@ label:not(.search-form label) {
 }
 
 .model-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 16px;
@@ -3482,22 +3481,22 @@ label:not(.search-form label) {
 }
 
 .model-card .model-icon.openai {
-    background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%);
+    background: #10a37f;
     color: white;
 }
 
 .model-card .model-icon.anthropic {
-    background: linear-gradient(135deg, #d97757 0%, #c4593d 100%);
+    background: #d97757;
     color: white;
 }
 
 .model-card .model-icon.google {
-    background: linear-gradient(135deg, #4285f4 0%, #3367d6 100%);
+    background: #4285f4;
     color: white;
 }
 
 .model-card .model-icon.perplexity {
-    background: linear-gradient(135deg, #20b8cd 0%, #1a99a8 100%);
+    background: #20b8cd;
     color: white;
 }
 
@@ -3550,7 +3549,7 @@ label:not(.search-form label) {
    ======================================== */
 
 .sparkline-container {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    background: #f0fdf4;
     border: 1px solid #86efac;
     border-radius: 12px;
     padding: 16px;
@@ -3683,11 +3682,7 @@ label:not(.search-form label) {
 .kpi-card .kpi-value .kpi-main-value {
     font-size: 1.75rem;
     font-weight: 700;
-    color: #161616;
-    background: linear-gradient(135deg, #161616 0%, #374151 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--cs-text-primary);
     line-height: 1.2;
 }
 
@@ -3714,7 +3709,7 @@ label:not(.search-form label) {
 }
 
 .kpi-card .kpi-trend.trend-up {
-    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important;
+    background: #dcfce7 !important;
     color: #166534 !important;
     -webkit-text-fill-color: #166534 !important;
 }
@@ -3725,7 +3720,7 @@ label:not(.search-form label) {
 }
 
 .kpi-card .kpi-trend.trend-down {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%) !important;
+    background: #fee2e2 !important;
     color: #991b1b !important;
     -webkit-text-fill-color: #991b1b !important;
 }
@@ -3736,7 +3731,7 @@ label:not(.search-form label) {
 }
 
 .kpi-card .kpi-trend.trend-stable {
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+    background: #f3f4f6 !important;
     color: #6b7280 !important;
     -webkit-text-fill-color: #6b7280 !important;
 }
@@ -3747,7 +3742,7 @@ label:not(.search-form label) {
 }
 
 .kpi-card .kpi-trend.trend-nodata {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    background: #f0f9ff !important;
     color: #0369a1 !important;
     -webkit-text-fill-color: #0369a1 !important;
 }
@@ -3852,7 +3847,7 @@ label:not(.search-form label) {
 .position-main-stat {
     text-align: center;
     padding: 1rem;
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    background: #fef3c7;
     border-radius: 12px;
     margin-bottom: 1.25rem;
 }
@@ -3902,7 +3897,7 @@ label:not(.search-form label) {
 }
 
 .position-badge-gold {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    background: #fef3c7;
     color: #92400e;
 }
 
@@ -3911,7 +3906,7 @@ label:not(.search-form label) {
 }
 
 .position-badge-silver {
-    background: linear-gradient(135deg, #f3f4f6 0%, #d1d5db 100%);
+    background: #f3f4f6;
     color: #374151;
 }
 
@@ -3920,7 +3915,7 @@ label:not(.search-form label) {
 }
 
 .position-badge-bronze {
-    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    background: #fed7aa;
     color: #9a3412;
 }
 
@@ -3948,15 +3943,15 @@ label:not(.search-form label) {
 }
 
 .position-bar-gold {
-    background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+    background: #fbbf24;
 }
 
 .position-bar-silver {
-    background: linear-gradient(90deg, #9ca3af 0%, #6b7280 100%);
+    background: #9ca3af;
 }
 
 .position-bar-bronze {
-    background: linear-gradient(90deg, #fb923c 0%, #ea580c 100%);
+    background: #fb923c;
 }
 
 .position-footer {
@@ -4001,7 +3996,7 @@ label:not(.search-form label) {
     width: 100px;
     height: 100px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    background: #f0fdf4;
     border: 4px solid #22c55e;
     display: inline-flex;
     align-items: center;
@@ -4129,7 +4124,7 @@ label:not(.search-form label) {
 }
 
 .add-prompts-header {
-    background: linear-gradient(135deg, #161616 0%, #2d2d2d 100%);
+    background: #161616;
     padding: 1.25rem 1.5rem;
     border-bottom: none;
 }
@@ -4143,7 +4138,7 @@ label:not(.search-form label) {
 .add-prompts-header .header-icon {
     width: 42px;
     height: 42px;
-    background: linear-gradient(135deg, #8BC34A 0%, #689F38 100%);
+    background: #8BC34A;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -4573,7 +4568,7 @@ label:not(.search-form label) {
     display: flex;
     gap: 1rem;
     padding: 1rem 1.25rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     margin-bottom: 1.5rem;
@@ -4671,7 +4666,7 @@ label:not(.search-form label) {
     justify-content: space-between;
     align-items: center;
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, #161616 0%, #2d2d2d 100%);
+    background: #161616;
     color: white;
 }
 
@@ -4765,22 +4760,22 @@ label:not(.search-form label) {
 }
 
 .compare-column-header.openai {
-    background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%);
+    background: #10a37f;
     color: white;
 }
 
 .compare-column-header.anthropic {
-    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    background: #d97706;
     color: white;
 }
 
 .compare-column-header.google {
-    background: linear-gradient(135deg, #4285f4 0%, #2b6ce8 100%);
+    background: #4285f4;
     color: white;
 }
 
 .compare-column-header.perplexity {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    background: #8b5cf6;
     color: white;
 }
 
@@ -4820,13 +4815,13 @@ label:not(.search-form label) {
 }
 
 .compare-column-header .mini-badge.badge-gold {
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.4) 0%, rgba(245, 158, 11, 0.4) 100%);
+    background: rgba(251, 191, 36, 0.4);
     color: #fef3c7;
     border: 1px solid rgba(251, 191, 36, 0.5);
 }
 
 .compare-column-header .mini-badge.badge-silver {
-    background: linear-gradient(135deg, rgba(156, 163, 175, 0.4) 0%, rgba(107, 114, 128, 0.4) 100%);
+    background: rgba(156, 163, 175, 0.4);
     color: #e5e7eb;
 }
 
@@ -4916,7 +4911,7 @@ label:not(.search-form label) {
 }
 
 .legend-badge.position-badge {
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    background: #fbbf24;
     color: white;
 }
 
@@ -4928,7 +4923,7 @@ label:not(.search-form label) {
 
 /* Brand/Competitor mention highlights in compare modal */
 .compare-column-body mark.brand-mention {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    background: #dbeafe;
     color: #1e40af;
     padding: 2px 6px;
     border-radius: 4px;
@@ -4938,7 +4933,7 @@ label:not(.search-form label) {
 }
 
 .compare-column-body mark.competitor-mention {
-    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    background: #fed7aa;
     color: #c2410c;
     padding: 2px 6px;
     border-radius: 4px;
@@ -4957,13 +4952,13 @@ label:not(.search-form label) {
 }
 
 .compare-legend mark.brand-mention {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    background: #dbeafe;
     color: #1e40af;
     border-left: 3px solid #3b82f6;
 }
 
 .compare-legend mark.competitor-mention {
-    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    background: #fed7aa;
     color: #c2410c;
     border-left: 3px solid #f97316;
 }

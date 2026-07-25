@@ -39,7 +39,7 @@
     width: 28px;
     height: 28px;
     border: none;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #3b82f6;
     color: white;
     border-radius: 50%;
     cursor: pointer;
@@ -51,7 +51,7 @@
 .info-tooltip-btn:hover {
     transform: scale(1.1);
     box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: #2563eb;
 }
 
 .info-tooltip-btn:active {
@@ -66,7 +66,7 @@
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    background: #f8fafc;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
 }
@@ -121,7 +121,7 @@
 }
 
 .toggle-switch input[type="radio"]:checked + .toggle-option {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #3b82f6;
     color: white;
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
@@ -290,12 +290,12 @@
 }
 
 .metric-weighted {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #3b82f6;
     color: white;
 }
 
 .metric-standard {
-    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    background: #f8fafc;
     color: #475569;
     border: 2px solid #cbd5e1;
 }
@@ -325,27 +325,27 @@
 }
 
 .weight-excellent {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: #10b981;
     color: white;
 }
 
 .weight-good {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #3b82f6;
     color: white;
 }
 
 .weight-average {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: #f59e0b;
     color: white;
 }
 
 .weight-low {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
+    background: #ef4444;
     color: white;
 }
 
 .weight-baseline {
-    background: linear-gradient(135deg, #6b7280, #4b5563);
+    background: #6b7280;
     color: white;
 }
 
@@ -372,7 +372,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 1rem 1.25rem;
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    background: #fef3c7;
     border-left: 4px solid #f59e0b;
     border-radius: 8px;
     font-size: 14px;
@@ -439,7 +439,7 @@
    Example Section
    ================== */
 .example-section {
-    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    background: #f0f9ff;
     padding: 2rem;
     border-radius: 12px;
 }
@@ -563,17 +563,17 @@
 
 .tip-success {
     border-color: #10b981;
-    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    background: #d1fae5;
 }
 
 .tip-warning {
     border-color: #f59e0b;
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    background: #fef3c7;
 }
 
 .tip-info {
     border-color: #3b82f6;
-    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    background: #dbeafe;
 }
 
 .tip-icon {
@@ -596,7 +596,7 @@
    Technical Section Styles
    ================== */
 .technical-section {
-    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+    background: #faf5ff;
     padding: 2rem;
     border-radius: 12px;
     border-left: 4px solid #a855f7;
@@ -636,12 +636,12 @@
 }
 
 .method-high-confidence {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: #10b981;
     color: white;
 }
 
 .method-context {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #3b82f6;
     color: white;
 }
 
@@ -724,7 +724,7 @@
     display: flex;
     gap: 1rem;
     padding: 1.25rem;
-    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    background: #d1fae5;
     border-radius: 10px;
     border-left: 4px solid #10b981;
     margin-top: 1.5rem;
@@ -750,7 +750,7 @@
    Calculation Section Styles
    ================== */
 .calculation-section {
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    background: #fef3c7;
     padding: 2rem;
     border-radius: 12px;
     border-left: 4px solid #f59e0b;
@@ -818,22 +818,22 @@
 }
 
 .pos-top3 {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: #10b981;
     color: white;
 }
 
 .pos-top5 {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #3b82f6;
     color: white;
 }
 
 .pos-mid {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: #f59e0b;
     color: white;
 }
 
 .pos-low {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
+    background: #ef4444;
     color: white;
 }
 
@@ -871,7 +871,7 @@
 
 .calc-weighted {
     border-color: #10b981;
-    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    background: #d1fae5;
 }
 
 .calc-label {
@@ -909,7 +909,7 @@
     display: flex;
     gap: 1rem;
     padding: 1.5rem;
-    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    background: #dbeafe;
     border-radius: 10px;
     border-left: 4px solid #3b82f6;
 }
@@ -933,7 +933,7 @@
    Reliability Section Styles
    ================== */
 .reliability-section {
-    background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+    background: #e0f2fe;
     padding: 2rem;
     border-radius: 12px;
     border-left: 4px solid #0ea5e9;
@@ -985,12 +985,12 @@
 }
 
 .badge-high {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: #10b981;
     color: white;
 }
 
 .badge-medium {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #3b82f6;
     color: white;
 }
 
@@ -1008,7 +1008,7 @@
     display: flex;
     gap: 1rem;
     padding: 1.5rem;
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    background: #fef3c7;
     border-radius: 10px;
     border-left: 4px solid #f59e0b;
     margin-top: 2rem;
@@ -1034,7 +1034,7 @@
    ================== */
 .tip-target {
     border-color: #a855f7;
-    background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
+    background: #f3e8ff;
 }
 
 /* ==================
@@ -1097,7 +1097,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.55rem 1rem;
-    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    background: #ffffff;
     border-radius: 50px;
     box-shadow: 
         0 4px 12px rgba(0, 0, 0, 0.15),
