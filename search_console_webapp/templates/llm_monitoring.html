@@ -2446,7 +2446,11 @@
                 <p class="models-modal-intro">
                     These are the AI models currently being used for your LLM Monitoring analysis:
                 </p>
-                <div id="modelsInfoContent" class="models-grid">
+                <!-- Sin la clase models-grid: el JS inyecta aquí su propio
+                     .models-grid, y tenerla también aquí anidaba un grid dentro
+                     de otro, así que las 4 tarjetas se repartían el ancho de una
+                     sola columna en vez del ancho del modal. -->
+                <div id="modelsInfoContent">
                     <div class="loading-spinner">
                         <span class="bm-spinner" aria-hidden="true"></span>
                         <p>Loading models...</p>
