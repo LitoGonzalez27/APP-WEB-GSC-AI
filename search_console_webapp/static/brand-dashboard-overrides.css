@@ -290,7 +290,10 @@ table th {
 select.form-control,
 .toolbar-select,
 .enhanced-select,
-.option-select {
+.option-select,
+.section-actions-toolbar .toolbar-select,
+.responses-filter .form-control,
+.chart-header .form-control {
   font-family: var(--cs-font-sans);
   font-size: var(--cs-text-sm);
   font-weight: var(--cs-weight-medium);
@@ -300,12 +303,20 @@ select.form-control,
   border-radius: var(--cs-radius-sm);
   transition: var(--cs-transition);
   box-shadow: none;
+  height: auto;
 }
 
+/* La lista de selectores va anclada al contenedor donde hace falta porque
+   llm-monitoring.css:.section-actions-toolbar .toolbar-select y .responses-filter
+   .form-control usan dos clases y ganarían a un `select.clase` a secas. */
 select.form-control,
 select.toolbar-select,
 select.enhanced-select,
-select.option-select {
+select.option-select,
+.section-actions-toolbar select.toolbar-select,
+.responses-filters-panel select.form-control,
+.responses-filter select.form-control,
+.chart-header select.form-control {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;

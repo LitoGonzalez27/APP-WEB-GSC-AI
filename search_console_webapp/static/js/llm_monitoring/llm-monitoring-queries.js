@@ -227,20 +227,10 @@ renderQueriesTable(queries) {
                 limit: 10,
                 summary: true
             },
-            style: {
-                table: {
-                    'font-size': '13px'
-                },
-                th: {
-                    'background-color': '#161616',
-                    'color': '#D8F9B8',
-                    'font-weight': '700',
-                    'padding': '0.75rem 0.625rem'
-                },
-                td: {
-                    'padding': '0.75rem 0.625rem'
-                }
-            },
+            // Sin `style`: Grid.js lo aplicaría como estilo en línea en cada celda
+            // y ganaría a cualquier hoja, dejando el espaciado y los colores fuera
+            // del sistema de diseño. El aspecto de la tabla vive en
+            // brand-dashboard-overrides.css (.gridjs-th / .gridjs-td).
             className: {
                 table: 'llm-queries-table'
             }
