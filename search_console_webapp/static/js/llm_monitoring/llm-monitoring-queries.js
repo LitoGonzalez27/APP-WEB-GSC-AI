@@ -176,7 +176,8 @@ renderQueriesTable(queries) {
                         ? gridjs.html('<span class="lm-cell-muted">-</span>')
                         : gridjs.html(`<span class="lm-cell-strong">#${Number(pos).toFixed(1)}</span>`)
                 },
-                { id: 'mentions', name: `Mentions (${this.globalTimeRange}d)`, width: '105px', sort: numericSort },
+                // Sin sufijo de período: el rango lo gobierna el toggle global de días
+                { id: 'mentions', name: 'Mentions', width: '105px', sort: numericSort },
                 {
                     id: 'topDomains',
                     name: 'Top Domains',
@@ -222,7 +223,7 @@ renderQueriesTable(queries) {
                 },
                 {
                     id: 'visibility',
-                    name: `Visibility (${this.globalTimeRange}d)`,
+                    name: 'Visibility',
                     width: '130px',
                     sort: numericSort,
                     // Visibility con barra de progreso (el dato de la celda es el % numérico)
