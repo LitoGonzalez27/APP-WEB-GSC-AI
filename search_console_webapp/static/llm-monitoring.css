@@ -2862,8 +2862,23 @@ label:not(.search-form label) {
    PROMPTS TABLE — compact cell components (Cluster / SOV / Sentiment / Domains)
    ============================================================================ */
 
+/* Si la tabla excede el ancho del card, el scroll debe quedar confinado aquí
+   (nunca provocar scroll horizontal a nivel de página). min-width:0 evita que
+   el contenido intrínseco de la tabla ensanche el card en layouts flex/grid. */
 #queriesTable {
     overflow-x: auto;
+    max-width: 100%;
+    min-width: 0;
+}
+
+#queriesTable .gridjs-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.chart-card {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .lm-cell-muted {

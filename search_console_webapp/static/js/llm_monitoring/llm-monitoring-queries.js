@@ -109,14 +109,13 @@ renderQueriesTable(queries) {
             return [
                 viewDetailsBtn,  // ✨ NUEVO: Botón para ver detalles
                 q.prompt,
-                q.language ? q.language.toUpperCase() : 'N/A',
-                q.topic_cluster || null,
                 q.share_of_voice != null ? Number(q.share_of_voice) : null,
                 q.avg_position != null ? Number(q.avg_position) : null,
-                q.sentiment || null,
-                q.top_domains || [],
                 // Number() defensivo: la API puede devolver el SUM como string
                 Number(q.total_mentions) || 0,
+                q.top_domains || [],
+                q.topic_cluster || null,
+                q.sentiment || null,
                 // Dato crudo numérico (la barra se pinta en el formatter) para que ordene bien
                 visibilityPct
             ];
@@ -152,24 +151,17 @@ renderQueriesTable(queries) {
         };
 
         // Create grid
+        // Orden: Details | Prompt | SOV | Avg. Position | Mentions | Top Domains | Cluster | Sentiment | Visibility
+        // Anchos compactos: la suma de columnas fijas debe caber en el card sin provocar
+        // scroll horizontal a nivel de página (el prompt absorbe el espacio restante).
         this.queriesGrid = new gridjs.Grid({
             columns: [
-                { id: 'expand', name: '', width: '90px', sort: false },  // ✨ Columna para botón Details
-                { id: 'prompt', name: 'Prompt', width: '26%' },
-                { id: 'language', name: 'Language', width: '75px' },
-                {
-                    id: 'cluster',
-                    name: 'Cluster',
-                    width: '120px',
-                    sort: clusterSort,
-                    formatter: (cluster) => cluster
-                        ? gridjs.html(`<span class="lm-cluster-badge">${this.escapeHtml(cluster)}</span>`)
-                        : gridjs.html('<span class="lm-cell-muted">—</span>')
-                },
+                { id: 'expand', name: '', width: '80px', sort: false },  // ✨ Columna para botón Details
+                { id: 'prompt', name: 'Prompt' },
                 {
                     id: 'sov',
-                    name: `SOV % (${this.globalTimeRange}d)`,
-                    width: '100px',
+                    name: 'SOV %',
+                    width: '85px',
                     sort: numericSort,
                     formatter: (sov) => (sov === null || sov === undefined)
                         ? gridjs.html('<span class="lm-cell-muted">-</span>')
@@ -177,17 +169,44 @@ renderQueriesTable(queries) {
                 },
                 {
                     id: 'avgPosition',
-                    name: 'Avg. Position',
-                    width: '110px',
+                    name: 'Avg. Pos.',
+                    width: '90px',
                     sort: numericSort,
                     formatter: (pos) => (pos === null || pos === undefined)
                         ? gridjs.html('<span class="lm-cell-muted">-</span>')
                         : gridjs.html(`<span class="lm-cell-strong">#${Number(pos).toFixed(1)}</span>`)
                 },
+                { id: 'mentions', name: `Mentions (${this.globalTimeRange}d)`, width: '105px', sort: numericSort },
+                {
+                    id: 'topDomains',
+                    name: 'Top Domains',
+                    width: '100px',
+                    sort: false,
+                    formatter: (domains) => {
+                        if (!domains || domains.length === 0) {
+                            return gridjs.html('<span class="lm-cell-muted">—</span>');
+                        }
+                        const icons = domains.slice(0, 3).map(d => this.getDomainFaviconHtml(
+                            d.domain,
+                            `${d.domain} — ${d.mentions} mention${d.mentions === 1 ? '' : 's'}`,
+                            20
+                        )).join('');
+                        return gridjs.html(`<span class="lm-domain-stack">${icons}</span>`);
+                    }
+                },
+                {
+                    id: 'cluster',
+                    name: 'Cluster',
+                    width: '110px',
+                    sort: clusterSort,
+                    formatter: (cluster) => cluster
+                        ? gridjs.html(`<span class="lm-cluster-badge">${this.escapeHtml(cluster)}</span>`)
+                        : gridjs.html('<span class="lm-cell-muted">—</span>')
+                },
                 {
                     id: 'sentiment',
                     name: 'Sentiment',
-                    width: '120px',
+                    width: '105px',
                     sort: sentimentSort,
                     formatter: (sentiment) => {
                         const label = sentiment && sentiment.label;
@@ -202,27 +221,9 @@ renderQueriesTable(queries) {
                     }
                 },
                 {
-                    id: 'topDomains',
-                    name: 'Top Domains',
-                    width: '110px',
-                    sort: false,
-                    formatter: (domains) => {
-                        if (!domains || domains.length === 0) {
-                            return gridjs.html('<span class="lm-cell-muted">—</span>');
-                        }
-                        const icons = domains.slice(0, 3).map(d => this.getDomainFaviconHtml(
-                            d.domain,
-                            `${d.domain} — ${d.mentions} mention${d.mentions === 1 ? '' : 's'}`,
-                            20
-                        )).join('');
-                        return gridjs.html(`<span class="lm-domain-stack">${icons}</span>`);
-                    }
-                },
-                { id: 'mentions', name: `Total Mentions (${this.globalTimeRange}d)`, width: '130px', sort: numericSort },
-                {
                     id: 'visibility',
-                    name: `Avg Visibility % (${this.globalTimeRange}d)`,
-                    width: '150px',
+                    name: `Visibility (${this.globalTimeRange}d)`,
+                    width: '130px',
                     sort: numericSort,
                     // Visibility con barra de progreso (el dato de la celda es el % numérico)
                     formatter: (cell) => {
@@ -249,16 +250,16 @@ renderQueriesTable(queries) {
             },
             style: {
                 table: {
-                    'font-size': '14px'
+                    'font-size': '13px'
                 },
                 th: {
                     'background-color': '#161616',
                     'color': '#D8F9B8',
                     'font-weight': '700',
-                    'padding': '1rem'
+                    'padding': '0.75rem 0.625rem'
                 },
                 td: {
-                    'padding': '0.875rem'
+                    'padding': '0.75rem 0.625rem'
                 }
             },
             className: {
