@@ -16,8 +16,11 @@
    NUNCA envolver esto en @layer: las reglas en capa pierden siempre contra las
    13 hojas sin capa de esta página, y el archivo entero sería un no-op silencioso.
 
-   ALCANCE: solo color y tipografía. Nada de display, position ni layout — en
-   particular .modal-overlay NO lleva display (ver nota más abajo).
+   ALCANCE tras la consolidación del refactor: este archivo contiene SOLO lo
+   que necesita ganar a hojas compartidas (manual-ai, base-y-componentes,
+   paywall) o al tema CDN de Grid.js. Todo lo que solo afectaba a hojas
+   exclusivas del panel (compare-modal, modales de sov, FAB, botón de volver)
+   se consolidó en su hoja de origen.
    ============================================================================ */
 
 /* ── Tipografía base ─────────────────────────────────────────────────────────
@@ -84,26 +87,6 @@ table th {
 
 .loading-spinner i {
   color: var(--cs-text-primary);
-}
-
-/* ── Modales ──────────────────────────────────────────────────────────────────
-   Gana a sov-metrics-ui.css:155. Se quita el backdrop-filter (Brandbook.md:478):
-   el rgba(0,0,0,.6) ya aporta el velo, y el filtro creaba además un contexto de
-   apilamiento innecesario.
-
-   OJO: aquí NO se declara `display`. La apertura/cierre de los 8 modales la
-   gobierna JS por estilo inline (llm-monitoring-modals.js:88/104). Declarar
-   display aquí crearía un segundo mecanismo, más débil, que divergiría del real.
-   ─────────────────────────────────────────────────────────────────────────── */
-.modal-overlay {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: none;
-}
-
-.modal-content {
-  border-radius: var(--cs-radius-md);
-  box-shadow: var(--cs-shadow-lg);
-  font-family: var(--cs-font-sans);
 }
 
 /* ── Botones ──────────────────────────────────────────────────────────────────
@@ -417,37 +400,6 @@ select.form-control:focus,
   color: var(--cs-text-primary);
 }
 
-/* ── Selector flotante de método de Share of Voice ────────────────────────────
-   Se mantiene fijo abajo a la derecha, como estaba. Aquí solo se reviste con la
-   tipografía y los colores de marca; no se toca su posicionamiento ni su
-   `display`, que el JS alterna entre 'flex' y 'none' según haya un proyecto
-   abierto (llm-monitoring-projects.js:305/418).
-   ─────────────────────────────────────────────────────────────────────────── */
-.global-metric-fab .fab-toggle-option {
-  font-family: var(--cs-font-sans);
-  font-size: var(--cs-text-xs);
-  font-weight: var(--cs-weight-medium);
-}
-
-.global-metric-fab input:checked + .fab-toggle-option {
-  font-weight: var(--cs-weight-semibold);
-}
-
-.global-metric-fab .fab-tooltip {
-  font-family: var(--cs-font-sans);
-}
-
-/* La animación de llamada usaba un halo luminoso lima, que el brandbook prohíbe
-   (Brandbook.md:504). Se conserva el movimiento, sin el resplandor. */
-@keyframes csFabPulse {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-3px); }
-}
-
-.global-metric-fab.pulse .fab-content {
-  animation: csFabPulse 2s ease-in-out 3;
-}
-
 /* ── Cabecera de sección ──────────────────────────────────────────────────────
    Gana a llm-monitoring.css:101. El problema anterior: los 5 controles de la
    barra no caben junto al título, y al llevar flex-wrap saltaban de uno en uno,
@@ -486,39 +438,7 @@ select.form-control:focus,
   justify-content: flex-end;
 }
 
-/* Volver es navegación, no una acción del proyecto: pesa menos que el resto.
-   Compacto y en una sola línea — antes ocupaba 52px de alto porque el texto
-   rompía en dos. */
-#btnBackToProjects {
-  color: var(--cs-text-secondary);
-  background: transparent;
-  border: 1px solid var(--cs-border);
-  font-size: var(--cs-text-xs);
-  font-weight: var(--cs-weight-medium);
-  padding: 0.4rem 0.85rem;
-  height: auto;
-  white-space: nowrap;
-  gap: 0.4rem;
-  flex-shrink: 0;
-}
 
-#btnBackToProjects:hover:not(:disabled) {
-  color: var(--cs-text-primary);
-  background: var(--cs-bg-subtle);
-  border-color: var(--cs-text-tertiary);
-}
-
-#btnBackToProjects i {
-  font-size: 0.7rem;
-}
-
-/* llm-monitoring.css:636 pinta el icono de blanco en hover con un selector de
-   id (#btnBackToProjects:hover i): pensado para su hover de fondo negro, pero
-   nuestro hover mantiene el fondo claro, así que la flecha desaparecía. Misma
-   especificidad, cargado después: gana el negro. */
-#btnBackToProjects:hover i {
-  color: var(--cs-text-primary);
-}
 
 /* ── Lista de prompts (modal Manage Prompts) ──────────────────────────────────
    llm-monitoring.css:1011 declara .prompt-item como flex SIN dirección de
@@ -792,138 +712,6 @@ select.form-control:focus,
   .models-cutoff-loading {
     grid-column: span 1;
   }
-}
-
-/* ── Modal "Compare LLM Responses" ────────────────────────────────────────────
-   Gana a llm-monitoring.css:4637 y siguientes. Se alinea al mismo lenguaje que
-   los otros dos modales del panel: cabecera oscura plana, sin difuminado de
-   fondo (Brandbook.md:478) y leyenda sin cápsulas de color.
-   ─────────────────────────────────────────────────────────────────────────── */
-.compare-modal-overlay {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: none;
-}
-
-.compare-modal {
-  border-radius: var(--cs-radius-md);
-  box-shadow: var(--cs-shadow-lg);
-  font-family: var(--cs-font-sans);
-}
-
-.compare-modal-header {
-  background: var(--cs-bg-dark);
-  color: var(--cs-text-inverse);
-}
-
-.compare-modal-header h3 {
-  font-family: var(--cs-font-sans);
-  font-size: var(--cs-text-lg);
-  font-weight: var(--cs-weight-bold);
-  letter-spacing: var(--cs-tracking-tight);
-  color: var(--cs-text-inverse);
-}
-
-.compare-modal-close {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--cs-text-inverse);
-  border-radius: var(--cs-radius-sm);
-  font-size: 1.3rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.compare-modal-close:hover {
-  background: var(--cs-accent);
-  border-color: var(--cs-accent);
-  color: var(--cs-text-primary);
-}
-
-.compare-modal-controls {
-  background: var(--cs-bg-subtle);
-  border-bottom: 1px solid var(--cs-border);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.compare-modal-controls label {
-  font-family: var(--cs-font-sans);
-  font-size: var(--cs-text-xs);
-  font-weight: var(--cs-weight-semibold);
-  color: var(--cs-text-secondary);
-  white-space: nowrap;
-}
-
-.compare-modal-controls select {
-  font-family: var(--cs-font-sans);
-  font-size: var(--cs-text-sm);
-  color: var(--cs-text-primary);
-  background-color: var(--cs-bg-paper);
-  border: 1px solid var(--cs-border);
-  border-radius: var(--cs-radius-sm);
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  min-width: 0;
-  max-width: 100%;
-  text-overflow: ellipsis;
-}
-
-/* Leyenda: la referencia de color va en el propio texto resaltado, así que los
-   indicadores no necesitan cápsula de color con texto blanco encima. */
-.compare-legend {
-  gap: var(--cs-space-md);
-}
-
-.compare-legend .legend-text {
-  font-size: var(--cs-text-xs);
-  color: var(--cs-text-secondary);
-}
-
-.compare-legend .legend-badge {
-  background: transparent;
-  color: var(--cs-text-primary);
-  font-size: var(--cs-text-xs);
-  font-weight: var(--cs-weight-bold);
-  padding: 0;
-  border-radius: 0;
-}
-
-.compare-legend .legend-badge.brand-badge {
-  color: var(--cs-success-text);
-}
-
-.compare-legend .legend-badge.position-badge {
-  color: var(--cs-text-secondary);
-}
-
-.compare-legend-separator {
-  background: var(--cs-border);
-}
-
-/* Resaltado de menciones dentro de las respuestas: fondo tenue y texto oscuro,
-   que es legible; el color plano saturado con texto blanco no lo era. */
-.compare-modal mark.brand-mention,
-mark.brand-mention {
-  background: rgba(42, 120, 214, 0.16);
-  color: var(--cs-text-primary);
-  font-weight: var(--cs-weight-semibold);
-  padding: 0.05em 0.25em;
-  border-radius: 3px;
-}
-
-.compare-modal mark.competitor-mention,
-mark.competitor-mention {
-  background: rgba(235, 104, 52, 0.16);
-  color: var(--cs-text-primary);
-  padding: 0.05em 0.25em;
-  border-radius: 3px;
 }
 
 /* ── Grid.js: sustituye al tema "mermaid" del CDN ────────────────────────────

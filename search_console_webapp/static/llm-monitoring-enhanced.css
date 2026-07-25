@@ -52,52 +52,21 @@
  * BOTONES - Estilo Corporativo
  * ============================================================================ */
 
+/* Dimensiones de los botones. Colores, tipografía y hover viven en
+   brand-dashboard-overrides.css (que también debe ganar a manual-ai y paywall,
+   por eso no se consolidan aquí): estas reglas solo aportan lo que el override
+   no declara. */
 .btn-primary {
-    background: var(--llm-primary-dark);
-    color: var(--llm-accent-green);
-    border: none;
     padding: 0.625rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 600;
     font-size: 0.875rem;
-    transition: all 0.2s ease;
     box-shadow: var(--llm-shadow);
     cursor: pointer;
-}
-
-/* :not(:disabled) iguala la especificidad del hover azul legacy de
-   llm-monitoring.css (.btn-primary:hover:not(:disabled)), que si no gana
-   y rompe el brandbook (fondo azul #2563eb). */
-.btn-primary:hover:not(:disabled) {
-    background: var(--llm-accent-green);
-    color: var(--llm-primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--llm-shadow-lg);
-}
-
-.btn-primary:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-    transform: none;
 }
 
 .btn-secondary {
-    background: white;
-    color: var(--llm-primary-dark);
-    border: 2px solid var(--llm-primary-dark);
     padding: 0.625rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 600;
     font-size: 0.875rem;
-    transition: all 0.2s ease;
     cursor: pointer;
-}
-
-.btn-secondary:hover {
-    background: var(--llm-primary-dark);
-    color: var(--llm-accent-green);
-    transform: translateY(-2px);
-    box-shadow: var(--llm-shadow);
 }
 
 /* ============================================================================
@@ -397,18 +366,6 @@
     transition: all 0.2s ease;
 }
 
-.btn-ghost {
-    background: transparent;
-    border: 1px solid var(--llm-gray-300);
-    color: var(--llm-gray-700);
-}
-
-.btn-ghost:hover {
-    background: var(--llm-primary-dark);
-    color: var(--llm-accent-green);
-    border-color: var(--llm-primary-dark);
-    transform: translateY(-1px);
-}
 
 /* GridJS table styling
    Este bloque estaba enteramente en !important, así que ganaba a cualquier
@@ -419,13 +376,7 @@
    El fondo lima translúcido de las filas se retira: tiñe todos los datos y el
    brandbook reserva el Bio-Lime a acentos, no a superficies. */
 .gridjs-wrapper {
-    border-radius: var(--cs-radius-sm);
     overflow: hidden;
-    border: 1px solid var(--cs-border-subtle);
-}
-
-.gridjs-tr {
-    color: var(--cs-text-primary);
 }
 
 /* ============================================================================

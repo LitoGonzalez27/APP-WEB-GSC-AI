@@ -128,28 +128,10 @@
     font-size: 0.8rem;
 }
 
-/* Select del toolbar */
+/* Select del toolbar — solo dimensiones; el tema vive en el override. */
 .section-actions-toolbar .toolbar-select {
     height: 36px;
     min-width: 140px;
-    padding: 0 0.75rem;
-    font-size: 0.85rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    background-color: white;
-    color: #374151;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.section-actions-toolbar .toolbar-select:hover {
-    border-color: #d1d5db;
-}
-
-.section-actions-toolbar .toolbar-select:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .llm-model-scope-banner {
@@ -450,20 +432,6 @@
     text-decoration: none;
 }
 
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-primary {
-    background-color: #2563eb;
-    color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-    background-color: #2563eb;
-}
-
 /* Keep Create New Project hover aligned with project action CTA */
 #btnCreateFirstProject {
     width: auto !important;
@@ -533,19 +501,39 @@
     background-color: #059669;
 }
 
-.btn-ghost {
-    background-color: transparent;
-    color: #6b7280;
-    border: 1px solid #e5e7eb;
+/* Volver es navegación, no una acción del proyecto: pesa menos que el resto,
+   compacto y en una sola línea. Consolidado aquí desde el archivo de overrides:
+   este id solo existe en esta página, así que no necesita override. */
+#btnBackToProjects {
+  color: var(--cs-text-secondary);
+  background: transparent;
+  border: 1px solid var(--cs-border);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-medium);
+  padding: 0.4rem 0.85rem;
+  height: auto;
+  white-space: nowrap;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
-.btn-ghost:hover:not(:disabled) {
-    background-color: #f9fafb;
-    border-color: #d1d5db;
+#btnBackToProjects:hover:not(:disabled) {
+  color: var(--cs-text-primary);
+  background: var(--cs-bg-subtle);
+  border-color: var(--cs-text-tertiary);
 }
 
-/* ✨ Estilo especial para botón Back to Projects y Edit */
-#btnBackToProjects,
+#btnBackToProjects i {
+  font-size: 0.7rem;
+}
+
+#btnBackToProjects:hover i {
+    color: var(--cs-text-primary);
+}
+
+/* ✨ Estilo especial para Edit y Models. #btnBackToProjects ya no va aquí:
+   su estilo completo (compacto, hover claro con flecha oscura) vive en
+   brand-dashboard-overrides.css. */
 #btnEditProject,
 #btnShowModels {
     background-color: #f9fafb;
@@ -554,7 +542,6 @@
     transition: all 0.2s ease;
 }
 
-#btnBackToProjects:hover,
 #btnEditProject:hover,
 #btnShowModels:hover {
     background-color: #161616;
@@ -562,7 +549,6 @@
     border-color: #161616;
 }
 
-#btnBackToProjects:hover i,
 #btnEditProject:hover i,
 #btnShowModels:hover i {
     color: white;
@@ -843,19 +829,12 @@
     font-size: 0.95rem;
 }
 
+/* Solo layout: colores, borde y focus los pone brand-dashboard-overrides.css
+   (tema único de formularios, que también gana a base-y-componentes). */
 .form-control {
     width: 100%;
     padding: 0.625rem 0.875rem;
     font-size: 0.95rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    transition: border-color 0.2s;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .form-help {
@@ -3815,19 +3794,8 @@ label:not(.search-form label) {
 
 .option-select {
     padding: 8px 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
     font-size: 0.8rem;
-    background: #fafafa;
-    color: #161616;
     cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.option-select:focus {
-    outline: none;
-    border-color: #111827;
-    background: white;
 }
 
 /* Footer */
@@ -3977,8 +3945,7 @@ label:not(.search-form label) {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3988,60 +3955,64 @@ label:not(.search-form label) {
 
 .compare-modal {
     background: white;
-    border-radius: 16px;
+    font-family: var(--cs-font-sans);
+    border-radius: var(--cs-radius-md);
     width: 100%;
     max-width: 1400px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--cs-shadow-lg);
     overflow: hidden;
 }
 
+/* Cabecera oscura plana, mismo lenguaje que los otros modales del panel. */
 .compare-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 1.25rem 1.5rem;
-    background: #161616;
-    color: white;
+    background: var(--cs-bg-dark);
+    color: var(--cs-text-inverse);
 }
 
 .compare-modal-header h3 {
     margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
+    font-size: var(--cs-text-lg);
+    font-weight: var(--cs-weight-bold);
+    letter-spacing: var(--cs-tracking-tight);
+    color: var(--cs-text-inverse);
     display: flex;
     align-items: center;
     gap: 0.75rem;
 }
 
-.compare-modal-header h3 i {
-    color: #8BC34A;
-}
-
 .compare-modal-close {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--cs-text-inverse);
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: var(--cs-radius-sm);
+    font-size: 1.3rem;
+    line-height: 1;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: var(--cs-transition);
 }
 
 .compare-modal-close:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--cs-accent);
+    border-color: var(--cs-accent);
+    color: var(--cs-text-primary);
 }
 
 .compare-modal-controls {
     padding: 1rem 1.5rem;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--cs-bg-subtle);
+    border-bottom: 1px solid var(--cs-border);
     display: flex;
     gap: 1rem;
     align-items: center;
@@ -4049,21 +4020,33 @@ label:not(.search-form label) {
 }
 
 .compare-modal-controls label {
-    font-weight: 500;
-    font-size: 0.875rem;
-    color: #475569;
+    font-family: var(--cs-font-sans);
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-semibold);
+    color: var(--cs-text-secondary);
+    white-space: nowrap;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .compare-modal-controls select {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.875rem;
+    font-family: var(--cs-font-sans);
+    font-size: var(--cs-text-sm);
+    color: var(--cs-text-primary);
+    background-color: var(--cs-bg-paper);
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
     min-width: 250px;
-    background: white;
+    max-width: 100%;
+    text-overflow: ellipsis;
 }
 
 .compare-modal-body {
@@ -4232,72 +4215,63 @@ label:not(.search-form label) {
     background: #e2e8f0;
 }
 
+/* Indicadores de la leyenda en texto plano con color, sin cápsula (BB:254). */
 .legend-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.125rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.6875rem;
-    font-weight: 600;
+    background: transparent;
+    color: var(--cs-text-primary);
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-bold);
 }
 
 .legend-badge.brand-badge {
-    background: #15803d;
-    color: white;
+    color: var(--cs-success-text);
 }
 
 .legend-badge.position-badge {
-    background: #b45309;
-    color: white;
+    color: var(--cs-text-secondary);
 }
 
 .legend-text {
-    color: #64748b;
-    font-size: 0.75rem;
+    color: var(--cs-text-secondary);
+    font-size: var(--cs-text-xs);
     white-space: nowrap;
 }
 
 /* Brand/Competitor mention highlights in compare modal */
 .compare-column-body mark.brand-mention {
-    background: #dbeafe;
-    color: #1e40af;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    border-left: 3px solid #3b82f6;
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1);
+    background: rgba(42, 120, 214, 0.16);
+    color: var(--cs-text-primary);
+    padding: 0.05em 0.25em;
+    border-radius: 3px;
+    font-weight: var(--cs-weight-semibold);
 }
 
 .compare-column-body mark.competitor-mention {
-    background: #fed7aa;
-    color: #c2410c;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    border-left: 3px solid #f97316;
-    box-shadow: 0 1px 3px rgba(249, 115, 22, 0.1);
+    background: rgba(235, 104, 52, 0.16);
+    color: var(--cs-text-primary);
+    padding: 0.05em 0.25em;
+    border-radius: 3px;
 }
 
 /* Legend brand/competitor samples */
 .compare-legend mark.brand-mention,
 .compare-legend mark.competitor-mention {
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 600;
-    font-size: 0.75rem;
+    padding: 0.05em 0.4em;
+    border-radius: 3px;
+    font-weight: var(--cs-weight-semibold);
+    font-size: var(--cs-text-xs);
+    color: var(--cs-text-primary);
 }
 
 .compare-legend mark.brand-mention {
-    background: #dbeafe;
-    color: #1e40af;
-    border-left: 3px solid #3b82f6;
+    background: rgba(42, 120, 214, 0.16);
 }
 
 .compare-legend mark.competitor-mention {
-    background: #fed7aa;
-    color: #c2410c;
-    border-left: 3px solid #f97316;
+    background: rgba(235, 104, 52, 0.16);
 }
 
 @media (max-width: 1200px) {

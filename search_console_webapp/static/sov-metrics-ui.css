@@ -32,14 +32,16 @@
 /* ==================
    Modal Styles
    ================== */
+/* OJO: la apertura/cierre de los modales la gobierna JS por estilo inline
+   (llm-monitoring-modals.js). No declarar aquí un display condicional. Sin
+   backdrop-filter (Brandbook.md:478): el velo lo pone el rgba. */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -50,8 +52,9 @@
 
 .modal-content {
     background: white;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    font-family: var(--cs-font-sans);
+    border-radius: var(--cs-radius-md);
+    box-shadow: var(--cs-shadow-lg);
     max-width: 900px;
     width: 100%;
     max-height: 90vh;
@@ -1202,3 +1205,29 @@
     }
 }
 
+/* ── Tipografía de marca y animación del FAB ─────────────────────────────────
+   Consolidado desde brand-dashboard-overrides.css: esta hoja es exclusiva del
+   panel. La animación de llamada conserva el movimiento pero sin el halo
+   luminoso, que el brandbook prohíbe (Brandbook.md:504). */
+.global-metric-fab .fab-toggle-option {
+    font-family: var(--cs-font-sans);
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-medium);
+}
+
+.global-metric-fab input:checked + .fab-toggle-option {
+    font-weight: var(--cs-weight-semibold);
+}
+
+.global-metric-fab .fab-tooltip {
+    font-family: var(--cs-font-sans);
+}
+
+@keyframes csFabPulse {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+.global-metric-fab.pulse .fab-content {
+    animation: csFabPulse 2s ease-in-out 3;
+}
