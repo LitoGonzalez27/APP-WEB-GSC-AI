@@ -77,7 +77,6 @@ renderQueriesTable(queries) {
 
         // ✨ NUEVO: Guardar queries data para acceso en acordeón
         this.queriesData = queries;
-        this.expandedRows = new Set(); // Track expanded rows
 
         // Formatear datos para la tabla
         const rows = queries.map((q, idx) => {
@@ -451,16 +450,6 @@ _renderLocalFallbackSuggestions() {
         );
     },
 
-generateLocalSuggestions(existingPrompts) {
-        const brandName = this.currentProject?.brand_name || 'the brand';
-        const industry = this.currentProject?.industry || 'your industry';
-        const languageCode = this.getProjectLanguageCode();
-        const competitorName = this.getPrimaryCompetitorName(languageCode);
-
-        this.renderQuickSuggestions(
-            this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'variation')
-        );
-    },
 
 renderQuickSuggestions(suggestions) {
         const listEl = document.getElementById('quickSuggestionsList');

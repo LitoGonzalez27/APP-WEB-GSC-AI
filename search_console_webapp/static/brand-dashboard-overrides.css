@@ -229,12 +229,7 @@ table th {
   overflow-y: visible;
 }
 
-/* ── Tooltips: un solo estilo para todos ──────────────────────────────────────
-   Había dos aspectos distintos conviviendo: el de las tarjetas Branded /
-   Non-Branded (.cg-info-tooltip, fondo oscuro y buen padding) y el de los KPI
-   (.kpi-tooltip, un ::after con otro fondo, otro radio y otro tamaño). Se
-   unifican todos al primero, que es el que Carlos quiere.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ── Tooltip informativo (.cg-info-tooltip, definido en manual-ai.css) ─────── */
 .cg-info-tooltip-content {
   background: var(--cs-bg-dark);
   color: var(--cs-text-inverse);
@@ -269,29 +264,11 @@ table th {
   z-index: 40;
 }
 
-.kpi-tooltip::after {
-  background: var(--cs-bg-dark);
-  color: var(--cs-text-inverse);
-  border-radius: var(--cs-radius-sm);
-  font-family: var(--cs-font-sans);
-  font-size: var(--cs-text-xs);
-  line-height: var(--cs-leading-normal);
-  padding: 0.875rem 1rem;
-  max-width: 280px;
-  box-shadow: var(--cs-shadow-md);
-}
-
-.kpi-tooltip::before {
-  border-bottom-color: var(--cs-bg-dark);
-}
-
 /* El icono de información: mismo aspecto en todas las tarjetas. */
-.kpi-tooltip,
 .cg-info-tooltip-trigger {
   color: var(--cs-text-tertiary);
 }
 
-.kpi-tooltip:hover,
 .cg-info-tooltip-trigger:hover {
   color: var(--cs-text-secondary);
 }

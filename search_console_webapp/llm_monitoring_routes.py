@@ -4477,7 +4477,7 @@ def get_share_of_voice_history(project_id):
                 {
                     'label': 'Tu Marca',
                     'data': [45.2, 48.1, ...],
-                    'borderColor': '#3b82f6',
+                    'borderColor': '#2a78d6',
                     ...
                 },
                 {
@@ -4590,18 +4590,23 @@ def get_share_of_voice_history(project_id):
                 brand_data.append(round((b / total) * 100, 1) if total > 0 else 0)
 
             # Build competitor datasets
+            # Slots 2..5 de la paleta de datos (--cs-series-* en
+            # static/brand-dashboard-tokens.css). Antes esta rama usaba una
+            # paleta propia (rojo/naranja/verde/morado) distinta de la que la
+            # rama "all" y el resto de gráficas ya sirven: la misma entidad
+            # cambiaba de color al cambiar de pestaña.
             comp_colors = [
-                ('#EF4444', 'rgba(239, 68, 68, 0.1)'),
-                ('#F97316', 'rgba(249, 115, 22, 0.1)'),
-                ('#10B981', 'rgba(16, 185, 129, 0.1)'),
-                ('#8B5CF6', 'rgba(139, 92, 246, 0.1)'),
+                ('#1baf7a', 'rgba(27, 175, 122, 0.1)'),
+                ('#eb6834', 'rgba(235, 104, 52, 0.1)'),
+                ('#4a3aa7', 'rgba(74, 58, 167, 0.1)'),
+                ('#eda100', 'rgba(237, 161, 0, 0.1)'),
             ]
             sorted_comp_names = sorted(all_comp_names)[:4]
             datasets = [{
                 'label': f'Your Brand',
                 'data': brand_data,
-                'borderColor': '#3b82f6',
-                'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                'borderColor': '#2a78d6',
+                'backgroundColor': 'rgba(42, 120, 214, 0.1)',
                 'fill': True,
                 'tension': 0.3,
                 'borderWidth': 2.5
@@ -4629,8 +4634,8 @@ def get_share_of_voice_history(project_id):
             mentions_datasets = [{
                 'label': project.get('brand_name') or 'Your Brand',
                 'data': [scope_by_date[d]['brand'] for d in dates_sorted],
-                'borderColor': '#3b82f6',
-                'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                'borderColor': '#2a78d6',
+                'backgroundColor': 'rgba(42, 120, 214, 0.1)',
                 'borderWidth': 3,
                 'tension': 0.4,
                 'fill': True,
@@ -4893,8 +4898,8 @@ def get_share_of_voice_history(project_id):
         datasets.append({
             'label': brand_name,
             'data': brand_data,
-            'borderColor': '#3b82f6',  # Blue para la marca
-            'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+            'borderColor': '#2a78d6',  # --cs-series-1: la marca propia
+            'backgroundColor': 'rgba(42, 120, 214, 0.1)',
             'borderWidth': 3,
             'tension': 0.4,
             'fill': True,
@@ -4966,8 +4971,8 @@ def get_share_of_voice_history(project_id):
         mentions_datasets.append({
             'label': brand_name,
             'data': brand_mentions_data,
-            'borderColor': '#3b82f6',
-            'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+            'borderColor': '#2a78d6',
+            'backgroundColor': 'rgba(42, 120, 214, 0.1)',
             'borderWidth': 3,
             'tension': 0.4,
             'fill': True,
@@ -7962,12 +7967,14 @@ def export_project_pdf(project_id):
             sorted_dates = sorted(date_brand.keys())
             if len(sorted_dates) >= 2:
                 # Calculate SOV % per date
+                # Paleta de datos oficial (--cs-series-*): marca en el slot 1
+                # y competidores en los siguientes, igual que el panel.
                 chart_colors = [
-                    colors.HexColor('#3B82F6'),  # Brand: blue
-                    colors.HexColor('#EF4444'),  # Comp 1: red
-                    colors.HexColor('#F97316'),  # Comp 2: orange
-                    colors.HexColor('#10B981'),  # Comp 3: green
-                    colors.HexColor('#8B5CF6'),  # Comp 4: purple
+                    colors.HexColor('#2a78d6'),  # Brand
+                    colors.HexColor('#1baf7a'),  # Comp 1
+                    colors.HexColor('#eb6834'),  # Comp 2
+                    colors.HexColor('#4a3aa7'),  # Comp 3
+                    colors.HexColor('#eda100'),  # Comp 4
                 ]
 
                 # Build SOV series for each entity

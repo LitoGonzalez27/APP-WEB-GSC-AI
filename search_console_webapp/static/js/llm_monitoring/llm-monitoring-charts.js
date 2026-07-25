@@ -801,7 +801,13 @@ async loadQueryHistoryChart(queryId) {
             if (loadingEl) loadingEl.style.display = 'none';
 
             if (!data.success || !data.history || data.history.length === 0) {
-                if (emptyEl) emptyEl.style.display = 'flex';
+                if (emptyEl) {
+                    // Texto explícito: el camino de error reescribe este nodo con
+                    // "Error loading history", y si solo hiciéramos display:flex
+                    // un "sin datos" posterior mostraría el error anterior.
+                    emptyEl.innerHTML = '<span>No historical data available yet</span>';
+                    emptyEl.style.display = 'flex';
+                }
                 if (chartContainer) chartContainer.style.display = 'none';
                 return;
             }

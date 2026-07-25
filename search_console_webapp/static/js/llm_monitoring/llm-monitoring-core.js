@@ -1294,11 +1294,6 @@ getPrimaryCompetitorName(languageCode) {
         return this.getCompetitorFallbackLabel(languageCode);
     },
 
-escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    },
 
 getLLMDisplayName(llm) {
         const names = {
@@ -1310,15 +1305,6 @@ getLLMDisplayName(llm) {
         return names[llm] || llm;
     },
 
-getLLMIcon(llm) {
-        const icons = {
-            'openai': 'fas fa-robot',
-            'anthropic': 'fas fa-brain',
-            'google': 'fas fa-star',
-            'perplexity': 'fas fa-search'
-        };
-        return icons[llm] || 'fas fa-robot';
-    },
 
 // Color de cada LLM. Delega en el tema único de gráficas para que el color de
 // una entidad sea el mismo en todo el producto (antes había tres paletas
@@ -1339,19 +1325,6 @@ getLLMColor(llm) {
         return colors[llm] || '#CBD5E1';
     },
 
-// Favicon de un dominio (logo.dev con fallback a Google Favicons, igual que el ranking de
-// URLs de la sección Sources) envuelto en el tooltip CSS puro .kpi-tooltip (data-tooltip).
-// Reutilizado por: ranking de dominios, columna "Top Domains" de la tabla de prompts, modal Details.
-getDomainFaviconHtml(domain, tooltipText, size = 22) {
-        if (!domain) return '';
-        const safeDomain = this.escapeAttr(domain);
-        const tooltip = this.escapeAttr(tooltipText || domain);
-        return `
-            <span class="kpi-tooltip domain-favicon" data-tooltip="${tooltip}" style="width:${size}px;height:${size}px;">
-                ${this.getDomainFaviconImg(domain, size)}
-            </span>
-        `;
-    },
 
 // Solo la imagen del favicon, sin tooltip propio: para los sitios donde el
 // tooltip lo pone el contenedor (pila de Top Domains).
