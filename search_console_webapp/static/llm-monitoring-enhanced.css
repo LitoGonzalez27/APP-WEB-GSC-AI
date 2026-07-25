@@ -34,19 +34,6 @@
     --llm-shadow-sm: var(--cs-shadow-sm);
     --llm-shadow: var(--cs-shadow-md);
     --llm-shadow-lg: var(--cs-shadow-lg);
-    --llm-shadow-xl: var(--cs-shadow-lg);
-}
-
-/* ============================================================================
- * PAGE HEADER - Mejorado con gradiente
- * ============================================================================ */
-
-.page-header {
-    background: rgba(216, 249, 184, 0.15);
-    border: 1px solid rgba(216, 249, 184, 0.3);
-    border-radius: 12px;
-    padding: 2rem;
-    margin-bottom: 2rem;
 }
 
 .header-content h1 i {
@@ -604,12 +591,6 @@
 .branded-badge--organic { background: #d1fae5; color: #065f46; }
 .branded-badge--branded { background: #fef3c7; color: #92400e; }
 
-.branded-card__tooltip {
-    cursor: help;
-    color: var(--llm-gray-400);
-    font-size: 0.85rem;
-}
-
 .branded-card__metrics {
     display: flex;
     gap: 2rem;
@@ -741,15 +722,6 @@
 .llm-chart-tooltip__label { flex: 1; color: rgba(255,255,255,0.6); font-size: 12px; }
 .llm-chart-tooltip__value { font-weight: 700; font-size: 13px; color: #F8FAFC; }
 .llm-chart-tooltip__prev { font-size: 11px; color: #94A3B8; margin-left: 4px; }
-
-.llm-chart-tooltip__delta {
-    font-size: 11px;
-    font-weight: 600;
-    margin-left: 6px;
-}
-.llm-chart-tooltip__delta--up { color: #3CB371; }
-.llm-chart-tooltip__delta--down { color: #E05252; }
-.llm-chart-tooltip__delta--stable { color: #94A3B8; }
 
 /* ============================================================
    ✨ URL Content Analysis (Brand Presence en Top Mentioned URLs)
