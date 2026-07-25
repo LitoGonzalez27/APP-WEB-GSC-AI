@@ -4859,7 +4859,16 @@ def get_share_of_voice_history(project_id):
                 # Si encontramos el dominio, acumular menciones
                 if competitor_domain:
                     data_by_date[date_str]['competitor_mentions'][competitor_domain] += mentions
-                # Si no, ignorar (no es un competidor configurado)
+                elif not competitor_mapping:
+                    # Sin competidores configurados en el proyecto, usar el nombre
+                    # detectado por el análisis tal cual — igual que hace la rama
+                    # branded/non-branded. Antes esta rama descartaba TODO lo no
+                    # configurado, y por eso en "All" no aparecía ningún competidor
+                    # mientras que en Non-Branded sí (dos caminos de código con
+                    # criterios distintos para el mismo dato).
+                    data_by_date[date_str]['competitor_mentions'][variant_lower] += mentions
+                # Con competidores configurados, lo no mapeado se sigue ignorando:
+                # es la forma de excluir marcas que no interesan.
         
         # Ordenar fechas
         dates = sorted(data_by_date.keys())

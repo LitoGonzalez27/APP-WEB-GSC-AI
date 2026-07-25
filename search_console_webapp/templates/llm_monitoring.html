@@ -543,8 +543,15 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Mention Rate
-                                <span class="kpi-tooltip" data-tooltip="% of prompts where your brand was mentioned." aria-label="% of prompts where your brand was mentioned.">
+                                <!-- Mismo tooltip rico que las tarjetas Branded/Non-Branded -->
+                                <span class="cg-info-tooltip cg-tooltip--top-right">
                                     <i class="fas fa-info-circle"></i>
+                                    <span class="cg-info-tooltip-content">
+                                        <strong>What is this?</strong>
+                                        The percentage of prompts where your brand was mentioned by at least one LLM.
+                                        <strong>Why it matters</strong>
+                                        It answers the most basic visibility question: when users ask, do the models talk about you at all?
+                                    </span>
                                 </span>
                             </div>
                             <div class="kpi-value" id="kpiMentionRate">-</div>
@@ -557,8 +564,14 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Share of Voice
-                                <span class="kpi-tooltip" data-tooltip="Your brand mentions\n/ (Your brand + Competitors)." aria-label="Your brand mentions / (Your brand + Competitors).">
+                                <span class="cg-info-tooltip cg-tooltip--top-right">
                                     <i class="fas fa-info-circle"></i>
+                                    <span class="cg-info-tooltip-content">
+                                        <strong>What is this?</strong>
+                                        Your brand mentions divided by the total mentions of your brand plus your competitors.
+                                        <strong>Why it matters</strong>
+                                        It puts your visibility in context: 100% of a conversation nobody else is in means little, while a growing share against competitors means you are winning ground.
+                                    </span>
                                 </span>
                             </div>
                             <div class="kpi-value" id="kpiShareOfVoice">-</div>
@@ -571,8 +584,14 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Sentiment
-                                <span class="kpi-tooltip" data-tooltip="Overall sentiment\nwhen LLMs mention your brand." aria-label="Overall sentiment when LLMs mention your brand.">
+                                <span class="cg-info-tooltip cg-tooltip--top-right">
                                     <i class="fas fa-info-circle"></i>
+                                    <span class="cg-info-tooltip-content">
+                                        <strong>What is this?</strong>
+                                        The overall tone of what LLMs say when they mention your brand: positive, neutral or negative.
+                                        <strong>Why it matters</strong>
+                                        Being mentioned is not enough — a brand cited as a bad example loses more than one that is not cited at all.
+                                    </span>
                                 </span>
                             </div>
                             <div class="kpi-value" id="kpiSentiment">-</div>

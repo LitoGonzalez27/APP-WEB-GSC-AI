@@ -479,6 +479,34 @@ select.form-control:focus,
   font-size: 0.7rem;
 }
 
+/* llm-monitoring.css:636 pinta el icono de blanco en hover con un selector de
+   id (#btnBackToProjects:hover i): pensado para su hover de fondo negro, pero
+   nuestro hover mantiene el fondo claro, así que la flecha desaparecía. Misma
+   especificidad, cargado después: gana el negro. */
+#btnBackToProjects:hover i {
+  color: var(--cs-text-primary);
+}
+
+/* ── Lista de prompts (modal Manage Prompts) ──────────────────────────────────
+   llm-monitoring.css:1011 declara .prompt-item como flex SIN dirección de
+   columna, así que meta, texto y fila de acciones quedaban lado a lado y la
+   papelera flotaba a mitad de fila. En columna, la fila inferior (cluster a la
+   izquierda, acciones a la derecha) ocupa todo el ancho y la papelera cae en el
+   borde derecho, que es donde se espera.
+   ─────────────────────────────────────────────────────────────────────────── */
+.prompt-item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.prompt-item .prompt-bottom-row {
+  width: 100%;
+}
+
+.prompt-item .prompt-actions {
+  margin-left: auto;
+}
+
 /* Borrar es destructivo: visible pero nunca compitiendo con la acción
    principal, así que sin fondo hasta que se apunta. */
 #btnDeleteProject {

@@ -152,7 +152,9 @@ renderQueriesTable(queries) {
         // scroll horizontal a nivel de página (el prompt absorbe el espacio restante).
         this.queriesGrid = new gridjs.Grid({
             columns: [
-                { id: 'expand', name: '', width: '80px', sort: false },  // ✨ Columna para botón Details
+                // 110px: el pill "Details" mide ~66px y la celda lleva 20px de
+                // padding izquierdo; con 80px el botón invadía la celda del prompt.
+                { id: 'expand', name: '', width: '110px', sort: false },
                 { id: 'prompt', name: 'Prompt' },
                 {
                     id: 'sov',
