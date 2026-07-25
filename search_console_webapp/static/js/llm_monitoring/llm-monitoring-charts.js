@@ -359,9 +359,16 @@ async renderShareOfVoiceChart() {
                     // dibujada encima tapa por completo a la de debajo y esa línea
                     // "desaparece" del gráfico (además el trazo distingue las
                     // series sin depender solo del color).
+                    //
+                    // `order`: Chart.js pinta el dataset 0 EN ÚLTIMO lugar (encima
+                    // de todos), así que la marca sólida seguía tapando cualquier
+                    // punteado coincidente. Con orden menor (= encima) para los
+                    // competidores, sus trazos se ven y sus huecos dejan ver la
+                    // línea sólida de la marca por debajo.
                     datasets: datasets.map((ds, idx) => ({
                         ...ds,
                         borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
+                        order: idx === 0 ? 2 : 1,
                         pointBackgroundColor: ds.borderColor,
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: ds.borderColor,
@@ -483,11 +490,13 @@ async renderMentionsTimelineChart() {
                 data: {
                     labels: formattedLabels,
                     // Mismo criterio que en Share of Voice: competidores con trazo
-                    // discontinuo para que una coincidencia exacta de valores no
-                    // deje ninguna línea invisible bajo otra.
+                    // discontinuo Y pintados encima (order menor) para que una
+                    // coincidencia exacta de valores no deje ninguna línea
+                    // invisible bajo otra.
                     datasets: mentions_datasets.map((ds, idx) => ({
                         ...ds,
                         borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
+                        order: idx === 0 ? 2 : 1,
                         pointBackgroundColor: ds.borderColor,
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: ds.borderColor,
