@@ -401,31 +401,22 @@
     transform: translateY(-1px);
 }
 
-/* GridJS table styling */
+/* GridJS table styling
+   Este bloque estaba enteramente en !important, así que ganaba a cualquier
+   ajuste posterior y era la razón de que el espaciado de celdas y el color de
+   fila no respondieran al sistema de diseño. Sin !important: el aspecto de la
+   tabla se define en brand-dashboard-overrides.css (.gridjs-th / .gridjs-td),
+   que se carga después y por tanto manda.
+   El fondo lima translúcido de las filas se retira: tiñe todos los datos y el
+   brandbook reserva el Bio-Lime a acentos, no a superficies. */
 .gridjs-wrapper {
-    border-radius: 12px;
+    border-radius: var(--cs-radius-sm);
     overflow: hidden;
-    border: 1px solid var(--llm-gray-200);
-}
-
-/* .gridjs-head background removed */
-
-.gridjs-th {
-    background: transparent !important;
-    color: #161616 !important;
-    font-weight: 700 !important;
-    padding: 1rem !important;
-    border-bottom: 2px solid var(--llm-accent-green) !important;
+    border: 1px solid var(--cs-border-subtle);
 }
 
 .gridjs-tr {
-    color: #161616;
-    background: rgba(216, 249, 184, 0.1) !important;
-}
-
-.gridjs-td {
-    padding: 1rem !important;
-    border-bottom: 1px solid var(--llm-gray-100) !important;
+    color: var(--cs-text-primary);
 }
 
 /* ============================================================================
