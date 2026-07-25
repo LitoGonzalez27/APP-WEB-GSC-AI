@@ -594,6 +594,14 @@ select.form-control:focus,
   background: var(--cs-bg-paper);
 }
 
+/* El contenedor que rellena el JS no debe ser rejilla él mismo: el JS inyecta
+   dentro su propio .models-grid y, si ambos lo son, las tarjetas se reparten el
+   ancho de una sola columna. Neutralizarlo aquí hace que el resultado no dependa
+   de que el template y el JS estén sincronizados. */
+#modelsInfoContent.models-grid {
+  display: block;
+}
+
 /* Las 4 tarjetas de modelo reparten todo el ancho del modal a partes iguales;
    antes quedaban apelotonadas a la izquierda con un hueco muerto a la derecha. */
 .models-modal .models-grid {
