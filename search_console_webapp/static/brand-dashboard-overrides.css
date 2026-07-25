@@ -501,13 +501,14 @@ table th {
   font-family: var(--cs-font-sans);
 }
 
+/* Sin mayúsculas ni tracking extra: ensanchaban el texto lo justo para que
+   "Avg. Pos.", "Mentions", "Top Domains" y "Sentiment" salieran truncados con
+   puntos suspensivos dentro de su columna. */
 .gridjs-th {
   background: var(--cs-bg-subtle);
-  color: var(--cs-text-primary);
+  color: var(--cs-text-secondary);
   font-weight: var(--cs-weight-semibold);
   font-size: var(--cs-text-xs);
-  letter-spacing: var(--cs-tracking-wide);
-  text-transform: uppercase;
   border-bottom: 1px solid var(--cs-border);
 }
 
