@@ -543,8 +543,11 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Mention Rate
-                                <!-- Mismo tooltip rico que las tarjetas Branded/Non-Branded -->
-                                <span class="cg-info-tooltip cg-tooltip--top-right">
+                                <!-- Mismo tooltip rico que las tarjetas Branded/Non-Branded.
+                                     Sin modificador: se abre hacia abajo-derecha. Con
+                                     top-right se extendía 340px hacia la izquierda y el
+                                     sidebar lo tapaba. -->
+                                <span class="cg-info-tooltip">
                                     <i class="fas fa-info-circle"></i>
                                     <span class="cg-info-tooltip-content">
                                         <strong>What is this?</strong>
@@ -564,7 +567,7 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Share of Voice
-                                <span class="cg-info-tooltip cg-tooltip--top-right">
+                                <span class="cg-info-tooltip">
                                     <i class="fas fa-info-circle"></i>
                                     <span class="cg-info-tooltip-content">
                                         <strong>What is this?</strong>
@@ -584,7 +587,9 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Sentiment
-                                <span class="cg-info-tooltip cg-tooltip--top-right">
+                                <!-- Anclado a la derecha: es la tarjeta del borde derecho
+                                     y hacia abajo-derecha se saldría del viewport. -->
+                                <span class="cg-info-tooltip cg-tooltip--right">
                                     <i class="fas fa-info-circle"></i>
                                     <span class="cg-info-tooltip-content">
                                         <strong>What is this?</strong>

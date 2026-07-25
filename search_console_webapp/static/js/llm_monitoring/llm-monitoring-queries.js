@@ -185,12 +185,13 @@ renderQueriesTable(queries) {
                         if (!domains || domains.length === 0) {
                             return gridjs.html('<span class="lm-cell-muted">—</span>');
                         }
-                        const icons = domains.slice(0, 3).map(d => this.getDomainFaviconHtml(
-                            d.domain,
-                            `${d.domain} — ${d.mentions} mention${d.mentions === 1 ? '' : 's'}`,
-                            20
-                        )).join('');
-                        return gridjs.html(`<span class="lm-domain-stack">${icons}</span>`);
+                        // Un solo tooltip para la pila (data-domains), no uno por
+                        // favicon: lo pinta bindDomainStackTooltips con el mismo
+                        // estilo oscuro que el resto de tooltips del panel.
+                        const top = domains.slice(0, 3);
+                        const icons = top.map(d => this.getDomainFaviconImg(d.domain, 20)).join('');
+                        const payload = this.escapeAttr(JSON.stringify(top));
+                        return gridjs.html(`<span class="lm-domain-stack" data-domains="${payload}">${icons}</span>`);
                     }
                 },
                 {
@@ -240,6 +241,9 @@ renderQueriesTable(queries) {
 
         // Use delegated click handling so "Details" keeps working after pagination/sort/search re-renders.
         this.bindDetailButtonsDelegation(container);
+
+        // Tooltip agrupado de la columna Top Domains (delegado en document, con guard interno).
+        this.bindDomainStackTooltips();
     },
 
 buildQuickSuggestions(languageCode, brandName, industry, competitorName, mode = 'default') {

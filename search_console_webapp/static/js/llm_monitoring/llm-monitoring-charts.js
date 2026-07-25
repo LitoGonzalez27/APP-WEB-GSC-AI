@@ -354,8 +354,14 @@ async renderShareOfVoiceChart() {
                 type: 'line',
                 data: {
                     labels: formattedLabels,
-                    datasets: datasets.map(ds => ({
+                    // Marca sólida; competidores con trazos discontinuos distintos.
+                    // Sin esto, cuando dos series coinciden en el mismo valor la
+                    // dibujada encima tapa por completo a la de debajo y esa línea
+                    // "desaparece" del gráfico (además el trazo distingue las
+                    // series sin depender solo del color).
+                    datasets: datasets.map((ds, idx) => ({
                         ...ds,
+                        borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
                         pointBackgroundColor: ds.borderColor,
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: ds.borderColor,
@@ -476,8 +482,12 @@ async renderMentionsTimelineChart() {
                 type: 'line',
                 data: {
                     labels: formattedLabels,
-                    datasets: mentions_datasets.map(ds => ({
+                    // Mismo criterio que en Share of Voice: competidores con trazo
+                    // discontinuo para que una coincidencia exacta de valores no
+                    // deje ninguna línea invisible bajo otra.
+                    datasets: mentions_datasets.map((ds, idx) => ({
                         ...ds,
+                        borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
                         pointBackgroundColor: ds.borderColor,
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: ds.borderColor,
@@ -911,10 +921,12 @@ renderBrandMentionsOverview(query) {
             ? (sentimentMeta[sentiment.label] || { color: '#94A3B8', label: sentiment.label })
             : null;
 
-        const domainsHtml = topDomains.length > 0
-            ? topDomains.slice(0, 3).map(d => this.getDomainFaviconHtml(
-                d.domain, `${d.domain} — ${d.mentions} mention${d.mentions === 1 ? '' : 's'}`, 22
-              )).join('')
+        // Pila con tooltip agrupado (data-domains), igual que en la tabla.
+        const topThree = topDomains.slice(0, 3);
+        const domainsHtml = topThree.length > 0
+            ? `<span class="bm-domain-stack" data-domains="${this.escapeAttr(JSON.stringify(topThree))}">${
+                topThree.map(d => this.getDomainFaviconImg(d.domain, 22)).join('')
+              }</span>`
             : '<span class="bm-stat-value bm-stat-value--muted">—</span>';
 
         container.innerHTML = `
@@ -938,9 +950,12 @@ renderBrandMentionsOverview(query) {
             </div>
             <div class="bm-stat-tile bm-stat-tile--domains">
                 <span class="bm-stat-label">Top Domains</span>
-                <span class="bm-domain-stack">${domainsHtml}</span>
+                ${domainsHtml}
             </div>
         `;
+
+        // El tooltip agrupado de la pila lo pinta el binder global (con guard).
+        this.bindDomainStackTooltips();
     },
 
 renderBrandMentionsModalContent(query) {

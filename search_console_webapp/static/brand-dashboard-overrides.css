@@ -235,6 +235,17 @@ table th {
   border-color: var(--cs-text-tertiary);
 }
 
+/* ── Modal Details: un solo scroll ────────────────────────────────────────────
+   El contenedor del modal ya scrollea (sov-metrics-ui.css:171, max-height 90vh
+   + overflow-y auto) y el cuerpo llevaba ADEMÁS su propio max-height 55vh con
+   scroll (llm-monitoring.css:3088): dos barras anidadas para el mismo gesto.
+   El cuerpo fluye y scrollea solo el modal.
+   ─────────────────────────────────────────────────────────────────────────── */
+.brand-mentions-body {
+  max-height: none;
+  overflow-y: visible;
+}
+
 /* ── Tooltips: un solo estilo para todos ──────────────────────────────────────
    Había dos aspectos distintos conviviendo: el de las tarjetas Branded /
    Non-Branded (.cg-info-tooltip, fondo oscuro y buen padding) y el de los KPI
@@ -251,6 +262,12 @@ table th {
   line-height: var(--cs-leading-normal);
   padding: 0.875rem 1rem;
   box-shadow: var(--cs-shadow-md);
+}
+
+/* Por encima del sidebar (z 100) y de sus overlays móviles (999-1001), para que
+   ningún tooltip vuelva a quedar cortado por la navegación. */
+.cg-info-tooltip .cg-info-tooltip-content {
+  z-index: 1200;
 }
 
 .kpi-tooltip::after {
@@ -979,4 +996,19 @@ mark.competitor-mention {
   outline: 2px solid var(--cs-accent);
   outline-offset: 1px;
   border-color: var(--cs-text-tertiary);
+}
+
+/* ── Pila de Top Domains con tooltip agrupado ─────────────────────────────────
+   El panel lo monta bindDomainStackTooltips (llm-monitoring-core.js) en body,
+   reutilizando .llm-chart-tooltip: dentro de la tabla quedaría recortado por el
+   overflow del contenedor de Grid.js.
+   ─────────────────────────────────────────────────────────────────────────── */
+.lm-domain-stack[data-domains],
+.bm-domain-stack[data-domains] {
+  cursor: help;
+}
+
+#lmDomainsTooltip img.domain-favicon {
+  flex-shrink: 0;
+  border-radius: 3px;
 }

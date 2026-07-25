@@ -1345,16 +1345,91 @@ getLLMColor(llm) {
 getDomainFaviconHtml(domain, tooltipText, size = 22) {
         if (!domain) return '';
         const safeDomain = this.escapeAttr(domain);
-        const logoUrl = `https://img.logo.dev/${domain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`;
-        const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
         const tooltip = this.escapeAttr(tooltipText || domain);
         return `
             <span class="kpi-tooltip domain-favicon" data-tooltip="${tooltip}" style="width:${size}px;height:${size}px;">
-                <img src="${logoUrl}" alt="${safeDomain}" width="${size}" height="${size}"
-                     style="width:${size}px;height:${size}px;border-radius:4px;display:block;"
-                     onerror="this.onerror=null; this.src='${fallbackUrl}'">
+                ${this.getDomainFaviconImg(domain, size)}
             </span>
         `;
+    },
+
+// Solo la imagen del favicon, sin tooltip propio: para los sitios donde el
+// tooltip lo pone el contenedor (pila de Top Domains).
+getDomainFaviconImg(domain, size = 20) {
+        if (!domain) return '';
+        const safeDomain = this.escapeAttr(domain);
+        const logoUrl = `https://img.logo.dev/${domain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`;
+        const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        return `<img class="domain-favicon" src="${logoUrl}" alt="${safeDomain}" width="${size}" height="${size}"
+                     style="width:${size}px;height:${size}px;border-radius:4px;"
+                     onerror="this.onerror=null; this.src='${fallbackUrl}'">`;
+    },
+
+// Tooltip agrupado para las pilas de favicons de Top Domains: un solo panel
+// oscuro (mismo lenguaje que los tooltips de gráficas, .llm-chart-tooltip) que
+// lista los 3 dominios con su favicon y sus menciones. Antes cada favicon tenía
+// su tooltip individual, con otro estilo, y el panel del grupo es lo que Carlos
+// pidió. Delegado en document y montado en body: dentro de la tabla Grid.js un
+// tooltip absoluto quedaría recortado por el overflow del contenedor.
+bindDomainStackTooltips() {
+        if (this._domainStackTooltipsBound) return;
+        this._domainStackTooltipsBound = true;
+
+        const ensureEl = () => {
+            let el = document.getElementById('lmDomainsTooltip');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'lmDomainsTooltip';
+                el.className = 'llm-chart-tooltip';
+                document.body.appendChild(el);
+            }
+            return el;
+        };
+
+        document.addEventListener('mouseover', (e) => {
+            const stack = e.target.closest?.('[data-domains]');
+            const el = ensureEl();
+
+            if (!stack) {
+                el.classList.remove('active');
+                return;
+            }
+
+            let domains = [];
+            try {
+                domains = JSON.parse(stack.dataset.domains) || [];
+            } catch (_) { /* atributo malformado: sin tooltip */ }
+            if (!domains.length) {
+                el.classList.remove('active');
+                return;
+            }
+
+            el.innerHTML = `
+                <div class="llm-chart-tooltip__title">Top domains</div>
+                ${domains.map(d => `
+                    <div class="llm-chart-tooltip__row">
+                        ${this.getDomainFaviconImg(d.domain, 16)}
+                        <span class="llm-chart-tooltip__label">${this.escapeHtml(d.domain)}</span>
+                        <span class="llm-chart-tooltip__value">${Number(d.mentions) || 0} mention${d.mentions === 1 ? '' : 's'}</span>
+                    </div>
+                `).join('')}
+            `;
+
+            // Medir ya visible (fuera de pantalla) y colocar sobre la pila,
+            // sin salirse del viewport; si arriba no cabe, debajo.
+            el.style.left = '-9999px';
+            el.style.top = '0px';
+            el.classList.add('active');
+            const r = stack.getBoundingClientRect();
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            let left = r.left + window.scrollX + (r.width / 2) - (w / 2);
+            left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - w - 8));
+            let top = r.top + window.scrollY - h - 10;
+            if (top < window.scrollY + 8) top = r.bottom + window.scrollY + 10;
+            el.style.left = `${left}px`;
+            el.style.top = `${top}px`;
+        });
     },
 
 formatDate(dateStr) {
