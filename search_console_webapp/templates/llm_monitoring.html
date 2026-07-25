@@ -506,30 +506,6 @@
                                 <option value="90">Last 90 days</option>
                             </select>
                         </div>
-
-                        <!-- Método de cálculo del Share of Voice. Es un filtro global, así
-                             que vive junto al otro filtro global: antes flotaba fijo en la
-                             esquina inferior derecha, tapando el contenido. -->
-                        <div class="global-metric-fab toolbar-item" id="globalMetricFab">
-                            <div class="fab-content">
-                                <div class="fab-toggle-wrapper">
-                                    <div class="fab-toggle" id="globalSovMetricToggle">
-                                        <input type="radio" id="globalMetricWeighted" name="globalSovMetric" value="weighted" checked>
-                                        <label for="globalMetricWeighted" class="fab-toggle-option">
-                                            <span class="fab-toggle-text">Weighted</span>
-                                        </label>
-
-                                        <input type="radio" id="globalMetricNormal" name="globalSovMetric" value="normal">
-                                        <label for="globalMetricNormal" class="fab-toggle-option">
-                                            <span class="fab-toggle-text">Standard</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                <button class="fab-info-btn" id="btnGlobalSovInfo" title="Share of Voice calculation method — affects all charts and metrics">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>
-                            </div>
-                        </div>
                         <button class="btn btn-primary toolbar-item" id="btnManagePrompts">
                             <i class="fas fa-list"></i>
                             <span>Manage Prompts</span>
@@ -2459,78 +2435,90 @@
 
     <!-- ✨ LLM Models Info Modal -->
     <div class="modal-overlay" id="modelsInfoModal" style="display: none;" data-pdf-exclude="true">
-        <div class="modal-content" style="max-width: 700px;" role="dialog" aria-modal="true" aria-labelledby="modelsInfoModalTitle" tabindex="-1">
-            <div class="modal-header" style="background: linear-gradient(135deg, #161616 0%, #2d2d2d 100%); color: white; border-radius: 12px 12px 0 0;">
-                <h3 id="modelsInfoModalTitle" style="display: flex; align-items: center; gap: 10px; margin: 0;">
-                    <i class="fas fa-microchip"></i>
-                    Active LLM Models
-                </h3>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideModelsModal()" style="color: white;">
-                    <i class="fas fa-times"></i>
+        <div class="modal-content models-modal" role="dialog" aria-modal="true" aria-labelledby="modelsInfoModalTitle" tabindex="-1">
+            <div class="modal-header models-modal-header">
+                <h3 id="modelsInfoModalTitle">Active LLM Models</h3>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideModelsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" style="padding: 24px;">
-                <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+            <div class="modal-body models-modal-body">
+                <p class="models-modal-intro">
                     These are the AI models currently being used for your LLM Monitoring analysis:
                 </p>
                 <div id="modelsInfoContent" class="models-grid">
                     <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
+                        <span class="bm-spinner" aria-hidden="true"></span>
                         <p>Loading models...</p>
                     </div>
                 </div>
-                
+
                 <!-- ✨ Knowledge Cutoff Section (populated dynamically from API) -->
-                <div style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; border-left: 4px solid #f59e0b;">
-                    <h4 style="margin: 0 0 12px 0; color: #92400e; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-clock"></i>
-                        Knowledge Cutoff Dates
-                    </h4>
-                    <p style="margin: 0 0 12px 0; color: #78350f; font-size: 13px;">
-                        Each model has a "knowledge cutoff" - the date until which it was trained. Information after this date may be outdated or unknown.
+                <section class="models-note">
+                    <h4 class="models-note-title">Knowledge Cutoff Dates</h4>
+                    <p class="models-note-text">
+                        Each model has a "knowledge cutoff" — the date until which it was trained. Information after this date may be outdated or unknown.
                     </p>
-                    <div id="knowledgeCutoffContent" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px;">
+                    <div id="knowledgeCutoffContent" class="models-cutoff-grid">
                         <!-- Populated dynamically by showModelsModal() -->
-                        <div style="text-align: center; padding: 10px; color: #92400e; grid-column: span 2;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading cutoff dates...
-                        </div>
+                        <div class="models-cutoff-loading">Loading cutoff dates...</div>
                     </div>
-                </div>
-                
+                </section>
+
                 <!-- ✨ Real-time Info Section -->
-                <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 12px; border-left: 4px solid #10b981;">
-                    <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-globe"></i>
-                        Real-time Information
-                    </h4>
-                    <p style="margin: 0; color: #047857; font-size: 13px;">
+                <section class="models-note models-note--positive">
+                    <h4 class="models-note-title">Real-time Information</h4>
+                    <p class="models-note-text">
                         <strong>Perplexity Sonar Pro</strong> is web-grounded and can fetch current sources at query time.
                         For time-sensitive topics after each model's cutoff date, Perplexity is usually the most up-to-date.
                     </p>
-                </div>
-                
+                </section>
+
                 <!-- ⚠️ Important Note -->
-                <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 12px; border-left: 4px solid #ef4444;">
-                    <h4 style="margin: 0 0 8px 0; color: #991b1b; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Important Note
-                    </h4>
-                    <p style="margin: 0; color: #b91c1c; font-size: 13px;">
+                <section class="models-note models-note--warning">
+                    <h4 class="models-note-title">Important Note</h4>
+                    <p class="models-note-text">
                         ChatGPT, Claude, and Gemini may give outdated or incorrect information about recent events.
                         This is a limitation of these models, not a bug in the system.
                         Always verify time-sensitive information with current sources.
                     </p>
-                </div>
+                </section>
             </div>
-            <div class="modal-footer" style="background: #f9fafb; border-radius: 0 0 12px 12px; padding: 16px 24px;">
+            <div class="modal-footer models-modal-footer">
                 <button type="button" class="btn btn-primary" onclick="window.llmMonitoring.hideModelsModal()">
-                    <i class="fas fa-check"></i>
                     Got it
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- ✨ STICKY: Global Share of Voice Metric Selector -->
+    <div class="global-metric-fab" id="globalMetricFab">
+        <div class="fab-tooltip">
+            Change Share of Voice calculation method<br>
+            <small>(affects all charts and metrics)</small>
+        </div>
+
+        <div class="fab-content">
+            <button class="fab-info-btn" id="btnGlobalSovInfo" title="Learn about Share of Voice metrics">
+                <i class="fas fa-info-circle"></i>
+            </button>
+
+            <div class="fab-toggle-wrapper">
+                <div class="fab-toggle" id="globalSovMetricToggle">
+                    <input type="radio" id="globalMetricWeighted" name="globalSovMetric" value="weighted" checked>
+                    <label for="globalMetricWeighted" class="fab-toggle-option">
+                        <span class="fab-toggle-text">Weighted</span>
+                    </label>
+
+                    <input type="radio" id="globalMetricNormal" name="globalSovMetric" value="normal">
+                    <label for="globalMetricNormal" class="fab-toggle-option">
+                        <span class="fab-toggle-text">Standard</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Banner de invitaciones pendientes (compartido) -->
     <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v={{ ASSET_V }}"></script>
 </body>

@@ -102,10 +102,40 @@
         return seriesMuted;
     }
 
-    // ── Defaults globales ────────────────────────────────────────────────────
     const fontSans = token('--cs-font-sans', "'Inter Tight', sans-serif")
         .replace(/^['"]|['"]$/g, '');
 
+    // ── Publicar el tema ANTES de tocar los defaults ─────────────────────────
+    // Los colores son lo que las gráficas necesitan para pintar; los defaults
+    // son cosmética. Si una clave de Chart.defaults cambia de forma entre
+    // versiones, la excepción no debe dejar a CSChartTheme sin definir y tumbar
+    // las 7 gráficas — que es exactamente lo que pasó al asumir que
+    // Chart.defaults.scales.category tenía un objeto grid (no lo tiene).
+    window.CSChartTheme = {
+        series,
+        seriesExtended,
+        seriesMuted,
+        status,
+        ink,
+        surface,
+        chrome,
+        fontSans,
+        seriesColorFor,
+        /** Porcentaje 0-100 para un eje y. */
+        percentAxis(overrides) {
+            return Object.assign({
+                beginAtZero: true,
+                max: 100,
+                ticks: { callback: (v) => `${v}%` }
+            }, overrides || {});
+        }
+    };
+
+    // ── Defaults globales ────────────────────────────────────────────────────
+    // En try/catch a propósito: los defaults son cosmética y su forma cambia
+    // entre versiones de Chart.js. Si uno falla, preferimos gráficas con el
+    // estilo por defecto de la librería antes que ninguna gráfica.
+    try {
     Chart.defaults.font.family = fontSans;
     Chart.defaults.font.size = 12;
     Chart.defaults.font.weight = 500;
@@ -173,28 +203,10 @@
     Chart.defaults.scale.ticks.color = chrome.axis;
     Chart.defaults.scale.ticks.font = { size: 11, weight: '500' };
 
-    // El eje de categorías no necesita rejilla vertical.
-    if (Chart.defaults.scales && Chart.defaults.scales.category) {
-        Chart.defaults.scales.category.grid.display = false;
+    // El grid del eje de categorías se desactiva por gráfica (scales.x.grid),
+    // no aquí: Chart.defaults.scales.category solo trae `ticks`, sin objeto
+    // `grid` que poder configurar.
+    } catch (err) {
+        console.warn('[CSChartTheme] No se pudieron aplicar todos los defaults de Chart.js:', err);
     }
-
-    window.CSChartTheme = {
-        series,
-        seriesExtended,
-        seriesMuted,
-        status,
-        ink,
-        surface,
-        chrome,
-        fontSans,
-        seriesColorFor,
-        /** Porcentaje 0-100 para un eje y. */
-        percentAxis(overrides) {
-            return Object.assign({
-                beginAtZero: true,
-                max: 100,
-                ticks: { callback: (v) => `${v}%` }
-            }, overrides || {});
-        }
-    };
 })();
