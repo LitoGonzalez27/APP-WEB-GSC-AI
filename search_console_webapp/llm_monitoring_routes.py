@@ -37,6 +37,8 @@ import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
+from decimal import Decimal, ROUND_HALF_UP
+
 import brand_palette
 
 _VALID_HOST_RE = re.compile(r'[a-z0-9.-]+')
@@ -647,6 +649,21 @@ def _safe_content_overview(project_id, days):
     except Exception as e:
         logger.warning(f"No se pudo incluir el análisis de contenido en el export: {e}")
         return {}
+
+
+def round_half_up(value, decimals=1):
+    """
+    Redondea como lo hace Postgres (mitad hacia ARRIBA), no como Python.
+
+    `round()` de Python usa banker's rounding (mitad al par): round(3.25, 1)
+    devuelve 3.2, mientras ROUND(3.25, 1) en Postgres devuelve 3.3. El panel
+    redondea en SQL y el Excel en Python, así que la misma posición media salía
+    3.3 en pantalla y 3.2 en la descarga.
+    """
+    if value is None:
+        return None
+    quantum = Decimal(1).scaleb(-decimals)
+    return float(Decimal(str(float(value))).quantize(quantum, rounding=ROUND_HALF_UP))
 
 
 def _as_json(value, default):
@@ -6824,7 +6841,7 @@ def export_project_excel(project_id):
             write_data_cell(ws5, row_idx, col,
                             pm['share_of_voice'] if pm['share_of_voice'] is not None else 'N/A', '0.0'); col += 1
             write_data_cell(ws5, row_idx, col,
-                            round(float(q['avg_position']), 1) if q['avg_position'] else 'N/A', '0.0'); col += 1
+                            round_half_up(q['avg_position']) if q['avg_position'] else 'N/A', '0.0'); col += 1
             write_data_cell(ws5, row_idx, col, text_mentions + url_citations); col += 1
             write_data_cell(ws5, row_idx, col, top_domains); col += 1
             write_data_cell(ws5, row_idx, col, q.get('topic_cluster') or 'Unassigned'); col += 1
@@ -6838,7 +6855,7 @@ def export_project_excel(project_id):
             write_data_cell(ws5, row_idx, col, q['query_type'] or 'general'); col += 1
             write_data_cell(ws5, row_idx, col, q['llms_analyzed'] or 0); col += 1
             write_data_cell(ws5, row_idx, col, q['total_results'] or 0); col += 1
-            write_data_cell(ws5, row_idx, col, round(float(q['visibility_pct'] or 0), 1), '0.0'); col += 1
+            write_data_cell(ws5, row_idx, col, round_half_up(q['visibility_pct'] or 0), '0.0'); col += 1
             write_data_cell(ws5, row_idx, col, str(q['last_analysis']) if q['last_analysis'] else 'N/A'); col += 1
             is_branded = classify_query_branded(q.get('prompt', '') or q.get('query_text', ''), brand_keywords)
             write_data_cell(ws5, row_idx, col, "Yes" if is_branded else "No"); col += 1
