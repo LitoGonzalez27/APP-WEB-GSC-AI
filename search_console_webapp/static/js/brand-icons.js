@@ -113,9 +113,31 @@
         const spin = classes.includes('fa-spin') || faName === 'fa-spinner' || faName === 'fa-circle-notch';
         // Conservar las clases ajenas a FA (p.ej. chip-add-icon) para que su CSS siga aplicando
         const keep = classes.filter(c => !/^fa[srb]?$/.test(c) && !c.startsWith('fa-'));
-        if (spin) keep.push('lucide-spin');
-        el.setAttribute('data-lucide', lucideName);
+
+        // ENVOLVER, NO REEMPLAZAR: el <i> se queda y el SVG va dentro.
+        //
+        // Sustituir el <i> por el <svg> rompía en silencio TODA regla CSS del
+        // tipo `.x i { color: ... }`, porque el selector deja de casar. Las
+        // hojas de LLM Monitoring se parchearon con selectores gemelos
+        // `.x svg.lucide`, pero quedaban 97 reglas más en las hojas compartidas
+        // (manual-ai, navbar, paywall...) y por eso los iconos de las tarjetas
+        // de AI Overview salían oscuros sobre fondo oscuro.
+        //
+        // Manteniendo el <i>, esas reglas siguen aplicando y el SVG hereda el
+        // color por `currentColor` y el tamaño por `width:1em` (ver la regla
+        // `svg.lucide` de brand-dashboard-overrides.css). Los gemelos ya
+        // escritos siguen valiendo porque son selectores de descendiente.
+        // `lucide-icon` marca al envoltorio: le devuelve el comportamiento de
+        // caja que antes tenía el propio <svg> como flex item (ver overrides).
+        keep.push('lucide-icon');
         el.className = keep.join(' ');
+        el.textContent = '';
+        const placeholder = document.createElement('span');
+        placeholder.setAttribute('data-lucide', lucideName);
+        // La animación vive en `svg.lucide-spin`, así que la clase debe viajar
+        // al SVG: lucide copia los atributos del placeholder al svg que crea.
+        if (spin) placeholder.setAttribute('class', 'lucide-spin');
+        el.appendChild(placeholder);
         return true;
     }
 
@@ -130,9 +152,9 @@
         if (root.matches(FA_SELECTOR) && convertNode(root)) converted++;
         root.querySelectorAll(FA_SELECTOR).forEach(el => { if (convertNode(el)) converted++; });
         if (converted === 0) return 0;
-        // createIcons busca DESCENDIENTES: si el propio root es el icono, sube uno.
-        const scope = root.hasAttribute('data-lucide') ? root.parentNode : root;
-        if (scope && scope.nodeType === Node.ELEMENT_NODE) lucide.createIcons({ root: scope });
+        // Los placeholders son descendientes de root, así que root vale de scope
+        // incluso cuando el propio root era el <i>.
+        lucide.createIcons({ root: root });
         return converted;
     }
 

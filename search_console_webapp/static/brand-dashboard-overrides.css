@@ -78,7 +78,7 @@ table th {
 
 .empty-state .empty-icon,
 .empty-state > i,
-.empty-state > svg.lucide {
+.empty-state svg.lucide {
   color: var(--cs-text-tertiary);
 }
 
@@ -803,6 +803,19 @@ svg.lucide {
   stroke-width: 2px;
   vertical-align: -0.125em;
   flex-shrink: 0;
+}
+
+/* El <i> que envuelve al SVG. brand-icons.js conserva el <i> en vez de
+   sustituirlo para que las reglas `.x i { color/font-size }` de las hojas
+   compartidas sigan aplicando (el SVG hereda el color por currentColor y el
+   tamaño por width:1em). Este bloque le devuelve al envoltorio el
+   comportamiento de caja que antes tenía el propio SVG como flex item. */
+i.lucide-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-style: normal;
 }
 
 @keyframes lucideSpin {
