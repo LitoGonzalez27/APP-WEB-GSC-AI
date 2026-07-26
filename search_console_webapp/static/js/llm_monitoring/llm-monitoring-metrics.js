@@ -142,6 +142,9 @@ async showBrandMentionsModal(rowIdx) {
         // Set prompt text in modal header
         modalTitle.textContent = `"${query.prompt}"`;
 
+        // ✨ Resumen del prompt: SOV, Avg Position, Sentiment, Cluster, Top Domains
+        this.renderBrandMentionsOverview(query);
+
         // Render modal content
         modalBody.innerHTML = this.renderBrandMentionsModalContent(query);
 

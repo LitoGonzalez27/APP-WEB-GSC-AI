@@ -1,0 +1,827 @@
+/* ============================================================================
+   CLICANDSEO — OVERRIDES DE MARCA PARA PANELES DE DATOS
+   ============================================================================
+
+   Reestiliza al brandbook los componentes que viven en hojas COMPARTIDAS por
+   otras páginas (manual-ai.css lo cargan 7 plantillas, incluidas billing y
+   paywall; base-y-componentes.css, 10). En lugar de editarlas y arriesgar
+   regresiones en facturación, se sobreescribe desde aquí.
+
+   CÓMO FUNCIONA:
+   este archivo se carga como ÚLTIMO <link> de la página, así que a igualdad de
+   especificidad gana. Por eso no hace falta ni un !important ni anidamiento
+   artificial: basta igualar la especificidad del selector al que se gana.
+   Cada bloque indica a qué archivo:línea está ganando.
+
+   NUNCA envolver esto en @layer: las reglas en capa pierden siempre contra las
+   13 hojas sin capa de esta página, y el archivo entero sería un no-op silencioso.
+
+   ALCANCE tras la consolidación del refactor: este archivo contiene SOLO lo
+   que necesita ganar a hojas compartidas (manual-ai, base-y-componentes,
+   paywall) o al tema CDN de Grid.js. Todo lo que solo afectaba a hojas
+   exclusivas del panel (compare-modal, modales de sov, FAB, botón de volver)
+   se consolidó en su hoja de origen.
+   ============================================================================ */
+
+/* ── Tipografía base ─────────────────────────────────────────────────────────
+   Gana a base-y-componentes.css:142, que fija Jost en body. Sin esto, el
+   Inter Tight del brandbook no se aplica en ningún sitio: era el motivo de que
+   el panel se viera con una tipografía distinta en cada equipo (Inter Tight solo
+   donde estuviera instalada, Helvetica en el resto).
+   ─────────────────────────────────────────────────────────────────────────── */
+body {
+  font-family: var(--cs-font-sans);
+  color: var(--cs-text-primary);
+}
+
+/* Cifras que se alinean en columna (tablas, ticks) con ancho fijo; las cifras
+   grandes y sueltas van proporcionales, que a tamaño display se leen mejor. */
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tabs — gana a manual-ai.css:169-201 ─────────────────────────────────── */
+.nav-tab {
+  color: var(--cs-text-secondary);
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-medium);
+  border-bottom: 2px solid transparent;
+}
+
+.nav-tab:hover {
+  color: var(--cs-text-primary);
+  background: var(--cs-bg-subtle);
+}
+
+.nav-tab.active {
+  color: var(--cs-text-primary);
+  font-weight: var(--cs-weight-semibold);
+  border-bottom-color: var(--cs-text-primary);
+}
+
+/* ── Estados vacíos y de carga — gana a manual-ai.css:437-464 ─────────────────
+   Reutilizados también en #clustersChartEmpty y #noUrlsLLMMessage, con padres
+   distintos: verificar ambos al tocar esto.
+   ─────────────────────────────────────────────────────────────────────────── */
+.empty-state h3,
+.empty-state h4 {
+  color: var(--cs-text-primary);
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-bold);
+  letter-spacing: var(--cs-tracking-tight);
+}
+
+.empty-state p {
+  color: var(--cs-text-secondary);
+}
+
+.empty-state .empty-icon,
+.empty-state > i,
+.empty-state svg.lucide {
+  color: var(--cs-text-tertiary);
+}
+
+.loading-container {
+  color: var(--cs-text-secondary);
+}
+
+.loading-spinner i,
+.loading-spinner svg.lucide {
+  color: var(--cs-text-primary);
+}
+
+/* ── Botones ──────────────────────────────────────────────────────────────────
+   Tres hojas distintas definían :hover para los mismos botones con resultados
+   incompatibles: manual-ai.css ponía fondo lima con texto oscuro,
+   base-y-componentes.css un azul de otra época y llm-monitoring-enhanced.css
+   fondo lima otra vez — este último con `:hover:not(:disabled)`, más específico,
+   así que ganaba y dejaba iconos y texto casi invisibles sobre el lima.
+
+   Aquí se fija un único comportamiento. Se usa `:hover:not(:disabled)` para
+   igualar esa especificidad, y los iconos van con `currentColor` para que nunca
+   puedan quedarse de un color que no contrasta con su fondo.
+
+   La pill es legítima en botones: Brandbook.md:254 la reserva justamente a
+   botones y nav links.
+   ─────────────────────────────────────────────────────────────────────────── */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-semibold);
+  border-radius: var(--cs-radius-pill);
+  letter-spacing: 0;
+  transition: var(--cs-transition);
+}
+
+/* Los iconos heredan el color del botón: si el fondo cambia en hover, el icono
+   cambia con él y nunca desaparece. */
+.btn i,
+.btn-primary i,
+.btn-secondary i,
+.btn-ghost i,
+.btn svg.lucide,
+.btn-primary svg.lucide,
+.btn-secondary svg.lucide,
+.btn-ghost svg.lucide {
+  color: currentColor;
+}
+
+.btn-primary,
+.btn-primary:not(:disabled) {
+  background: var(--cs-text-primary);
+  color: var(--cs-text-inverse);
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--cs-surface-dark);
+  color: var(--cs-text-inverse);
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary,
+.btn-secondary:not(:disabled) {
+  background: var(--cs-bg-paper);
+  color: var(--cs-text-primary);
+  border: 1px solid var(--cs-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--cs-bg-subtle);
+  color: var(--cs-text-primary);
+  border-color: var(--cs-text-tertiary);
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--cs-text-secondary);
+  border: 1px solid transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--cs-bg-subtle);
+  color: var(--cs-text-primary);
+  border-color: var(--cs-border);
+  transform: none;
+  box-shadow: none;
+}
+
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Nada de sombras al pasar por encima ──────────────────────────────────────
+   62 reglas repartidas por 4 hojas añadían box-shadow en :hover a cards,
+   paneles y filas. En un panel con doce tarjetas, el contenido "salta" al mover
+   el ratón. Las sombras se quedan para elevación real (modales), no como
+   respuesta al puntero.
+   ─────────────────────────────────────────────────────────────────────────── */
+.chart-card:hover,
+.kpi-card:hover,
+.summary-card:hover,
+.project-card:hover,
+.branded-card:hover,
+.model-card:hover,
+.insight-item:hover,
+.llm-row:hover,
+.url-row:hover,
+.metric-card:hover,
+.quality-item:hover,
+.example-card:hover,
+.llm-cluster-row:hover,
+.responses-filter:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── Chips de filtro ─────────────────────────────────────────────────────────
+   Gana a manual-ai.css:1642. No son botones de acción sino controles de filtro,
+   pero sí son controles interactivos, no etiquetas de dato: mantienen forma de
+   control (radio suave) sin caer en la cápsula prohibida para badges.
+   ─────────────────────────────────────────────────────────────────────────── */
+.url-filter-chip {
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-medium);
+  color: var(--cs-text-secondary);
+  border-radius: var(--cs-radius-sm);
+  border: 1px solid var(--cs-border);
+  background: var(--cs-bg-paper);
+}
+
+.url-filter-chip:hover {
+  color: var(--cs-text-primary);
+  border-color: var(--cs-text-tertiary);
+}
+
+/* ── Modal Details: un solo scroll ────────────────────────────────────────────
+   El contenedor del modal ya scrollea (sov-metrics-ui.css:171, max-height 90vh
+   + overflow-y auto) y el cuerpo llevaba ADEMÁS su propio max-height 55vh con
+   scroll (llm-monitoring.css:3088): dos barras anidadas para el mismo gesto.
+   El cuerpo fluye y scrollea solo el modal.
+   ─────────────────────────────────────────────────────────────────────────── */
+.brand-mentions-body {
+  max-height: none;
+  overflow-y: visible;
+}
+
+/* ── Tooltip informativo (.cg-info-tooltip, definido en manual-ai.css) ─────── */
+.cg-info-tooltip-content {
+  background: var(--cs-bg-dark);
+  color: var(--cs-text-inverse);
+  border-radius: var(--cs-radius-sm);
+  border: none;
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-xs);
+  line-height: var(--cs-leading-normal);
+  padding: 0.875rem 1rem;
+  box-shadow: var(--cs-shadow-md);
+}
+
+/* Por encima del sidebar (z 100) y de sus overlays móviles (999-1001), para que
+   ningún tooltip vuelva a quedar cortado por la navegación. */
+.cg-info-tooltip .cg-info-tooltip-content {
+  z-index: 1200;
+}
+
+/* El tooltip vive DENTRO de su tarjeta, y las tarjetas hermanas posteriores en
+   el DOM se pintaban por encima de él (todas son position:relative, así que
+   entre iguales gana el orden del documento). Al apuntar cualquier tarjeta que
+   contiene un tooltip, esta sube sobre sus hermanas y el panel se ve completo.
+   Solo se eleva en hover: sin él, el orden de apilado queda como estaba. */
+.kpi-card,
+.branded-card {
+  position: relative;
+}
+
+.kpi-card:hover,
+.branded-card:hover,
+.chart-card:hover {
+  z-index: 40;
+}
+
+/* El icono de información: mismo aspecto en todas las tarjetas. */
+.cg-info-tooltip-trigger {
+  color: var(--cs-text-tertiary);
+}
+
+.cg-info-tooltip-trigger:hover {
+  color: var(--cs-text-secondary);
+}
+
+/* ── Desplegables ─────────────────────────────────────────────────────────────
+   Todos los select del panel (rango de fechas, filtros de LLM, de prompt…) con
+   el mismo aspecto: flecha propia, altura cómoda y sitio de sobra para que el
+   texto de la opción no se corte. Se quita la flecha nativa y se dibuja una en
+   el fondo, para que el aspecto no dependa del sistema operativo.
+   ─────────────────────────────────────────────────────────────────────────── */
+.form-control,
+select.form-control,
+.toolbar-select,
+.enhanced-select,
+.option-select,
+.section-actions-toolbar .toolbar-select,
+.responses-filter .form-control,
+.chart-header .form-control {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-sm);
+  font-weight: var(--cs-weight-medium);
+  color: var(--cs-text-primary);
+  background-color: var(--cs-bg-paper);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+  transition: var(--cs-transition);
+  box-shadow: none;
+  height: auto;
+}
+
+/* La lista de selectores va anclada al contenedor donde hace falta porque
+   llm-monitoring.css:.section-actions-toolbar .toolbar-select y .responses-filter
+   .form-control usan dos clases y ganarían a un `select.clase` a secas. */
+select.form-control,
+select.toolbar-select,
+select.enhanced-select,
+select.option-select,
+.section-actions-toolbar select.toolbar-select,
+.responses-filters-panel select.form-control,
+.responses-filter select.form-control,
+.chart-header select.form-control {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* Espacio a la derecha para la flecha, para que el texto nunca la pise */
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px 8px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.form-control:hover,
+select.form-control:hover,
+.toolbar-select:hover {
+  border-color: var(--cs-text-tertiary);
+}
+
+.form-control:focus,
+select.form-control:focus,
+.toolbar-select:focus,
+.enhanced-select:focus,
+.option-select:focus {
+  outline: 2px solid var(--cs-accent);
+  outline-offset: 1px;
+  border-color: var(--cs-text-primary);
+}
+
+/* Las opciones del desplegable las pinta el sistema; al menos que hereden la
+   familia y no queden en la fuente por defecto. */
+.form-control option,
+.toolbar-select option {
+  font-family: var(--cs-font-sans);
+  color: var(--cs-text-primary);
+}
+
+/* Etiquetas de los filtros */
+.responses-filter label,
+.urls-filter label {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-semibold);
+  color: var(--cs-text-secondary);
+  letter-spacing: 0;
+}
+
+/* ── Cabeceras de sección y de card ──────────────────────────────────────────
+   Gana a llm-monitoring-enhanced.css:205 (.chart-card) y a los .chart-header
+   repartidos por 3 hojas.
+   ─────────────────────────────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--cs-bg-paper);
+  border: 1px solid var(--cs-border-subtle);
+  border-radius: var(--cs-radius-md);
+  box-shadow: none;
+}
+
+.chart-header h3,
+.chart-card h3 {
+  font-family: var(--cs-font-sans);
+  font-weight: var(--cs-weight-bold);
+  font-size: var(--cs-text-lg);
+  letter-spacing: var(--cs-tracking-tight);
+  color: var(--cs-text-primary);
+}
+
+/* ── Cabecera de sección ──────────────────────────────────────────────────────
+   Gana a llm-monitoring.css:101. El problema anterior: los 5 controles de la
+   barra no caben junto al título, y al llevar flex-wrap saltaban de uno en uno,
+   dejando "Delete" huérfano en una segunda fila y el título partido en dos.
+   Ahora el bloque de título puede encogerse y la barra viaja completa: si no
+   cabe, baja entera y en orden.
+   ─────────────────────────────────────────────────────────────────────────── */
+.section-header {
+  flex-wrap: wrap;
+  gap: var(--cs-space-md);
+  border-bottom: 1px solid var(--cs-border-subtle);
+}
+
+.section-header-left {
+  flex: 1 1 20rem;
+  min-width: 0;
+  gap: var(--cs-space-sm);
+}
+
+.section-header h2 {
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-xl);
+  font-weight: var(--cs-weight-extrabold);
+  letter-spacing: var(--cs-tracking-tight);
+  color: var(--cs-text-primary);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* Todos los controles (rango de fechas, Manage Prompts, Models, Edit, Delete)
+   alineados a la derecha y en una sola fila. */
+.section-actions-toolbar {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+
+
+/* ── Lista de prompts (modal Manage Prompts) ──────────────────────────────────
+   llm-monitoring.css:1011 declara .prompt-item como flex SIN dirección de
+   columna, así que meta, texto y fila de acciones quedaban lado a lado y la
+   papelera flotaba a mitad de fila. En columna, la fila inferior (cluster a la
+   izquierda, acciones a la derecha) ocupa todo el ancho y la papelera cae en el
+   borde derecho, que es donde se espera.
+   ─────────────────────────────────────────────────────────────────────────── */
+.prompt-item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.prompt-item .prompt-bottom-row {
+  width: 100%;
+}
+
+.prompt-item .prompt-actions {
+  margin-left: auto;
+}
+
+/* Borrar es destructivo: visible pero nunca compitiendo con la acción
+   principal, así que sin fondo hasta que se apunta. */
+#btnDeleteProject {
+  color: var(--cs-error-text);
+  background: transparent;
+}
+
+#btnDeleteProject:hover {
+  background: rgba(224, 82, 82, 0.08);
+  color: var(--cs-error-text);
+}
+
+@media (max-width: 900px) {
+  .section-actions-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Posición media por cluster ───────────────────────────────────────────────
+   Reparte los valores en tantas columnas como barras para que cada uno caiga
+   bajo la suya. Texto plano, sin cápsulas (Brandbook.md:254).
+   ─────────────────────────────────────────────────────────────────────────── */
+.clusters-position-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--cs-space-xs);
+  padding: var(--cs-space-sm) 0 0;
+  margin-top: var(--cs-space-xs);
+  border-top: 1px solid var(--cs-border-subtle);
+}
+
+.clusters-position-strip:empty {
+  display: none;
+}
+
+.cluster-pos-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cluster-pos-label {
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-semibold);
+  letter-spacing: var(--cs-tracking-wide);
+  text-transform: uppercase;
+  color: var(--cs-text-tertiary);
+}
+
+.cluster-pos-value {
+  font-size: var(--cs-text-sm);
+  font-weight: var(--cs-weight-bold);
+  color: var(--cs-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cluster-pos-value.is-empty {
+  color: var(--cs-text-tertiary);
+  font-weight: var(--cs-weight-medium);
+}
+
+/* ── Modal de modelos LLM ─────────────────────────────────────────────────────
+   Sus estilos vivían todos en atributos style= dentro del HTML, con degradados
+   incluidos, que es la razón de que la pasada de aplanado del CSS no lo tocara.
+   Ahora el markup usa clases y el estilo vive aquí.
+   ─────────────────────────────────────────────────────────────────────────── */
+.models-modal {
+  max-width: 700px;
+}
+
+.models-modal-header {
+  background: var(--cs-bg-dark);
+  color: var(--cs-text-inverse);
+  border-bottom: none;
+}
+
+.models-modal-header h3 {
+  margin: 0;
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-lg);
+  font-weight: var(--cs-weight-bold);
+  letter-spacing: var(--cs-tracking-tight);
+  color: var(--cs-text-inverse);
+}
+
+.models-modal-header .modal-close {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--cs-text-inverse);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--cs-radius-sm);
+  font-size: 1.3rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--cs-transition);
+}
+
+.models-modal-header .modal-close:hover {
+  background: var(--cs-accent);
+  border-color: var(--cs-accent);
+  color: var(--cs-text-primary);
+}
+
+.models-modal-body {
+  padding: var(--cs-space-lg);
+  background: var(--cs-bg-paper);
+}
+
+/* Las 4 tarjetas de modelo reparten todo el ancho del modal a partes iguales;
+   antes quedaban apelotonadas a la izquierda con un hueco muerto a la derecha. */
+.models-modal .models-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cs-space-sm);
+  width: 100%;
+  margin: 0;
+}
+
+.models-modal .model-card {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  box-shadow: none;
+  border: 1px solid var(--cs-border-subtle);
+  border-radius: var(--cs-radius-sm);
+}
+
+@media (max-width: 560px) {
+  .models-modal .models-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.models-modal-intro {
+  color: var(--cs-text-secondary);
+  font-size: var(--cs-text-sm);
+  margin: 0 0 var(--cs-space-md);
+}
+
+/* Notas informativas: fondo plano y una línea de acento a la izquierda en vez
+   de degradados de color (Brandbook.md:476). */
+.models-note {
+  margin-top: var(--cs-space-md);
+  padding: var(--cs-space-md);
+  background: var(--cs-bg-subtle);
+  border-radius: var(--cs-radius-sm);
+  border-left: 3px solid var(--cs-text-tertiary);
+}
+
+.models-note--positive {
+  border-left-color: var(--cs-success);
+}
+
+.models-note--warning {
+  border-left-color: var(--cs-error);
+}
+
+.models-note-title {
+  margin: 0 0 var(--cs-space-xs);
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-text-sm);
+  font-weight: var(--cs-weight-bold);
+  color: var(--cs-text-primary);
+}
+
+.models-note-text {
+  margin: 0;
+  font-size: var(--cs-text-sm);
+  line-height: var(--cs-leading-normal);
+  color: var(--cs-text-secondary);
+}
+
+.models-cutoff-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--cs-space-xs);
+  margin-top: var(--cs-space-sm);
+  font-size: var(--cs-text-xs);
+}
+
+.models-cutoff-loading {
+  grid-column: span 2;
+  text-align: center;
+  padding: var(--cs-space-sm);
+  color: var(--cs-text-secondary);
+}
+
+.models-cutoff-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-xs);
+  padding: var(--cs-space-xs) var(--cs-space-sm);
+  background: var(--cs-bg-paper);
+  border: 1px solid var(--cs-border-subtle);
+  border-radius: var(--cs-radius-sm);
+}
+
+.models-cutoff-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.models-cutoff-llm {
+  font-weight: var(--cs-weight-semibold);
+  color: var(--cs-text-primary);
+  white-space: nowrap;
+}
+
+.models-cutoff-value {
+  color: var(--cs-text-secondary);
+  min-width: 0;
+}
+
+/* Modelo con acceso a la web en el momento de la consulta. */
+.models-cutoff-value.is-live {
+  color: var(--cs-success-text);
+  font-weight: var(--cs-weight-semibold);
+}
+
+.models-modal-footer {
+  background: var(--cs-bg-paper);
+  border-top: 1px solid var(--cs-border);
+  padding: var(--cs-space-md) var(--cs-space-lg);
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+  .models-cutoff-grid {
+    grid-template-columns: 1fr;
+  }
+  .models-cutoff-loading {
+    grid-column: span 1;
+  }
+}
+
+/* ── Grid.js: sustituye al tema "mermaid" del CDN ────────────────────────────
+   El tema de la librería trae su propia paleta y tipografía, que competían con
+   la marca. Aquí se le da el aspecto del brandbook.
+   ─────────────────────────────────────────────────────────────────────────── */
+.gridjs-table {
+  font-family: var(--cs-font-sans);
+}
+
+/* Sin mayúsculas ni tracking extra: ensanchaban el texto lo justo para que
+   "Avg. Pos.", "Mentions", "Top Domains" y "Sentiment" salieran truncados con
+   puntos suspensivos dentro de su columna. */
+.gridjs-th {
+  background: var(--cs-bg-subtle);
+  color: var(--cs-text-secondary);
+  font-weight: var(--cs-weight-semibold);
+  font-size: var(--cs-text-xs);
+  border-bottom: 1px solid var(--cs-border);
+}
+
+/* Celdas con aire vertical, pero sin el padding horizontal de 24px del tema
+   mermaid: con columnas de ancho fijo, esos 48px por celda se comían el texto de
+   las cabeceras ("Avg. Pos." salía como "Avg..."). Los selectores llevan
+   .gridjs-table delante para ganar en especificidad al tema del CDN. */
+.gridjs-table .gridjs-td {
+  color: var(--cs-text-primary);
+  font-size: var(--cs-text-sm);
+  border-bottom: 1px solid var(--cs-border-subtle);
+  padding: 1rem 0.75rem;
+  vertical-align: middle;
+}
+
+.gridjs-table .gridjs-th {
+  padding: 0.875rem 0.75rem;
+}
+
+/* Primera y última columna, separadas del borde de la tabla. */
+.gridjs-table .gridjs-td:first-child,
+.gridjs-table .gridjs-th:first-child {
+  padding-left: 1.25rem;
+}
+
+.gridjs-table .gridjs-td:last-child,
+.gridjs-table .gridjs-th:last-child {
+  padding-right: 1.25rem;
+}
+
+.gridjs-tr:hover .gridjs-td {
+  background: var(--cs-bg-subtle);
+}
+
+/* El prompt puede ocupar dos líneas: que respire y no quede pegado al número. */
+.gridjs-table .gridjs-td:nth-child(2) {
+  line-height: var(--cs-leading-normal);
+  padding-right: 1.25rem;
+}
+
+/* Las cabeceras no se truncan: si algún día no cabe, parte en dos líneas antes
+   que recortar la palabra. */
+.gridjs-table .gridjs-th .gridjs-th-content {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.gridjs-wrapper {
+  box-shadow: none;
+  border: 1px solid var(--cs-border-subtle);
+  border-radius: var(--cs-radius-sm);
+}
+
+.gridjs-footer,
+.gridjs-search-input {
+  font-family: var(--cs-font-sans);
+  color: var(--cs-text-secondary);
+  box-shadow: none;
+}
+
+.gridjs-search-input {
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+}
+
+.gridjs-search-input:focus {
+  outline: 2px solid var(--cs-accent);
+  outline-offset: 1px;
+  border-color: var(--cs-text-tertiary);
+}
+
+/* ── Pila de Top Domains con tooltip agrupado ─────────────────────────────────
+   El panel lo monta bindDomainStackTooltips (llm-monitoring-core.js) en body,
+   reutilizando .llm-chart-tooltip: dentro de la tabla quedaría recortado por el
+   overflow del contenedor de Grid.js.
+   ─────────────────────────────────────────────────────────────────────────── */
+.lm-domain-stack[data-domains],
+.bm-domain-stack[data-domains] {
+  cursor: help;
+}
+
+#lmDomainsTooltip img.domain-favicon {
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
+/* ── Iconos Lucide ────────────────────────────────────────────────────────────
+   brand-icons.js convierte en runtime los <i class="fas fa-x"> a SVG Lucide
+   (outline, trazo 2px — Brandbook.md:234). El SVG hereda el tamaño del texto
+   como hacía el glifo de Font Awesome, y el giro del spinner lo pone
+   .lucide-spin, que sustituye a fa-spin. */
+svg.lucide {
+  width: 1em;
+  height: 1em;
+  stroke-width: 2px;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+
+/* El <i> que envuelve al SVG. brand-icons.js conserva el <i> en vez de
+   sustituirlo para que las reglas `.x i { color/font-size }` de las hojas
+   compartidas sigan aplicando (el SVG hereda el color por currentColor y el
+   tamaño por width:1em). Este bloque le devuelve al envoltorio el
+   comportamiento de caja que antes tenía el propio SVG como flex item. */
+i.lucide-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-style: normal;
+}
+
+@keyframes lucideSpin {
+  to { transform: rotate(360deg); }
+}
+
+svg.lucide-spin {
+  animation: lucideSpin 1s linear infinite;
+}

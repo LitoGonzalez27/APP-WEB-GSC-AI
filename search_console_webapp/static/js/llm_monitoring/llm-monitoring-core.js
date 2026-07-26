@@ -1,3 +1,7 @@
+// Clave publicable de logo.dev (pk_): pensada para ir en el cliente. En una
+// sola constante para que cambiar de proveedor sea un solo punto de edición.
+const DOMAIN_LOGO_TOKEN = 'pk_a4PP_KI7Qj-y6MnQSvu-3A';
+
 /**
  * LLM Monitoring - métodos de prototipo: core
  * Extraído verbatim de llm_monitoring.js (refactor Fase 3).
@@ -1198,8 +1202,12 @@ async downloadPdf() {
             if (btnText) btnText.textContent = 'Generating PDF...';
             if (btn) btn.disabled = true;
 
+            // El PDF debe usar la MISMA métrica de SoV que el panel tiene
+            // seleccionada, o su portada diría una cifra distinta de la pantalla.
+            const sovMetric = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             const response = await fetch(
-                `${this.baseUrl}/projects/${this.currentProject.id}/export/pdf?days=${this.globalTimeRange}`
+                `${this.baseUrl}/projects/${this.currentProject.id}/export/pdf` +
+                `?days=${this.globalTimeRange}&metric=${encodeURIComponent(sovMetric)}`
             );
 
             if (!response.ok) {
@@ -1294,11 +1302,6 @@ getPrimaryCompetitorName(languageCode) {
         return this.getCompetitorFallbackLabel(languageCode);
     },
 
-escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    },
 
 getLLMDisplayName(llm) {
         const names = {
@@ -1310,24 +1313,135 @@ getLLMDisplayName(llm) {
         return names[llm] || llm;
     },
 
-getLLMIcon(llm) {
-        const icons = {
-            'openai': 'fas fa-robot',
-            'anthropic': 'fas fa-brain',
-            'google': 'fas fa-star',
-            'perplexity': 'fas fa-search'
+
+// Color de cada LLM. Delega en el tema único de gráficas para que el color de
+// una entidad sea el mismo en todo el producto (antes había tres paletas
+// distintas repartidas por el código). La paleta anterior era además
+// inaccesible: Gemini (#3b82f6) y Claude (#a855f7) resultaban indistinguibles
+// bajo deuteranopia (ΔE 0.9), o sea el mismo color para ~8% de los hombres.
+getLLMColor(llm) {
+        if (window.CSChartTheme) {
+            return CSChartTheme.seriesColorFor(llm);
+        }
+        // Fallback si el tema no cargó: los mismos valores validados.
+        const colors = {
+            'openai': '#1baf7a',
+            'anthropic': '#eb6834',
+            'google': '#2a78d6',
+            'perplexity': '#4a3aa7'
         };
-        return icons[llm] || 'fas fa-robot';
+        return colors[llm] || '#CBD5E1';
     },
 
-getLLMColor(llm) {
-        const colors = {
-            'openai': '#10b981',
-            'anthropic': '#a855f7',
-            'google': '#3b82f6',
-            'perplexity': '#f59e0b'
+
+// Solo la imagen del favicon, sin tooltip propio: para los sitios donde el
+// tooltip lo pone el contenedor (pila de Top Domains).
+// Favicon de un dominio. logo.dev como proveedor y Google Favicons de reserva
+// (Clearbit se apagó en dic-2025). El dominio llega de las `sources` que cita
+// un LLM, es decir, de un tercero: va codificado en la URL y escapado en los
+// atributos, y el fallback NO se monta como JS inline — un onerror con el
+// dominio interpolado es una ejecución de código a un apóstrofo de distancia.
+getDomainFaviconImg(domain, size = 20) {
+        if (!domain) return '';
+        const safeDomain = this.escapeAttr(domain);
+        const urlDomain = encodeURIComponent(domain);
+        const logoUrl = `https://img.logo.dev/${urlDomain}?token=${DOMAIN_LOGO_TOKEN}&size=64&format=png`;
+        return `<img class="domain-favicon" src="${logoUrl}" alt="${safeDomain}"
+                     data-favicon-domain="${safeDomain}" width="${size}" height="${size}"
+                     style="width:${size}px;height:${size}px;border-radius:4px;">`;
+    },
+
+// Reserva de favicon sin JS inline: un único listener en fase de captura (el
+// evento error no burbujea) cambia la imagen al proveedor alternativo.
+bindFaviconFallback() {
+        if (this._faviconFallbackBound) return;
+        this._faviconFallbackBound = true;
+        document.addEventListener('error', (e) => {
+            const img = e.target;
+            if (!(img instanceof HTMLImageElement)) return;
+            if (!img.dataset.faviconDomain || img.dataset.faviconFallback === 'done') return;
+            img.dataset.faviconFallback = 'done';
+            img.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(img.dataset.faviconDomain)}&sz=64`;
+        }, true);
+    },
+
+// Tooltip agrupado para las pilas de favicons de Top Domains: un solo panel
+// oscuro (mismo lenguaje que los tooltips de gráficas, .llm-chart-tooltip) que
+// lista los 3 dominios con su favicon y sus menciones. Antes cada favicon tenía
+// su tooltip individual, con otro estilo, y el panel del grupo es lo que Carlos
+// pidió. Delegado en document y montado en body: dentro de la tabla Grid.js un
+// tooltip absoluto quedaría recortado por el overflow del contenedor.
+bindDomainStackTooltips() {
+        if (this._domainStackTooltipsBound) return;
+        this._domainStackTooltipsBound = true;
+        this.bindFaviconFallback();
+
+        const ensureEl = () => {
+            let el = document.getElementById('lmDomainsTooltip');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'lmDomainsTooltip';
+                el.className = 'llm-chart-tooltip';
+                // Se reescribe en cada hover y no lleva iconos: fuera del conversor
+                el.setAttribute('data-no-lucide', '');
+                document.body.appendChild(el);
+            }
+            return el;
         };
-        return colors[llm] || '#6b7280';
+
+        // Última pila pintada: la pila contiene 3 favicons, así que cruzar una
+        // celda dispara un mouseover por hijo. Sin este guardia se reconstruía
+        // el tooltip (3 <img> nuevos) y se forzaban 2 reflows por cada uno.
+        let lastStack = null;
+
+        document.addEventListener('mouseover', (e) => {
+            const stack = e.target.closest?.('[data-domains]');
+            const el = ensureEl();
+
+            if (!stack) {
+                lastStack = null;
+                el.classList.remove('active');
+                return;
+            }
+            if (stack === lastStack && el.classList.contains('active')) return;
+
+            let domains = [];
+            try {
+                domains = JSON.parse(stack.dataset.domains) || [];
+            } catch (_) { /* atributo malformado: sin tooltip */ }
+            if (!domains.length) {
+                lastStack = null;
+                el.classList.remove('active');
+                return;
+            }
+            lastStack = stack;
+
+            el.innerHTML = `
+                <div class="llm-chart-tooltip__title">Top domains</div>
+                ${domains.map(d => `
+                    <div class="llm-chart-tooltip__row">
+                        ${this.getDomainFaviconImg(d.domain, 16)}
+                        <span class="llm-chart-tooltip__label">${this.escapeHtml(d.domain)}</span>
+                        <span class="llm-chart-tooltip__value">${Number(d.mentions) || 0} mention${d.mentions === 1 ? '' : 's'}</span>
+                    </div>
+                `).join('')}
+            `;
+
+            // Medir ya visible (fuera de pantalla) y colocar sobre la pila,
+            // sin salirse del viewport; si arriba no cabe, debajo.
+            el.style.left = '-9999px';
+            el.style.top = '0px';
+            el.classList.add('active');
+            const r = stack.getBoundingClientRect();
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            let left = r.left + window.scrollX + (r.width / 2) - (w / 2);
+            left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - w - 8));
+            let top = r.top + window.scrollY - h - 10;
+            if (top < window.scrollY + 8) top = r.bottom + window.scrollY + 10;
+            el.style.left = `${left}px`;
+            el.style.top = `${top}px`;
+        });
     },
 
 formatDate(dateStr) {
@@ -1833,19 +1947,13 @@ renderTopDomainsRankingLLM(domains) {
                 domainBadge = '<span class="domain-badge competitor">Competitor</span>';
             }
 
-            // Get logo URL - Logo.dev replaces deprecated Clearbit API (shutdown Dec 2025)
-            const logoUrl = `https://img.logo.dev/${domain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`;
-            const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-
             const row = document.createElement('tr');
             row.className = rowClass;
             row.innerHTML = `
                 <td class="rank-cell">${domainData.rank}</td>
                 <td class="url-cell">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <img src="${logoUrl}" alt="${this.escapeHtml(domain)}" 
-                             style="width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0;"
-                             onerror="this.onerror=null; this.src='${fallbackUrl}'">
+                        ${this.getDomainFaviconImg(domain, 24)}
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                 <a href="https://${this.escapeHtml(domain)}" target="_blank" rel="noopener noreferrer" 

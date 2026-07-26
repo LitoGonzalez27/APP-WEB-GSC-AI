@@ -77,45 +77,42 @@ renderQueriesTable(queries) {
 
         // ✨ NUEVO: Guardar queries data para acceso en acordeón
         this.queriesData = queries;
-        this.expandedRows = new Set(); // Track expanded rows
 
         // Formatear datos para la tabla
         const rows = queries.map((q, idx) => {
-            const visibilityPct = q.visibility_pct != null ? Number(q.visibility_pct) || 0 : 0;
-
-            // ✨ NUEVO: Botón que abre modal con análisis detallado
+            // ✨ Botón que abre modal con análisis detallado — pill plano (brandbook: sin degradados)
             const viewDetailsBtn = gridjs.html(`
-                <button 
-                    class="view-details-btn" 
+                <button
+                    class="view-details-btn"
                     data-row-idx="${idx}"
                     title="View detailed analysis"
                     style="
-                        background: linear-gradient(135deg, #D8F9B8 0%, #a8e063 100%);
+                        background: #d9f9b8;
                         border: none;
-                        border-radius: 6px;
+                        border-radius: 9999px;
                         cursor: pointer;
-                        padding: 0.35rem 0.7rem;
-                        color: #1a1a1a;
+                        padding: 0.35rem 0.9rem;
+                        color: #0F172A;
                         font-size: 0.75rem;
                         font-weight: 600;
-                        transition: all 0.2s;
-                        box-shadow: 0 2px 4px rgba(216, 249, 184, 0.2);
+                        transition: transform 0.2s ease, box-shadow 0.2s ease;
                         white-space: nowrap;
                     "
-                    onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(216, 249, 184, 0.3)'"
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(216, 249, 184, 0.2)'"
+                    onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 10px rgba(15, 23, 42, 0.15)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
                 >Details</button>
             `);
 
             return [
                 viewDetailsBtn,  // ✨ NUEVO: Botón para ver detalles
                 q.prompt,
-                q.country,
-                q.language ? q.language.toUpperCase() : 'N/A',
+                q.share_of_voice != null ? Number(q.share_of_voice) : null,
+                q.avg_position != null ? Number(q.avg_position) : null,
                 // Number() defensivo: la API puede devolver el SUM como string
                 Number(q.total_mentions) || 0,
-                // Dato crudo numérico (la barra se pinta en el formatter) para que ordene bien
-                visibilityPct
+                q.top_domains || [],
+                q.topic_cluster || null,
+                q.sentiment || null
             ];
         });
 
@@ -130,32 +127,93 @@ renderQueriesTable(queries) {
             }
         };
 
+        const clusterSort = {
+            compare: (a, b) => (a || '').localeCompare(b || '')
+        };
+
+        const sentimentSort = {
+            compare: (a, b) => {
+                const x = (a && typeof a.score === 'number') ? a.score : -1;
+                const y = (b && typeof b.score === 'number') ? b.score : -1;
+                return x > y ? 1 : (x < y ? -1 : 0);
+            }
+        };
+
+
         // Create grid
+        // Orden: Details | Prompt | SOV | Avg. Position | Mentions | Top Domains | Cluster | Sentiment
+        // Anchos compactos: la suma de columnas fijas debe caber en el card sin provocar
+        // scroll horizontal a nivel de página (el prompt absorbe el espacio restante).
         this.queriesGrid = new gridjs.Grid({
             columns: [
-                { id: 'expand', name: '', width: '90px', sort: false },  // ✨ Columna para botón Details
-                { id: 'prompt', name: 'Prompt', width: '45%' },
-                { id: 'country', name: 'Country', width: '80px' },
-                { id: 'language', name: 'Language', width: '80px' },
-                { id: 'mentions', name: `Total Mentions (${this.globalTimeRange}d)`, width: '130px', sort: numericSort },
+                // 110px: el pill "Details" mide ~66px y la celda lleva 20px de
+                // padding izquierdo; con 80px el botón invadía la celda del prompt.
+                { id: 'expand', name: '', width: '110px', sort: false },
+                { id: 'prompt', name: 'Prompt' },
                 {
-                    id: 'visibility',
-                    name: `Avg Visibility % (${this.globalTimeRange}d)`,
-                    width: '150px',
+                    id: 'sov',
+                    name: 'SOV %',
+                    width: '85px',
                     sort: numericSort,
-                    // Visibility con barra de progreso (el dato de la celda es el % numérico)
-                    formatter: (cell) => {
-                        const pct = Number(cell) || 0;
+                    formatter: (sov) => (sov === null || sov === undefined)
+                        ? gridjs.html('<span class="lm-cell-muted">-</span>')
+                        : gridjs.html(`<span class="lm-cell-strong">${Number(sov).toFixed(1)}%</span>`)
+                },
+                {
+                    id: 'avgPosition',
+                    name: 'Avg. Pos.',
+                    width: '90px',
+                    sort: numericSort,
+                    formatter: (pos) => (pos === null || pos === undefined)
+                        ? gridjs.html('<span class="lm-cell-muted">-</span>')
+                        : gridjs.html(`<span class="lm-cell-strong">#${Number(pos).toFixed(1)}</span>`)
+                },
+                // Sin sufijo de período: el rango lo gobierna el toggle global de días
+                { id: 'mentions', name: 'Mentions', width: '105px', sort: numericSort },
+                {
+                    id: 'topDomains',
+                    name: 'Top Domains',
+                    width: '100px',
+                    sort: false,
+                    formatter: (domains) => {
+                        if (!domains || domains.length === 0) {
+                            return gridjs.html('<span class="lm-cell-muted">—</span>');
+                        }
+                        // Un solo tooltip para la pila (data-domains), no uno por
+                        // favicon: lo pinta bindDomainStackTooltips con el mismo
+                        // estilo oscuro que el resto de tooltips del panel.
+                        const top = domains.slice(0, 3);
+                        const icons = top.map(d => this.getDomainFaviconImg(d.domain, 20)).join('');
+                        const payload = this.escapeAttr(JSON.stringify(top));
+                        return gridjs.html(`<span class="lm-domain-stack" data-domains="${payload}">${icons}</span>`);
+                    }
+                },
+                {
+                    id: 'cluster',
+                    name: 'Cluster',
+                    width: '110px',
+                    sort: clusterSort,
+                    formatter: (cluster) => cluster
+                        ? gridjs.html(`<span class="lm-cluster-badge">${this.escapeHtml(cluster)}</span>`)
+                        : gridjs.html('<span class="lm-cell-muted">—</span>')
+                },
+                {
+                    id: 'sentiment',
+                    name: 'Sentiment',
+                    width: '105px',
+                    sort: sentimentSort,
+                    formatter: (sentiment) => {
+                        const label = sentiment && sentiment.label;
+                        if (!label) return gridjs.html('<span class="lm-cell-muted">-</span>');
+                        const meta = CSChartTheme.sentimentMeta(label);
                         return gridjs.html(`
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
-                                    <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${pct}%, transparent ${pct}%); width: 100%; border-radius: 9999px;"></div>
-                                </div>
-                                <span style="font-weight: 600; min-width: 45px;">${pct.toFixed(1)}%</span>
-                            </div>
+                            <span class="lm-sentiment-cell">
+                                <span class="lm-sentiment-dot" style="background:${meta.color};"></span>
+                                ${meta.label}
+                            </span>
                         `);
                     }
-                }
+                },
             ],
             data: rows,
             sort: true,
@@ -166,20 +224,10 @@ renderQueriesTable(queries) {
                 limit: 10,
                 summary: true
             },
-            style: {
-                table: {
-                    'font-size': '14px'
-                },
-                th: {
-                    'background-color': '#161616',
-                    'color': '#D8F9B8',
-                    'font-weight': '700',
-                    'padding': '1rem'
-                },
-                td: {
-                    'padding': '0.875rem'
-                }
-            },
+            // Sin `style`: Grid.js lo aplicaría como estilo en línea en cada celda
+            // y ganaría a cualquier hoja, dejando el espaciado y los colores fuera
+            // del sistema de diseño. El aspecto de la tabla vive en
+            // brand-dashboard-overrides.css (.gridjs-th / .gridjs-td).
             className: {
                 table: 'llm-queries-table'
             }
@@ -187,6 +235,9 @@ renderQueriesTable(queries) {
 
         // Use delegated click handling so "Details" keeps working after pagination/sort/search re-renders.
         this.bindDetailButtonsDelegation(container);
+
+        // Tooltip agrupado de la columna Top Domains (delegado en document, con guard interno).
+        this.bindDomainStackTooltips();
     },
 
 buildQuickSuggestions(languageCode, brandName, industry, competitorName, mode = 'default') {
@@ -394,16 +445,6 @@ _renderLocalFallbackSuggestions() {
         );
     },
 
-generateLocalSuggestions(existingPrompts) {
-        const brandName = this.currentProject?.brand_name || 'the brand';
-        const industry = this.currentProject?.industry || 'your industry';
-        const languageCode = this.getProjectLanguageCode();
-        const competitorName = this.getPrimaryCompetitorName(languageCode);
-
-        this.renderQuickSuggestions(
-            this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'variation')
-        );
-    },
 
 renderQuickSuggestions(suggestions) {
         const listEl = document.getElementById('quickSuggestionsList');

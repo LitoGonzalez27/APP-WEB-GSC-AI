@@ -20,6 +20,7 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
     
     <!-- Reutilizar estilos existentes para consistencia -->
+    {% include 'partials/panel_brand_fonts.html' %}
     <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='tablas.css') }}" rel="stylesheet">
@@ -38,13 +39,10 @@
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
     
     <!-- CSS para sidebar navigation -->
-    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}?v={{ ASSET_V }}" rel="stylesheet">
     
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Chart.js para gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Grid.js para tablas -->
     <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
@@ -52,6 +50,8 @@
     
     <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
     <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
+
+    {% include 'partials/panel_brand_assets.html' %}
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
     <!-- Google Tag Manager (noscript) -->

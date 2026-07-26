@@ -49,8 +49,13 @@
   /* =============================================================
      COLORS — Utility
      ============================================================= */
-  --color-success: #22C55E;
-  --color-error:   #EF4444;
+  /* Valores normativos de Brandbook.md. Los tonos base son para marcas, puntos
+     e iconos; para texto usar los pasos -text, que sí alcanzan 4.5:1 sobre
+     blanco (los base se quedan en 2.67:1 y 3.82:1). */
+  --color-success:      #3CB371;
+  --color-success-text: #287A4C;
+  --color-error:        #E05252;
+  --color-error-text:   #D13B3B;
 
   /* =============================================================
      TYPOGRAPHY — Font Families

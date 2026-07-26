@@ -182,42 +182,41 @@ showCompareModal() {
         modal.innerHTML = `
             <div class="compare-modal">
                 <div class="compare-modal-header">
-                    <h3><i class="fas fa-columns"></i> Compare LLM Responses</h3>
-                    <button class="compare-modal-close" onclick="document.getElementById('compareModal').remove()">
-                        <i class="fas fa-times"></i>
+                    <h3>Compare LLM Responses</h3>
+                    <button class="compare-modal-close" onclick="document.getElementById('compareModal').remove()" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                
+
                 <div class="compare-modal-controls">
-                    <label>
-                        <i class="fas fa-search"></i>
-                        Select Prompt:
-                    </label>
+                    <label for="comparePromptSelect">Prompt</label>
                     <select id="comparePromptSelect" onchange="window.llmMonitoring.updateCompareView()">
                         ${prompts.map((p, i) => `
                             <option value="${i}">${p.length > 80 ? p.substring(0, 80) + '...' : p}</option>
                         `).join('')}
                     </select>
-                    
-                    <!-- ✨ Leyenda visual -->
+
+                    <!-- Leyenda. En inglés, como el resto del panel: aquí convivían
+                         etiquetas en español ("Marca mencionada", "Tu marca") con una
+                         interfaz por lo demás en inglés. -->
                     <div class="compare-legend">
                         <div class="compare-legend-item">
                             <span class="legend-badge brand-badge">✓</span>
-                            <span class="legend-text">Marca mencionada</span>
+                            <span class="legend-text">Brand mentioned</span>
                         </div>
                         <div class="compare-legend-item">
                             <span class="legend-badge position-badge">#N</span>
-                            <span class="legend-text">Posición en lista</span>
+                            <span class="legend-text">Position in list</span>
                         </div>
                         <div class="compare-legend-separator"></div>
                         <div class="compare-legend-item">
                             <mark class="brand-mention">${this.escapeHtml(brandName)}</mark>
-                            <span class="legend-text">Tu marca</span>
+                            <span class="legend-text">Your brand</span>
                         </div>
                         ${competitorNames.length > 0 ? `
                             <div class="compare-legend-item">
                                 <mark class="competitor-mention">${this.escapeHtml(competitorNames[0])}</mark>
-                                <span class="legend-text">Competidor</span>
+                                <span class="legend-text">Competitor</span>
                             </div>
                         ` : ''}
                     </div>

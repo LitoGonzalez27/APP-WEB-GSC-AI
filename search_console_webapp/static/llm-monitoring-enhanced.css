@@ -1,51 +1,43 @@
 /**
- * LLM Monitoring Enhanced Styles - Colores Corporativos ClicAndSEO
- * 
- * Paleta Corporativa:
- * - Primary (Dark): #161616
- * - Accent (Green): #D8F9B8
- * - Gradients y sombras sutiles
+ * LLM Monitoring Enhanced Styles — alineado al brandbook de Clicandseo
+ *
+ * Los --llm-* son ahora alias de los tokens --cs-* de brand-dashboard-tokens.css.
+ * Se mantienen los nombres porque hay ~120 usos de var(--llm-*) repartidos por
+ * esta hoja: repuntarlos aquí re-tematiza todos de golpe sin tocar selectores.
+ * Para estilos nuevos, usar --cs-* directamente.
+ *
+ * Los grises pasan de la escala gray de Tailwind a los slates del brandbook,
+ * que es la familia neutra de la marca (antes convivían cuatro casi-negros
+ * distintos: #161616, #111827, #0f172a y #0a0a0b).
  */
 
 /* ============================================================================
- * VARIABLES CSS - Colores Corporativos ClicAndSEO
+ * VARIABLES CSS — alias hacia los tokens de marca
  * ============================================================================ */
 
 :root {
-    --llm-primary-dark: #161616;
-    --llm-primary-light: #2d2d2d;
-    --llm-accent-green: #D8F9B8;
+    --llm-primary-dark: var(--cs-text-primary);
+    --llm-primary-light: var(--cs-surface-dark);
+    --llm-accent-green: var(--cs-accent);
     --llm-accent-green-dark: #c4e8a0;
-    --llm-gray-50: #f9fafb;
-    --llm-gray-100: #f3f4f6;
-    --llm-gray-200: #e5e7eb;
-    --llm-gray-300: #d1d5db;
-    --llm-gray-400: #9ca3af;
-    --llm-gray-500: #6b7280;
-    --llm-gray-600: #4b5563;
-    --llm-gray-700: #374151;
-    --llm-gray-800: #1f2937;
-    --llm-gray-900: #111827;
-    
-    --llm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --llm-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --llm-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --llm-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --llm-gray-50: var(--cs-bg-subtle);
+    --llm-gray-100: var(--cs-bg-subtle);
+    --llm-gray-200: var(--cs-border);
+    --llm-gray-300: var(--cs-border);
+    --llm-gray-400: var(--cs-text-tertiary);
+    --llm-gray-500: var(--cs-text-secondary);
+    --llm-gray-600: var(--cs-text-secondary);
+    --llm-gray-700: var(--cs-surface-dark);
+    --llm-gray-800: var(--cs-surface-dark);
+    --llm-gray-900: var(--cs-text-primary);
+
+    --llm-shadow-sm: var(--cs-shadow-sm);
+    --llm-shadow: var(--cs-shadow-md);
+    --llm-shadow-lg: var(--cs-shadow-lg);
 }
 
-/* ============================================================================
- * PAGE HEADER - Mejorado con gradiente
- * ============================================================================ */
-
-.page-header {
-    background: linear-gradient(135deg, rgba(216, 249, 184, 0.15) 0%, rgba(216, 249, 184, 0) 100%);
-    border: 1px solid rgba(216, 249, 184, 0.3);
-    border-radius: 12px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-}
-
-.header-content h1 i {
+.header-content h1 i,
+.header-content h1 svg.lucide {
     background: var(--llm-primary-dark);
     color: var(--llm-accent-green);
     width: 48px;
@@ -61,52 +53,21 @@
  * BOTONES - Estilo Corporativo
  * ============================================================================ */
 
+/* Dimensiones de los botones. Colores, tipografía y hover viven en
+   brand-dashboard-overrides.css (que también debe ganar a manual-ai y paywall,
+   por eso no se consolidan aquí): estas reglas solo aportan lo que el override
+   no declara. */
 .btn-primary {
-    background: var(--llm-primary-dark);
-    color: var(--llm-accent-green);
-    border: none;
     padding: 0.625rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 600;
     font-size: 0.875rem;
-    transition: all 0.2s ease;
     box-shadow: var(--llm-shadow);
     cursor: pointer;
-}
-
-/* :not(:disabled) iguala la especificidad del hover azul legacy de
-   llm-monitoring.css (.btn-primary:hover:not(:disabled)), que si no gana
-   y rompe el brandbook (fondo azul #2563eb). */
-.btn-primary:hover:not(:disabled) {
-    background: var(--llm-accent-green);
-    color: var(--llm-primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--llm-shadow-lg);
-}
-
-.btn-primary:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-    transform: none;
 }
 
 .btn-secondary {
-    background: white;
-    color: var(--llm-primary-dark);
-    border: 2px solid var(--llm-primary-dark);
     padding: 0.625rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 600;
     font-size: 0.875rem;
-    transition: all 0.2s ease;
     cursor: pointer;
-}
-
-.btn-secondary:hover {
-    background: var(--llm-primary-dark);
-    color: var(--llm-accent-green);
-    transform: translateY(-2px);
-    box-shadow: var(--llm-shadow);
 }
 
 /* ============================================================================
@@ -121,7 +82,7 @@
 }
 
 .kpi-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+    background: #ffffff;
     border: 2px solid var(--llm-gray-200);
     border-radius: 16px;
     padding: 1.75rem;
@@ -140,7 +101,7 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, var(--llm-accent-green) 0%, var(--llm-primary-dark) 100%);
+    background: var(--llm-accent-green);
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.3s ease;
@@ -150,7 +111,7 @@
     width: 64px;
     height: 64px;
     border-radius: 14px;
-    background: linear-gradient(135deg, var(--llm-primary-dark) 0%, var(--llm-primary-light) 100%);
+    background: var(--llm-primary-dark);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -158,7 +119,8 @@
     box-shadow: 0 8px 16px rgba(22, 22, 22, 0.2);
 }
 
-.kpi-icon i {
+.kpi-icon i,
+.kpi-icon svg.lucide {
     font-size: 1.75rem;
     color: var(--llm-accent-green);
 }
@@ -182,10 +144,9 @@
     font-weight: 700;
     color: var(--llm-gray-900);
     line-height: 1;
-    background: linear-gradient(135deg, var(--llm-primary-dark) 0%, var(--llm-gray-700) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    /* Antes era un degradado recortado sobre el texto. Al pasar a color plano
+       el recorte sobra, y mantenerlo es arriesgado: si background-clip falla,
+       text-fill-color:transparent deja la cifra invisible. */
 }
 
 /* Sentiment colors - Always black */
@@ -217,13 +178,17 @@
 }
 
 .chart-card-full-width {
-    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    background: #ffffff;
     border: 2px solid var(--llm-gray-200);
     border-radius: 20px;
     padding: 2.5rem;
     box-shadow: var(--llm-shadow-lg);
     position: relative;
     overflow: hidden;
+    /* fusionado desde la copia duplicada eliminada */
+    width: 100%;
+    /* fusionado desde la copia duplicada eliminada */
+    margin-bottom: 2rem;
 }
 
 .chart-header {
@@ -245,11 +210,12 @@
     margin: 0;
 }
 
-.chart-header h3 i {
+.chart-header h3 i,
+.chart-header h3 svg.lucide {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: linear-gradient(135deg, var(--llm-primary-dark) 0%, var(--llm-primary-light) 100%);
+    background: var(--llm-primary-dark);
     color: var(--llm-accent-green);
     display: flex;
     align-items: center;
@@ -260,12 +226,27 @@
 
 .chart-card-full-width .chart-header h3 {
     font-size: 1.5rem;
+    /* fusionado desde la copia duplicada eliminada */
+    display: flex;
+    /* fusionado desde la copia duplicada eliminada */
+    align-items: center;
+    /* fusionado desde la copia duplicada eliminada */
+    gap: 0.75rem;
+    /* fusionado desde la copia duplicada eliminada */
+    font-weight: 700;
+    /* fusionado desde la copia duplicada eliminada */
+    color: #111827;
+    /* fusionado desde la copia duplicada eliminada */
+    margin: 0;
 }
 
-.chart-card-full-width .chart-header h3 i {
+.chart-card-full-width .chart-header h3 i,
+.chart-card-full-width .chart-header h3 svg.lucide {
     width: 48px;
     height: 48px;
     font-size: 1.375rem;
+    /* fusionado desde la copia duplicada eliminada */
+    color: #3b82f6;
 }
 
 .chart-subtitle {
@@ -276,6 +257,8 @@
     display: inline-block;
     padding: 2px 6px;
     border-radius: 4px;
+    /* fusionado desde la copia duplicada eliminada */
+    margin: 0;
 }
 
 /* ============================================================================
@@ -342,6 +325,8 @@
 .chart-html-legend .legend-item:hover {
     background: rgba(216, 249, 184, 0.2);
     transform: translateY(-1px);
+    /* fusionado desde la copia duplicada eliminada */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .chart-html-legend .legend-item .legend-color {
@@ -385,44 +370,17 @@
     transition: all 0.2s ease;
 }
 
-.btn-ghost {
-    background: transparent;
-    border: 1px solid var(--llm-gray-300);
-    color: var(--llm-gray-700);
-}
 
-.btn-ghost:hover {
-    background: var(--llm-primary-dark);
-    color: var(--llm-accent-green);
-    border-color: var(--llm-primary-dark);
-    transform: translateY(-1px);
-}
-
-/* GridJS table styling */
+/* GridJS table styling
+   Este bloque estaba enteramente en !important, así que ganaba a cualquier
+   ajuste posterior y era la razón de que el espaciado de celdas y el color de
+   fila no respondieran al sistema de diseño. Sin !important: el aspecto de la
+   tabla se define en brand-dashboard-overrides.css (.gridjs-th / .gridjs-td),
+   que se carga después y por tanto manda.
+   El fondo lima translúcido de las filas se retira: tiñe todos los datos y el
+   brandbook reserva el Bio-Lime a acentos, no a superficies. */
 .gridjs-wrapper {
-    border-radius: 12px;
     overflow: hidden;
-    border: 1px solid var(--llm-gray-200);
-}
-
-/* .gridjs-head background removed */
-
-.gridjs-th {
-    background: transparent !important;
-    color: #161616 !important;
-    font-weight: 700 !important;
-    padding: 1rem !important;
-    border-bottom: 2px solid var(--llm-accent-green) !important;
-}
-
-.gridjs-tr {
-    color: #161616;
-    background: rgba(216, 249, 184, 0.1) !important;
-}
-
-.gridjs-td {
-    padding: 1rem !important;
-    border-bottom: 1px solid var(--llm-gray-100) !important;
 }
 
 /* ============================================================================
@@ -535,7 +493,7 @@
  * ============================================================================ */
 
 .competitor-section {
-    background: linear-gradient(135deg, rgba(216, 249, 184, 0.05) 0%, rgba(216, 249, 184, 0) 100%);
+    background: rgba(216, 249, 184, 0.05);
     border: 1px solid rgba(216, 249, 184, 0.3);
     border-radius: 8px;
     padding: 1.25rem;
@@ -558,7 +516,8 @@
     gap: 0.5rem;
 }
 
-.competitor-title i {
+.competitor-title i,
+.competitor-title svg.lucide {
     color: var(--llm-accent-green-dark);
     font-size: 1rem;
 }
@@ -574,7 +533,7 @@
 }
 
 .branded-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+    background: #ffffff;
     border: 2px solid var(--llm-gray-200);
     border-radius: 16px;
     padding: 1.5rem;
@@ -609,12 +568,6 @@
 
 .branded-badge--organic { background: #d1fae5; color: #065f46; }
 .branded-badge--branded { background: #fef3c7; color: #92400e; }
-
-.branded-card__tooltip {
-    cursor: help;
-    color: var(--llm-gray-400);
-    font-size: 0.85rem;
-}
 
 .branded-card__metrics {
     display: flex;
@@ -748,15 +701,6 @@
 .llm-chart-tooltip__value { font-weight: 700; font-size: 13px; color: #F8FAFC; }
 .llm-chart-tooltip__prev { font-size: 11px; color: #94A3B8; margin-left: 4px; }
 
-.llm-chart-tooltip__delta {
-    font-size: 11px;
-    font-weight: 600;
-    margin-left: 6px;
-}
-.llm-chart-tooltip__delta--up { color: #3CB371; }
-.llm-chart-tooltip__delta--down { color: #E05252; }
-.llm-chart-tooltip__delta--stable { color: #94A3B8; }
-
 /* ============================================================
    ✨ URL Content Analysis (Brand Presence en Top Mentioned URLs)
    ============================================================ */
@@ -866,9 +810,12 @@
 }
 
 .url-content-summary .summary-chip strong { font-weight: 700; }
-.url-content-summary .summary-chip.mentioned i { color: #3CB371; }
-.url-content-summary .summary-chip.quick-win i { color: #D97706; }
-.url-content-summary .summary-chip.error-chip i { color: #E05252; }
+.url-content-summary .summary-chip.mentioned i,
+.url-content-summary .summary-chip.mentioned svg.lucide { color: #3CB371; }
+.url-content-summary .summary-chip.quick-win i,
+.url-content-summary .summary-chip.quick-win svg.lucide { color: #D97706; }
+.url-content-summary .summary-chip.error-chip i,
+.url-content-summary .summary-chip.error-chip svg.lucide { color: #E05252; }
 .url-content-summary .summary-chip.running {
     background: var(--llm-primary-dark);
     color: var(--llm-accent-green);
@@ -994,7 +941,8 @@
     color: var(--llm-gray-500);
 }
 
-.responses-filter label i {
+.responses-filter label i,
+.responses-filter label svg.lucide {
     margin-right: 6px;
     color: var(--llm-gray-400);
 }
@@ -1033,6 +981,12 @@
     border-radius: 14px;
     padding: 14px 18px;
     gap: 12px;
+    /* fusionado desde la copia duplicada eliminada */
+    display: flex;
+    /* fusionado desde la copia duplicada eliminada */
+    margin-bottom: 1.5rem;
+    /* fusionado desde la copia duplicada eliminada */
+    flex-wrap: wrap;
 }
 
 .responses-quick-stats .quick-stat-item {
@@ -1047,7 +1001,8 @@
     box-shadow: none;
 }
 
-.responses-quick-stats .quick-stat-item i {
+.responses-quick-stats .quick-stat-item i,
+.responses-quick-stats .quick-stat-item svg.lucide {
     color: var(--llm-accent-green);
 }
 
@@ -1066,6 +1021,8 @@
     border-radius: 14px;
     padding: 1.5rem;
     transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    /* fusionado desde la copia duplicada eliminada */
+    margin-bottom: 1.5rem;
 }
 
 .response-item:hover {
@@ -1076,6 +1033,16 @@
 
 .response-header {
     border-bottom: 1px solid var(--llm-gray-100);
+    /* fusionado desde la copia duplicada eliminada */
+    display: flex;
+    /* fusionado desde la copia duplicada eliminada */
+    justify-content: space-between;
+    /* fusionado desde la copia duplicada eliminada */
+    align-items: flex-start;
+    /* fusionado desde la copia duplicada eliminada */
+    margin-bottom: 1rem;
+    /* fusionado desde la copia duplicada eliminada */
+    padding-bottom: 1rem;
 }
 
 /* Badges de estado alineados con los colores del rosco de sentimiento */
@@ -1104,13 +1071,28 @@
     background: var(--llm-gray-50);
     border-radius: 10px;
     padding: 14px 16px;
+    /* fusionado desde la copia duplicada eliminada */
+    margin-top: 1rem;
 }
 
 .mention-contexts h5 {
     color: var(--llm-gray-600);
+    /* fusionado desde la copia duplicada eliminada */
+    font-size: 0.875rem;
+    /* fusionado desde la copia duplicada eliminada */
+    font-weight: 600;
+    /* fusionado desde la copia duplicada eliminada */
+    margin: 0 0 0.75rem 0;
+    /* fusionado desde la copia duplicada eliminada */
+    display: flex;
+    /* fusionado desde la copia duplicada eliminada */
+    align-items: center;
+    /* fusionado desde la copia duplicada eliminada */
+    gap: 0.375rem;
 }
 
-.mention-contexts h5 i {
+.mention-contexts h5 i,
+.mention-contexts h5 svg.lucide {
     color: var(--llm-accent-green-dark);
 }
 
@@ -1122,6 +1104,10 @@
     padding: 10px 14px;
     font-size: 0.85rem;
     color: var(--llm-gray-700);
+    /* fusionado desde la copia duplicada eliminada */
+    margin-bottom: 0.5rem;
+    /* fusionado desde la copia duplicada eliminada */
+    font-style: italic;
 }
 
 /* --- Botón "Show Full Response" ---

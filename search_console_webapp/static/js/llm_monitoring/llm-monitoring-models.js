@@ -88,12 +88,8 @@ async showModelsModal() {
                     'perplexity': 'Perplexity'
                 };
 
-                const providerColors = {
-                    'openai': '#10b981',
-                    'anthropic': '#f97316',
-                    'google': '#3b82f6',
-                    'perplexity': '#8b5cf6'
-                };
+                // El color de cada LLM sale de getLLMColor (tema único de
+                // gráficas): era la quinta copia divergente de esta paleta.
 
                 // Render model cards
                 let html = '<div class="models-grid">';
@@ -121,15 +117,20 @@ async showModelsModal() {
                     let cutoffHtml = '';
                     for (const [provider, model] of Object.entries(data.models)) {
                         const label = providerLabels[provider] || provider;
-                        const color = providerColors[provider] || '#6b7280';
+                        const color = this.getLLMColor(provider);
                         const cutoff = model.knowledge_cutoff || 'Unknown';
                         const isWebGrounded = cutoff.toLowerCase().includes('web-grounded');
 
+                        // Punto de color + texto, sin cápsula: el brandbook las
+                        // reserva a botones y nav links (Brandbook.md:254), y el
+                        // texto blanco sobre el color de serie no llegaba a
+                        // contraste legible.
                         cutoffHtml += `
-                            <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                                <span style="background: ${color}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap;">${label}</span>
-                                <span style="color: ${isWebGrounded ? '#059669' : '#374151'}; ${isWebGrounded ? 'font-weight: 600;' : ''}">
-                                    ${model.display_name}: ${isWebGrounded ? '🔍 ' : ''}${cutoff}
+                            <div class="models-cutoff-item">
+                                <span class="models-cutoff-dot" style="background: ${color};"></span>
+                                <span class="models-cutoff-llm">${label}</span>
+                                <span class="models-cutoff-value${isWebGrounded ? ' is-live' : ''}">
+                                    ${model.display_name}: ${cutoff}
                                 </span>
                             </div>
                         `;

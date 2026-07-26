@@ -234,25 +234,6 @@ renderPrompts(renderInModal = false) {
         }
     },
 
-togglePromptsSection() {
-        const content = document.getElementById('promptsContent');
-        const icon = document.getElementById('promptsToggleIcon');
-        const card = document.getElementById('promptsCard');
-
-        if (!content || !icon || !card) return;
-
-        this.promptsSectionCollapsed = !this.promptsSectionCollapsed;
-
-        if (this.promptsSectionCollapsed) {
-            content.style.display = 'none';
-            icon.className = 'fas fa-chevron-right';
-            card.classList.add('collapsed');
-        } else {
-            content.style.display = 'block';
-            icon.className = 'fas fa-chevron-down';
-            card.classList.remove('collapsed');
-        }
-    },
 
 showPromptsModal() {
         console.log('🎬 Showing prompts modal...');
@@ -665,12 +646,6 @@ async deletePrompt(queryId) {
         }
     },
 
-scrollToPrompts() {
-        const promptsCard = document.getElementById('promptsCard');
-        if (promptsCard) {
-            promptsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    },
 
 switchPromptsTab(tab, opts = {}) {
         const valid = (tab === 'clusters') ? 'clusters' : 'prompts';

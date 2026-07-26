@@ -36,6 +36,10 @@ import threading
 import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
+
+import brand_palette
+
+_VALID_HOST_RE = re.compile(r'[a-z0-9.-]+')
 from flask import Blueprint, request, jsonify
 from functools import wraps
 
@@ -381,6 +385,280 @@ def _calculate_trend(current, previous, has_previous_data):
         'change': round(abs(change), 1),
         'previous': round(previous, 1)
     }
+
+
+def _weight_for_position(pos):
+    """
+    Pondera una mención según su posición en la lista de respuesta del LLM.
+    Las primeras posiciones pesan más en el cálculo de Share of Voice.
+    Reutilizable desde /clusters/metrics y /queries (SOV por cluster y por prompt).
+    """
+    if pos is None:
+        return 1.0
+    if pos <= 3:
+        return 2.0
+    if pos <= 5:
+        return 1.5
+    if pos <= 10:
+        return 1.2
+    return 0.8
+
+
+def _extract_source_host(raw_url):
+    """
+    Host normalizado de una URL citada por un LLM: sin esquema, sin www, sin
+    puerto y en minúsculas. Devuelve '' si no se puede extraer.
+
+    No basta con urlparse(url).netloc: las sources llegan de la respuesta de un
+    LLM y muchas vienen sin protocolo ("example.com/guia"), en cuyo caso netloc
+    es vacío y el dominio se perdería en silencio.
+
+    Además filtra el host a los caracteres que un hostname admite. Es la
+    frontera de confianza: este valor acaba interpolado en HTML y en URLs del
+    cliente, y urlparse NO sanea (acepta comillas en el host sin rechistar).
+    """
+    raw_value = str(raw_url or '').strip()
+    if not raw_value:
+        return ''
+    if not raw_value.startswith(('http://', 'https://')):
+        raw_value = f"https://{raw_value}"
+    try:
+        parsed = urlparse(raw_value)
+    except Exception:
+        return ''
+    host = (parsed.netloc or parsed.path or '').split('/')[0].split(':')[0].strip().lower()
+    if host.startswith('www.'):
+        host = host[4:]
+    # Un hostname legítimo solo lleva letras, dígitos, punto y guion.
+    if host and not _VALID_HOST_RE.fullmatch(host):
+        return ''
+    return host
+
+
+_PROMPT_METRICS_SQL = """
+    SELECT
+        r.query_id,
+        r.brand_mentioned,
+        r.position_in_list,
+        r.competitors_mentioned,
+        r.sentiment,
+        r.sentiment_score,
+        r.sources
+    FROM llm_monitoring_results r
+    WHERE r.project_id = %s
+        AND r.query_id = ANY(%s)
+        AND r.analysis_date >= %s
+        AND r.analysis_date <= %s
+        {llm_filter}
+"""
+
+
+def collect_prompt_metrics(cur, project_id, query_ids, start_date, end_date, enabled_llms=None):
+    """
+    Share of Voice, sentimiento y top-3 de dominios POR PROMPT en el período.
+
+    Fuente única para la tabla de prompts del panel y para la hoja equivalente
+    del Excel: si cada uno lo calculase por su cuenta, el informe descargado
+    acabaría diciendo cifras distintas de las que el usuario tiene en pantalla.
+
+    A diferencia de `mentions_by_query` (solo el resultado más reciente por LLM),
+    aquí entran TODOS los resultados del período, para que los agregados
+    reflejen la ventana completa que muestra el panel.
+
+    El SoV es siempre el PONDERADO por posición: es el que la tabla del panel
+    enseña en su columna "SOV %".
+
+    Devuelve {query_id: {'share_of_voice', 'sentiment': {...}, 'top_domains': [...]}}
+    para los prompts con datos; los que no tienen resultados no aparecen (usar
+    `empty_prompt_metrics()` para ellos).
+    """
+    if not query_ids:
+        return {}
+
+    sql = _PROMPT_METRICS_SQL.format(
+        llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms else ""
+    )
+    # project_id primero por el índice: el UNIQUE de la tabla es
+    # (project_id, query_id, llm_provider, analysis_date), así que sin este
+    # filtro la consulta no puede usarlo y degenera en un scan completo.
+    params = [project_id, list(query_ids), start_date, end_date]
+    if enabled_llms:
+        params.append(enabled_llms)
+    cur.execute(sql, params)
+
+    buckets = {}
+    for row in cur.fetchall():
+        bucket = buckets.setdefault(row['query_id'], {
+            'weighted_brand': 0.0,
+            'weighted_competitors': 0.0,
+            'positive': 0,
+            'neutral': 0,
+            'negative': 0,
+            'sentiment_scores': [],
+            'domain_mentions': {}
+        })
+        weight = _weight_for_position(row['position_in_list'])
+
+        if row['brand_mentioned']:
+            bucket['weighted_brand'] += weight
+
+        competitors = _as_json(row['competitors_mentioned'], {})
+        if isinstance(competitors, dict):
+            for _comp, count in competitors.items():
+                try:
+                    count_int = int(count)
+                except (TypeError, ValueError):
+                    continue
+                if count_int > 0:
+                    bucket['weighted_competitors'] += weight
+
+        sentiment = row['sentiment']
+        if sentiment in ('positive', 'neutral', 'negative'):
+            bucket[sentiment] += 1
+        if row['sentiment_score'] is not None:
+            bucket['sentiment_scores'].append(float(row['sentiment_score']))
+
+        for source in _as_json(row['sources'], []) or []:
+            if not isinstance(source, dict):
+                continue
+            host = _extract_source_host(source.get('url'))
+            if not host:
+                continue
+            bucket['domain_mentions'][host] = bucket['domain_mentions'].get(host, 0) + 1
+
+    return {qid: _summarize_prompt_bucket(b) for qid, b in buckets.items()}
+
+
+def empty_prompt_metrics():
+    """Métricas de un prompt sin ningún resultado en el período."""
+    return {
+        'share_of_voice': None,
+        'sentiment': {'label': None, 'score': None,
+                      'counts': {'positive': 0, 'neutral': 0, 'negative': 0}},
+        'top_domains': []
+    }
+
+
+def _summarize_prompt_bucket(bucket):
+    weighted_total = bucket['weighted_brand'] + bucket['weighted_competitors']
+    sov = round((bucket['weighted_brand'] / weighted_total) * 100, 1) if weighted_total > 0 else None
+
+    counts = {k: bucket[k] for k in ('positive', 'neutral', 'negative')}
+    if sum(counts.values()) == 0:
+        label = None
+        score = None
+    else:
+        label = max(counts, key=counts.get)
+        scores = bucket['sentiment_scores']
+        score = round(sum(scores) / len(scores), 2) if scores else None
+
+    top_domains = sorted(bucket['domain_mentions'].items(),
+                         key=lambda item: item[1], reverse=True)[:3]
+
+    return {
+        'share_of_voice': sov,
+        'sentiment': {'label': label, 'score': score, 'counts': counts},
+        'top_domains': [{'domain': d, 'mentions': c} for d, c in top_domains]
+    }
+
+
+# Etiquetas de oportunidad del análisis de contenido. Copian literalmente los
+# badges del panel (llm-monitoring-url-content.js) para que el informe use el
+# mismo vocabulario que el usuario ve en pantalla.
+_OPPORTUNITY_LABELS = {
+    'mentioned': "You're mentioned",
+    'quick_win': 'Quick Win',
+    'competitor_page': 'Competitor site',
+    'no_mentions': 'No brands',
+    None: 'No brands',
+}
+
+
+MODEL_FALLBACKS = {
+    'openai': {'model_id': 'gpt-5.4', 'display_name': 'GPT-5.4'},
+    'anthropic': {'model_id': 'claude-sonnet-4-6', 'display_name': 'Claude Sonnet 4.6'},
+    'google': {'model_id': 'gemini-3-flash-preview', 'display_name': 'Gemini 3 Flash'},
+    'perplexity': {'model_id': 'sonar-pro', 'display_name': 'Perplexity Sonar Pro'}
+}
+
+
+def fetch_current_models(cur):
+    """
+    Modelos vigentes por proveedor, con recurso a los valores por defecto.
+
+    Fuente única para el modal "Models" del panel y para la portada del PDF: si
+    cada uno consultase por su cuenta acabarían enseñando modelos distintos.
+
+    Tolera que falten `knowledge_cutoff`/`knowledge_cutoff_date`: son columnas
+    que añade migrate_llm_model_discovery_v2.py y que en entornos sin migrar no
+    existen. El endpoint del panel ya sobrevivía a eso por su try/except global,
+    pero el PDF no, y la descarga entera fallaba con un 500.
+    """
+    models = {}
+    for columns in ("llm_provider, model_id, model_display_name, "
+                    "knowledge_cutoff, knowledge_cutoff_date",
+                    "llm_provider, model_id, model_display_name"):
+        try:
+            cur.execute(f"""
+                SELECT {columns}
+                FROM llm_model_registry
+                WHERE is_current = TRUE AND is_available = TRUE
+                ORDER BY llm_provider
+            """)
+            rows = cur.fetchall()
+            break
+        except Exception:
+            # La transacción queda abortada tras un error de SQL: hay que
+            # revertirla antes de poder lanzar la consulta de repuesto.
+            try:
+                cur.connection.rollback()
+            except Exception:
+                pass
+            rows = None
+    if rows is None:
+        logger.warning("No se pudo leer llm_model_registry; se usan los modelos por defecto.")
+        rows = []
+
+    for m in rows:
+        cutoff_date = m.get('knowledge_cutoff_date')
+        models[m['llm_provider']] = {
+            'model_id': m['model_id'],
+            'display_name': m['model_display_name'] or m['model_id'],
+            'knowledge_cutoff': m.get('knowledge_cutoff'),
+            'knowledge_cutoff_date': cutoff_date.isoformat() if cutoff_date else None,
+        }
+
+    for provider, fallback in MODEL_FALLBACKS.items():
+        models.setdefault(provider, dict(fallback))
+
+    return models, bool(rows)
+
+
+def _safe_content_overview(project_id, days):
+    """
+    Análisis de contenido del Top de URLs, o un vacío si no se puede leer.
+
+    Los exports no deben caerse porque este módulo falle: es una función
+    opcional del panel y el resto del informe sigue siendo válido sin ella.
+    """
+    try:
+        overview = url_content_analyzer.get_analysis_overview(project_id, days=days)
+        return overview if overview.get('success') else {}
+    except Exception as e:
+        logger.warning(f"No se pudo incluir el análisis de contenido en el export: {e}")
+        return {}
+
+
+def _as_json(value, default):
+    """Columna JSONB que psycopg puede entregar ya deserializada o como texto."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return default
+    return value
 
 
 def _get_effective_plan_limits(user: dict) -> dict:
@@ -2579,17 +2857,6 @@ def get_clusters_metrics(project_id):
             for name in defined_clusters
         }
 
-        def _weight_for_position(pos):
-            if pos is None:
-                return 1.0
-            if pos <= 3:
-                return 2.0
-            if pos <= 5:
-                return 1.5
-            if pos <= 10:
-                return 1.2
-            return 0.8
-
         for r in rows:
             cluster = r.get('cluster')
             if not cluster or cluster not in buckets:
@@ -3778,21 +4045,6 @@ def get_llm_comparison(project_id):
                 host = host[4:]
             return host
 
-        def _extract_source_host(raw_url):
-            raw_value = str(raw_url or '').strip()
-            if not raw_value:
-                return ''
-            if not raw_value.startswith(('http://', 'https://')):
-                raw_value = f"https://{raw_value}"
-            try:
-                parsed = urlparse(raw_value)
-            except Exception:
-                return ''
-            host = (parsed.netloc or parsed.path or '').split('/')[0].split(':')[0].strip().lower()
-            if host.startswith('www.'):
-                host = host[4:]
-            return host
-
         normalized_brand_domain = _normalize_domain(brand_domain_raw)
 
         def _to_date_key(value):
@@ -4258,15 +4510,30 @@ def get_project_queries(project_id):
                 'position': row['position_in_list'],
                 'competitors': row['competitors_mentioned'] or {}
             }
-        
+
+        # Share of Voice, sentimiento y top dominios por prompt. Mismo helper que
+        # usa la hoja "Prompts & Queries" del Excel, para que el informe
+        # descargado no pueda decir cifras distintas de las de la pantalla.
+        # OJO con el nombre: el bucle de abajo usa `prompt_metrics` para el dict
+        # de UN prompt, y si el closure leyera esa misma variable devolvería
+        # vacío a partir del segundo.
+        prompt_metrics_by_id = collect_prompt_metrics(
+            cur, project_id, [q['id'] for q in queries_raw],
+            start_date, end_date, enabled_llms_filter
+        )
+
+        def _build_prompt_metrics(qid):
+            return prompt_metrics_by_id.get(qid) or empty_prompt_metrics()
+
         # Formatear datos para el frontend
         queries_list = []
         for q in queries_raw:
             query_id = q['id']
-            
+
             # ✨ NUEVO: Añadir información de menciones por LLM
             mentions_detail = mentions_by_query.get(query_id, {})
-            
+            prompt_metrics = _build_prompt_metrics(query_id)
+
             queries_list.append({
                 'id': query_id,
                 'prompt': q['query_text'],
@@ -4283,7 +4550,10 @@ def get_project_queries(project_id):
                 'last_update': q['last_update'].isoformat() if q['last_update'] else None,
                 'last_analysis_date': q['last_analysis_date'].isoformat() if q['last_analysis_date'] else None,
                 'created_at': q['created_at'].isoformat() if q['created_at'] else None,
-                'mentions_by_llm': mentions_detail  # ✨ NUEVO: Detalles para acordeón
+                'mentions_by_llm': mentions_detail,  # ✨ NUEVO: Detalles para acordeón
+                'share_of_voice': prompt_metrics['share_of_voice'],  # ✨ NUEVO
+                'sentiment': prompt_metrics['sentiment'],  # ✨ NUEVO
+                'top_domains': prompt_metrics['top_domains']  # ✨ NUEVO
             })
         
         return jsonify({
@@ -4337,7 +4607,7 @@ def get_share_of_voice_history(project_id):
                 {
                     'label': 'Tu Marca',
                     'data': [45.2, 48.1, ...],
-                    'borderColor': '#3b82f6',
+                    'borderColor': brand_palette.BRAND,
                     ...
                 },
                 {
@@ -4450,18 +4720,21 @@ def get_share_of_voice_history(project_id):
                 brand_data.append(round((b / total) * 100, 1) if total > 0 else 0)
 
             # Build competitor datasets
+            # Slots 2..5 de la paleta de datos (--cs-series-* en
+            # static/brand-dashboard-tokens.css). Antes esta rama usaba una
+            # paleta propia (rojo/naranja/verde/morado) distinta de la que la
+            # rama "all" y el resto de gráficas ya sirven: la misma entidad
+            # cambiaba de color al cambiar de pestaña.
             comp_colors = [
-                ('#EF4444', 'rgba(239, 68, 68, 0.1)'),
-                ('#F97316', 'rgba(249, 115, 22, 0.1)'),
-                ('#10B981', 'rgba(16, 185, 129, 0.1)'),
-                ('#8B5CF6', 'rgba(139, 92, 246, 0.1)'),
+                (c, brand_palette.hex_to_rgba(c, 0.1))
+                for c in brand_palette.COMPETITORS[:4]
             ]
             sorted_comp_names = sorted(all_comp_names)[:4]
             datasets = [{
                 'label': f'Your Brand',
                 'data': brand_data,
-                'borderColor': '#3b82f6',
-                'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                'borderColor': brand_palette.BRAND,
+                'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
                 'fill': True,
                 'tension': 0.3,
                 'borderWidth': 2.5
@@ -4489,8 +4762,8 @@ def get_share_of_voice_history(project_id):
             mentions_datasets = [{
                 'label': project.get('brand_name') or 'Your Brand',
                 'data': [scope_by_date[d]['brand'] for d in dates_sorted],
-                'borderColor': '#3b82f6',
-                'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                'borderColor': brand_palette.BRAND,
+                'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
                 'borderWidth': 3,
                 'tension': 0.4,
                 'fill': True,
@@ -4719,7 +4992,16 @@ def get_share_of_voice_history(project_id):
                 # Si encontramos el dominio, acumular menciones
                 if competitor_domain:
                     data_by_date[date_str]['competitor_mentions'][competitor_domain] += mentions
-                # Si no, ignorar (no es un competidor configurado)
+                elif not competitor_mapping:
+                    # Sin competidores configurados en el proyecto, usar el nombre
+                    # detectado por el análisis tal cual — igual que hace la rama
+                    # branded/non-branded. Antes esta rama descartaba TODO lo no
+                    # configurado, y por eso en "All" no aparecía ningún competidor
+                    # mientras que en Non-Branded sí (dos caminos de código con
+                    # criterios distintos para el mismo dato).
+                    data_by_date[date_str]['competitor_mentions'][variant_lower] += mentions
+                # Con competidores configurados, lo no mapeado se sigue ignorando:
+                # es la forma de excluir marcas que no interesan.
         
         # Ordenar fechas
         dates = sorted(data_by_date.keys())
@@ -4744,8 +5026,8 @@ def get_share_of_voice_history(project_id):
         datasets.append({
             'label': brand_name,
             'data': brand_data,
-            'borderColor': '#3b82f6',  # Blue para la marca
-            'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+            'borderColor': brand_palette.BRAND,
+            'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
             'borderWidth': 3,
             'tension': 0.4,
             'fill': True,
@@ -4753,14 +5035,12 @@ def get_share_of_voice_history(project_id):
             'pointHoverRadius': 6
         })
         
-        # Datasets para competidores (ahora agrupados)
-        competitor_colors = [
-            '#ef4444',  # Red
-            '#f97316',  # Orange
-            '#22c55e',  # Green
-            '#a855f7',  # Purple
-            '#ec4899'   # Pink
-        ]
+        # Datasets para competidores (ahora agrupados).
+        # Slots 2..6 de la paleta de datos (--cs-series-* en
+        # static/brand-dashboard-tokens.css); el slot 1 queda para la marca
+        # propia. Mantener sincronizado con CSChartTheme.seriesExtended o el
+        # donut dirá un color y el resto de gráficas otro.
+        competitor_colors = brand_palette.COMPETITORS
         
         # ✨ NEW: Obtener lista única de dominios de competidores
         all_competitor_domains = set()
@@ -4813,8 +5093,8 @@ def get_share_of_voice_history(project_id):
         mentions_datasets.append({
             'label': brand_name,
             'data': brand_mentions_data,
-            'borderColor': '#3b82f6',
-            'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+            'borderColor': brand_palette.BRAND,
+            'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
             'borderWidth': 3,
             'tension': 0.4,
             'fill': True,
@@ -4858,7 +5138,9 @@ def get_share_of_voice_history(project_id):
         # Preparar datos del donut
         donut_labels = [brand_name]
         donut_values = [round(total_brand_mentions_period / grand_total * 100, 2) if grand_total > 0 else 0]
-        donut_colors = ['#3b82f6']
+        # Slot 1 de la paleta de datos: la marca propia siempre en el mismo color
+        # y el más contrastado. Debe coincidir con CSChartTheme.series[0].
+        donut_colors = [brand_palette.BRAND]
         
         for idx, competitor_domain in enumerate(sorted(all_competitor_domains)):
             display_name = competitor_display_names.get(competitor_domain, get_display_name(competitor_domain))
@@ -5066,13 +5348,7 @@ def get_current_models():
             }
         }
     """
-    # Fallbacks por defecto (Model IDs correctos según docs oficiales)
-    fallbacks = {
-        'openai': {'model_id': 'gpt-5.4', 'display_name': 'GPT-5.4'},
-        'anthropic': {'model_id': 'claude-sonnet-4-6', 'display_name': 'Claude Sonnet 4.6'},
-        'google': {'model_id': 'gemini-3-flash-preview', 'display_name': 'Gemini 3 Flash'},
-        'perplexity': {'model_id': 'sonar-pro', 'display_name': 'Perplexity Sonar Pro'}
-    }
+    fallbacks = MODEL_FALLBACKS
     
     conn = get_db_connection()
     if not conn:
@@ -5085,36 +5361,13 @@ def get_current_models():
     
     try:
         cur = conn.cursor()
-        
-        # Query con columnas incluyendo knowledge_cutoff
-        cur.execute("""
-            SELECT llm_provider, model_id, model_display_name,
-                   knowledge_cutoff, knowledge_cutoff_date
-            FROM llm_model_registry
-            WHERE is_current = TRUE AND is_available = TRUE
-            ORDER BY llm_provider
-        """)
 
-        models = cur.fetchall()
+        models_dict, from_db = fetch_current_models(cur)
 
-        models_dict = {}
-        for m in models:
-            models_dict[m['llm_provider']] = {
-                'model_id': m['model_id'],
-                'display_name': m['model_display_name'] or m['model_id'],
-                'knowledge_cutoff': m.get('knowledge_cutoff'),
-                'knowledge_cutoff_date': m['knowledge_cutoff_date'].isoformat() if m.get('knowledge_cutoff_date') else None,
-            }
-        
-        # Aplicar fallbacks para providers que no tienen modelo en BD
-        for provider, fallback in fallbacks.items():
-            if provider not in models_dict:
-                models_dict[provider] = fallback
-        
         return jsonify({
             'success': True,
             'models': models_dict,
-            'source': 'database' if models else 'fallback'
+            'source': 'database' if from_db else 'fallback'
         }), 200
         
     except Exception as e:
@@ -5799,7 +6052,12 @@ def export_project_excel(project_id):
         # FETCH ALL DATA
         # ──────────────────────────────────────────────────
 
-        end_date = datetime.now()
+        # .date() y no datetime: `analysis_date` es un DATE, así que compararlo
+        # con un timestamp lo convierte a medianoche y `>= hoy-90d 11:20` deja
+        # fuera el primer día entero del rango. El panel usa fechas, y sin esto
+        # el Excel exportaba un día menos y sus cifras no cuadraban con la
+        # pantalla.
+        end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -5874,17 +6132,35 @@ def export_project_excel(project_id):
         llm_metrics = cur.fetchall()
 
         # 4. Query/Prompt level data
+        #
+        # Las tres cifras de menciones usan LA MISMA definición que la tabla de
+        # prompts del panel (get_project_queries): "Text Mentions" son los
+        # resultados con la marca mencionada, "URL Citations" son las URLs de la
+        # marca dentro de `sources`, y el total es la suma de ambas. Antes esta
+        # hoja contaba otra cosa bajo los mismos nombres — total_mentions era
+        # solo brand_mentioned, y text/url salían de `position_source` — así que
+        # el Excel y la pantalla daban números distintos para el mismo prompt.
         queries_query = """
             SELECT
+                q.id AS query_id,
                 q.query_text AS prompt,
                 q.language,
                 q.query_type,
                 q.topic_cluster,
                 COUNT(DISTINCT r.llm_provider) as llms_analyzed,
-                COUNT(r.id) as total_results,
-                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
-                SUM(CASE WHEN r.position_source = 'link' OR r.position_source = 'both' THEN 1 ELSE 0 END) as url_citations,
-                SUM(CASE WHEN r.position_source = 'text' THEN 1 ELSE 0 END) as text_mentions,
+                COUNT(DISTINCT r.id) as total_results,
+                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as text_mentions,
+                SUM(
+                    CASE
+                        WHEN r.sources IS NOT NULL AND r.sources::text != '[]'
+                        THEN (
+                            SELECT COUNT(*)
+                            FROM jsonb_array_elements(r.sources::jsonb) AS source
+                            WHERE source->>'url' ILIKE %s
+                        )
+                        ELSE 0
+                    END
+                ) as url_citations,
                 ROUND(AVG(CASE WHEN r.brand_mentioned THEN 100.0 ELSE 0 END), 1) as visibility_pct,
                 AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL) as avg_position,
                 MAX(r.analysis_date) as last_analysis
@@ -5894,16 +6170,24 @@ def export_project_excel(project_id):
                 {llm_filter}
             WHERE q.project_id = %s AND q.is_active = TRUE
             GROUP BY q.id, q.query_text, q.language, q.query_type, q.topic_cluster
-            ORDER BY total_mentions DESC, visibility_pct DESC
+            ORDER BY text_mentions DESC, visibility_pct DESC
         """.format(
             llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
         )
-        queries_params = [start_date, end_date]
+        brand_domain_like = f"%{project['brand_domain']}%" if project.get('brand_domain') else '%'
+        queries_params = [brand_domain_like, start_date, end_date]
         if enabled_llms_filter:
             queries_params.append(enabled_llms_filter)
         queries_params.append(project_id)
         cur.execute(queries_query, queries_params)
         queries = cur.fetchall()
+
+        # SoV, sentimiento y top dominios por prompt: mismo helper que alimenta
+        # la tabla del panel, para que las columnas coincidan por construcción.
+        prompt_metrics_by_id = collect_prompt_metrics(
+            cur, project_id, [q['query_id'] for q in queries],
+            start_date, end_date, enabled_llms_filter
+        )
 
         # ✨ NEW: Cluster-level aggregated metrics (for "Clusters Overview" sheet)
         # Load prompt_clusters config to know which clusters are defined
@@ -6513,30 +6797,48 @@ def export_project_excel(project_id):
         ws5 = wb.create_sheet("Prompts & Queries")
 
         export_country = project['country_code'] or 'Global'
+        # Mismo orden de columnas que la tabla del panel (SOV, Avg. Pos.,
+        # Mentions, Top Domains, Cluster, Sentiment), más el detalle que solo
+        # tiene sentido en una hoja de cálculo.
         query_headers = [
-            "Prompt", "Country", "Language", "Type", "Cluster",
-            "LLMs Analyzed", "Total Results",
-            "Total Mentions", "Text Mentions", "URL Citations",
-            "Visibility (%)", "Avg Position",
-            "Last Analysis", "Branded Query"
+            "Prompt", "Share of Voice (%)", "Avg Position", "Total Mentions",
+            "Top Domains", "Cluster", "Sentiment", "Sentiment Score",
+            "Text Mentions", "URL Citations",
+            "Country", "Language", "Type", "LLMs Analyzed", "Total Results",
+            "Visibility (%)", "Last Analysis", "Branded Query"
         ]
         write_header_row(ws5, 1, query_headers)
 
         for row_idx, q in enumerate(queries, 2):
+            pm = prompt_metrics_by_id.get(q['query_id']) or empty_prompt_metrics()
+            text_mentions = int(q['text_mentions'] or 0)
+            url_citations = int(q['url_citations'] or 0)
+            top_domains = ', '.join(
+                f"{d['domain']} ({d['mentions']})" for d in pm['top_domains']
+            ) or 'N/A'
+            sentiment_label = pm['sentiment']['label']
+            sentiment_score = pm['sentiment']['score']
+
             col = 1
             write_data_cell(ws5, row_idx, col, q['prompt']); col += 1
+            write_data_cell(ws5, row_idx, col,
+                            pm['share_of_voice'] if pm['share_of_voice'] is not None else 'N/A', '0.0'); col += 1
+            write_data_cell(ws5, row_idx, col,
+                            round(float(q['avg_position']), 1) if q['avg_position'] else 'N/A', '0.0'); col += 1
+            write_data_cell(ws5, row_idx, col, text_mentions + url_citations); col += 1
+            write_data_cell(ws5, row_idx, col, top_domains); col += 1
+            write_data_cell(ws5, row_idx, col, q.get('topic_cluster') or 'Unassigned'); col += 1
+            write_data_cell(ws5, row_idx, col, sentiment_label.capitalize() if sentiment_label else 'N/A'); col += 1
+            write_data_cell(ws5, row_idx, col,
+                            sentiment_score if sentiment_score is not None else 'N/A', '0.00'); col += 1
+            write_data_cell(ws5, row_idx, col, text_mentions); col += 1
+            write_data_cell(ws5, row_idx, col, url_citations); col += 1
             write_data_cell(ws5, row_idx, col, export_country); col += 1
             write_data_cell(ws5, row_idx, col, q['language'] or 'N/A'); col += 1
             write_data_cell(ws5, row_idx, col, q['query_type'] or 'general'); col += 1
-            # ✨ NEW: Cluster column
-            write_data_cell(ws5, row_idx, col, q.get('topic_cluster') or 'Unassigned'); col += 1
             write_data_cell(ws5, row_idx, col, q['llms_analyzed'] or 0); col += 1
             write_data_cell(ws5, row_idx, col, q['total_results'] or 0); col += 1
-            write_data_cell(ws5, row_idx, col, q['total_mentions'] or 0); col += 1
-            write_data_cell(ws5, row_idx, col, q['text_mentions'] or 0); col += 1
-            write_data_cell(ws5, row_idx, col, q['url_citations'] or 0); col += 1
             write_data_cell(ws5, row_idx, col, round(float(q['visibility_pct'] or 0), 1), '0.0'); col += 1
-            write_data_cell(ws5, row_idx, col, round(float(q['avg_position'] or 0), 1) if q['avg_position'] else 'N/A', '0.0'); col += 1
             write_data_cell(ws5, row_idx, col, str(q['last_analysis']) if q['last_analysis'] else 'N/A'); col += 1
             is_branded = classify_query_branded(q.get('prompt', '') or q.get('query_text', ''), brand_keywords)
             write_data_cell(ws5, row_idx, col, "Yes" if is_branded else "No"); col += 1
@@ -6642,6 +6944,78 @@ def export_project_excel(project_id):
         ws6.column_dimensions['B'].width = 70
         auto_width(ws6, min_width=12)
         ws6.column_dimensions['B'].width = 70  # Override for URL column
+
+        # ════════════════════════════════════════════════
+        # SHEET 6b: CONTENT ANALYSIS  (Top 30 cited pages)
+        # ════════════════════════════════════════════════
+        # Solo aparece si el usuario ha lanzado el análisis de contenido: es una
+        # acción manual y de pago (hace fetch de hasta 30 páginas), así que si
+        # nunca se ha ejecutado no hay nada que volcar.
+        content_overview = _safe_content_overview(project_id, days)
+        content_results = [
+            r for r in (content_overview.get('results') or []) if r.get('analysis')
+        ]
+
+        if content_results:
+            ws_content = wb.create_sheet("Content Analysis")
+            ws_content['A1'] = "Content Analysis — Top cited pages"
+            ws_content['A1'].font = title_font
+            csum = content_overview.get('summary') or {}
+            ws_content['A2'] = (
+                f"Brand presence detected in the content of the top "
+                f"{content_overview.get('top_limit', 30)} most cited pages. "
+                f"Analyzed: {csum.get('analyzed', 0)} · "
+                f"You're mentioned: {csum.get('mentioned', 0)} · "
+                f"Quick Wins: {csum.get('quick_wins', 0)} · "
+                f"No brands: {csum.get('no_mentions', 0)} · "
+                f"Competitor sites: {csum.get('competitor_pages', 0)} · "
+                f"Pending: {csum.get('pending', 0)} · Errors: {csum.get('errors', 0)}"
+            )
+            ws_content['A2'].font = Font(italic=True, color="6B7280", size=9)
+
+            content_headers = [
+                "Rank", "URL", "Page Title", "Brand Presence", "Brand Mentioned",
+                "Brand Mentions", "Brand Linked", "Brand Anchor Texts",
+                "Competitors Found", "Competitors Linked",
+                "Fetch Method", "HTTP Status", "Analyzed At", "Error"
+            ]
+            write_header_row(ws_content, 4, content_headers)
+
+            for row_idx, item in enumerate(content_results, 5):
+                a = item['analysis']
+                competitors = [c for c in (a.get('competitors_found') or [])
+                               if isinstance(c, dict) and c.get('mentioned')]
+                comp_text = ', '.join(
+                    f"{c.get('name') or c.get('domain')} ({c.get('mention_count', 0)})"
+                    for c in competitors
+                ) or 'None'
+                comp_linked = ', '.join(
+                    (c.get('name') or c.get('domain') or '') for c in competitors if c.get('linked')
+                ) or 'None'
+                anchors = ', '.join(a.get('brand_anchor_texts') or []) or 'None'
+
+                col = 1
+                write_data_cell(ws_content, row_idx, col, item.get('rank') or row_idx - 4); col += 1
+                write_data_cell(ws_content, row_idx, col, item.get('url') or 'N/A'); col += 1
+                write_data_cell(ws_content, row_idx, col, a.get('page_title') or 'N/A'); col += 1
+                write_data_cell(ws_content, row_idx, col, _OPPORTUNITY_LABELS.get(
+                    a.get('opportunity'), _OPPORTUNITY_LABELS[None])); col += 1
+                write_data_cell(ws_content, row_idx, col, "Yes" if a.get('brand_mentioned') else "No"); col += 1
+                write_data_cell(ws_content, row_idx, col, int(a.get('brand_mention_count') or 0)); col += 1
+                write_data_cell(ws_content, row_idx, col, "Yes" if a.get('brand_linked') else "No"); col += 1
+                write_data_cell(ws_content, row_idx, col, anchors); col += 1
+                write_data_cell(ws_content, row_idx, col, comp_text); col += 1
+                write_data_cell(ws_content, row_idx, col, comp_linked); col += 1
+                write_data_cell(ws_content, row_idx, col, a.get('fetch_method') or 'direct'); col += 1
+                write_data_cell(ws_content, row_idx, col, a.get('http_status') or 'N/A'); col += 1
+                write_data_cell(ws_content, row_idx, col, (a.get('fetched_at') or 'N/A')[:19]); col += 1
+                write_data_cell(ws_content, row_idx, col, a.get('error_reason') or ''); col += 1
+
+            auto_width(ws_content, min_width=12)
+            ws_content.column_dimensions['B'].width = 70
+            ws_content.column_dimensions['C'].width = 45
+            ws_content.column_dimensions['H'].width = 40
+            ws_content.column_dimensions['I'].width = 40
 
         # ════════════════════════════════════════════════
         # SHEET 7: SENTIMENT ANALYSIS
@@ -6928,6 +7302,12 @@ def export_project_pdf(project_id):
         return jsonify({'error': 'PDF export not available. Missing reportlab library.'}), 500
 
     days = _normalize_days_param(request.args.get('days'), default=30)
+    # Misma métrica de SoV que el toggle del panel (que por defecto es weighted).
+    # Sin esto el PDF imprimía siempre la estándar y su cifra de Share of Voice
+    # no coincidía con la que el usuario tenía delante al pulsar "descargar".
+    sov_metric = 'weighted' if request.args.get('metric', 'weighted') != 'normal' else 'normal'
+    sov_column = 'weighted_share_of_voice' if sov_metric == 'weighted' else 'share_of_voice'
+    sov_metric_label = 'weighted by position' if sov_metric == 'weighted' else 'standard'
 
     conn = get_db_connection()
     if not conn:
@@ -6954,15 +7334,9 @@ def export_project_pdf(project_id):
         enabled_llms_filter = project.get('enabled_llms') or []
         brand_keywords_pdf = project.get('brand_keywords') or []
 
-        # ── Fetch current LLM models with knowledge cutoff ──
-        cur.execute("""
-            SELECT llm_provider, model_id, model_display_name,
-                   knowledge_cutoff, knowledge_cutoff_date
-            FROM llm_model_registry
-            WHERE is_current = TRUE AND is_available = TRUE
-            ORDER BY llm_provider
-        """)
-        current_models_pdf = cur.fetchall()
+        # Modelos vigentes. Mismo helper que el modal "Models" del panel, para
+        # que la portada del informe no pueda listar otros modelos.
+        current_models_pdf, _models_from_db = fetch_current_models(cur)
 
         # Helper to append LLM filter
         def _llm_filter(query, params):
@@ -6990,7 +7364,7 @@ def export_project_pdf(project_id):
         snap_q = """
             SELECT llm_provider,
                 AVG(mention_rate) as avg_mr,
-                AVG(share_of_voice) as avg_sov,
+                AVG({sov_column}) as avg_sov,
                 AVG(avg_position) as avg_pos,
                 AVG(avg_sentiment_score) as avg_sentiment,
                 SUM(positive_mentions) as total_positive,
@@ -6999,7 +7373,7 @@ def export_project_pdf(project_id):
                 SUM(total_queries) as total_queries
             FROM llm_monitoring_snapshots
             WHERE project_id = %s AND snapshot_date >= %s AND snapshot_date <= %s
-        """
+        """.format(sov_column=sov_column)
         snap_p = [project_id, start_date.date(), end_date.date()]
         snap_q, snap_p = _llm_filter(snap_q, snap_p)
         snap_q += " GROUP BY llm_provider ORDER BY avg_mr DESC"
@@ -7009,10 +7383,10 @@ def export_project_pdf(project_id):
         # Previous period snapshot aggregates for comparison
         prev_snap_q = """
             SELECT AVG(mention_rate) as avg_mr,
-                   AVG(share_of_voice) as avg_sov
+                   AVG({sov_column}) as avg_sov
             FROM llm_monitoring_snapshots
             WHERE project_id = %s AND snapshot_date >= %s AND snapshot_date < %s
-        """
+        """.format(sov_column=sov_column)
         prev_snap_p = [project_id, prev_start.date(), start_date.date()]
         prev_snap_q, prev_snap_p = _llm_filter(prev_snap_q, prev_snap_p)
         cur.execute(prev_snap_q, prev_snap_p)
@@ -7298,18 +7672,19 @@ def export_project_pdf(project_id):
         # =====================================================================
         output = BytesIO()
 
-        # Color palette
-        CLR_DARK = colors.HexColor('#161616')
+        # Color palette — espejo de static/brand-dashboard-tokens.css (--cs-*).
+        # Si cambian los tokens del panel, cambiar aquí también o el PDF deriva.
+        CLR_DARK = colors.HexColor('#0F172A')       # --cs-text-primary
         CLR_WHITE = colors.white
-        CLR_ACCENT = colors.HexColor('#D8F9B8')
-        CLR_SUBHEADER = colors.HexColor('#F3F4F6')
-        CLR_GREEN_CELL = colors.HexColor('#D1FAE5')
+        CLR_ACCENT = colors.HexColor('#d9f9b8')     # --cs-accent
+        CLR_SUBHEADER = colors.HexColor('#F1F5F9')  # --cs-bg-subtle
+        CLR_GREEN_CELL = colors.HexColor('#E4F4EA')  # tinte de --cs-success
         CLR_YELLOW_CELL = colors.HexColor('#FEF3C7')
-        CLR_RED_CELL = colors.HexColor('#FEE2E2')
-        CLR_BODY = colors.HexColor('#374151')
-        CLR_BORDER = colors.HexColor('#E5E7EB')
-        CLR_LIGHT_GRAY = colors.HexColor('#9CA3AF')
-        CLR_ROW_ALT = colors.HexColor('#F9FAFB')
+        CLR_RED_CELL = colors.HexColor('#FBE9E9')    # tinte de --cs-error
+        CLR_BODY = colors.HexColor('#334155')       # --cs-surface-dark
+        CLR_BORDER = colors.HexColor('#E2E8F0')     # --cs-border
+        CLR_LIGHT_GRAY = colors.HexColor('#94A3B8')  # --cs-text-tertiary
+        CLR_ROW_ALT = colors.HexColor('#F8FAFC')
 
         page_width, page_height = A4
         usable_width = page_width - 4 * cm  # 2cm margins each side
@@ -7467,8 +7842,10 @@ def export_project_pdf(project_id):
             return 'Neutral'
 
         # Delta color helper for KPI paragraphs
-        CLR_DELTA_UP = colors.HexColor('#059669')
-        CLR_DELTA_DOWN = colors.HexColor('#DC2626')
+        # Pasos -text de los estados (--cs-success-text / --cs-error-text): los
+        # tonos base de marca no llegan a contraste de texto.
+        CLR_DELTA_UP = colors.HexColor('#287A4C')
+        CLR_DELTA_DOWN = colors.HexColor('#D13B3B')
         st_kpi_delta_up = ParagraphStyle('KPIDeltaUp', parent=st_kpi_delta, textColor=CLR_DELTA_UP)
         st_kpi_delta_down = ParagraphStyle('KPIDeltaDown', parent=st_kpi_delta, textColor=CLR_DELTA_DOWN)
 
@@ -7551,12 +7928,11 @@ def export_project_pdf(project_id):
                 'google': 'Gemini', 'perplexity': 'Perplexity'
             }
             model_rows = [['Provider', 'Model', 'Knowledge Cutoff']]
-            for m in current_models_pdf:
-                prov = m.get('llm_provider', '')
+            for prov, m in sorted(current_models_pdf.items()):
                 if enabled_llms_filter and prov not in enabled_llms_filter:
                     continue
                 label = provider_labels.get(prov, prov.title())
-                model_name = m.get('model_display_name') or m.get('model_id', 'N/A')
+                model_name = m.get('display_name') or m.get('model_id', 'N/A')
                 cutoff = m.get('knowledge_cutoff') or 'Unknown'
                 model_rows.append([label, model_name, cutoff])
 
@@ -7591,7 +7967,7 @@ def export_project_pdf(project_id):
             ],
             [
                 Paragraph("Mention Rate", st_kpi_label),
-                Paragraph("Share of Voice", st_kpi_label),
+                Paragraph(f"Share of Voice ({sov_metric_label})", st_kpi_label),
             ],
             [
                 Paragraph(mr_delta_text, mr_delta_st),
@@ -7804,12 +8180,10 @@ def export_project_pdf(project_id):
             sorted_dates = sorted(date_brand.keys())
             if len(sorted_dates) >= 2:
                 # Calculate SOV % per date
+                # Paleta de datos oficial (--cs-series-*): marca en el slot 1
+                # y competidores en los siguientes, igual que el panel.
                 chart_colors = [
-                    colors.HexColor('#3B82F6'),  # Brand: blue
-                    colors.HexColor('#EF4444'),  # Comp 1: red
-                    colors.HexColor('#F97316'),  # Comp 2: orange
-                    colors.HexColor('#10B981'),  # Comp 3: green
-                    colors.HexColor('#8B5CF6'),  # Comp 4: purple
+                    colors.HexColor(c) for c in brand_palette.SERIES_EXTENDED[:5]
                 ]
 
                 # Build SOV series for each entity
@@ -8093,6 +8467,87 @@ def export_project_pdf(project_id):
             elements.append(url_table)
         else:
             elements.append(Paragraph("No cited URL data available for this period.", st_no_data))
+
+        # ── Content Analysis (Top cited pages) ──
+        # Solo si el usuario ha lanzado el análisis: es una acción manual que
+        # descarga hasta 30 páginas, y si nunca se ha ejecutado no hay nada que
+        # contar. Se prioriza a los Quick Wins, que son la parte accionable:
+        # páginas que ya citan a competidores pero todavía no a la marca.
+        pdf_content = _safe_content_overview(project_id, days)
+        pdf_content_results = [
+            r for r in (pdf_content.get('results') or []) if r.get('analysis')
+        ]
+
+        if pdf_content_results:
+            elements.append(Spacer(1, 0.6 * cm))
+            elements.append(Paragraph("Content Analysis", st_section))
+            csum = pdf_content.get('summary') or {}
+            elements.append(Paragraph(
+                f"Brand presence inside the content of the top "
+                f"{pdf_content.get('top_limit', 30)} most cited pages "
+                f"({csum.get('analyzed', 0)} analyzed).",
+                st_body
+            ))
+
+            presence_rows = [["Brand presence", "Pages"]]
+            for key in ('mentioned', 'quick_win', 'no_mentions', 'competitor_page'):
+                presence_rows.append([
+                    _OPPORTUNITY_LABELS[key],
+                    str(csum.get({'mentioned': 'mentioned', 'quick_win': 'quick_wins',
+                                  'no_mentions': 'no_mentions',
+                                  'competitor_page': 'competitor_pages'}[key], 0))
+                ])
+            presence_table = Table(presence_rows, colWidths=[usable_width * 0.7, usable_width * 0.3])
+            presence_table.setStyle(TableStyle(_base_table_style(len(presence_rows))))
+            elements.append(presence_table)
+
+            quick_wins = [r for r in pdf_content_results
+                          if r['analysis'].get('opportunity') == 'quick_win']
+            if quick_wins:
+                elements.append(Spacer(1, 0.4 * cm))
+                elements.append(Paragraph(
+                    "Quick Wins — pages that already cite competitors but not your brand",
+                    st_subsection
+                ))
+                qw_rows = [["#", "URL", "Competitors cited"]]
+                for r in quick_wins[:15]:
+                    comps = [c for c in (r['analysis'].get('competitors_found') or [])
+                             if isinstance(c, dict) and c.get('mentioned')]
+                    qw_rows.append([
+                        str(r.get('rank') or len(qw_rows)),
+                        _truncate(r.get('url') or '', 78),
+                        _truncate(', '.join(
+                            (c.get('name') or c.get('domain') or '') for c in comps
+                        ) or '—', 34),
+                    ])
+                qw_table = Table(qw_rows, colWidths=[1.2 * cm, 9.3 * cm, 3.5 * cm])
+                qw_style = _base_table_style(len(qw_rows))
+                qw_style.append(('ALIGN', (1, 1), (1, -1), 'LEFT'))
+                qw_style.append(('ALIGN', (2, 1), (2, -1), 'LEFT'))
+                qw_table.setStyle(TableStyle(qw_style))
+                elements.append(qw_table)
+
+            mentioned_pages = [r for r in pdf_content_results
+                               if r['analysis'].get('opportunity') == 'mentioned']
+            if mentioned_pages:
+                elements.append(Spacer(1, 0.4 * cm))
+                elements.append(Paragraph(
+                    "Pages that already mention your brand", st_subsection
+                ))
+                mp_rows = [["#", "URL", "Mentions", "Linked"]]
+                for r in mentioned_pages[:15]:
+                    a = r['analysis']
+                    mp_rows.append([
+                        str(r.get('rank') or len(mp_rows)),
+                        _truncate(r.get('url') or '', 74),
+                        str(a.get('brand_mention_count') or 0),
+                        "Yes" if a.get('brand_linked') else "No",
+                    ])
+                mp_table = Table(mp_rows, colWidths=[1.2 * cm, 8.6 * cm, 2 * cm, 2.2 * cm])
+                mp_style = _base_table_style(len(mp_rows))
+                mp_style.append(('ALIGN', (1, 1), (1, -1), 'LEFT'))
+                mp_table.setStyle(TableStyle(mp_style))
+                elements.append(mp_table)
 
         # ── Build PDF ──
         doc.build(elements, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)

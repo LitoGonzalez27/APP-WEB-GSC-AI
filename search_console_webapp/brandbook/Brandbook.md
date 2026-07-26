@@ -93,10 +93,49 @@ Paleta inspirada en la **bioluminiscencia natural**. Bio-Lime es el color insign
 | Border Subtle   | #EEF2F7   | `--color-border-subtle`   |
 
 ### Colores Utilitarios
-| Nombre  | Hex     |
-|---------|---------|
-| Success | #3CB371 |
-| Error   | #E05252 |
+| Nombre  | Hex     | Uso |
+|---------|---------|-----|
+| Success | #3CB371 | Marcas, puntos e iconos de estado |
+| Error   | #E05252 | Marcas, puntos e iconos de estado |
+| Success (texto) | #287A4C | Texto en verde: 5,28:1 sobre blanco |
+| Error (texto)   | #D13B3B | Texto en rojo: 4,77:1 sobre blanco |
+
+Los dos tonos base no alcanzan el contraste mínimo para texto (2,67:1 y 3,82:1
+sobre blanco, frente al 4,5:1 exigido), así que cada uno tiene su paso oscuro del
+mismo tono para cuando el color va sobre texto.
+
+### Paleta de Datos
+
+Extensión del sistema para gráficas y tablas de datos, incorporada en julio de
+2026. La paleta de marca no puede cumplir esta función: los slates no llegan al
+mínimo de saturación (se leen como gris y no sirven para identificar series) y el
+Bio-Lime tiene 1,15:1 de contraste sobre blanco. Estos colores existen
+**solo dentro de visualizaciones de datos**; nunca en la interfaz general, donde
+sigue mandando la paleta de marca.
+
+| Slot | Hex     | Asignación en LLM Monitoring |
+|------|---------|------------------------------|
+| 1    | #2a78d6 | Gemini / marca propia        |
+| 2    | #1baf7a | ChatGPT                      |
+| 3    | #eb6834 | Claude                       |
+| 4    | #4a3aa7 | Perplexity                   |
+| 5    | #eda100 | (solo comparativas amplias)  |
+| 6    | #e87ba4 | (solo comparativas amplias)  |
+
+Reglas:
+- **El orden es la garantía de accesibilidad**, no una preferencia estética: esta
+  secuencia está verificada bajo protanopia y deuteranopia (peor par ΔE 9,2) y en
+  visión normal (16,3). Reordenar, sustituir o añadir un séptimo color obliga a
+  re-validar la paleta completa.
+- **Un color por entidad, fijo.** Si un filtro deja fuera una serie, las restantes
+  conservan su color: quien aprendió que Gemini es azul debe seguir leyendo azul.
+- Los slots 5 y 6 solo para comparativas con más entidades (marca más
+  competidores) en gráficas de barras o donut. En dispersión el límite son 3
+  series, porque cualquier par puede quedar contiguo.
+- Nunca usar un color de estado como color de serie ni al contrario. Cuando un
+  dato significa bueno/malo (sentimiento, error), va con los colores utilitarios.
+- Implementación: `static/brand-dashboard-tokens.css` (tokens `--cs-series-*`) y
+  `static/js/llm-chart-theme.js`.
 
 ### Reglas de Uso Bio-Lime
 - ✅ Bio-Lime como acento en fondos oscuros o claros

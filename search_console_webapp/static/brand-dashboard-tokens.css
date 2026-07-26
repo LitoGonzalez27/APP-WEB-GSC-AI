@@ -1,0 +1,153 @@
+/* ============================================================================
+   CLICANDSEO — DESIGN TOKENS PARA PANELES DE DATOS
+   ============================================================================
+
+   Valores copiados de brandbook/brand-tokens.css (Brandbook v1.1) con prefijo
+   --cs-*. Compartido por los paneles de datos: LLM Monitoring, Manual AI,
+   AI Mode y AI Visibility Summary.
+
+   POR QUÉ NO SE ENLAZA brandbook/brand-tokens.css DIRECTAMENTE:
+   ese archivo declara --radius-* y --shadow-* en :root con los MISMOS nombres
+   que base-y-componentes.css:26-90 pero valores distintos (--radius-md 20px vs
+   12px). Cargarlo re-tematizaría en silencio todos los componentes compartidos
+   de la app. El prefijo --cs-* elimina esa colisión: aquí no se declara ni un
+   solo nombre que exista en otra hoja.
+
+   Este archivo se carga como ÚLTIMO <link> de la página.
+   ============================================================================ */
+
+:root {
+
+  /* ── Acento (Bio-Lime) ───────────────────────────────────────────────────
+     Brandbook.md:461 — nunca como fondo de ningún elemento salvo btn--accent.
+     Medido: 1.15:1 de contraste sobre blanco → jamás como texto sobre claro
+     ni como color de dato. Sobre --cs-bg-dark rinde 17.1:1.
+     ─────────────────────────────────────────────────────────────────────── */
+  --cs-accent:            #d9f9b8;
+  --cs-accent-subtle:     rgba(217, 249, 184, 0.2);
+
+  /* ── Texto ─────────────────────────────────────────────────────────────── */
+  --cs-text-primary:      #0F172A;   /* Slate-900 — 17.9:1 sobre blanco */
+  --cs-text-secondary:    #64748B;   /* Slate-500 —  4.8:1 sobre blanco */
+  --cs-text-tertiary:     #94A3B8;   /* Slate-400 — solo labels/captions */
+  --cs-text-inverse:      #F8FAFC;
+
+  /* ── Fondos (Brandbook.md:476 — nunca gradientes, siempre planos) ─────── */
+  --cs-bg-paper:          #FFFFFF;
+  --cs-bg-subtle:         #F1F5F9;
+  --cs-bg-dark:           #0A0A0B;
+  --cs-surface-dark:      #334155;
+
+  /* ── Bordes ────────────────────────────────────────────────────────────── */
+  --cs-border:            #E2E8F0;
+  --cs-border-subtle:     #EEF2F7;
+
+  /* ── Estado ────────────────────────────────────────────────────────────────
+     Valores de Brandbook.md:98-99 (v1.1), que manda sobre brand-tokens.css.
+     Los tonos base son de marca y no llegan a contraste de texto (2.67:1 y
+     3.82:1), así que cada uno tiene su paso -text más oscuro del mismo tono,
+     ya medido, para cuando el color va sobre texto.
+     ─────────────────────────────────────────────────────────────────────── */
+  --cs-success:           #3CB371;
+  --cs-success-text:      #287A4C;   /* 5.28:1 sobre blanco */
+  --cs-error:             #E05252;
+  --cs-error-text:        #D13B3B;   /* 4.77:1 sobre blanco */
+
+  /* ── Paleta de datos ──────────────────────────────────────────────────────
+     Extensión oficial del brandbook (ver Brandbook.md § Paleta de datos).
+     El brandbook no define colores de serie y su paleta base no puede
+     hacerlo: los slates fallan el mínimo de saturación (leen como gris, no
+     identifican) y el lime se sale de la banda de luminosidad.
+
+     Estos 4 tonos pasan los 6 checks de la metodología de dataviz en modo
+     claro y en all-pairs (peor par: CVD ΔE 9.2, visión normal 16.3).
+     El orden es la garantía de accesibilidad: no reordenar ni añadir un 5º
+     sin re-validar con scripts/validate_palette.js.
+
+     Un color por entidad (LLM), fijo — nunca reasignado al filtrar.
+     ─────────────────────────────────────────────────────────────────────── */
+  --cs-series-1:          #2a78d6;   /* azul */
+  --cs-series-2:          #1baf7a;   /* aqua */
+  --cs-series-3:          #eb6834;   /* naranja */
+  --cs-series-4:          #4a3aa7;   /* violeta */
+
+  /* Slots 5 y 6 solo para comparativas con más entidades (marca + hasta 5
+     competidores en el donut). Validados en la lista de pares adyacentes, que
+     es la que aplica a un donut o a barras: no usarlos en dispersión. */
+  --cs-series-5:          #eda100;   /* amarillo */
+  --cs-series-6:          #e87ba4;   /* magenta */
+
+  /* Serie de-enfatizada, para destacar una y silenciar el resto */
+  --cs-series-muted:      #CBD5E1;
+
+  /* ── Cromo de gráficas ─────────────────────────────────────────────────── */
+  --cs-chart-grid:        #EEF2F7;   /* hairline, un paso de la superficie */
+  --cs-chart-axis:        #94A3B8;
+  --cs-chart-tooltip-bg:  #0F172A;
+
+  /* ── Tipografía ───────────────────────────────────────────────────────────
+     Brandbook.md:134 — Libre Baskerville SOLO para la palabra-acento de un
+     titular. Nunca en cifras de KPI, tablas ni cuerpo de texto.
+     ─────────────────────────────────────────────────────────────────────── */
+  --cs-font-sans:  'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --cs-font-serif: 'Libre Baskerville', Georgia, serif;
+
+  --cs-weight-regular:    400;
+  --cs-weight-medium:     500;   /* labels de UI, nav links */
+  --cs-weight-semibold:   600;   /* eyebrows uppercase, botones */
+  --cs-weight-bold:       700;   /* títulos de card, h3 */
+  --cs-weight-extrabold:  800;   /* headlines */
+
+  /* ── Escala tipográfica ───────────────────────────────────────────────────
+     Los h1/h2 del brandbook (hasta 5.5rem) son de landing. Un panel de datos
+     vive en el rango xs–3xl.
+     ─────────────────────────────────────────────────────────────────────── */
+  --cs-text-xs:    0.75rem;
+  --cs-text-sm:    0.875rem;
+  --cs-text-base:  1rem;
+  --cs-text-lg:    1.125rem;
+  --cs-text-xl:    1.375rem;
+  --cs-text-2xl:   1.75rem;
+  --cs-text-3xl:   2.25rem;   /* cifras KPI protagonistas */
+
+  --cs-tracking-tight:   -0.03em;
+  --cs-tracking-wide:     0.05em;
+  --cs-tracking-wider:    0.1em;   /* eyebrows uppercase */
+
+  --cs-leading-tight:    1.15;
+  --cs-leading-normal:   1.6;
+
+  /* ── Espaciado (rejilla de 4px) ───────────────────────────────────────────
+     El brandbook salta de md(16) a lg(32) a xl(64), pensado para landings.
+     Un dashboard necesita los pasos intermedios, así que se completan sin
+     salirse de la rejilla de 4px.
+     ─────────────────────────────────────────────────────────────────────── */
+  --cs-space-2xs:  0.25rem;   /*  4px */
+  --cs-space-xs:   0.5rem;    /*  8px */
+  --cs-space-sm:   0.75rem;   /* 12px */
+  --cs-space-md:   1rem;      /* 16px */
+  --cs-space-lg:   1.5rem;    /* 24px */
+  --cs-space-xl:   2rem;      /* 32px */
+  --cs-space-2xl:  3rem;      /* 48px */
+
+  /* ── Radios ───────────────────────────────────────────────────────────────
+     Brandbook.md:217 y :254 — la forma pill está reservada EXCLUSIVAMENTE a
+     botones y nav links. Prohibida en badges, chips de estado, etiquetas y
+     tags: el estado de los datos se comunica con texto plano, icono y color,
+     nunca encapsulado. El token se llama -pill para que su nombre recuerde
+     dónde puede usarse. Nunca border-radius: 0.
+     ─────────────────────────────────────────────────────────────────────── */
+  --cs-radius-sm:    8px;
+  --cs-radius-md:   20px;
+  --cs-radius-lg:   30px;
+  --cs-radius-pill: 9999px;   /* SOLO .btn y nav links */
+
+  /* ── Sombras (Brandbook.md:223 — opacidades bajas, nunca decorativas) ──── */
+  --cs-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.06);
+  --cs-shadow-md: 0 2px 4px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --cs-shadow-lg: 0 4px 8px rgba(15, 23, 42, 0.04), 0 20px 50px rgba(15, 23, 42, 0.12);
+
+  /* ── Movimiento ────────────────────────────────────────────────────────── */
+  --cs-ease:       cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cs-transition: 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}

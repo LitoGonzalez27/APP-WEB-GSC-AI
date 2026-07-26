@@ -67,7 +67,7 @@
     justify-content: space-between;
     padding: 1.5rem 2rem;
     border-bottom: 2px solid #f3f4f6;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: #f8fafc;
     border-radius: 16px 16px 0 0;
 }
 
@@ -108,7 +108,8 @@
     transform: scale(1.05);
 }
 
-.response-modal-close i {
+.response-modal-close i,
+.response-modal-close svg.lucide {
     font-size: 1.125rem;
 }
 
@@ -133,7 +134,8 @@
     color: #64748b;
 }
 
-.response-modal-meta .meta-item i {
+.response-modal-meta .meta-item i,
+.response-modal-meta .meta-item svg.lucide {
     color: #94a3b8;
 }
 
@@ -165,7 +167,8 @@
     margin: 0 0 1rem 0;
 }
 
-.response-modal-section h4 i {
+.response-modal-section h4 i,
+.response-modal-section h4 svg.lucide {
     color: #3b82f6;
 }
 
@@ -214,7 +217,7 @@
 
 /* Brand mentions - Blue highlighting */
 mark.brand-mention {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    background: #dbeafe;
     color: #1e40af;
     padding: 2px 6px;
     border-radius: 4px;
@@ -225,7 +228,7 @@ mark.brand-mention {
 
 /* Competitor mentions - Orange/Red highlighting */
 mark.competitor-mention {
-    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    background: #fed7aa;
     color: #c2410c;
     padding: 2px 6px;
     border-radius: 4px;
@@ -269,7 +272,7 @@ mark.competitor-mention {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 0.75rem;
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    background: #fef3c7;
     border: 1px solid #fcd34d;
     border-radius: 8px;
     font-size: 0.875rem;
@@ -314,7 +317,8 @@ mark.competitor-mention {
     transform: translateX(4px);
 }
 
-.source-link-modal i {
+.source-link-modal i,
+.source-link-modal svg.lucide {
     color: #94a3b8;
     font-size: 0.875rem;
 }
@@ -338,17 +342,17 @@ mark.competitor-mention {
 /* Brand source - Blue accent */
 .source-link-modal.brand-source {
     border-color: #93c5fd;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    background: #eff6ff;
 }
 
 .source-link-modal.brand-source:hover {
     border-color: #60a5fa;
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    background: #dbeafe;
 }
 
 .source-link-modal .source-label.brand-label {
     padding: 3px 8px;
-    background: #3b82f6;
+    background: #2563eb;
     color: white;
     border-radius: 4px;
     font-size: 0.75rem;
@@ -358,17 +362,17 @@ mark.competitor-mention {
 /* Competitor source - Orange accent */
 .source-link-modal.competitor-source {
     border-color: #fdba74;
-    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    background: #fff7ed;
 }
 
 .source-link-modal.competitor-source:hover {
     border-color: #fb923c;
-    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+    background: #ffedd5;
 }
 
 .source-link-modal .source-label.competitor-label {
     padding: 3px 8px;
-    background: #f97316;
+    background: #c2410c;
     color: white;
     border-radius: 4px;
     font-size: 0.75rem;
@@ -425,7 +429,7 @@ mark.competitor-mention {
 }
 
 .btn-view-full-response {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #2563eb;
     color: white;
     border: none;
     padding: 0.625rem 1.25rem;
@@ -440,12 +444,13 @@ mark.competitor-mention {
 }
 
 .btn-view-full-response:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: #2563eb;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.btn-view-full-response i {
+.btn-view-full-response i,
+.btn-view-full-response svg.lucide {
     font-size: 0.875rem;
 }
 

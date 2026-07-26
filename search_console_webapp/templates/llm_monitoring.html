@@ -19,46 +19,50 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
     
+    <!-- Tipografías de marca (Brandbook v1.1). Sin este link, Inter Tight solo
+         se ve en equipos que la tengan instalada y el resto cae a Helvetica. -->
+    {% include 'partials/panel_brand_fonts.html' %}
+
     <!-- Reutilizar estilos existentes para consistencia -->
-    <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='tablas.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='modales-datos.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='tablas.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='modales-datos.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS específico para Manual AI (reusado para LLM Monitoring) -->
-    <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='manual-ai.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✅ Quota UI para consistencia -->
-    <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='quota-ui.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS específico para LLM Monitoring -->
-    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=8" rel="stylesheet">
-    <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=3" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✨ NEW: Share of Voice Metrics UI -->
-    <link href="{{ url_for('static', filename='sov-metrics-ui.css') }}?v=1" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='sov-metrics-ui.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✨ NEW: Response Inspector Modal -->
-    <link href="{{ url_for('static', filename='response-modal.css') }}?v=1" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='response-modal.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS para navbar principal -->
-    <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='navbar.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS para sidebar navigation -->
-    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- ✅ Paywall Styles para consistencia -->
-    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='paywall.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Chart.js para gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Grid.js para tablas -->
-    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
-    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+
+    <!-- Grid.js. Su tema "mermaid" trae paleta y tipografía propias, así que va
+         ANTES de los overrides de marca para que estos puedan reemplazarlo. -->
+    <link href="https://unpkg.com/gridjs@6.2.0/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs@6.2.0/dist/gridjs.umd.js"></script>
+
+    {% include 'partials/panel_brand_assets.html' %}
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
     <!-- Google Tag Manager (noscript) -->
@@ -526,8 +530,18 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Mention Rate
-                                <span class="kpi-tooltip" data-tooltip="% of prompts where your brand was mentioned." aria-label="% of prompts where your brand was mentioned.">
+                                <!-- Mismo tooltip rico que las tarjetas Branded/Non-Branded.
+                                     Sin modificador: se abre hacia abajo-derecha. Con
+                                     top-right se extendía 340px hacia la izquierda y el
+                                     sidebar lo tapaba. -->
+                                <span class="cg-info-tooltip">
                                     <i class="fas fa-info-circle"></i>
+                                    <span class="cg-info-tooltip-content">
+                                        <strong>What is this?</strong>
+                                        The percentage of prompts where your brand was mentioned by at least one LLM.
+                                        <strong>Why it matters</strong>
+                                        It answers the most basic visibility question: when users ask, do the models talk about you at all?
+                                    </span>
                                 </span>
                             </div>
                             <div class="kpi-value" id="kpiMentionRate">-</div>
@@ -540,8 +554,14 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Share of Voice
-                                <span class="kpi-tooltip" data-tooltip="Your brand mentions\n/ (Your brand + Competitors)." aria-label="Your brand mentions / (Your brand + Competitors).">
+                                <span class="cg-info-tooltip">
                                     <i class="fas fa-info-circle"></i>
+                                    <span class="cg-info-tooltip-content">
+                                        <strong>What is this?</strong>
+                                        Your brand mentions divided by the total mentions of your brand plus your competitors.
+                                        <strong>Why it matters</strong>
+                                        It puts your visibility in context: 100% of a conversation nobody else is in means little, while a growing share against competitors means you are winning ground.
+                                    </span>
                                 </span>
                             </div>
                             <div class="kpi-value" id="kpiShareOfVoice">-</div>
@@ -554,8 +574,16 @@
                         <div class="kpi-content">
                             <div class="kpi-label">
                                 Sentiment
-                                <span class="kpi-tooltip" data-tooltip="Overall sentiment\nwhen LLMs mention your brand." aria-label="Overall sentiment when LLMs mention your brand.">
+                                <!-- Anclado a la derecha: es la tarjeta del borde derecho
+                                     y hacia abajo-derecha se saldría del viewport. -->
+                                <span class="cg-info-tooltip cg-tooltip--right">
                                     <i class="fas fa-info-circle"></i>
+                                    <span class="cg-info-tooltip-content">
+                                        <strong>What is this?</strong>
+                                        The overall tone of what LLMs say when they mention your brand: positive, neutral or negative.
+                                        <strong>Why it matters</strong>
+                                        Being mentioned is not enough — a brand cited as a bad example loses more than one that is not cited at all.
+                                    </span>
                                 </span>
                             </div>
                             <div class="kpi-value" id="kpiSentiment">-</div>
@@ -628,10 +656,7 @@
                     <!-- Position Metrics Card -->
                     <div class="chart-card position-metrics-card" id="positionMetricsCard" style="display: none;">
                         <div class="chart-header">
-                            <h3>
-                                <i class="fas fa-trophy" style="color: #eab308; margin-right: 0.5rem;"></i>
-                                Position Rankings
-                            </h3>
+                            <h3>Position Rankings</h3>
                             <span class="chart-badge">When mentioned</span>
                         </div>
                         <div class="position-metrics-content">
@@ -683,10 +708,7 @@
                     <!-- Quality Score Card -->
                     <div class="chart-card quality-score-card" id="qualityScoreCard" style="display: none;">
                         <div class="chart-header">
-                            <h3>
-                                <i class="fas fa-shield-alt" style="color: #22c55e; margin-right: 0.5rem;"></i>
-                                Data Quality Score
-                            </h3>
+                            <h3>Data Quality Score</h3>
                             <span class="chart-badge">Reliability</span>
                         </div>
                         <div class="quality-score-content">
@@ -851,6 +873,10 @@
                     <div class="chart-container" id="clustersChartContainer" style="min-height: 340px; position: relative;">
                         <canvas id="clustersPerformanceChart"></canvas>
                     </div>
+                    <!-- Posición media por cluster, alineada bajo cada barra. Antes
+                         era una segunda serie en un eje derecho propio, lo que
+                         insinuaba una correlación inexistente entre ambas métricas. -->
+                    <div id="clustersPositionStrip" class="clusters-position-strip"></div>
                 </div>
 
                 <!-- Queries/Prompts Table -->
@@ -873,7 +899,8 @@
                             <button class="btn btn-primary" id="btnAnalyzeUrlContent"
                                     onclick="window.llmMonitoring.startUrlContentAnalysis()"
                                     title="Fetch the top 30 cited pages and detect brand & competitor mentions in their content">
-                                <i class="fas fa-search-plus"></i>
+                                {# data-no-lucide: updateUrlContentButton() alterna este icono vía className (spinner / check / lupa) #}
+                                <i class="fas fa-search-plus" data-no-lucide></i>
                                 <span>Analyze Top 30 Content</span>
                             </button>
                         </div>
@@ -1103,7 +1130,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="projectName" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
+                                <span class="sov-highlight">Project Name</span>*
                             </label>
                             <input type="text" id="projectName" required maxlength="255" class="enhanced-input" placeholder="e.g., Brand LLM Visibility Campaign">
                             <small class="form-help">Choose a memorable name for your monitoring project</small>
@@ -1113,7 +1140,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="industry" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Industry</span>*
+                                <span class="sov-highlight">Industry</span>*
                             </label>
                             <input type="text" id="industry" required class="enhanced-input" placeholder="e.g., SEO Tools, Marketing">
                             <small class="form-help">Your brand's industry or niche</small>
@@ -1131,7 +1158,7 @@
                         <div class="form-row form-row-split">
                             <div class="form-group">
                                 <label for="brandDomain" class="enhanced-label">
-                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Domain</span>
+                                    <span class="sov-highlight">Brand Domain</span>
                                 </label>
                                 <input type="text" id="brandDomain" class="enhanced-input" placeholder="e.g., hmfertility.com">
                                 <small class="form-help">Your website domain (we'll detect it automatically)</small>
@@ -1139,7 +1166,7 @@
                             
                             <div class="form-group">
                                 <label for="brandKeywords" class="enhanced-label">
-                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>*
+                                    <span class="sov-highlight">Brand Keywords</span>*
                                 </label>
                                 <input type="text" id="brandKeywords" class="enhanced-input chip-input" placeholder="e.g., hmfertility, hm, fertility clinic">
                                 <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
@@ -1165,7 +1192,7 @@
                             <div class="form-row form-row-split">
                                 <div class="form-group">
                                     <label for="competitor1Domain" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                        <span class="sov-highlight">Domain</span>
                                     </label>
                                     <input type="text" id="competitor1Domain" class="enhanced-input" placeholder="e.g., holded.com">
                                     <small class="form-help">Your website domain (we'll detect it automatically)</small>
@@ -1173,7 +1200,7 @@
                                 
                                 <div class="form-group">
                                     <label for="competitor1Keywords" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                        <span class="sov-highlight">Brand Keywords</span>
                                     </label>
                                     <input type="text" id="competitor1Keywords" class="enhanced-input chip-input" placeholder="e.g., holded, holded software">
                                     <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
@@ -1191,7 +1218,7 @@
                             <div class="form-row form-row-split">
                                 <div class="form-group">
                                     <label for="competitor2Domain" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                        <span class="sov-highlight">Domain</span>
                                     </label>
                                     <input type="text" id="competitor2Domain" class="enhanced-input" placeholder="e.g., declarando.es">
                                     <small class="form-help">Competitor domain</small>
@@ -1199,7 +1226,7 @@
                                 
                                 <div class="form-group">
                                     <label for="competitor2Keywords" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                        <span class="sov-highlight">Brand Keywords</span>
                                     </label>
                                     <input type="text" id="competitor2Keywords" class="enhanced-input chip-input" placeholder="e.g., declarando">
                                     <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
@@ -1217,7 +1244,7 @@
                             <div class="form-row form-row-split">
                                 <div class="form-group">
                                     <label for="competitor3Domain" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                        <span class="sov-highlight">Domain</span>
                                     </label>
                                     <input type="text" id="competitor3Domain" class="enhanced-input" placeholder="e.g., competitor3.com">
                                     <small class="form-help">Competitor domain</small>
@@ -1225,7 +1252,7 @@
                                 
                                 <div class="form-group">
                                     <label for="competitor3Keywords" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                        <span class="sov-highlight">Brand Keywords</span>
                                     </label>
                                     <input type="text" id="competitor3Keywords" class="enhanced-input chip-input" placeholder="e.g., competitor keyword">
                                     <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
@@ -1243,7 +1270,7 @@
                             <div class="form-row form-row-split">
                                 <div class="form-group">
                                     <label for="competitor4Domain" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                        <span class="sov-highlight">Domain</span>
                                     </label>
                                     <input type="text" id="competitor4Domain" class="enhanced-input" placeholder="e.g., competitor4.com">
                                     <small class="form-help">Competitor domain</small>
@@ -1251,7 +1278,7 @@
                                 
                                 <div class="form-group">
                                     <label for="competitor4Keywords" class="enhanced-label">
-                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                        <span class="sov-highlight">Brand Keywords</span>
                                     </label>
                                     <input type="text" id="competitor4Keywords" class="enhanced-input chip-input" placeholder="e.g., competitor keyword">
                                     <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
@@ -1264,7 +1291,7 @@
                     <div class="form-row form-row-split">
                         <div class="form-group">
                             <label for="language" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Language</span>*
+                                <span class="sov-highlight">Language</span>*
                             </label>
                             <select id="language" class="enhanced-select">
                                 <option value="es" selected>🇪🇸 Spanish</option>
@@ -1302,7 +1329,7 @@
                         
                         <div class="form-group">
                             <label for="countryCode" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
+                                <span class="sov-highlight">Target Country</span>*
                             </label>
                             <select id="countryCode" class="enhanced-select">
                                 <option value="ES" selected>🇪🇸 Spain</option>
@@ -1357,7 +1384,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Enabled LLMs</span>*
+                                <span class="sov-highlight">Enabled LLMs</span>*
                             </label>
                             <div class="checkbox-group">
                                 <label class="checkbox-label">
@@ -1603,17 +1630,12 @@
     <div class="modal-overlay" id="promptsModal" style="display: none;" data-pdf-exclude="true">
         <div class="modal-content add-prompts-modal" role="dialog" aria-modal="true" aria-labelledby="promptsModalTitle" tabindex="-1">
             <div class="modal-header add-prompts-header">
-                <div class="header-content">
-                    <div class="header-icon">
-                        <i class="fas fa-comment-dots"></i>
-                    </div>
-                    <div class="header-text">
-                        <h3 id="promptsModalTitle">Add Prompts</h3>
-                        <p>Create prompts to monitor your brand visibility across LLMs</p>
-                    </div>
+                <div class="header-text">
+                    <h3 id="promptsModalTitle">Add Prompts</h3>
+                    <p>Create prompts to monitor your brand visibility across LLMs</p>
                 </div>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hidePromptsModal()">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hidePromptsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             
@@ -1623,7 +1645,6 @@
                     <div class="quick-suggestions-section" id="quickSuggestionsSection">
                         <div class="quick-suggestions-header">
                             <div class="header-left">
-                                <i class="fas fa-magic"></i>
                                 <span>Suggested Prompts</span>
                             </div>
                             <button type="button" class="refresh-suggestions-btn" onclick="window.llmMonitoring.refreshQuickSuggestions()" title="Generate new suggestions">
@@ -1645,7 +1666,6 @@
                     <div class="prompts-input-section">
                         <div class="input-header">
                             <label for="promptsInput" class="input-label">
-                                <i class="fas fa-pen"></i>
                                 Enter Your Prompts
                             </label>
                             <div class="prompts-counter" id="promptsCounter">
@@ -1678,7 +1698,6 @@
                         <div class="prompts-remaining-hint" id="promptsRemainingHint" style="display: none;"></div>
 
                         <div class="input-hint">
-                            <i class="fas fa-info-circle"></i>
                             <span>One prompt per line</span>
                         </div>
                     </div>
@@ -1688,11 +1707,10 @@
                         <div class="options-grid">
                             <div class="option-item">
                                 <label for="promptLanguage" class="option-label">
-                                    <i class="fas fa-globe"></i>
                                     Language
                                 </label>
                                 <select id="promptLanguage" class="option-select">
-                                    <option value="">📌 Project default</option>
+                                    <option value="">Project default</option>
                                     <option value="es">🇪🇸 Spanish</option>
                                     <option value="en">🇬🇧 English</option>
                                     <option value="it">🇮🇹 Italian</option>
@@ -1727,14 +1745,13 @@
                             
                             <div class="option-item">
                                 <label for="promptType" class="option-label">
-                                    <i class="fas fa-tag"></i>
                                     Category
                                 </label>
                                 <select id="promptType" class="option-select">
-                                    <option value="manual">📝 Manual</option>
-                                    <option value="general">🌐 General</option>
-                                    <option value="with_brand">🏷️ Brand-focused</option>
-                                    <option value="with_competitor">⚔️ Competitor comparison</option>
+                                    <option value="manual">Manual</option>
+                                    <option value="general">General</option>
+                                    <option value="with_brand">Brand-focused</option>
+                                    <option value="with_competitor">Competitor comparison</option>
                                 </select>
                             </div>
                         </div>
@@ -1746,7 +1763,6 @@
                         Cancel
                     </button>
                     <button type="submit" id="btnSavePrompts" class="btn-submit" disabled>
-                        <i class="fas fa-plus-circle"></i>
                         <span id="btnSavePromptsText">Add Prompts</span>
                     </button>
                 </div>
@@ -1756,17 +1772,14 @@
 
     <!-- AI Suggestions Modal -->
     <div class="modal-overlay" id="suggestionsModal" style="display: none;" data-pdf-exclude="true">
-        <div class="modal-content modal-large" role="dialog" aria-modal="true" aria-labelledby="suggestionsModalTitle" tabindex="-1">
-            <div class="modal-header">
+        <div class="modal-content modal-large suggestions-modal" role="dialog" aria-modal="true" aria-labelledby="suggestionsModalTitle" tabindex="-1">
+            <div class="modal-header suggestions-modal-header">
                 <div class="header-text">
-                    <h3 id="suggestionsModalTitle">
-                        <i class="fas fa-magic"></i>
-                        AI-Powered Prompt Suggestions
-                    </h3>
+                    <h3 id="suggestionsModalTitle">AI-Powered Prompt Suggestions</h3>
                     <p>Select the prompts you want to add to your project. Generated by Gemini AI.</p>
                 </div>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideSuggestionsModal()">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideSuggestionsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
@@ -1806,13 +1819,11 @@
                     </button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary btn-enhanced" onclick="window.llmMonitoring.hideSuggestionsModal()">
-                    <i class="fas fa-times"></i>
+            <div class="modal-footer suggestions-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="window.llmMonitoring.hideSuggestionsModal()">
                     Cancel
                 </button>
-                <button type="button" id="btnAddSelectedSuggestions" class="btn-success btn-enhanced">
-                    <i class="fas fa-check"></i>
+                <button type="button" id="btnAddSelectedSuggestions" class="btn btn-primary">
                     <span id="btnAddSuggestionsText">Add Selected (0)</span>
                 </button>
             </div>
@@ -1824,19 +1835,19 @@
     <!-- LLM Monitoring: clase base (define LLMMonitoring) + mixins de prototipo (refactor Fase 3).
          Orden: la clase base PRIMERO, luego los mixins (Object.assign al prototipo). Todos cargan
          de forma síncrona antes del DOMContentLoaded que instancia window.llmMonitoring. -->
-    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-core.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-projects.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-prompts.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-queries.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-metrics.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v=13"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v=13"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v=2"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v=13"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-models.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-core.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-projects.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-prompts.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-queries.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-metrics.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-charts.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-models.js') }}?v={{ ASSET_V }}"></script>
 
     <script>
         // Usuario actual
@@ -1956,7 +1967,7 @@
                     </div>
                 </div>
                 
-                <div class="info-section" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 1.5rem; border-radius: 8px;">
+                <div class="info-section info-section--notice">
                     <h3><span class="metric-badge" style="background: #f59e0b; color: white;">📈 Total Mentions Over Time</span></h3>
                     <p class="metric-description">
                         <strong>Important:</strong> The "Total Mentions Over Time" chart <strong>always uses standard counting</strong> and is <strong>not affected</strong> by the Weighted/Standard toggle.
@@ -1984,10 +1995,10 @@
                 </div>
                 
                 <!-- ✨ NUEVO: Explicación de badges de position source -->
-                <div class="info-section" style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border-left: 4px solid #6366f1; padding: 1.5rem; border-radius: 8px;">
+                <div class="info-section info-section--reference">
                     <h3><span class="metric-badge" style="background: #6366f1; color: white;">🏷️ Position Source Badges</span></h3>
                     <p class="metric-description">
-                        In the <strong>LLM Comparison</strong> table, you'll see badges next to the average position indicating where the brand mention was detected:
+                        In the <strong>Details</strong> modal of each prompt (Breakdown by LLM), you'll see a label next to the position indicating where the brand mention was detected:
                     </p>
                     
                     <div style="background: white; padding: 1.25rem; border-radius: 8px; margin-top: 1rem;">
@@ -2367,49 +2378,45 @@
         <div class="modal-content brand-mentions-modal" role="dialog" aria-modal="true" aria-labelledby="brandMentionsModalTitle" tabindex="-1">
             <div class="modal-header brand-mentions-header">
                 <div class="header-text">
-                    <h3 id="brandMentionsModalTitle">
-                        <i class="fas fa-chart-bar"></i>
-                        Brand Mentions Analysis
-                    </h3>
+                    <h3 id="brandMentionsModalTitle">Brand Mentions Analysis</h3>
                     <p id="brandMentionsModalPrompt" class="brand-mentions-prompt">Loading...</p>
                 </div>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideBrandMentionsModal()">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideBrandMentionsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <!-- ✨ Gráfica de Evolución Histórica (PRIMERO) -->
+
+            <!-- ✨ Resumen del prompt: SOV, Avg Position, Sentiment, Cluster, Top Domains -->
+            <div class="brand-mentions-overview" id="brandMentionsOverview"></div>
+
+            <!-- ✨ Gráfica de Evolución Histórica -->
             <div class="modal-history-section" id="brandMentionsHistorySection">
                 <div class="history-chart-header">
-                    <h4>
-                        <i class="fas fa-chart-line"></i>
-                        Visibility Evolution
-                    </h4>
+                    <h4>Visibility Evolution</h4>
                     <span class="history-chart-period" id="historyChartPeriod">Last 30 days</span>
                 </div>
                 <div class="history-chart-container">
                     <canvas id="brandMentionsHistoryChart"></canvas>
                 </div>
                 <div class="history-chart-loading" id="historyChartLoading">
-                    <i class="fas fa-spinner fa-spin"></i>
+                    <span class="bm-spinner" aria-hidden="true"></span>
                     <span>Loading history...</span>
                 </div>
                 <div class="history-chart-empty" id="historyChartEmpty" style="display: none;">
-                    <i class="fas fa-calendar-times"></i>
                     <span>No historical data available yet</span>
                 </div>
             </div>
-            
-            <!-- Contenido del modal (Your Brand, Competitors, etc.) -->
+
+            <!-- Contenido del modal (Your Brand, Competitors, breakdown por LLM) -->
             <div class="modal-body brand-mentions-body" id="brandMentionsModalBody">
                 <div class="brand-mentions-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
+                    <span class="bm-spinner" aria-hidden="true"></span>
                     <p>Loading analysis...</p>
                 </div>
             </div>
-            
+
             <div class="modal-footer brand-mentions-footer">
                 <button type="button" class="btn-close-modal" onclick="window.llmMonitoring.hideBrandMentionsModal()">
-                    <i class="fas fa-times"></i>
                     Close
                 </button>
             </div>
@@ -2418,72 +2425,61 @@
 
     <!-- ✨ LLM Models Info Modal -->
     <div class="modal-overlay" id="modelsInfoModal" style="display: none;" data-pdf-exclude="true">
-        <div class="modal-content" style="max-width: 700px;" role="dialog" aria-modal="true" aria-labelledby="modelsInfoModalTitle" tabindex="-1">
-            <div class="modal-header" style="background: linear-gradient(135deg, #161616 0%, #2d2d2d 100%); color: white; border-radius: 12px 12px 0 0;">
-                <h3 id="modelsInfoModalTitle" style="display: flex; align-items: center; gap: 10px; margin: 0;">
-                    <i class="fas fa-microchip"></i>
-                    Active LLM Models
-                </h3>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideModelsModal()" style="color: white;">
-                    <i class="fas fa-times"></i>
+        <div class="modal-content models-modal" role="dialog" aria-modal="true" aria-labelledby="modelsInfoModalTitle" tabindex="-1">
+            <div class="modal-header models-modal-header">
+                <h3 id="modelsInfoModalTitle">Active LLM Models</h3>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideModelsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" style="padding: 24px;">
-                <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+            <div class="modal-body models-modal-body">
+                <p class="models-modal-intro">
                     These are the AI models currently being used for your LLM Monitoring analysis:
                 </p>
-                <div id="modelsInfoContent" class="models-grid">
+                <!-- Sin la clase models-grid: el JS inyecta aquí su propio
+                     .models-grid, y tenerla también aquí anidaba un grid dentro
+                     de otro, así que las 4 tarjetas se repartían el ancho de una
+                     sola columna en vez del ancho del modal. -->
+                <div id="modelsInfoContent">
                     <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
+                        <span class="bm-spinner" aria-hidden="true"></span>
                         <p>Loading models...</p>
                     </div>
                 </div>
-                
+
                 <!-- ✨ Knowledge Cutoff Section (populated dynamically from API) -->
-                <div style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; border-left: 4px solid #f59e0b;">
-                    <h4 style="margin: 0 0 12px 0; color: #92400e; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-clock"></i>
-                        Knowledge Cutoff Dates
-                    </h4>
-                    <p style="margin: 0 0 12px 0; color: #78350f; font-size: 13px;">
-                        Each model has a "knowledge cutoff" - the date until which it was trained. Information after this date may be outdated or unknown.
+                <section class="models-note">
+                    <h4 class="models-note-title">Knowledge Cutoff Dates</h4>
+                    <p class="models-note-text">
+                        Each model has a "knowledge cutoff" — the date until which it was trained. Information after this date may be outdated or unknown.
                     </p>
-                    <div id="knowledgeCutoffContent" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px;">
+                    <div id="knowledgeCutoffContent" class="models-cutoff-grid">
                         <!-- Populated dynamically by showModelsModal() -->
-                        <div style="text-align: center; padding: 10px; color: #92400e; grid-column: span 2;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading cutoff dates...
-                        </div>
+                        <div class="models-cutoff-loading">Loading cutoff dates...</div>
                     </div>
-                </div>
-                
+                </section>
+
                 <!-- ✨ Real-time Info Section -->
-                <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 12px; border-left: 4px solid #10b981;">
-                    <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-globe"></i>
-                        Real-time Information
-                    </h4>
-                    <p style="margin: 0; color: #047857; font-size: 13px;">
+                <section class="models-note models-note--positive">
+                    <h4 class="models-note-title">Real-time Information</h4>
+                    <p class="models-note-text">
                         <strong>Perplexity Sonar Pro</strong> is web-grounded and can fetch current sources at query time.
                         For time-sensitive topics after each model's cutoff date, Perplexity is usually the most up-to-date.
                     </p>
-                </div>
-                
+                </section>
+
                 <!-- ⚠️ Important Note -->
-                <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 12px; border-left: 4px solid #ef4444;">
-                    <h4 style="margin: 0 0 8px 0; color: #991b1b; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Important Note
-                    </h4>
-                    <p style="margin: 0; color: #b91c1c; font-size: 13px;">
+                <section class="models-note models-note--warning">
+                    <h4 class="models-note-title">Important Note</h4>
+                    <p class="models-note-text">
                         ChatGPT, Claude, and Gemini may give outdated or incorrect information about recent events.
                         This is a limitation of these models, not a bug in the system.
                         Always verify time-sensitive information with current sources.
                     </p>
-                </div>
+                </section>
             </div>
-            <div class="modal-footer" style="background: #f9fafb; border-radius: 0 0 12px 12px; padding: 16px 24px;">
+            <div class="modal-footer models-modal-footer">
                 <button type="button" class="btn btn-primary" onclick="window.llmMonitoring.hideModelsModal()">
-                    <i class="fas fa-check"></i>
                     Got it
                 </button>
             </div>
@@ -2496,19 +2492,19 @@
             Change Share of Voice calculation method<br>
             <small>(affects all charts and metrics)</small>
         </div>
-        
+
         <div class="fab-content">
             <button class="fab-info-btn" id="btnGlobalSovInfo" title="Learn about Share of Voice metrics">
                 <i class="fas fa-info-circle"></i>
             </button>
-            
+
             <div class="fab-toggle-wrapper">
                 <div class="fab-toggle" id="globalSovMetricToggle">
                     <input type="radio" id="globalMetricWeighted" name="globalSovMetric" value="weighted" checked>
                     <label for="globalMetricWeighted" class="fab-toggle-option">
                         <span class="fab-toggle-text">Weighted</span>
                     </label>
-                    
+
                     <input type="radio" id="globalMetricNormal" name="globalSovMetric" value="normal">
                     <label for="globalMetricNormal" class="fab-toggle-option">
                         <span class="fab-toggle-text">Standard</span>
@@ -2518,6 +2514,6 @@
         </div>
     </div>
     <!-- Banner de invitaciones pendientes (compartido) -->
-    <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v=1"></script>
+    <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v={{ ASSET_V }}"></script>
 </body>
 </html>

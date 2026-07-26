@@ -55,6 +55,10 @@
   flex: 1;
   margin-left: var(--content-margin); /* Sidebar siempre abierto */
   min-height: calc(100vh - 60px);
+  /* min-width:0 anula el "min-width:auto" de los flex items: sin esto, cualquier
+     contenido ancho (tablas Grid.js, gráficas) ensancha el main más allá del
+     viewport y provoca scroll horizontal en toda la página. */
+  min-width: 0;
 }
 
 /*=============================================
