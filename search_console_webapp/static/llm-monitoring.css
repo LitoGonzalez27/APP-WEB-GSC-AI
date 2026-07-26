@@ -3445,55 +3445,93 @@ label:not(.search-form label) {
     max-width: 100%;
 }
 
+/* Cabecera al lenguaje común de los modales del panel: fondo oscuro plano,
+   título con la subtítulo, cierre estándar. */
 .add-prompts-header {
-    background: #161616;
+    background: var(--cs-bg-dark);
     padding: 1.25rem 1.5rem;
     border-bottom: none;
-}
-
-.add-prompts-header .header-content {
     display: flex;
-    align-items: center;
-    gap: 0.875rem;
-}
-
-.add-prompts-header .header-icon {
-    width: 42px;
-    height: 42px;
-    background: #8BC34A;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.add-prompts-header .header-icon i,
-.add-prompts-header .header-icon svg.lucide {
-    color: white;
-    font-size: 1.1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
 .add-prompts-header .header-text h3 {
-    color: white;
-    font-size: 1.1rem;
-    font-weight: 700;
+    color: var(--cs-text-inverse);
+    font-size: var(--cs-text-lg);
+    font-weight: var(--cs-weight-bold);
+    letter-spacing: var(--cs-tracking-tight);
     margin: 0 0 2px 0;
 }
 
 .add-prompts-header .header-text p {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--cs-text-xs);
     margin: 0;
 }
 
-.add-prompts-header .modal-close {
-    color: rgba(255, 255, 255, 0.6);
+.add-prompts-header .modal-close,
+.suggestions-modal-header .modal-close {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--cs-text-inverse);
+    width: 34px;
+    height: 34px;
+    border-radius: var(--cs-radius-sm);
+    font-size: 1.3rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: var(--cs-transition);
 }
 
-.add-prompts-header .modal-close:hover {
-    color: white;
-    background: rgba(255, 255, 255, 0.1);
+.add-prompts-header .modal-close:hover,
+.suggestions-modal-header .modal-close:hover {
+    background: var(--cs-accent);
+    border-color: var(--cs-accent);
+    color: var(--cs-text-primary);
+}
+
+/* Cabecera del modal de sugerencias IA: mismo patrón. */
+.suggestions-modal-header {
+    background: var(--cs-bg-dark);
+    padding: 1.25rem 1.5rem;
+    border-bottom: none;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.suggestions-modal-header .header-text h3 {
+    color: var(--cs-text-inverse);
+    font-size: var(--cs-text-lg);
+    font-weight: var(--cs-weight-bold);
+    letter-spacing: var(--cs-tracking-tight);
+    margin: 0 0 2px 0;
+}
+
+.suggestions-modal-header .header-text p {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--cs-text-xs);
+    margin: 0;
+}
+
+/* Los spinners y avisos de estados perdieron el tamaño fa-3x al convertirse a
+   SVG (las clases fa-* se retiran en la conversión): tamaño explícito. */
+.suggestions-loading svg.lucide {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+.suggestions-error svg.lucide {
+    width: 2rem;
+    height: 2rem;
+    color: var(--cs-error);
 }
 
 /* Body */
@@ -3809,49 +3847,42 @@ label:not(.search-form label) {
 
 .btn-cancel {
     padding: 10px 20px;
-    border: 1px solid #d1d5db;
-    background: white;
-    color: #374151;
-    font-weight: 500;
+    border: 1px solid var(--cs-border);
+    background: var(--cs-bg-paper);
+    color: var(--cs-text-primary);
+    font-weight: var(--cs-weight-semibold);
     font-size: 0.875rem;
-    border-radius: 8px;
+    border-radius: var(--cs-radius-pill);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: var(--cs-transition);
 }
 
 .btn-cancel:hover {
-    border-color: #9ca3af;
-    background: #f3f4f6;
-    color: #111827;
+    border-color: var(--cs-text-tertiary);
+    background: var(--cs-bg-subtle);
 }
 
 .btn-submit {
     padding: 10px 24px;
-    border: 1px solid #111827;
-    background: #111827;
-    color: #D8F9B8;
-    font-weight: 600;
+    border: none;
+    background: var(--cs-text-primary);
+    color: var(--cs-text-inverse);
+    font-weight: var(--cs-weight-semibold);
     font-size: 0.875rem;
-    border-radius: 8px;
+    border-radius: var(--cs-radius-pill);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.2s ease;
+    transition: var(--cs-transition);
 }
 
 .btn-submit:hover:not(:disabled) {
-    background: #D8F9B8;
-    color: #111827;
-    border-color: #c4e8a5;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: var(--cs-surface-dark);
 }
 
 .btn-submit:disabled {
-    background: #d1d5db;
-    color: #9ca3af;
-    border-color: #d1d5db;
+    opacity: 0.5;
     cursor: not-allowed;
     box-shadow: none;
 }

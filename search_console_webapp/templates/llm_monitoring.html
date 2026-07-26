@@ -675,10 +675,7 @@
                     <!-- Position Metrics Card -->
                     <div class="chart-card position-metrics-card" id="positionMetricsCard" style="display: none;">
                         <div class="chart-header">
-                            <h3>
-                                <i class="fas fa-trophy" style="color: #eab308; margin-right: 0.5rem;"></i>
-                                Position Rankings
-                            </h3>
+                            <h3>Position Rankings</h3>
                             <span class="chart-badge">When mentioned</span>
                         </div>
                         <div class="position-metrics-content">
@@ -730,10 +727,7 @@
                     <!-- Quality Score Card -->
                     <div class="chart-card quality-score-card" id="qualityScoreCard" style="display: none;">
                         <div class="chart-header">
-                            <h3>
-                                <i class="fas fa-shield-alt" style="color: #22c55e; margin-right: 0.5rem;"></i>
-                                Data Quality Score
-                            </h3>
+                            <h3>Data Quality Score</h3>
                             <span class="chart-badge">Reliability</span>
                         </div>
                         <div class="quality-score-content">
@@ -1654,17 +1648,12 @@
     <div class="modal-overlay" id="promptsModal" style="display: none;" data-pdf-exclude="true">
         <div class="modal-content add-prompts-modal" role="dialog" aria-modal="true" aria-labelledby="promptsModalTitle" tabindex="-1">
             <div class="modal-header add-prompts-header">
-                <div class="header-content">
-                    <div class="header-icon">
-                        <i class="fas fa-comment-dots"></i>
-                    </div>
-                    <div class="header-text">
-                        <h3 id="promptsModalTitle">Add Prompts</h3>
-                        <p>Create prompts to monitor your brand visibility across LLMs</p>
-                    </div>
+                <div class="header-text">
+                    <h3 id="promptsModalTitle">Add Prompts</h3>
+                    <p>Create prompts to monitor your brand visibility across LLMs</p>
                 </div>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hidePromptsModal()">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hidePromptsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             
@@ -1674,7 +1663,6 @@
                     <div class="quick-suggestions-section" id="quickSuggestionsSection">
                         <div class="quick-suggestions-header">
                             <div class="header-left">
-                                <i class="fas fa-magic"></i>
                                 <span>Suggested Prompts</span>
                             </div>
                             <button type="button" class="refresh-suggestions-btn" onclick="window.llmMonitoring.refreshQuickSuggestions()" title="Generate new suggestions">
@@ -1696,7 +1684,6 @@
                     <div class="prompts-input-section">
                         <div class="input-header">
                             <label for="promptsInput" class="input-label">
-                                <i class="fas fa-pen"></i>
                                 Enter Your Prompts
                             </label>
                             <div class="prompts-counter" id="promptsCounter">
@@ -1729,7 +1716,6 @@
                         <div class="prompts-remaining-hint" id="promptsRemainingHint" style="display: none;"></div>
 
                         <div class="input-hint">
-                            <i class="fas fa-info-circle"></i>
                             <span>One prompt per line</span>
                         </div>
                     </div>
@@ -1739,11 +1725,10 @@
                         <div class="options-grid">
                             <div class="option-item">
                                 <label for="promptLanguage" class="option-label">
-                                    <i class="fas fa-globe"></i>
                                     Language
                                 </label>
                                 <select id="promptLanguage" class="option-select">
-                                    <option value="">📌 Project default</option>
+                                    <option value="">Project default</option>
                                     <option value="es">🇪🇸 Spanish</option>
                                     <option value="en">🇬🇧 English</option>
                                     <option value="it">🇮🇹 Italian</option>
@@ -1778,14 +1763,13 @@
                             
                             <div class="option-item">
                                 <label for="promptType" class="option-label">
-                                    <i class="fas fa-tag"></i>
                                     Category
                                 </label>
                                 <select id="promptType" class="option-select">
-                                    <option value="manual">📝 Manual</option>
-                                    <option value="general">🌐 General</option>
-                                    <option value="with_brand">🏷️ Brand-focused</option>
-                                    <option value="with_competitor">⚔️ Competitor comparison</option>
+                                    <option value="manual">Manual</option>
+                                    <option value="general">General</option>
+                                    <option value="with_brand">Brand-focused</option>
+                                    <option value="with_competitor">Competitor comparison</option>
                                 </select>
                             </div>
                         </div>
@@ -1797,7 +1781,6 @@
                         Cancel
                     </button>
                     <button type="submit" id="btnSavePrompts" class="btn-submit" disabled>
-                        <i class="fas fa-plus-circle"></i>
                         <span id="btnSavePromptsText">Add Prompts</span>
                     </button>
                 </div>
@@ -1807,17 +1790,14 @@
 
     <!-- AI Suggestions Modal -->
     <div class="modal-overlay" id="suggestionsModal" style="display: none;" data-pdf-exclude="true">
-        <div class="modal-content modal-large" role="dialog" aria-modal="true" aria-labelledby="suggestionsModalTitle" tabindex="-1">
-            <div class="modal-header">
+        <div class="modal-content modal-large suggestions-modal" role="dialog" aria-modal="true" aria-labelledby="suggestionsModalTitle" tabindex="-1">
+            <div class="modal-header suggestions-modal-header">
                 <div class="header-text">
-                    <h3 id="suggestionsModalTitle">
-                        <i class="fas fa-magic"></i>
-                        AI-Powered Prompt Suggestions
-                    </h3>
+                    <h3 id="suggestionsModalTitle">AI-Powered Prompt Suggestions</h3>
                     <p>Select the prompts you want to add to your project. Generated by Gemini AI.</p>
                 </div>
-                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideSuggestionsModal()">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideSuggestionsModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
@@ -1857,13 +1837,11 @@
                     </button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary btn-enhanced" onclick="window.llmMonitoring.hideSuggestionsModal()">
-                    <i class="fas fa-times"></i>
+            <div class="modal-footer suggestions-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="window.llmMonitoring.hideSuggestionsModal()">
                     Cancel
                 </button>
-                <button type="button" id="btnAddSelectedSuggestions" class="btn-success btn-enhanced">
-                    <i class="fas fa-check"></i>
+                <button type="button" id="btnAddSelectedSuggestions" class="btn btn-primary">
                     <span id="btnAddSuggestionsText">Add Selected (0)</span>
                 </button>
             </div>
