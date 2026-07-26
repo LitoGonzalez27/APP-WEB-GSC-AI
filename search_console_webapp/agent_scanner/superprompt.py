@@ -112,6 +112,40 @@ def _bloque_factores(client):
     return "\n".join(partes)
 
 
+def _competidores_validos(data):
+    """Competidores que sí se pueden auditar (los que fallaron traen 'error')."""
+    return [c for c in (data.get("competitors") or [])
+            if c and not c.get("error") and c.get("host")]
+
+
+def _bloque_competidores(competitors):
+    """Si el cliente añadió competidores, el LLM también los audita: la comparativa
+    ES el entregable de esta herramienta. Cada competidor lleva sus 40 factores con
+    la MISMA regla de delegación (reusa _bloque_factores, que mira el nivel de
+    bloqueo de cada dominio por separado: uno puede estar bloqueado y otro no)."""
+    validos = _competidores_validos({"competitors": competitors})
+    if not validos:
+        return ""
+    partes = [f"""
+═══════════════════════════════════════════════════════════════════════
+COMPETIDORES — AUDÍTALOS TAMBIÉN ({len(validos)}). La comparativa es el entregable.
+═══════════════════════════════════════════════════════════════════════
+El cliente añadió competidores para compararse. Aplícales EXACTAMENTE las mismas
+reglas de fidelidad y la misma escala 0-100: los 40 factores, reutilizando lo «YA
+VERIFICADO»/«CONFIRMADO EN CAMPO» y completando los «PENDIENTE» con la web
+delante. Para el factor 6.3 de cada competidor, reproduce la misma tarea agéntica
+descrita arriba pero sobre SU web. Sin comparar contra el cliente no hay informe."""]
+    for i, comp in enumerate(validos, 1):
+        chost = comp.get("host", "competidor")
+        ctyp = comp.get("typology", "corporativo")
+        partes.append(f"""
+───────────────────────────────────────────────────────────────────────
+COMPETIDOR {i}: {chost}  (tipología: {ctyp})
+───────────────────────────────────────────────────────────────────────
+{_bloque_factores(comp)}""")
+    return "\n".join(partes)
+
+
 def construir(data):
     """Genera el super prompt a partir del resultado del análisis."""
     client = data.get("client") or {}
@@ -123,6 +157,13 @@ def construir(data):
     bloqueo_fuerte = nivel in ("total", "marcado")
     tarea, hitos = _tarea_agentica(typ)
     cob_txt = (f"{round(cob * 100)}%" if isinstance(cob, (int, float)) else "parcial")
+
+    comp_validos = _competidores_validos(data)
+    comp_hosts = [c["host"] for c in comp_validos]
+    con_comp = (f" El cliente añadió {len(comp_hosts)} competidor(es) para "
+                f"compararse ({', '.join(comp_hosts)}): tienes que auditarlos TAMBIÉN "
+                f"(su sección va más abajo) — la comparativa es el objetivo."
+                if comp_hosts else "")
 
     # En bloqueo fuerte NO nos fiamos de lo poco que "vimos": el análisis entero
     # pasa al LLM. En bloqueo leve (sondas) sí se reutiliza lo verificado.
@@ -137,12 +178,12 @@ IMPORTANTE: a la herramienta le bloquearon por usar una IP de datacenter; a ti,
 con una IP limpia, es probable que el sitio SÍ te deje entrar. Aprovéchalo. La
 ÚNICA excepción son los factores marcados «CONFIRMADO EN CAMPO» (la hostilidad
 al acceso): esos los probó la herramienta en sus carnes y a ti no te pasará, así
-que respétalos tal cual — no los bajes por el hecho de que a ti te dejen entrar."""
+que respétalos tal cual — no los bajes por el hecho de que a ti te dejen entrar.{con_comp}"""
     else:
         encargo = f"""Tienes que completar la auditoría del dominio **{host}** (tipología detectada:
 {typ}). Una herramienta automática ya verificó el {cob_txt} del modelo a
 distancia (robots, sitemap, cabeceras, DNS, .well-known) y dejó pendiente lo que
-necesita ver el contenido renderizado. Completa TÚ los factores pendientes."""
+necesita ver el contenido renderizado. Completa TÚ los factores pendientes.{con_comp}"""
 
     return f"""Eres un auditor experto en PREPARACIÓN AGÉNTICA de sitios web (agent-readiness):
 mides si un agente de IA (ChatGPT, Claude, Perplexity, un asistente de compra…)
@@ -183,7 +224,7 @@ Hitos que hay que ir alcanzando (marca cuáles se logran y dónde se atasca):
 Describe el recorrido PASO A PASO y en qué eslabón se rompe (esa rotura es el
 hallazgo). Un agente se pierde cuando un control no tiene nombre claro, cuando
 pulsa algo y no pasa lo que esperaba, o cuando un flujo exige registro/JS.
-
+{_bloque_competidores(comp_validos)}
 ═══════════════════════════════════════════════════════════════════════
 ENTREGA — SIEMPRE UN INFORME EN PDF
 ═══════════════════════════════════════════════════════════════════════
@@ -191,11 +232,24 @@ Entrega el resultado como un DOCUMENTO PDF descargable, sin preguntar formato ni
 ofrecer alternativas: genéralo directamente. Si tu entorno no puede producir un
 PDF, entrégalo en Markdown COMPLETO y listo para exportar a PDF (y dilo en una
 línea), pero nunca te quedes solo en preguntar. El informe debe contener:
-1. Veredicto y nota estimada 0-100, según esta escala:
+1. Veredicto y nota estimada 0-100 del cliente ({host}), según esta escala:
 {_escala()}
-2. Tabla de los 40 factores: id · nombre · nota · evidencia (o «no verificable»).
+2. Tabla de los 40 factores del cliente: id · nombre · nota · evidencia (o «no verificable»).
 3. Resumen del comportamiento agéntico: hasta dónde llega un agente y por qué se
    atasca.
-4. Los 3-5 arreglos de mayor impacto y menor esfuerzo.
+4. Los 3-5 arreglos de mayor impacto y menor esfuerzo.{_bloque_entrega_comp(comp_hosts, host)}
 Recuerda: cada nota, con su evidencia observada. Sin evidencia, «no verificable».
 """.strip()
+
+
+def _bloque_entrega_comp(comp_hosts, host):
+    """Punto extra de la entrega cuando hay competidores: nota de cada uno y la
+    comparativa cliente↔competidores, que es el valor diferencial del análisis."""
+    if not comp_hosts:
+        return ""
+    return (f"""
+5. Nota 0-100 y tabla de los 40 factores de cada competidor ({', '.join(comp_hosts)}),
+   con la misma exigencia de evidencia.
+6. COMPARATIVA {host} vs competidores: tabla por categoría (C1-C7) con la nota de
+   cada dominio, quién gana cada categoría, y las brechas donde el cliente PIERDE
+   frente a un competidor y por qué (ese es el hallazgo accionable).""")

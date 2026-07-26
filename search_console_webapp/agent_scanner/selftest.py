@@ -2159,6 +2159,52 @@ def test_super_prompt_bloqueo_total_delega_todo():
       "el LLM debe saber que a él quizá no le bloqueen")
 
 
+def test_super_prompt_incluye_competidores():
+    """Carlos: si el cliente añadió competidores, el prompt debe auditarlos TAMBIÉN
+    (la comparativa es el entregable). Cada competidor con sus 40 factores y su
+    propio nivel de bloqueo; los caídos (con 'error') se excluyen; y la entrega
+    pide la comparativa. Sin competidores, la sección no aparece."""
+    from . import superprompt
+    from .catalog import CHECKS
+
+    def _audit(host, bloqueado=False):
+        ch = []
+        for cid, cat, n, d in CHECKS:
+            if bloqueado:
+                if cid in ("1.6", "2.4", "4.4"):
+                    ch.append({"id": cid, "score": 0, "manual": False, "evidence": "403"})
+                else:
+                    ch.append({"id": cid, "score": None, "manual": True,
+                               "no_verificable": True, "evidence": "NV"})
+            else:
+                ch.append({"id": cid, "score": 1, "manual": False, "evidence": host + " ok"})
+        return {"host": host, "typology": "ecommerce", "cobertura_score": 0.4,
+                "acceso_degradado": ({"nivel": "total"} if bloqueado else None), "checks": ch}
+
+    data = {"client": _audit("mitienda.es", bloqueado=True),
+            "competitors": [_audit("rival-a.com", bloqueado=True), _audit("rival-b.com"),
+                            {"domain": "caido.com", "error": "timeout"}]}
+    p = superprompt.construir(data)
+    t("comp_mencionados_en_encargo",
+      "rival-a.com" in p[:1400] and "rival-b.com" in p[:1400],
+      "el encargo debe avisar de que hay competidores que auditar")
+    t("comp_seccion_presente", "COMPETIDOR 1: rival-a.com" in p and "COMPETIDOR 2: rival-b.com" in p, "")
+    t("comp_caido_excluido", "caido.com" not in p,
+      "un competidor que no se pudo cargar no debe aparecer")
+    t("comp_cada_uno_40_factores", p.count("[1.1]") == 3,
+      f"cliente + 2 competidores = 3 bloques de 40 factores, [1.1] x{p.count('[1.1]')}")
+    t("comp_entrega_pide_comparativa",
+      "COMPARATIVA mitienda.es vs competidores" in p and "cada competidor" in p,
+      "la entrega debe pedir nota de cada competidor y la comparativa por categoría")
+    t("comp_respeta_bloqueo_por_dominio",
+      "rival-b.com ok" in p and p.count("CONFIRMADO EN CAMPO") >= 2,
+      "cada dominio aplica su propio nivel: rival-b (limpio) reutiliza, rival-a (bloqueado) confirma acceso")
+    # sin competidores, ni sección ni comparativa
+    p0 = superprompt.construir({"client": _audit("solo.es", bloqueado=True), "competitors": []})
+    t("comp_ausentes_sin_seccion",
+      "AUDÍTALOS TAMBIÉN" not in p0 and "COMPARATIVA" not in p0, "")
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:
