@@ -1202,8 +1202,12 @@ async downloadPdf() {
             if (btnText) btnText.textContent = 'Generating PDF...';
             if (btn) btn.disabled = true;
 
+            // El PDF debe usar la MISMA métrica de SoV que el panel tiene
+            // seleccionada, o su portada diría una cifra distinta de la pantalla.
+            const sovMetric = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             const response = await fetch(
-                `${this.baseUrl}/projects/${this.currentProject.id}/export/pdf?days=${this.globalTimeRange}`
+                `${this.baseUrl}/projects/${this.currentProject.id}/export/pdf` +
+                `?days=${this.globalTimeRange}&metric=${encodeURIComponent(sovMetric)}`
             );
 
             if (!response.ok) {
