@@ -61,6 +61,8 @@ renderRichChartTooltip(context) {
             tooltipEl = document.createElement('div');
             tooltipEl.id = 'llm-chart-tooltip';
             tooltipEl.className = 'llm-chart-tooltip';
+            // Se reescribe en cada frame del hover y no lleva iconos: fuera del conversor
+            tooltipEl.setAttribute('data-no-lucide', '');
             document.body.appendChild(tooltipEl);
         }
 
@@ -354,33 +356,7 @@ async renderShareOfVoiceChart() {
                 type: 'line',
                 data: {
                     labels: formattedLabels,
-                    // Marca sólida; competidores con trazos discontinuos distintos.
-                    // Sin esto, cuando dos series coinciden en el mismo valor la
-                    // dibujada encima tapa por completo a la de debajo y esa línea
-                    // "desaparece" del gráfico (además el trazo distingue las
-                    // series sin depender solo del color).
-                    //
-                    // `order`: Chart.js pinta el dataset 0 EN ÚLTIMO lugar (encima
-                    // de todos), así que la marca sólida seguía tapando cualquier
-                    // punteado coincidente. Con orden menor (= encima) para los
-                    // competidores, sus trazos se ven y sus huecos dejan ver la
-                    // línea sólida de la marca por debajo.
-                    datasets: datasets.map((ds, idx) => ({
-                        ...ds,
-                        borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
-                        order: idx === 0 ? 2 : 1,
-                        // Grosor normalizado aquí y no en el backend: la rama scoped
-                        // servía competidores a 1.5px frente a 2.5px de la marca, y
-                        // un punteado más estrecho que la línea sólida de debajo
-                        // apenas asoma cuando coinciden en valor.
-                        borderWidth: idx === 0 ? 3 : 2.5,
-                        pointBackgroundColor: ds.borderColor,
-                        pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: ds.borderColor,
-                        pointHoverBorderColor: '#FFFFFF',
-                        pointStyle: 'circle',
-                        pointBorderWidth: 2
-                    }))
+                    datasets: CSChartTheme.lineSeries(datasets)
                 },
                 options: {
                     responsive: true,
@@ -494,22 +470,7 @@ async renderMentionsTimelineChart() {
                 type: 'line',
                 data: {
                     labels: formattedLabels,
-                    // Mismo criterio que en Share of Voice: competidores con trazo
-                    // discontinuo Y pintados encima (order menor) para que una
-                    // coincidencia exacta de valores no deje ninguna línea
-                    // invisible bajo otra.
-                    datasets: mentions_datasets.map((ds, idx) => ({
-                        ...ds,
-                        borderDash: idx === 0 ? [] : [[6, 4], [2, 3], [10, 4, 2, 4]][(idx - 1) % 3],
-                        order: idx === 0 ? 2 : 1,
-                        borderWidth: idx === 0 ? 3 : 2.5,
-                        pointBackgroundColor: ds.borderColor,
-                        pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: ds.borderColor,
-                        pointHoverBorderColor: '#FFFFFF',
-                        pointStyle: 'circle',
-                        pointBorderWidth: 2
-                    }))
+                    datasets: CSChartTheme.lineSeries(mentions_datasets)
                 },
                 options: {
                     responsive: true,
@@ -900,10 +861,7 @@ async loadQueryHistoryChart(queryId) {
                             grid: { display: false },
                             ticks: { maxRotation: 45 }
                         },
-                        y: CSChartTheme.percentAxis({
-                            min: 0,
-                            ticks: { callback: value => `${value}%`, stepSize: 25 }
-                        })
+                        y: CSChartTheme.percentAxis({ ticks: { stepSize: 25 } })
                     }
                 }
             });
@@ -933,14 +891,7 @@ renderBrandMentionsOverview(query) {
         const cluster = query.topic_cluster;
         const topDomains = query.top_domains || [];
 
-        const sentimentMeta = {
-            positive: { color: '#22C55E', label: 'Positive' },
-            neutral: { color: '#94A3B8', label: 'Neutral' },
-            negative: { color: '#EF4444', label: 'Negative' }
-        };
-        const sMeta = sentiment.label
-            ? (sentimentMeta[sentiment.label] || { color: '#94A3B8', label: sentiment.label })
-            : null;
+        const sMeta = sentiment.label ? CSChartTheme.sentimentMeta(sentiment.label) : null;
 
         // Pila con tooltip agrupado (data-domains), igual que en la tabla.
         const topThree = topDomains.slice(0, 3);
@@ -1234,7 +1185,8 @@ renderClustersPerformanceChart(data, metric) {
                         }
                     },
                     y: CSChartTheme.percentAxis({
-                        max: undefined,
+                        // Sin tope fijo: si nadie llega al 100% la escala se ajusta
+                        max: null,
                         suggestedMax: 100,
                         title: {
                             display: true,

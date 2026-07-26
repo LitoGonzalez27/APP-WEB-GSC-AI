@@ -21,9 +21,7 @@
     
     <!-- Tipografías de marca (Brandbook v1.1). Sin este link, Inter Tight solo
          se ve en equipos que la tengan instalada y el resto cae a Helvetica. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+    {% include 'partials/panel_brand_fonts.html' %}
 
     <!-- Reutilizar estilos existentes para consistencia -->
     <link href="{{ url_for('static', filename='estilos-principales.css') }}?v={{ ASSET_V }}" rel="stylesheet">
@@ -64,24 +62,7 @@
     <link href="https://unpkg.com/gridjs@6.2.0/dist/theme/mermaid.min.css" rel="stylesheet" />
     <script src="https://unpkg.com/gridjs@6.2.0/dist/gridjs.umd.js"></script>
 
-    <!-- Design tokens de marca + overrides. Van al FINAL para que sus --cs-* no
-         sean pisados y para poder sobreescribir las hojas compartidas
-         (manual-ai.css, base-y-componentes.css) sin editarlas ni usar !important. -->
-    <link href="{{ url_for('static', filename='brand-dashboard-tokens.css') }}?v={{ ASSET_V }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='brand-dashboard-overrides.css') }}?v={{ ASSET_V }}" rel="stylesheet">
-
-    <!-- Chart.js con versión fija: antes apuntaba a "latest", que puede romper
-         el panel sin que nadie toque el código. -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-    <!-- Tema único de gráficas. Debe ir tras Chart.js y tras los tokens (de los
-         que lee los colores), y antes de cualquier new Chart(). -->
-    <script src="{{ url_for('static', filename='js/llm-chart-theme.js') }}?v={{ ASSET_V }}"></script>
-
-    <!-- Iconos Lucide (outline 2px, exigencia del brandbook). brand-icons.js
-         convierte los <i class="fas fa-x"> en runtime; Font Awesome sigue
-         cargado como red para lo no mapeado (marcas fab, sin outline en Lucide). -->
-    <script src="https://unpkg.com/lucide@1.27.0/dist/umd/lucide.min.js"></script>
-    <script src="{{ url_for('static', filename='js/brand-icons.js') }}?v={{ ASSET_V }}"></script>
+    {% include 'partials/panel_brand_assets.html' %}
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
     <!-- Google Tag Manager (noscript) -->
@@ -918,7 +899,8 @@
                             <button class="btn btn-primary" id="btnAnalyzeUrlContent"
                                     onclick="window.llmMonitoring.startUrlContentAnalysis()"
                                     title="Fetch the top 30 cited pages and detect brand & competitor mentions in their content">
-                                <i class="fas fa-search-plus"></i>
+                                {# data-no-lucide: updateUrlContentButton() alterna este icono vía className (spinner / check / lupa) #}
+                                <i class="fas fa-search-plus" data-no-lucide></i>
                                 <span>Analyze Top 30 Content</span>
                             </button>
                         </div>

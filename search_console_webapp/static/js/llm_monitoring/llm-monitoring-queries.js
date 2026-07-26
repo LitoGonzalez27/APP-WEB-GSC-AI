@@ -139,11 +139,6 @@ renderQueriesTable(queries) {
             }
         };
 
-        const sentimentMeta = {
-            positive: { color: '#22C55E', label: 'Positive' },
-            neutral: { color: '#94A3B8', label: 'Neutral' },
-            negative: { color: '#EF4444', label: 'Negative' }
-        };
 
         // Create grid
         // Orden: Details | Prompt | SOV | Avg. Position | Mentions | Top Domains | Cluster | Sentiment
@@ -210,7 +205,7 @@ renderQueriesTable(queries) {
                     formatter: (sentiment) => {
                         const label = sentiment && sentiment.label;
                         if (!label) return gridjs.html('<span class="lm-cell-muted">-</span>');
-                        const meta = sentimentMeta[label] || { color: '#94A3B8', label };
+                        const meta = CSChartTheme.sentimentMeta(label);
                         return gridjs.html(`
                             <span class="lm-sentiment-cell">
                                 <span class="lm-sentiment-dot" style="background:${meta.color};"></span>

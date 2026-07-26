@@ -57,17 +57,6 @@
         token('--cs-series-4', '#4a3aa7')
     ];
 
-    /**
-     * Ampliación a 6 slots para comparativas con más entidades (marca + hasta 5
-     * competidores). Validada en la lista de pares adyacentes — la que aplica a
-     * donuts y barras. No usar en dispersión, donde cualquier par puede quedar
-     * contiguo y el límite baja a 3 series.
-     */
-    const seriesExtended = series.concat([
-        token('--cs-series-5', '#eda100'),
-        token('--cs-series-6', '#e87ba4')
-    ]);
-
     const seriesMuted = token('--cs-series-muted', '#CBD5E1');
 
     const status = {
@@ -77,6 +66,22 @@
         errorText: token('--cs-error-text', '#D13B3B'),
         neutral: ink.tertiary
     };
+
+    /**
+     * Sentimiento: color + etiqueta legible. Es un rol de ESTADO, no una serie
+     * categórica, así que reutiliza los colores de status (validados para
+     * contraste) en lugar de un verde/rojo propio.
+     */
+    const sentiment = {
+        positive: { color: status.success, label: 'Positive' },
+        neutral: { color: status.neutral, label: 'Neutral' },
+        negative: { color: status.error, label: 'Negative' }
+    };
+
+    /** Meta de sentimiento con recurso para etiquetas desconocidas. */
+    function sentimentMeta(label) {
+        return sentiment[label] || { color: status.neutral, label: label };
+    }
 
     /**
      * Color por ENTIDAD, no por posición: si un filtro deja fuera a un LLM, los
@@ -113,21 +118,67 @@
     // Chart.defaults.scales.category tenía un objeto grid (no lo tiene).
     window.CSChartTheme = {
         series,
-        seriesExtended,
         seriesMuted,
         status,
         ink,
         surface,
-        chrome,
-        fontSans,
+        sentiment,
+        sentimentMeta,
         seriesColorFor,
-        /** Porcentaje 0-100 para un eje y. */
+        /**
+         * Normaliza los datasets de una gráfica de líneas "marca vs competidores".
+         * El dataset 0 es SIEMPRE la marca propia.
+         *
+         * Existe porque dos competidores con el mismo valor exacto dejaban una
+         * línea invisible bajo la otra. Hacen falta las tres cosas a la vez:
+         *
+         * - `borderDash`: los competidores van punteados, con patrón distinto
+         *   entre sí, y sus huecos dejan ver lo que tienen debajo.
+         * - `order`: Chart.js pinta el dataset 0 EN ÚLTIMO lugar, es decir
+         *   ENCIMA de todos. Sin bajar el `order` de los competidores, la línea
+         *   sólida de la marca los tapaba igualmente.
+         * - `borderWidth`: normalizado aquí y no en el backend, que servía
+         *   competidores a 1.5px. Un punteado más estrecho que la línea sólida
+         *   de debajo apenas asoma cuando coinciden en valor.
+         */
+        lineSeries(datasets) {
+            const DASHES = [[6, 4], [2, 3], [10, 4, 2, 4]];
+            return (datasets || []).map((ds, idx) => {
+                const isBrand = idx === 0;
+                return Object.assign({}, ds, {
+                    borderDash: isBrand ? [] : DASHES[(idx - 1) % DASHES.length],
+                    order: isBrand ? 2 : 1,
+                    borderWidth: isBrand ? 3 : 2.5,
+                    pointBackgroundColor: ds.borderColor,
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: ds.borderColor,
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'circle',
+                    pointBorderWidth: 2
+                });
+            });
+        },
+
+        /**
+         * Eje y en porcentaje 0-100.
+         *
+         * `ticks` se fusiona en vez de reemplazarse: con Object.assign plano,
+         * un `ticks: { stepSize: 25 }` del llamante borraba el formateador de
+         * `%` sin avisar y obligaba a repetirlo en cada sitio.
+         *
+         * Para un eje que no deba tener tope fijo, pasar `max: null` junto a
+         * `suggestedMax`.
+         */
         percentAxis(overrides) {
-            return Object.assign({
+            const { ticks, ...rest } = overrides || {};
+            const axis = {
                 beginAtZero: true,
                 max: 100,
-                ticks: { callback: (v) => `${v}%` }
-            }, overrides || {});
+                ticks: Object.assign({ callback: (v) => `${v}%` }, ticks)
+            };
+            Object.assign(axis, rest);
+            if (axis.max === null) delete axis.max;
+            return axis;
         }
     };
 

@@ -8,11 +8,16 @@
  * En lugar de editar los 125 usos (inabarcable de verificar sin regresiones),
  * este script convierte EN RUNTIME cada <i class="fas fa-x"> a su equivalente
  * Lucide y deja que lucide.createIcons() lo sustituya por el SVG. Un
- * MutationObserver con debounce repite la pasada cuando el JS del panel inyecta
- * HTML nuevo (tablas, modales, listas).
+ * MutationObserver con debounce repite la pasada sobre los nodos que el JS del
+ * panel inyecta (tablas, modales, listas).
  *
  * Font Awesome sigue cargado como red de seguridad: los iconos SIN mapeo (p.ej.
  * las marcas fab fa-google, que Lucide no tiene) se quedan como están.
+ *
+ * OPT-OUT: un icono cuyo estado muta otro script vía `className` NO puede
+ * convertirse (en SVG `className` es de solo lectura y `querySelector('i')`
+ * dejaría de encontrarlo). Márcalo con `data-no-lucide` en el propio <i> y se
+ * quedará en Font Awesome.
  *
  * Compartido por LLM Monitoring, Manual AI, AI Mode y AI Visibility Summary.
  * Debe cargarse DESPUÉS del UMD de lucide.
@@ -73,52 +78,91 @@
     };
 
     /**
-     * Iconos CON ESTADO que otro script muta vía className y que por tanto no
-     * pueden convertirse a SVG (en SVG className es de solo lectura): el toggle
-     * de tema del navbar alterna fa-sun/fa-moon en runtime (navbar.js:220).
+     * Iconos con estado del navbar, que es markup COMPARTIDO por toda la app y
+     * no lleva `data-no-lucide`: navbar.js:220 alterna fa-sun/fa-moon vía
+     * className. El resto de casos deben usar el atributo, no esta lista.
      */
     const STATEFUL_IDS = new Set(['themeIcon', 'mobileThemeIcon', 'dropdownThemeIcon']);
 
+    const FA_SELECTOR = 'i[class*="fa-"]:not([data-lucide])';
+    /**
+     * Subárboles que el observer ignora por completo. Es el mismo atributo del
+     * opt-out, puesto en un contenedor en vez de en un icono: todo lo de dentro
+     * queda fuera del conversor.
+     *
+     * Lo usan los tooltips flotantes, que reescriben su innerHTML en cada frame
+     * del hover y nunca contienen iconos de Font Awesome; sin esto, mover el
+     * ratón sobre una gráfica lanzaba un escaneo cada 120 ms para no convertir
+     * nada.
+     */
+    const IGNORED_SELECTOR = '[data-no-lucide]';
+
+    /** Convierte un <i> de Font Awesome en un placeholder Lucide. true si tocó algo. */
+    function convertNode(el) {
+        // closest y no hasAttribute: el opt-out vale tanto en el propio icono
+        // como en cualquier contenedor que lo envuelva.
+        if (el.closest(IGNORED_SELECTOR)) return false;
+        if (el.id && STATEFUL_IDS.has(el.id)) return false;
+        const classes = Array.from(el.classList);
+        // Solo la familia solid/regular; las marcas (fab) no tienen outline en Lucide
+        if (classes.includes('fab')) return false;
+        const faName = classes.find(c => c.startsWith('fa-') && c !== 'fa-spin' && c !== 'fa-fw');
+        if (!faName) return false;
+        const lucideName = MAP[faName.slice(3)];
+        if (!lucideName) return false;   // sin mapeo: se queda en Font Awesome
+        const spin = classes.includes('fa-spin') || faName === 'fa-spinner' || faName === 'fa-circle-notch';
+        // Conservar las clases ajenas a FA (p.ej. chip-add-icon) para que su CSS siga aplicando
+        const keep = classes.filter(c => !/^fa[srb]?$/.test(c) && !c.startsWith('fa-'));
+        if (spin) keep.push('lucide-spin');
+        el.setAttribute('data-lucide', lucideName);
+        el.className = keep.join(' ');
+        return true;
+    }
+
+    /**
+     * Convierte dentro de `root` (incluido el propio nodo) y pinta los SVG.
+     * Acotar el escaneo importa: `createIcons()` sin `root` recorre el documento
+     * entero dos veces, y el observer se dispara con cada re-render de tabla.
+     */
     function convert(root) {
-        const nodes = (root || document).querySelectorAll('i[class*="fa-"]:not([data-lucide])');
+        if (!root || root.nodeType !== Node.ELEMENT_NODE) return 0;
         let converted = 0;
-        nodes.forEach(el => {
-            if (el.id && STATEFUL_IDS.has(el.id)) return;
-            const classes = Array.from(el.classList);
-            // Solo la familia solid/regular; las marcas (fab) no tienen outline en Lucide
-            if (classes.includes('fab')) return;
-            const faName = classes.find(c => c.startsWith('fa-') && c !== 'fa-spin' && c !== 'fa-fw');
-            if (!faName) return;
-            const lucideName = MAP[faName.slice(3)];
-            if (!lucideName) return;   // sin mapeo: se queda en Font Awesome
-            const spin = classes.includes('fa-spin') || faName === 'fa-spinner' || faName === 'fa-circle-notch';
-            // Conservar las clases ajenas a FA (p.ej. chip-add-icon) para que su CSS siga aplicando
-            const keep = classes.filter(c => !/^fa[srb]?$/.test(c) && !c.startsWith('fa-'));
-            if (spin) keep.push('lucide-spin');
-            el.setAttribute('data-lucide', lucideName);
-            el.className = keep.join(' ');
-            converted++;
-        });
-        if (converted > 0 || (root || document).querySelector('i[data-lucide]')) {
-            lucide.createIcons();
-        }
+        if (root.matches(FA_SELECTOR) && convertNode(root)) converted++;
+        root.querySelectorAll(FA_SELECTOR).forEach(el => { if (convertNode(el)) converted++; });
+        if (converted === 0) return 0;
+        // createIcons busca DESCENDIENTES: si el propio root es el icono, sube uno.
+        const scope = root.hasAttribute('data-lucide') ? root.parentNode : root;
+        if (scope && scope.nodeType === Node.ELEMENT_NODE) lucide.createIcons({ root: scope });
         return converted;
     }
 
-    let pending = null;
-    function scheduleConvert() {
-        if (pending) return;
-        pending = setTimeout(() => { pending = null; convert(); }, 120);
+    /** Nodos añadidos pendientes de procesar, acumulados entre frames. */
+    let pendingRoots = new Set();
+    let pendingTimer = null;
+
+    function flush() {
+        pendingTimer = null;
+        const roots = pendingRoots;
+        pendingRoots = new Set();
+        roots.forEach(root => {
+            // El nodo puede haberse desmontado entre la mutación y el flush
+            if (root.isConnected) convert(root);
+        });
     }
 
     function init() {
-        convert();
+        convert(document.body);
         // El JS de los paneles inyecta HTML constantemente (tablas Grid.js,
-        // modales, listas): el observer repite la conversión con debounce.
+        // modales, listas): el observer reconvierte SOLO el subárbol añadido.
         const observer = new MutationObserver(muts => {
             for (const m of muts) {
-                if (m.addedNodes && m.addedNodes.length) { scheduleConvert(); return; }
+                if (!m.addedNodes.length) continue;
+                if (m.target.nodeType === Node.ELEMENT_NODE && m.target.closest(IGNORED_SELECTOR)) continue;
+                for (const node of m.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE) pendingRoots.add(node);
+                }
             }
+            if (pendingRoots.size && !pendingTimer) pendingTimer = setTimeout(flush, 120);
         });
         observer.observe(document.body, { childList: true, subtree: true });
     }

@@ -36,6 +36,10 @@ import threading
 import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
+
+import brand_palette
+
+_VALID_HOST_RE = re.compile(r'[a-z0-9.-]+')
 from flask import Blueprint, request, jsonify
 from functools import wraps
 
@@ -398,6 +402,37 @@ def _weight_for_position(pos):
     if pos <= 10:
         return 1.2
     return 0.8
+
+
+def _extract_source_host(raw_url):
+    """
+    Host normalizado de una URL citada por un LLM: sin esquema, sin www, sin
+    puerto y en minúsculas. Devuelve '' si no se puede extraer.
+
+    No basta con urlparse(url).netloc: las sources llegan de la respuesta de un
+    LLM y muchas vienen sin protocolo ("example.com/guia"), en cuyo caso netloc
+    es vacío y el dominio se perdería en silencio.
+
+    Además filtra el host a los caracteres que un hostname admite. Es la
+    frontera de confianza: este valor acaba interpolado en HTML y en URLs del
+    cliente, y urlparse NO sanea (acepta comillas en el host sin rechistar).
+    """
+    raw_value = str(raw_url or '').strip()
+    if not raw_value:
+        return ''
+    if not raw_value.startswith(('http://', 'https://')):
+        raw_value = f"https://{raw_value}"
+    try:
+        parsed = urlparse(raw_value)
+    except Exception:
+        return ''
+    host = (parsed.netloc or parsed.path or '').split('/')[0].split(':')[0].strip().lower()
+    if host.startswith('www.'):
+        host = host[4:]
+    # Un hostname legítimo solo lleva letras, dígitos, punto y guion.
+    if host and not _VALID_HOST_RE.fullmatch(host):
+        return ''
+    return host
 
 
 def _get_effective_plan_limits(user: dict) -> dict:
@@ -3784,21 +3819,6 @@ def get_llm_comparison(project_id):
                 host = host[4:]
             return host
 
-        def _extract_source_host(raw_url):
-            raw_value = str(raw_url or '').strip()
-            if not raw_value:
-                return ''
-            if not raw_value.startswith(('http://', 'https://')):
-                raw_value = f"https://{raw_value}"
-            try:
-                parsed = urlparse(raw_value)
-            except Exception:
-                return ''
-            host = (parsed.netloc or parsed.path or '').split('/')[0].split(':')[0].strip().lower()
-            if host.startswith('www.'):
-                host = host[4:]
-            return host
-
         normalized_brand_domain = _normalize_domain(brand_domain_raw)
 
         def _to_date_key(value):
@@ -4278,14 +4298,18 @@ def get_project_queries(project_id):
                 r.sentiment_score,
                 r.sources
             FROM llm_monitoring_results r
-            WHERE r.query_id = ANY(%s)
+            WHERE r.project_id = %s
+                AND r.query_id = ANY(%s)
                 AND r.analysis_date >= %s
                 AND r.analysis_date <= %s
                 {llm_filter}
         """.format(
             llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
         )
-        prompt_metrics_params = [[q['id'] for q in queries_raw], start_date, end_date]
+        # project_id va primero por el índice: el UNIQUE de la tabla es
+        # (project_id, query_id, llm_provider, analysis_date), así que sin este
+        # filtro la consulta no puede usarlo y degenera en un scan completo.
+        prompt_metrics_params = [project_id, [q['id'] for q in queries_raw], start_date, end_date]
         if enabled_llms_filter:
             prompt_metrics_params.append(enabled_llms_filter)
         cur.execute(prompt_metrics_sql, prompt_metrics_params)
@@ -4346,12 +4370,10 @@ def get_project_queries(project_id):
                     url = (source.get('url') or '').strip()
                     if not url:
                         continue
-                    netloc = urlparse(url).netloc.lower()
-                    if netloc.startswith('www.'):
-                        netloc = netloc[4:]
-                    if not netloc:
+                    host = _extract_source_host(url)
+                    if not host:
                         continue
-                    bucket['domain_mentions'][netloc] = bucket['domain_mentions'].get(netloc, 0) + 1
+                    bucket['domain_mentions'][host] = bucket['domain_mentions'].get(host, 0) + 1
 
         def _build_prompt_metrics(qid):
             bucket = prompt_buckets.get(qid)
@@ -4477,7 +4499,7 @@ def get_share_of_voice_history(project_id):
                 {
                     'label': 'Tu Marca',
                     'data': [45.2, 48.1, ...],
-                    'borderColor': '#2a78d6',
+                    'borderColor': brand_palette.BRAND,
                     ...
                 },
                 {
@@ -4596,17 +4618,15 @@ def get_share_of_voice_history(project_id):
             # rama "all" y el resto de gráficas ya sirven: la misma entidad
             # cambiaba de color al cambiar de pestaña.
             comp_colors = [
-                ('#1baf7a', 'rgba(27, 175, 122, 0.1)'),
-                ('#eb6834', 'rgba(235, 104, 52, 0.1)'),
-                ('#4a3aa7', 'rgba(74, 58, 167, 0.1)'),
-                ('#eda100', 'rgba(237, 161, 0, 0.1)'),
+                (c, brand_palette.hex_to_rgba(c, 0.1))
+                for c in brand_palette.COMPETITORS[:4]
             ]
             sorted_comp_names = sorted(all_comp_names)[:4]
             datasets = [{
                 'label': f'Your Brand',
                 'data': brand_data,
-                'borderColor': '#2a78d6',
-                'backgroundColor': 'rgba(42, 120, 214, 0.1)',
+                'borderColor': brand_palette.BRAND,
+                'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
                 'fill': True,
                 'tension': 0.3,
                 'borderWidth': 2.5
@@ -4634,8 +4654,8 @@ def get_share_of_voice_history(project_id):
             mentions_datasets = [{
                 'label': project.get('brand_name') or 'Your Brand',
                 'data': [scope_by_date[d]['brand'] for d in dates_sorted],
-                'borderColor': '#2a78d6',
-                'backgroundColor': 'rgba(42, 120, 214, 0.1)',
+                'borderColor': brand_palette.BRAND,
+                'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
                 'borderWidth': 3,
                 'tension': 0.4,
                 'fill': True,
@@ -4898,8 +4918,8 @@ def get_share_of_voice_history(project_id):
         datasets.append({
             'label': brand_name,
             'data': brand_data,
-            'borderColor': '#2a78d6',  # --cs-series-1: la marca propia
-            'backgroundColor': 'rgba(42, 120, 214, 0.1)',
+            'borderColor': brand_palette.BRAND,
+            'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
             'borderWidth': 3,
             'tension': 0.4,
             'fill': True,
@@ -4912,13 +4932,7 @@ def get_share_of_voice_history(project_id):
         # static/brand-dashboard-tokens.css); el slot 1 queda para la marca
         # propia. Mantener sincronizado con CSChartTheme.seriesExtended o el
         # donut dirá un color y el resto de gráficas otro.
-        competitor_colors = [
-            '#1baf7a',  # --cs-series-2
-            '#eb6834',  # --cs-series-3
-            '#4a3aa7',  # --cs-series-4
-            '#eda100',  # --cs-series-5
-            '#e87ba4'   # --cs-series-6
-        ]
+        competitor_colors = brand_palette.COMPETITORS
         
         # ✨ NEW: Obtener lista única de dominios de competidores
         all_competitor_domains = set()
@@ -4971,8 +4985,8 @@ def get_share_of_voice_history(project_id):
         mentions_datasets.append({
             'label': brand_name,
             'data': brand_mentions_data,
-            'borderColor': '#2a78d6',
-            'backgroundColor': 'rgba(42, 120, 214, 0.1)',
+            'borderColor': brand_palette.BRAND,
+            'backgroundColor': brand_palette.hex_to_rgba(brand_palette.BRAND, 0.1),
             'borderWidth': 3,
             'tension': 0.4,
             'fill': True,
@@ -5018,7 +5032,7 @@ def get_share_of_voice_history(project_id):
         donut_values = [round(total_brand_mentions_period / grand_total * 100, 2) if grand_total > 0 else 0]
         # Slot 1 de la paleta de datos: la marca propia siempre en el mismo color
         # y el más contrastado. Debe coincidir con CSChartTheme.series[0].
-        donut_colors = ['#2a78d6']
+        donut_colors = [brand_palette.BRAND]
         
         for idx, competitor_domain in enumerate(sorted(all_competitor_domains)):
             display_name = competitor_display_names.get(competitor_domain, get_display_name(competitor_domain))
@@ -7970,11 +7984,7 @@ def export_project_pdf(project_id):
                 # Paleta de datos oficial (--cs-series-*): marca en el slot 1
                 # y competidores en los siguientes, igual que el panel.
                 chart_colors = [
-                    colors.HexColor('#2a78d6'),  # Brand
-                    colors.HexColor('#1baf7a'),  # Comp 1
-                    colors.HexColor('#eb6834'),  # Comp 2
-                    colors.HexColor('#4a3aa7'),  # Comp 3
-                    colors.HexColor('#eda100'),  # Comp 4
+                    colors.HexColor(c) for c in brand_palette.SERIES_EXTENDED[:5]
                 ]
 
                 # Build SOV series for each entity

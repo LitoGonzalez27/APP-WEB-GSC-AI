@@ -1,3 +1,7 @@
+// Clave publicable de logo.dev (pk_): pensada para ir en el cliente. En una
+// sola constante para que cambiar de proveedor sea un solo punto de edición.
+const DOMAIN_LOGO_TOKEN = 'pk_a4PP_KI7Qj-y6MnQSvu-3A';
+
 /**
  * LLM Monitoring - métodos de prototipo: core
  * Extraído verbatim de llm_monitoring.js (refactor Fase 3).
@@ -1328,14 +1332,33 @@ getLLMColor(llm) {
 
 // Solo la imagen del favicon, sin tooltip propio: para los sitios donde el
 // tooltip lo pone el contenedor (pila de Top Domains).
+// Favicon de un dominio. logo.dev como proveedor y Google Favicons de reserva
+// (Clearbit se apagó en dic-2025). El dominio llega de las `sources` que cita
+// un LLM, es decir, de un tercero: va codificado en la URL y escapado en los
+// atributos, y el fallback NO se monta como JS inline — un onerror con el
+// dominio interpolado es una ejecución de código a un apóstrofo de distancia.
 getDomainFaviconImg(domain, size = 20) {
         if (!domain) return '';
         const safeDomain = this.escapeAttr(domain);
-        const logoUrl = `https://img.logo.dev/${domain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`;
-        const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-        return `<img class="domain-favicon" src="${logoUrl}" alt="${safeDomain}" width="${size}" height="${size}"
-                     style="width:${size}px;height:${size}px;border-radius:4px;"
-                     onerror="this.onerror=null; this.src='${fallbackUrl}'">`;
+        const urlDomain = encodeURIComponent(domain);
+        const logoUrl = `https://img.logo.dev/${urlDomain}?token=${DOMAIN_LOGO_TOKEN}&size=64&format=png`;
+        return `<img class="domain-favicon" src="${logoUrl}" alt="${safeDomain}"
+                     data-favicon-domain="${safeDomain}" width="${size}" height="${size}"
+                     style="width:${size}px;height:${size}px;border-radius:4px;">`;
+    },
+
+// Reserva de favicon sin JS inline: un único listener en fase de captura (el
+// evento error no burbujea) cambia la imagen al proveedor alternativo.
+bindFaviconFallback() {
+        if (this._faviconFallbackBound) return;
+        this._faviconFallbackBound = true;
+        document.addEventListener('error', (e) => {
+            const img = e.target;
+            if (!(img instanceof HTMLImageElement)) return;
+            if (!img.dataset.faviconDomain || img.dataset.faviconFallback === 'done') return;
+            img.dataset.faviconFallback = 'done';
+            img.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(img.dataset.faviconDomain)}&sz=64`;
+        }, true);
     },
 
 // Tooltip agrupado para las pilas de favicons de Top Domains: un solo panel
@@ -1347,6 +1370,7 @@ getDomainFaviconImg(domain, size = 20) {
 bindDomainStackTooltips() {
         if (this._domainStackTooltipsBound) return;
         this._domainStackTooltipsBound = true;
+        this.bindFaviconFallback();
 
         const ensureEl = () => {
             let el = document.getElementById('lmDomainsTooltip');
@@ -1354,28 +1378,39 @@ bindDomainStackTooltips() {
                 el = document.createElement('div');
                 el.id = 'lmDomainsTooltip';
                 el.className = 'llm-chart-tooltip';
+                // Se reescribe en cada hover y no lleva iconos: fuera del conversor
+                el.setAttribute('data-no-lucide', '');
                 document.body.appendChild(el);
             }
             return el;
         };
+
+        // Última pila pintada: la pila contiene 3 favicons, así que cruzar una
+        // celda dispara un mouseover por hijo. Sin este guardia se reconstruía
+        // el tooltip (3 <img> nuevos) y se forzaban 2 reflows por cada uno.
+        let lastStack = null;
 
         document.addEventListener('mouseover', (e) => {
             const stack = e.target.closest?.('[data-domains]');
             const el = ensureEl();
 
             if (!stack) {
+                lastStack = null;
                 el.classList.remove('active');
                 return;
             }
+            if (stack === lastStack && el.classList.contains('active')) return;
 
             let domains = [];
             try {
                 domains = JSON.parse(stack.dataset.domains) || [];
             } catch (_) { /* atributo malformado: sin tooltip */ }
             if (!domains.length) {
+                lastStack = null;
                 el.classList.remove('active');
                 return;
             }
+            lastStack = stack;
 
             el.innerHTML = `
                 <div class="llm-chart-tooltip__title">Top domains</div>
@@ -1908,19 +1943,13 @@ renderTopDomainsRankingLLM(domains) {
                 domainBadge = '<span class="domain-badge competitor">Competitor</span>';
             }
 
-            // Get logo URL - Logo.dev replaces deprecated Clearbit API (shutdown Dec 2025)
-            const logoUrl = `https://img.logo.dev/${domain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`;
-            const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-
             const row = document.createElement('tr');
             row.className = rowClass;
             row.innerHTML = `
                 <td class="rank-cell">${domainData.rank}</td>
                 <td class="url-cell">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <img src="${logoUrl}" alt="${this.escapeHtml(domain)}" 
-                             style="width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0;"
-                             onerror="this.onerror=null; this.src='${fallbackUrl}'">
+                        ${this.getDomainFaviconImg(domain, 24)}
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                 <a href="https://${this.escapeHtml(domain)}" target="_blank" rel="noopener noreferrer" 

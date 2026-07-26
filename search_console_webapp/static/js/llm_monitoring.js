@@ -16,7 +16,6 @@ class LLMMonitoring {
         this.promptsPerPage = 10;
         this.currentPromptsPage = 1;
         this.allPrompts = [];
-        this.promptsSectionCollapsed = false;
         this.isRenderingInModal = false; // Track if we're rendering prompts in modal
         this.quickSuggestionsCache = new Map();
 

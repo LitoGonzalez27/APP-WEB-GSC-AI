@@ -30,9 +30,7 @@
 
     <!-- ✨ NUEVO (2026-06-21): Comparación histórica AI Overview (See historic) -->
     <!-- Tipografías de marca (brandbook clicandseo) — usadas por el modal histórico -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    {% include 'partials/panel_brand_fonts.html' %}
     <link href="{{ url_for('static', filename='manual-ai-historical.css') }}" rel="stylesheet">
 
     <!-- ✅ FASE 4: Quota UI para Manual AI -->
@@ -45,13 +43,10 @@
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
     
     <!-- CSS para sidebar navigation -->
-    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}?v={{ ASSET_V }}" rel="stylesheet">
     
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Chart.js para gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Grid.js para tablas -->
     <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
@@ -60,15 +55,7 @@
     <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
     <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
 
-    <!-- ═══ Sistema de diseño Clicandseo (compartido con LLM Monitoring) ═══
-         Tokens --cs-* + overrides de marca al final para ganar sin !important;
-         tema único de Chart.js; iconos Lucide vía conversor en runtime (Font
-         Awesome queda como red para lo no mapeado). -->
-    <link href="{{ url_for('static', filename='brand-dashboard-tokens.css') }}?v={{ ASSET_V }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='brand-dashboard-overrides.css') }}?v={{ ASSET_V }}" rel="stylesheet">
-    <script src="{{ url_for('static', filename='js/llm-chart-theme.js') }}?v={{ ASSET_V }}"></script>
-    <script src="https://unpkg.com/lucide@1.27.0/dist/umd/lucide.min.js"></script>
-    <script src="{{ url_for('static', filename='js/brand-icons.js') }}?v={{ ASSET_V }}"></script>
+    {% include 'partials/panel_brand_assets.html' %}
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
     <!-- Google Tag Manager (noscript) -->

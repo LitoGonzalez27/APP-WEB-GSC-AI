@@ -1,0 +1,31 @@
+{#
+  CLICANDSEO — Bloque de marca de los paneles de datos.
+
+  Lo incluyen LLM Monitoring, Manual AI, AI Mode y AI Visibility Summary.
+  Existe como partial porque el ORDEN de estas cinco cargas es un invariante del
+  sistema de diseño, y antes estaba copiado a mano en cada plantilla:
+
+  - `brand-dashboard-tokens.css` y `brand-dashboard-overrides.css` deben ser las
+    ÚLTIMAS hojas de la página. Ganan por orden de carga, no por !important ni
+    por @layer, y así sobreescriben las hojas compartidas (manual-ai.css,
+    base-y-componentes.css) sin editarlas — esas las usan también billing y
+    paywall, y tocarlas allí sería un riesgo innecesario.
+  - Chart.js va con VERSIÓN FIJA. Tres de los cuatro paneles apuntaban a
+    `npm/chart.js` (= "latest"), que puede romperlos sin que nadie toque el
+    código; hoy resuelve a la misma 4.5.1 que ya usaba LLM Monitoring.
+  - `llm-chart-theme.js` lee los tokens y extiende Chart.defaults, así que va
+    DESPUÉS de ambos y ANTES de cualquier `new Chart()`.
+  - `brand-icons.js` va tras el UMD de lucide. Ambos con `defer`: ningún otro
+    script usa el global `lucide`, así que dejan de bloquear el render.
+
+  Incluir SIEMPRE al final del <head>. Si un panel necesita CSS propio, va antes
+  de este include, nunca después.
+#}
+<link href="{{ url_for('static', filename='brand-dashboard-tokens.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='brand-dashboard-overrides.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/llm-chart-theme.js') }}?v={{ ASSET_V }}"></script>
+
+<script defer src="https://unpkg.com/lucide@1.27.0/dist/umd/lucide.min.js"></script>
+<script defer src="{{ url_for('static', filename='js/brand-icons.js') }}?v={{ ASSET_V }}"></script>
