@@ -8600,38 +8600,47 @@ def export_project_pdf(project_id):
 # CRON: Model Discovery v2 - Smart Chat-Only con Aprobación por Email
 # ============================================================================
 
-# Filtros para identificar modelos de CHAT (no reasoning, imagen, video, embedding, etc.)
+# Filtros para identificar modelos elegibles como "current".
+#
+# POLÍTICA (2026-08): monitorizamos el modelo de TEXTO que cada proveedor sirve
+# GRATIS a su público general — lo que ve la mayoría de usuarios — nunca tiers
+# de pago (Pro/Opus), variantes especializadas (codex, tts, live, lite,
+# realtime...) ni snapshots con fecha (esos son alias de API, no lo que usa el
+# público).
+#   - OpenAI     → alias gpt-X.Y-chat-latest (el modelo de ChatGPT gratuito)
+#   - Google     → familia Gemini Flash estable (sin lite/live/tts/preview)
+#   - Anthropic  → Claude Sonnet (el modelo de claude.ai gratuito)
+#   - Perplexity → sonar base
 CHAT_MODEL_FILTERS = {
     'openai': {
-        'include_patterns': ['gpt-5', 'gpt-4o', 'gpt-4.1'],
+        'include_patterns': ['chat-latest'],
         'exclude_patterns': [
-            'o1', 'o3', 'o4',           # Reasoning/thinking models
-            'dall-e', 'gpt-image',       # Image generation
-            'whisper', 'tts', 'audio',   # Audio models
-            'embedding', 'moderation',   # Utility models
-            'realtime',                  # Realtime API models
-            'davinci', 'babbage',        # Legacy completion models
-            'mini-audio', 'mini-realtime',
+            'pro', 'codex', 'mini', 'nano',              # tiers de pago / reducidos
+            'o1', 'o3', 'o4',                            # reasoning
+            'dall-e', 'gpt-image', 'whisper', 'tts',     # imagen / audio
+            'audio', 'realtime', 'transcribe', 'diarize',
+            'embedding', 'moderation', 'search',         # utilitarios
+            'davinci', 'babbage', 'instruct',            # legacy
         ],
     },
     'google': {
         'include_patterns': ['gemini'],
+        'require_patterns': ['gemini', 'flash'],
         'exclude_patterns': [
-            'embedding', 'imagen', 'veo',   # Image/video generation
-            'chirp', 'codey', 'medlm',      # Specialized models
-            'gemma',                          # Open-weight (not API chat)
-            'aqa',                            # Attributed QA only
+            'pro',                                        # tier de pago
+            'lite', 'live', 'tts', 'image', 'thinking',   # variantes especializadas
+            'preview', 'exp', 'customtools',              # inestables
+            'embedding', 'imagen', 'veo', 'chirp',
+            'codey', 'medlm', 'gemma', 'aqa',
         ],
     },
     'anthropic': {
-        'include_patterns': ['claude-sonnet', 'claude-opus', 'claude-haiku'],
-        'exclude_patterns': ['claude-instant'],
+        'include_patterns': ['claude-sonnet'],
+        'exclude_patterns': ['opus', 'haiku', 'instant'],
     },
     'perplexity': {
-        'include_patterns': ['sonar', 'sonar-pro'],
-        'exclude_patterns': [
-            'sonar-reasoning', 'sonar-deep-research',  # Reasoning/research models
-        ],
+        'include_patterns': ['sonar'],
+        'exclude_patterns': ['pro', 'reasoning', 'deep-research'],
     },
 }
 
@@ -8655,18 +8664,29 @@ DEFAULT_PRICING_BY_TIER = {
 
 def is_chat_model(provider: str, model_id: str) -> bool:
     """
-    Determina si un modelo es de tipo CHAT (apto para monitorización de marcas).
-    Rechaza modelos de reasoning, imagen, video, embedding, audio, etc.
+    Determina si un modelo es elegible como modelo "current" según la política
+    de CHAT_MODEL_FILTERS (texto, tier gratuito, público general).
     """
+    import re
     model_lower = model_id.lower()
     filters = CHAT_MODEL_FILTERS.get(provider, {})
 
-    # Verificar exclusiones primero (mayor prioridad)
+    # Los snapshots con fecha (gpt-5.5-2026-04-23, claude-sonnet-4-5-20250929)
+    # son alias de API congelados, no el modelo que sirve el proveedor al público.
+    if re.search(r'\d{4}-\d{2}-\d{2}|\d{8}', model_lower):
+        return False
+
+    # Exclusiones primero (mayor prioridad)
     for pattern in filters.get('exclude_patterns', []):
         if pattern.lower() in model_lower:
             return False
 
-    # Verificar inclusiones
+    # Patrones que deben estar TODOS presentes (p.ej. google: gemini + flash)
+    required = filters.get('require_patterns')
+    if required and not all(p.lower() in model_lower for p in required):
+        return False
+
+    # Inclusiones (basta una)
     for pattern in filters.get('include_patterns', []):
         if pattern.lower() in model_lower:
             return True
@@ -8703,12 +8723,33 @@ def validate_model_before_switch(provider: str, model_id: str) -> dict:
     test_prompt = "What is SEO? Answer in one sentence."
     try:
         from services.llm_providers.provider_factory import LLMProviderFactory
-        provider_instance = LLMProviderFactory.create_provider(provider, model_id=model_id)
+
+        # create_provider exige la API key como posicional; se resuelve desde el
+        # entorno con los mismos nombres que usa create_all_providers.
+        env_keys = {
+            'openai': os.getenv('OPENAI_API_KEY'),
+            'anthropic': os.getenv('ANTHROPIC_API_KEY'),
+            'google': os.getenv('GOOGLE_API_KEY') or os.getenv('GOOGLE_AI_API_KEY'),
+            'perplexity': os.getenv('PERPLEXITY_API_KEY'),
+        }
+        api_key = env_keys.get(provider)
+        if not api_key:
+            return {'success': False, 'response_length': 0,
+                    'error': f'No API key configured for provider {provider}'}
+
+        provider_instance = LLMProviderFactory.create_provider(provider, api_key, model=model_id)
         if not provider_instance:
-            return {'success': False, 'error': f'Could not create provider for {provider}/{model_id}'}
+            return {'success': False, 'response_length': 0,
+                    'error': f'Could not create provider for {provider}/{model_id}'}
 
         result = provider_instance.execute_query(test_prompt)
-        response_text = result.get('response', '') if result else ''
+        # Los providers devuelven el texto en 'content' (BaseLLMProvider);
+        # 'response' se mantiene como fallback defensivo.
+        response_text = (result.get('content') or result.get('response') or '') if result else ''
+
+        if result and not result.get('success', True):
+            return {'success': False, 'response_length': len(response_text),
+                    'error': str(result.get('error') or 'Provider reported failure')[:200]}
 
         if len(response_text) > 10:
             return {'success': True, 'response_length': len(response_text), 'error': None}
@@ -8737,45 +8778,27 @@ def get_model_version_score(model_id: str) -> tuple:
     """
     Calcula un score de versión para comparar modelos.
     Retorna una tupla (major_version, sub_version, date_score, model_id) para ordenar.
+
+    Los números de versión se parsean del propio id — sin familias hardcodeadas —
+    para que gemini-4-flash, gpt-6-chat-latest o claude-sonnet-5 puntúen
+    correctamente el día que existan (con listas fijas puntuarían 0 y el
+    discovery jamás los consideraría "más nuevos").
     """
     import re
 
     model_lower = model_id.lower()
 
-    major = 0
-    if 'gpt-5' in model_lower or 'gpt5' in model_lower:
-        major = 5
-    elif 'gpt-4.1' in model_lower:
-        major = 4.1
-    elif 'gpt-4' in model_lower or 'gpt4' in model_lower:
-        major = 4
-    elif 'o3' in model_lower:
-        major = 6
-    elif 'o1' in model_lower:
-        major = 5.5
-    elif 'gemini-3' in model_lower:
-        major = 3
-    elif 'gemini-2' in model_lower:
-        major = 2
-    elif 'gemini-1' in model_lower:
-        major = 1
-    elif 'claude-sonnet-4' in model_lower or 'claude-4' in model_lower:
-        major = 4
-    elif 'claude-3' in model_lower:
-        major = 3
-    elif 'sonar-pro' in model_lower:
-        major = 2
-    elif 'sonar-reasoning' in model_lower:
-        major = 3
-    elif 'sonar' in model_lower:
-        major = 1
-
+    major = 0.0
     sub_version = 0
-    sub_match = re.search(r'(?:gpt|gemini)-(\d+)\.(\d+)', model_lower)
-    if not sub_match:
-        sub_match = re.search(r'claude-(?:sonnet|opus|haiku)-(\d+)-(\d+)', model_lower)
-    if sub_match:
-        sub_version = int(sub_match.group(2))
+    version_match = re.search(r'(?:gpt|gemini)-(\d+)(?:\.(\d+))?', model_lower)
+    if not version_match:
+        version_match = re.search(r'claude-(?:sonnet|opus|haiku)-(\d+)(?:[.-](\d+))?', model_lower)
+    if version_match:
+        major = float(version_match.group(1))
+        sub_version = int(version_match.group(2) or 0)
+    elif 'sonar' in model_lower:
+        # Perplexity no versiona sonar; el tier base puntúa 1 fijo.
+        major = 1.0
 
     date_score = 0
     date_match = re.search(r'(\d{4})-(\d{2})-(\d{2})', model_id)
@@ -8839,7 +8862,8 @@ def cron_model_discovery():
 
         # 1. Obtener modelos actuales de BD
         cur.execute("""
-            SELECT llm_provider, model_id, model_display_name, is_current
+            SELECT llm_provider, model_id, model_display_name, is_current,
+                   is_available, pending_approval, approval_token_expires_at
             FROM llm_model_registry
             ORDER BY llm_provider, is_current DESC
         """)
@@ -8848,11 +8872,26 @@ def cron_model_discovery():
         current_models = {}
         current_display_names = {}
         known_model_ids = set()
+        # Un modelo conocido solo se salta si está rechazado (is_available=FALSE),
+        # es el current, o tiene un token de aprobación aún vigente. Los demás
+        # (token caducado, o pending perdido p.ej. por una validación fallida)
+        # vuelven a ser candidatos: el ON CONFLICT del insert les regenera el
+        # token y se re-ofertan en el email. Sin esto, un email no atendido a
+        # tiempo enterraba el modelo para siempre.
+        skip_model_ids = set()
         for m in db_models:
             known_model_ids.add(m['model_id'])
             if m['is_current']:
                 current_models[m['llm_provider']] = m['model_id']
                 current_display_names[m['llm_provider']] = m['model_display_name'] or m['model_id']
+                skip_model_ids.add(m['model_id'])
+            if m.get('is_available') is False:
+                skip_model_ids.add(m['model_id'])
+            token_alive = (m.get('pending_approval')
+                           and m.get('approval_token_expires_at')
+                           and m['approval_token_expires_at'] > datetime.now())
+            if token_alive:
+                skip_model_ids.add(m['model_id'])
 
         logger.info(f"📊 Modelos actuales en BD: {current_models}")
 
@@ -8875,7 +8914,7 @@ def cron_model_discovery():
                 for m in models.data:
                     discovered_models.append({'provider': 'openai', 'model_id': m.id})
 
-                    if m.id in known_model_ids:
+                    if m.id in skip_model_ids:
                         same_or_known.append({'provider': 'openai', 'model_id': m.id})
                         continue
 
@@ -8908,7 +8947,7 @@ def cron_model_discovery():
                     display = getattr(m, 'display_name', model_id)
                     discovered_models.append({'provider': 'google', 'model_id': model_id})
 
-                    if model_id in known_model_ids:
+                    if model_id in skip_model_ids:
                         same_or_known.append({'provider': 'google', 'model_id': model_id})
                         continue
 
@@ -8928,12 +8967,54 @@ def cron_model_discovery():
             errors.append(f"Google: {str(e)[:100]}")
             logger.error(f"❌ Google error: {e}")
 
+        # --- Anthropic ---
+        # Vía HTTP directa: el endpoint /v1/models no existe en el SDK 0.39.0
+        # pineado en requirements, y así no dependemos de la versión del SDK.
+        try:
+            anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+            if anthropic_key:
+                import requests as _requests
+                current_anthropic = current_models.get('anthropic', 'claude-sonnet-4-6')
+                resp = _requests.get(
+                    'https://api.anthropic.com/v1/models?limit=100',
+                    headers={'x-api-key': anthropic_key, 'anthropic-version': '2023-06-01'},
+                    timeout=30,
+                )
+                resp.raise_for_status()
+
+                for m in resp.json().get('data', []):
+                    model_id = m.get('id', '')
+                    if not model_id:
+                        continue
+                    display = m.get('display_name') or model_id
+                    discovered_models.append({'provider': 'anthropic', 'model_id': model_id})
+
+                    if model_id in skip_model_ids:
+                        same_or_known.append({'provider': 'anthropic', 'model_id': model_id})
+                        continue
+
+                    if not is_chat_model('anthropic', model_id):
+                        skipped_non_chat.append({'provider': 'anthropic', 'model_id': model_id, 'reason': 'non-chat'})
+                        continue
+
+                    model_info = {'provider': 'anthropic', 'model_id': model_id, 'display_name': display}
+                    if is_model_newer(model_id, current_anthropic):
+                        model_info['status'] = 'NEWER'
+                        newer_chat_models.append(model_info)
+                    else:
+                        older_models.append(model_info)
+
+                logger.info(f"✅ Anthropic: Consultado correctamente")
+        except Exception as e:
+            errors.append(f"Anthropic: {str(e)[:100]}")
+            logger.error(f"❌ Anthropic error: {e}")
+
         # --- Perplexity (lista estática, solo chat) ---
         perplexity_models = ['sonar', 'sonar-pro']
-        current_perplexity = current_models.get('perplexity', 'sonar-pro')
+        current_perplexity = current_models.get('perplexity', 'sonar')
         for model_id in perplexity_models:
             discovered_models.append({'provider': 'perplexity', 'model_id': model_id})
-            if model_id not in known_model_ids and is_chat_model('perplexity', model_id):
+            if model_id not in skip_model_ids and is_chat_model('perplexity', model_id):
                 model_info = {'provider': 'perplexity', 'model_id': model_id,
                               'display_name': f'Perplexity {model_id.replace("-", " ").title()}'}
                 if is_model_newer(model_id, current_perplexity):
@@ -9263,19 +9344,27 @@ def approve_model_by_token():
         validation = validate_model_before_switch(model['llm_provider'], model['model_id'])
 
         if not validation['success']:
-            # Marcar como no aprobado
+            # Un fallo de validación puede ser transitorio (API caída, cuota,
+            # bug nuestro). Mantener el modelo pendiente y su token para poder
+            # reintentar desde el mismo email, y dejar rastro en el changelog.
             cur.execute("""
                 UPDATE llm_model_registry
-                SET pending_approval = FALSE, approval_token = NULL,
-                    approval_token_expires_at = NULL, pre_switch_validated = FALSE,
-                    updated_at = NOW()
+                SET pre_switch_validated = FALSE, updated_at = NOW()
                 WHERE id = %s
             """, (model['id'],))
+            _log_model_change(
+                cur, model['llm_provider'], None, model['model_id'],
+                None, model['model_display_name'],
+                'validation_failed', 'admin:email',
+                f"Pre-switch validation failed: {validation['error']}",
+                {'validation': validation}
+            )
             conn.commit()
 
             return _render_approval_result('error',
                 f"Pre-switch validation failed for {model['model_id']}. "
-                f"Error: {validation['error']}. The model has NOT been activated.")
+                f"Error: {validation['error']}. The model has NOT been activated. "
+                f"The approval link remains valid — you can retry once the issue is fixed.")
 
         # Obtener modelo actual antes de desactivar
         cur.execute("""
