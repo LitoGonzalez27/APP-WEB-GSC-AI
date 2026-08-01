@@ -60,13 +60,14 @@ export function renderProjects() {
         const canEdit = project.can_edit !== false;
         const isActive = project.is_active !== false;
         const isPausedByQuota = !!project.is_paused_by_quota;
-        const cardClickable = isActive && !isPausedByQuota;
-        const cardOnClick = cardClickable
-            ? `onclick="manualAI.goToProjectAnalytics(${project.id})"`
-            : '';
-        const cardStyle = cardClickable
+        // Paused projects (manual or quota) stay clickable: analytics keeps
+        // serving their accumulated history even though no new analyses run.
+        // The dimmed style + status indicator still signal the paused state.
+        const isRunning = isActive && !isPausedByQuota;
+        const cardOnClick = `onclick="manualAI.goToProjectAnalytics(${project.id})"`;
+        const cardStyle = isRunning
             ? 'cursor: pointer;'
-            : 'cursor: default; opacity: 0.78;';
+            : 'cursor: pointer; opacity: 0.78;';
 
         // HTML-safe form for inline onclick attribute. JSON.stringify alone leaves bare
         // double quotes that would terminate the onclick="..." attribute prematurely
@@ -100,7 +101,7 @@ export function renderProjects() {
 
         const hasInitialAnalysis = !!project.last_analysis_date;
         const hasKeywords = (project.total_keywords || 0) > 0;
-        const showFirstRunCta = canEdit && cardClickable && !hasInitialAnalysis && hasKeywords;
+        const showFirstRunCta = canEdit && isRunning && !hasInitialAnalysis && hasKeywords;
         const showPauseBtn = canEdit && isActive;
         const showResumeBtn = canEdit && !isActive;
         const showDeleteBtn = canEdit && !isActive;
@@ -116,7 +117,7 @@ export function renderProjects() {
         const btnDelete = btnBase + "background:transparent;color:#E05252;border:1.5px solid #E05252;";
 
         return `
-        <div class="project-card${!cardClickable ? ' project-card--paused' : ''}" data-project-id="${project.id}" ${cardOnClick} style="${cardStyle}">
+        <div class="project-card${!isRunning ? ' project-card--paused' : ''}" data-project-id="${project.id}" ${cardOnClick} style="${cardStyle}">
             <div class="project-header">
                 <h3>${escapeHtml(project.name)}</h3>
                 ${(canEdit === false) ? `
