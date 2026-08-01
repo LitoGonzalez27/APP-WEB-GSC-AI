@@ -170,7 +170,7 @@ def main():
             status = "✅ CURRENT" if m['is_current'] else "  "
             pending = "⏳ PENDING" if m.get('pending_approval') else ""
             logger.info(f"   {status} {m['llm_provider']:12s} | {m['model_id']:35s} | "
-                       f"cat={m.get('model_category', '?'):6s} | cutoff={m.get('knowledge_cutoff', 'N/A'):25s} {pending}")
+                       f"cat={(m.get('model_category') or '?'):6s} | cutoff={(m.get('knowledge_cutoff') or 'N/A'):25s} {pending}")
 
         # Verificar tabla changelog
         cur.execute("SELECT COUNT(*) as cnt FROM llm_model_changelog")
