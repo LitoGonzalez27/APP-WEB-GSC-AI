@@ -136,6 +136,12 @@ def enforce_llm_access():
         path = request.path or ""
         if "/api/llm-monitoring/cron/" in path or path.endswith("/health"):
             return None
+        # Los enlaces de aprobación/rechazo del email de Model Discovery llevan
+        # su propia credencial (token de 64 bytes con caducidad). Sin esta
+        # excepción, abrir el email desde un dispositivo sin sesión (móvil)
+        # devolvía un 401 JSON en vez de procesar el clic.
+        if path.endswith("/models/approve") or path.endswith("/models/reject"):
+            return None
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required. Please sign in.'}), 401
