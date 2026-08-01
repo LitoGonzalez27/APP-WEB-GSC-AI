@@ -9,16 +9,13 @@ import { escapeHtml } from './manual-ai-utils.js';
 export function populateAnalyticsProjectSelect() {
     if (!this.elements.analyticsProjectSelect) return;
 
-    // Hide paused projects from the analytics selector — they are not
-    // running analyses, so showing them only adds noise. They remain
-    // visible on the Projects tab (as Paused cards) so the user can
-    // resume/delete them from there.
-    const selectableProjects = this.projects.filter(p => p.is_active !== false);
-
+    // Paused projects stay selectable: pausing stops new analyses but the
+    // accumulated history must remain viewable, for the owner and for
+    // invited viewers (who cannot resume the project themselves).
     this.elements.analyticsProjectSelect.innerHTML = `
         <option value="">Select a project...</option>
-        ${selectableProjects.map(project => `
-            <option value="${project.id}">${escapeHtml(project.name)}${project.can_edit === false ? ' (shared)' : ''}</option>
+        ${this.projects.map(project => `
+            <option value="${project.id}">${escapeHtml(project.name)}${project.can_edit === false ? ' (shared)' : ''}${project.is_active === false ? ' (paused)' : ''}</option>
         `).join('')}
     `;
 }
