@@ -8658,9 +8658,10 @@ DEFAULT_PRICING_BY_TIER = {
     'anthropic': {
         'claude-sonnet': (3.00, 15.00), 'claude-opus': (15.00, 75.00), 'claude-haiku': (0.25, 1.25),
     },
+    # Claves genéricas por tier: 'gemini-3-flash' no matchea versiones con
+    # punto (gemini-3.6-flash) y dejaba el pricing a NULL.
     'google': {
-        'gemini-3-flash': (0.50, 3.00), 'gemini-3-pro': (1.25, 5.00),
-        'gemini-2': (0.30, 1.25), 'gemini-1': (0.15, 0.60),
+        'flash': (0.50, 3.00), 'pro': (1.25, 5.00),
     },
     'perplexity': {
         'sonar': (1.00, 1.00), 'sonar-pro': (3.00, 15.00),
