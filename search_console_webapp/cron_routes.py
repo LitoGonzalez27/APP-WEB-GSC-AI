@@ -126,9 +126,13 @@ def quota_health_check_endpoint():
 
 def _run_health_check_and_alert():
     """
-    Detect users whose quota_reset_date is more than 24h in the past — these
-    are paying users that should have already been reset by the cron. If any
-    are found, send an alert email (gated by CRON_ALERTS_ENABLED) so we
+    Detect paying users whose quota_reset_date is anomalous:
+      - more than 24h in the PAST → the cron should have reset them already.
+      - more than 35 days in the FUTURE → impossible with monthly quota
+        cycles (QUOTA_RESET_INTERVAL_DAYS=30). Real case: a backfill wrote
+        the ANNUAL Stripe period_end as quota_reset_date, freezing the user's
+        quota for a year (user 665719, jul-2026) without any alert firing.
+    If any are found, send an alert email (gated by CRON_ALERTS_ENABLED) so we
     detect a regression in <24h instead of in 49 days like last time.
 
     Returns a dict suitable for embedding in the API response.
@@ -150,7 +154,10 @@ def _run_health_check_and_alert():
             WHERE plan != 'free'
               AND billing_status IN ('active', 'trialing', 'beta')
               AND quota_reset_date IS NOT NULL
-              AND quota_reset_date < NOW() - INTERVAL '1 day'
+              AND (
+                  quota_reset_date < NOW() - INTERVAL '1 day'
+                  OR quota_reset_date > NOW() + INTERVAL '35 days'
+              )
             ORDER BY quota_reset_date
         """)
         rows = cur.fetchall() or []
@@ -362,9 +369,10 @@ def _send_stuck_quota_alert(stuck_users):
     <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
         <h2 style="color:#dc2626;margin-top:0">🚨 Quota Reset Stuck — {len(stuck_users)} usuario(s) afectado(s)</h2>
         <p><strong>Entorno:</strong> {env_name}</p>
-        <p>El health-check ha detectado usuarios con <code>quota_reset_date</code> >24 h en el pasado.
-           Esto indica que el cron de reset NO los ha procesado — probablemente porque el cron
-           no se ha ejecutado, o ha fallado silenciosamente para estos usuarios concretos.</p>
+        <p>El health-check ha detectado usuarios con <code>quota_reset_date</code> anómalo:
+           >24 h en el pasado (el cron de reset no los ha procesado) o >35 días en el futuro
+           (fecha imposible con ciclos mensuales — típicamente un backfill que copió el
+           period_end de una suscripción ANUAL, dejando la cuota congelada un año).</p>
         <p>Acción recomendada: ejecutar manualmente
            <code>POST /api/cron/quota-reset?async=1</code> con bearer CRON_TOKEN, o disparar
            el script <code>daily_quota_reset_cron.py</code> contra la BD afectada.</p>

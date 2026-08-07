@@ -56,20 +56,20 @@ def main():
     try:
         cur = list_conn.cursor()
         # ──────────────────────────────────────────────────────────────────
-        # Stripe-aware filter (added 2026-05-07):
-        # We only reset users for whom a reset is SAFE, i.e. one of:
-        #   (a) No Stripe subscription (admin enterprise, beta, etc.) — the
-        #       cron is the canonical mechanism.
-        #   (b) Stripe period is genuinely over (current_period_end <= NOW)
-        #       — safe to reset because Stripe has either charged for the
-        #       new period (webhook should have fired) or marked past_due.
-        #   (c) current_period_end IS NULL (legacy data, period info never
-        #       captured). For these users we'll do a live Stripe API
-        #       lookup per-user later so we don't reset prematurely.
-        # Users with subscription_id AND current_period_end > NOW are
-        # explicitly EXCLUDED here — Stripe is in the middle of their
-        # billing period and the webhook payment_succeeded is the right
-        # mechanism to reset them, not us.
+        # Selección (reescrita 2026-08-07):
+        # quota_reset_date es la fuente de verdad: si está en el pasado (o
+        # NULL) el usuario está pendiente de reset. El filtro anterior
+        # exigía ADEMÁS current_period_end NULL/pasado, asumiendo que "a
+        # mitad de periodo Stripe ⇒ el webhook payment_succeeded resetea".
+        # Eso vale para planes MENSUALES, pero en planes ANUALES
+        # current_period_end queda hasta un año en el futuro y solo hay una
+        # factura AL AÑO: los resets mensuales intermedios son de este cron,
+        # y el filtro los excluía — usuario congelado con cuota agotada
+        # (caso real: user 665719, premium anual, bloqueado desde jul-2026
+        # con quota_reset_date=jun-2027).
+        # No hay riesgo de reset prematuro para mensuales: la condición
+        # quota_reset_date <= NOW() ya garantiza que la ventana venció, y
+        # compute_next_quota_reset_date hace cap en period_end.
         # ──────────────────────────────────────────────────────────────────
         cur.execute("""
             SELECT id, plan, billing_status, quota_used, quota_reset_date,
@@ -78,11 +78,6 @@ def main():
             WHERE plan != 'free'
               AND billing_status IN ('active', 'trialing', 'beta')
               AND (quota_reset_date IS NULL OR quota_reset_date <= NOW())
-              AND (
-                  subscription_id IS NULL
-                  OR current_period_end IS NULL
-                  OR current_period_end <= NOW()
-              )
         """)
         users = cur.fetchall() or []
         cur.close()
@@ -111,29 +106,29 @@ def main():
         user_id = user['id']
 
         # ─────────────────────────────────────────────────────────────────
-        # Live Stripe safety check (added 2026-05-07):
-        # If the user has a Stripe subscription_id but current_period_end
-        # is NULL (legacy / data never backfilled), do a live API lookup
-        # before resetting. If Stripe says the period is still active, we
-        # SKIP the reset and let the payment_succeeded webhook do its job.
-        # This protects against the "user consumed all quota in 5 days,
-        # we reset them on day 30 before Stripe charges day 31" gap.
+        # Live Stripe lookup (reescrito 2026-08-07):
+        # Si el usuario tiene suscripción pero current_period_end es NULL
+        # (legacy / el webhook nunca cacheó el periodo), lo pedimos vivo a
+        # Stripe para que compute_next_quota_reset_date pueda hacer cap, y
+        # lo cacheamos en BD.
+        # IMPORTANTE: NUNCA usar el period_end vivo como quota_reset_date.
+        # El backfill antiguo hacía exactamente eso y en suscripciones
+        # ANUALES estampaba un reset a un año vista, congelando la cuota
+        # (bug user 665719). Ahora solo hay dos salidas:
+        #   - reset debido (quota_reset_date <= NOW): seguir al flujo normal
+        #     de reset usando el period_end vivo como cap.
+        #   - quota_reset_date NULL con periodo activo: inicializar la fecha
+        #     al próximo ciclo (compute_..., 30d cap period_end) SIN resetear
+        #     — está a mitad de periodo y no le toca todavía.
         # ─────────────────────────────────────────────────────────────────
         sub_id = user.get('subscription_id')
         period_end_db = user.get('current_period_end')
         if sub_id and period_end_db is None:
             try:
                 live_period_end = _fetch_live_stripe_period_end(sub_id)
-                if live_period_end is not None and live_period_end > now:
-                    logger.info(
-                        f"⏭️ User {user_id}: Stripe period still active live "
-                        f"(period_end={live_period_end.isoformat()}); skipping reset"
-                    )
-                    # Backfill (añadido 2026-06-10): cachear el period_end vivo y
-                    # alinear quota_reset_date con él. Sin esto, el usuario queda
-                    # con quota_reset_date en el pasado para siempre (el webhook no
-                    # llega hasta la próxima factura) y el health-check lo marca
-                    # como "stuck" cada día — alertas de ruido por un no-problema.
+                if live_period_end is not None:
+                    user = dict(user)
+                    user['current_period_end'] = live_period_end
                     try:
                         bf_conn = get_db_connection()
                         if bf_conn:
@@ -142,22 +137,44 @@ def main():
                                 bf_cur.execute("""
                                     UPDATE users
                                     SET current_period_end = %s,
-                                        quota_reset_date = %s,
                                         updated_at = NOW()
                                     WHERE id = %s
-                                """, (live_period_end, live_period_end, user_id))
+                                """, (live_period_end, user_id))
                                 bf_conn.commit()
-                                logger.info(f"📌 User {user_id}: backfilled period_end/quota_reset_date = {live_period_end.isoformat()}")
+                                logger.info(f"📌 User {user_id}: backfilled current_period_end = {live_period_end.isoformat()}")
                             finally:
                                 bf_conn.close()
                     except Exception as bf_err:
                         logger.warning(f"⚠️ User {user_id}: backfill failed (non-fatal): {bf_err}")
-                    skipped_stripe_active += 1
-                    continue
-                if live_period_end is not None:
-                    # Use live value as period_end for compute_next_quota_reset_date
-                    user = dict(user) if not isinstance(user, dict) else dict(user)
-                    user['current_period_end'] = live_period_end
+
+                    if user.get('quota_reset_date') is None and live_period_end > now:
+                        init_reset = compute_next_quota_reset_date(
+                            period_end=live_period_end,
+                            now=now
+                        )
+                        logger.info(
+                            f"⏭️ User {user_id}: sin quota_reset_date y periodo Stripe "
+                            f"activo; inicializando quota_reset_date={init_reset.isoformat()} "
+                            f"sin resetear"
+                        )
+                        try:
+                            init_conn = get_db_connection()
+                            if init_conn:
+                                try:
+                                    init_cur = init_conn.cursor()
+                                    init_cur.execute("""
+                                        UPDATE users
+                                        SET quota_reset_date = %s,
+                                            updated_at = NOW()
+                                        WHERE id = %s
+                                    """, (init_reset, user_id))
+                                    init_conn.commit()
+                                finally:
+                                    init_conn.close()
+                        except Exception as init_err:
+                            logger.warning(f"⚠️ User {user_id}: init quota_reset_date failed (non-fatal): {init_err}")
+                        skipped_stripe_active += 1
+                        continue
             except Exception as e:
                 logger.warning(
                     f"⚠️ User {user_id}: live Stripe lookup failed ({e}); "
