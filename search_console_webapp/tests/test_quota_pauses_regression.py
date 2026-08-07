@@ -112,6 +112,21 @@ def test_health_check_flags_far_future_reset_dates():
     assert "quota_reset_date > NOW() + INTERVAL '35 days'" in norm
 
 
+def test_payment_succeeded_prefers_line_period_over_invoice_top_level():
+    """En la API basil, el period top-level del invoice de una renovación es
+    el ciclo ANTERIOR; el nuevo va en lines.data[0].period. El handler debe
+    leer lines PRIMERO — el orden inverso pisaba el current_period_end bueno
+    que subscription.updated acababa de escribir (users 73/86, jul-ago 2026)."""
+    src = _read("stripe_webhooks.py")
+    fn = src.split("def _handle_payment_succeeded")[1].split("\n    def ")[0]
+    lines_idx = fn.find("line_period.get('start')")
+    toplevel_idx = fn.find("invoice.get('period_start')")
+    assert lines_idx != -1 and toplevel_idx != -1
+    assert lines_idx < toplevel_idx, "lines.data[0].period debe extraerse ANTES que el top-level"
+    # fallback del subscription_id para API basil (ya no viene en la raíz)
+    assert "subscription_details" in fn
+
+
 def test_compute_next_reset_annual_subscription_behavior():
     """compute_next_quota_reset_date con period_end anual debe dar el próximo
     ciclo de ~30 días, jamás el period_end lejano; y debe seguir haciendo cap

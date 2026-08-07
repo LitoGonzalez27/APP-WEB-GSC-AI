@@ -456,27 +456,37 @@ class StripeWebhookHandler:
         """Maneja invoice.payment_succeeded"""
         try:
             customer_id = invoice.get('customer')
+            # En la API 2025-06-30.basil el invoice ya no trae `subscription`
+            # en la raíz: vive en parent.subscription_details.subscription.
             subscription_id = invoice.get('subscription')
+            if not subscription_id:
+                _parent = invoice.get('parent') or {}
+                _sub_details = _parent.get('subscription_details') or {}
+                subscription_id = _sub_details.get('subscription')
 
-            # Robust period extraction (fixed 2026-05-07):
-            # In modern Stripe API the invoice object often does NOT carry
-            # period_start/period_end directly at the top level — the period
-            # lives inside lines.data[N].period.start/end. The previous code
-            # only looked at the top level, so the `if period_start and ...`
-            # branch below never ran for ANY user, which is why every paying
-            # account in the DB had current_period_end=NULL and quota was
-            # never reset via the webhook path.
-            period_start = invoice.get('period_start')
-            period_end = invoice.get('period_end')
+            # Robust period extraction (fixed 2026-08-07):
+            # lines.data[0].period PRIMERO. En una renovación
+            # (billing_reason=subscription_cycle) el period_start/end top-level
+            # del invoice describe el ciclo ANTERIOR (el que se factura), no el
+            # nuevo — el ciclo nuevo va en lines.data[0].period. El orden
+            # antiguo (top-level primero) hacía que cada renovación escribiera
+            # el current_period_end VIEJO en users, pisando el valor correcto
+            # que customer.subscription.updated acababa de escribir, y dejaba
+            # quota_reset_date en el pasado (lo recogía el cron al día
+            # siguiente con un segundo reset redundante).
+            period_start = None
+            period_end = None
+            try:
+                lines = (invoice.get('lines') or {}).get('data') or []
+                if lines:
+                    line_period = (lines[0] or {}).get('period') or {}
+                    period_start = line_period.get('start')
+                    period_end = line_period.get('end')
+            except Exception as _e:
+                logger.warning(f"⚠️ Could not extract period from invoice.lines: {_e}")
             if not (period_start and period_end):
-                try:
-                    lines = (invoice.get('lines') or {}).get('data') or []
-                    if lines:
-                        line_period = (lines[0] or {}).get('period') or {}
-                        period_start = period_start or line_period.get('start')
-                        period_end = period_end or line_period.get('end')
-                except Exception as _e:
-                    logger.warning(f"⚠️ Could not extract period from invoice.lines: {_e}")
+                period_start = period_start or invoice.get('period_start')
+                period_end = period_end or invoice.get('period_end')
             # Last-resort fallback: fetch from the subscription via Stripe API.
             # This guarantees we always populate the period if a sub exists.
             if not (period_start and period_end) and subscription_id:
