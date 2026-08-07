@@ -69,3 +69,76 @@ def test_llm_pause_never_sets_null_paused_until():
     assert "if paused_until is None: paused_until = datetime.utcnow() + timedelta(days=30)" in norm
     # timedelta debe estar importado para que el fallback funcione
     assert re.search(r"from datetime import .*\btimedelta\b", src)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Regresión suscripciones ANUALES (bug real 2026-08-07, user 665719):
+# el backfill del cron de reset copiaba el current_period_end vivo de Stripe
+# a quota_reset_date. En un plan anual eso es una fecha a un año vista →
+# cuota congelada 12 meses, proyectos pausados hasta la renovación, y ni el
+# cron (filtraba por period_end futuro) ni el health-check (solo miraba
+# fechas pasadas) podían detectarlo o repararlo.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_quota_cron_does_not_exclude_annual_mid_period_users():
+    """La query de selección del cron debe elegir por quota_reset_date
+    vencido, SIN exigir current_period_end NULL/pasado: los planes anuales
+    tienen period_end hasta un año en el futuro y sus resets mensuales
+    intermedios dependen de este cron (solo hay una factura al año)."""
+    src = _read("daily_quota_reset_cron.py")
+    norm = re.sub(r"\s+", " ", src)
+    assert "(quota_reset_date IS NULL OR quota_reset_date <= NOW())" in norm
+    # el gate antiguo por periodo Stripe no debe reaparecer en la selección
+    assert "OR current_period_end <= NOW()" not in norm
+
+
+def test_quota_cron_backfill_never_copies_period_end_to_reset_date():
+    """El backfill de period_end vivo NUNCA debe usarse como quota_reset_date
+    directamente — en anuales congela la cuota un año. La fecha de reset debe
+    salir siempre de compute_next_quota_reset_date (30d, cap en period_end)."""
+    src = _read("daily_quota_reset_cron.py")
+    norm = re.sub(r"\s+", " ", src)
+    # el UPDATE antiguo escribía (live_period_end, live_period_end, user_id)
+    assert "(live_period_end, live_period_end, user_id)" not in norm
+    # la inicialización usa compute con el period_end vivo como cap
+    assert "compute_next_quota_reset_date( period_end=live_period_end" in norm
+
+
+def test_health_check_flags_far_future_reset_dates():
+    """El health-check debe alertar también de quota_reset_date demasiado
+    futuro (>35d es imposible con ciclos mensuales de 30d), no solo pasado."""
+    src = _read("cron_routes.py")
+    norm = re.sub(r"\s+", " ", src)
+    assert "quota_reset_date > NOW() + INTERVAL '35 days'" in norm
+
+
+def test_compute_next_reset_annual_subscription_behavior():
+    """compute_next_quota_reset_date con period_end anual debe dar el próximo
+    ciclo de ~30 días, jamás el period_end lejano; y debe seguir haciendo cap
+    en period_end cuando este cae dentro del ciclo (mensuales)."""
+    import os as _os
+    import sys as _sys
+    from datetime import datetime
+    _os.environ.setdefault("DATABASE_URL", "postgresql://dummy:dummy@localhost:5/dummy")
+    _sys.path.insert(0, str(ROOT))
+    from quota_manager import compute_next_quota_reset_date
+
+    # Anual: inicialización a mitad de periodo → now+30d, no jun-2027
+    r = compute_next_quota_reset_date(
+        period_end=datetime(2027, 6, 10, 8, 40, 42), now=datetime(2026, 6, 15)
+    )
+    assert r == datetime(2026, 7, 15)
+
+    # Anual: reset vencido → avanza en ventanas de 30d, nunca salta al period_end
+    r = compute_next_quota_reset_date(
+        last_reset=datetime(2026, 7, 10), period_end=datetime(2027, 6, 10),
+        now=datetime(2026, 8, 10)
+    )
+    assert r == datetime(2026, 9, 8)
+
+    # Mensual: cap en period_end cuando base+30d lo sobrepasa
+    r = compute_next_quota_reset_date(
+        last_reset=datetime(2026, 8, 1), period_end=datetime(2026, 8, 20),
+        now=datetime(2026, 8, 2)
+    )
+    assert r == datetime(2026, 8, 20)
