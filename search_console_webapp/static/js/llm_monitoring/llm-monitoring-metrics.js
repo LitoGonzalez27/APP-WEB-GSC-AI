@@ -47,7 +47,7 @@ async loadMetrics(projectId) {
         console.log(`📈 Loading detailed metrics for project ${projectId}...`);
 
         try {
-            const response = await fetch(`${this.baseUrl}/projects/${projectId}/metrics?days=${this.globalTimeRange}`);
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/metrics?days=${this.globalTimeRange}${this.getReportFilterParams()}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);

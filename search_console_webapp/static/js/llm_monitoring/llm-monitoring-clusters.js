@@ -270,7 +270,7 @@ async loadClustersPerformance(projectId) {
             await this.loadClustersConfig(projectId);
 
             const resp = await fetch(
-                `${this.baseUrl}/projects/${projectId}/clusters/metrics?days=${this.globalTimeRange}&metric=${encodeURIComponent(metric)}`
+                `${this.baseUrl}/projects/${projectId}/clusters/metrics?days=${this.globalTimeRange}&metric=${encodeURIComponent(metric)}${this.getReportFilterParams()}`
             );
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();

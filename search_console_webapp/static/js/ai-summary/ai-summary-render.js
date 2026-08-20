@@ -328,6 +328,14 @@ export function renderChannelCard(channel, meta, summary) {
         }
     }
 
+    // Disclaimer permanente: cuando el proyecto LLM usa prompt sets, el score
+    // bebe SOLO del set núcleo — las tendencias/estacionales no puntúan aquí.
+    const coreOnlyNote = (channel === 'llm' && summary.core_only)
+        ? `<div class="channel-card-note" title="Seasonal/trend prompt sets are excluded from this score so it reflects real visibility, not calendar effects.">
+               <i class="fas fa-info-circle"></i> Core prompts only — trend/seasonal sets don't score here
+           </div>`
+        : '';
+
     return `
         <div class="channel-card ${trendClass}">
             <div class="channel-card-header">
@@ -340,6 +348,7 @@ export function renderChannelCard(channel, meta, summary) {
             </div>
             <div class="channel-metric-label">${meta.metricLabel}</div>
             <div class="channel-secondary-metrics">${secondary.join('')}</div>
+            ${coreOnlyNote}
         </div>
     `;
 }

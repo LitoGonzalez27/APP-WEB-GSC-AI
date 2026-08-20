@@ -516,6 +516,38 @@
                     <i class="fas fa-info-circle"></i>
                     <span id="llmModelScopeBannerText"></span>
                 </div>
+
+                <!-- Filtro global del informe: set de prompts (exclusivo) + clusters.
+                     Solo visible cuando el proyecto tiene sets o clusters configurados.
+                     El set es una vista exclusiva (núcleo O una tendencia, nunca mezcla)
+                     para no contaminar las series temporales. -->
+                <div id="reportFilterBar" class="report-filter-bar" style="display: none;">
+                    <div class="report-filter-group" id="setFilterGroup" style="display: none;">
+                        <span class="report-filter-label">
+                            <i class="fas fa-layer-group"></i>
+                            Prompt set
+                            <span class="cg-info-tooltip">
+                                <i class="fas fa-info-circle"></i>
+                                <span class="cg-info-tooltip-content">
+                                    <strong>Exclusive view</strong>
+                                    The report shows one prompt set at a time (Core or a seasonal/trend set) so time series are never mixed.
+                                </span>
+                            </span>
+                        </span>
+                        <div class="report-set-toggle" id="setFilterToggle" role="tablist"></div>
+                    </div>
+                    <div class="report-filter-group" id="clusterFilterGroup" style="display: none;">
+                        <span class="report-filter-label">
+                            <i class="fas fa-tags"></i>
+                            Clusters
+                        </span>
+                        <div class="report-cluster-chips" id="clusterFilterChips"></div>
+                    </div>
+                    <button class="btn btn-ghost btn-sm report-filter-reset" id="btnResetReportFilters" style="display: none;">
+                        <i class="fas fa-rotate-left"></i>
+                        Reset
+                    </button>
+                </div>
                 
                 <!-- Prompts Management Section - Hidden, now in modal -->
                 <div class="chart-card" id="promptsCard" style="display: none;">
@@ -1526,6 +1558,17 @@
                         Clusters
                         <span class="tab-count" id="clustersMgmtTabCount">0</span>
                     </button>
+                    <button type="button"
+                            class="prompts-mgmt-tab"
+                            id="promptsMgmtTabSets"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="promptsMgmtPaneSets"
+                            onclick="window.llmMonitoring.switchPromptsTab && window.llmMonitoring.switchPromptsTab('sets')">
+                        <i class="fas fa-calendar-alt"></i>
+                        Sets
+                        <span class="tab-count" id="setsMgmtTabCount">0</span>
+                    </button>
                 </div>
 
                 <!-- Pane: PROMPTS -->
@@ -1613,6 +1656,49 @@
                         <div class="clusters-empty-hint" id="clustersEmptyHint" style="display:none;">
                             <i class="fas fa-info-circle"></i>
                             No clusters yet. Click <strong>Add cluster</strong> to create one, then go back to the Prompts tab to assign prompts.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pane: SETS (núcleo / tendencia / estacionales) -->
+                <div id="promptsMgmtPaneSets"
+                     class="prompts-mgmt-pane"
+                     role="tabpanel"
+                     aria-labelledby="promptsMgmtTabSets"
+                     style="display:none;">
+                    <div class="clusters-config-header">
+                        <label class="clusters-enable-switch">
+                            <input type="checkbox" id="promptSetsEnabled">
+                            <span class="clusters-enable-switch-slider"></span>
+                            <span class="clusters-enable-switch-label">
+                                <strong>Enable prompt sets</strong>
+                                <small>Split prompts into the always-on <strong>Core</strong> set and seasonal/trend sets that only run inside their window (UTC dates). The report shows one set at a time so time series are never mixed.</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div id="promptSetsContainer" class="clusters-config-container">
+                        <div class="clusters-config-actions">
+                            <button type="button" class="btn btn-primary btn-sm" id="btnAddSet"
+                                    onclick="window.llmMonitoring.addSetRow && window.llmMonitoring.addSetRow()">
+                                <i class="fas fa-plus"></i>
+                                Add set
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" id="btnSaveSets"
+                                    onclick="window.llmMonitoring.saveSetsConfig && window.llmMonitoring.saveSetsConfig()">
+                                <i class="fas fa-save"></i>
+                                Save
+                            </button>
+                            <span class="clusters-save-hint" id="setsSaveHint"></span>
+                        </div>
+
+                        <div class="clusters-list" id="setsList">
+                            <!-- Rows are rendered dynamically -->
+                        </div>
+
+                        <div class="clusters-empty-hint" id="setsEmptyHint" style="display:none;">
+                            <i class="fas fa-info-circle"></i>
+                            No seasonal/trend sets yet. Click <strong>Add set</strong>, give it a name (e.g. "Black Friday") and an optional window (11-15 → 12-02). Prompts without a set always belong to <strong>Core</strong>.
                         </div>
                     </div>
                 </div>
@@ -1846,6 +1932,8 @@
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-filters.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-sets.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-modals.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-models.js') }}?v={{ ASSET_V }}"></script>
 

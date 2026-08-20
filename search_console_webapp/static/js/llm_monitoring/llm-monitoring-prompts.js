@@ -174,11 +174,19 @@ renderPrompts(renderInModal = false) {
                 ? this.buildPromptClusterSelectHtml(query)
                 : '';
             const hasCluster = !!clusterSelectHtml;
+            const setSelectHtml = this.buildPromptSetSelectHtml
+                ? this.buildPromptSetSelectHtml(query)
+                : '';
+            // Badge de set visible aunque el selector no se pinte (p.ej. lista fuera del modal)
+            const setBadgeHtml = query.prompt_set
+                ? `<span class="prompt-set-badge set-custom"><i class="fas fa-calendar-alt"></i> ${this.escapeHtml(query.prompt_set)}</span>`
+                : '';
             html += `
                 <div class="prompt-item">
                     <div class="prompt-meta">
                         <span class="badge badge-${query.query_type}">${query.query_type}</span>
                         <span class="badge badge-language">${query.language}</span>
+                        ${setBadgeHtml}
                         <span class="prompt-date">
                             <i class="fas fa-clock"></i>
                             ${this.formatDate(query.created_at)}
@@ -186,7 +194,7 @@ renderPrompts(renderInModal = false) {
                     </div>
                     <div class="prompt-text">${this.escapeHtml(query.prompt)}</div>
                     <div class="prompt-bottom-row">
-                        <div>${clusterSelectHtml}</div>
+                        <div>${clusterSelectHtml}${setSelectHtml}</div>
                         <div class="prompt-actions">
                             <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
                                 <i class="fas fa-trash"></i>
@@ -400,20 +408,24 @@ showPromptsManagementModal() {
             this.switchPromptsTab('prompts', { silent: true });
         }
 
-        // Load prompts AND clusters config in parallel
+        // Load prompts AND clusters/sets config in parallel
         if (this.currentProject && this.currentProject.id) {
             this.loadPrompts(this.currentProject.id, true); // true = render in modal
-            // Clusters are needed by per-prompt selector → load config first,
-            // then refresh the prompt list so selects include the cluster options.
-            this.loadClustersConfig(this.currentProject.id)
+            // Clusters/sets are needed by per-prompt selectors → load configs
+            // first, then refresh the prompt list so selects include options.
+            Promise.all([
+                this.loadClustersConfig(this.currentProject.id),
+                this.loadSetsConfig(this.currentProject.id)
+            ])
                 .then(() => {
-                    // Update selects inline once clusters are known
+                    // Update selects inline once clusters/sets are known
                     this.refreshPromptClusterSelects();
                     this.renderClustersManagerList();
+                    this.renderSetsManagerList();
                     this.populatePromptsListClusterFilter();
                     this.updatePromptsMgmtTabCounts();
                 })
-                .catch(err => console.warn('Error loading clusters config:', err));
+                .catch(err => console.warn('Error loading clusters/sets config:', err));
 
             // Hook the per-modal cluster filter change once
             const filterSel = document.getElementById('promptsListClusterFilter');
@@ -431,6 +443,15 @@ showPromptsManagementModal() {
                 enableCb.dataset.bound = '1';
                 enableCb.addEventListener('change', () => {
                     this.toggleClustersConfigContainer(enableCb.checked);
+                });
+            }
+
+            // Hook the sets enable/disable switch once
+            const setsEnableCb = document.getElementById('promptSetsEnabled');
+            if (setsEnableCb && !setsEnableCb.dataset.bound) {
+                setsEnableCb.dataset.bound = '1';
+                setsEnableCb.addEventListener('change', () => {
+                    this.toggleSetsConfigContainer(setsEnableCb.checked);
                 });
             }
         }
@@ -648,32 +669,42 @@ async deletePrompt(queryId) {
 
 
 switchPromptsTab(tab, opts = {}) {
-        const valid = (tab === 'clusters') ? 'clusters' : 'prompts';
-        const tabPrompts = document.getElementById('promptsMgmtTabPrompts');
-        const tabClusters = document.getElementById('promptsMgmtTabClusters');
-        const panePrompts = document.getElementById('promptsMgmtPanePrompts');
-        const paneClusters = document.getElementById('promptsMgmtPaneClusters');
-        if (!tabPrompts || !tabClusters || !panePrompts || !paneClusters) return;
+        const valid = (tab === 'clusters' || tab === 'sets') ? tab : 'prompts';
+        const tabs = {
+            prompts: [document.getElementById('promptsMgmtTabPrompts'), document.getElementById('promptsMgmtPanePrompts')],
+            clusters: [document.getElementById('promptsMgmtTabClusters'), document.getElementById('promptsMgmtPaneClusters')],
+            sets: [document.getElementById('promptsMgmtTabSets'), document.getElementById('promptsMgmtPaneSets')]
+        };
+        if (!tabs.prompts[0] || !tabs.clusters[0] || !tabs.prompts[1] || !tabs.clusters[1]) return;
 
-        const isClusters = valid === 'clusters';
-        tabPrompts.classList.toggle('active', !isClusters);
-        tabClusters.classList.toggle('active', isClusters);
-        tabPrompts.setAttribute('aria-selected', String(!isClusters));
-        tabClusters.setAttribute('aria-selected', String(isClusters));
-        panePrompts.classList.toggle('active', !isClusters);
-        paneClusters.classList.toggle('active', isClusters);
-        panePrompts.style.display = isClusters ? 'none' : '';
-        paneClusters.style.display = isClusters ? '' : 'none';
+        for (const [key, [tabEl, paneEl]] of Object.entries(tabs)) {
+            if (!tabEl || !paneEl) continue;
+            const isActive = key === valid;
+            tabEl.classList.toggle('active', isActive);
+            tabEl.setAttribute('aria-selected', String(isActive));
+            paneEl.classList.toggle('active', isActive);
+            paneEl.style.display = isActive ? '' : 'none';
+        }
+
+        const isSilent = opts && opts.silent;
 
         // When moving to clusters tab, render the editor UI with current state.
         // If the project has no clusters yet, seed one empty row so the user
         // can type immediately instead of hunting for the "Add cluster" button.
-        if (isClusters) {
+        if (valid === 'clusters') {
             this.renderClustersManagerList();
             const existing = this.getDefinedClusterNames();
-            const isSilent = opts && opts.silent;
             if (!isSilent && existing.length === 0 && this.promptClustersConfig) {
                 this.addClusterRow();
+            }
+        }
+
+        // Mismo comportamiento para el tab de sets
+        if (valid === 'sets' && typeof this.renderSetsManagerList === 'function') {
+            this.renderSetsManagerList();
+            const existingSets = this.getDefinedSetNames();
+            if (!isSilent && existingSets.length === 0 && this.promptSetsConfig) {
+                this.addSetRow();
             }
         }
     },
@@ -685,6 +716,10 @@ updatePromptsMgmtTabCounts() {
         const cEl = document.getElementById('clustersMgmtTabCount');
         if (pEl) pEl.textContent = promptsCount;
         if (cEl) cEl.textContent = clustersCount;
+        const sEl = document.getElementById('setsMgmtTabCount');
+        if (sEl && typeof this.getDefinedSetNames === 'function') {
+            sEl.textContent = this.getDefinedSetNames().length;
+        }
     },
 
 buildPromptClusterSelectHtml(query) {

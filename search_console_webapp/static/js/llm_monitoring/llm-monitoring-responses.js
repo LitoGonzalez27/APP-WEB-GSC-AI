@@ -53,6 +53,7 @@ async loadResponses() {
             if (queryFilter) url += `&query_id=${queryFilter}`;
             if (llmFilter) url += `&llm_provider=${llmFilter}`;
             if (clusterFilter) url += `&cluster=${encodeURIComponent(clusterFilter)}`;
+            url += this.getReportFilterParams();
 
             // Populate the cluster filter dropdown lazily if the project has clusters
             if (!this._responsesClusterFilterBound) {

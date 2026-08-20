@@ -5105,3 +5105,240 @@ label:not(.search-form label) {
     }
 }
 
+
+/* ============================================================================
+   FILTRO GLOBAL DEL INFORME (prompt sets + clusters)
+   Barra compacta y sticky bajo la cabecera del informe. El set es exclusivo
+   (núcleo O una tendencia); los clusters son multiselección.
+   ============================================================================ */
+.report-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+    background: var(--cs-bg-subtle);
+    border: 1px solid var(--cs-border);
+    border-radius: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.report-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.report-filter-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-medium);
+    color: var(--cs-text-secondary);
+    white-space: nowrap;
+}
+
+.report-filter-label i {
+    font-size: 0.7rem;
+}
+
+/* Toggle exclusivo de sets (estilo segmented control) */
+.report-set-toggle {
+    display: inline-flex;
+    background: var(--cs-bg-card, #fff);
+    border: 1px solid var(--cs-border);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.report-set-toggle .set-option {
+    border: none;
+    background: transparent;
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-medium);
+    color: var(--cs-text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.report-set-toggle .set-option:hover {
+    color: var(--cs-text-primary);
+}
+
+.report-set-toggle .set-option.active {
+    background: var(--cs-text-primary);
+    color: var(--cs-bg-card, #fff);
+}
+
+/* Punto de estado de ventana estacional del set */
+.report-set-toggle .set-window-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.report-set-toggle .set-window-dot.in-window {
+    background: #10b981; /* activo hoy */
+}
+
+.report-set-toggle .set-window-dot.out-of-window {
+    background: var(--cs-text-tertiary); /* fuera de temporada */
+}
+
+/* Chips multiselección de clusters */
+.report-cluster-chips {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.report-cluster-chips .cluster-chip {
+    border: 1px solid var(--cs-border);
+    background: var(--cs-bg-card, #fff);
+    color: var(--cs-text-secondary);
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: var(--cs-text-xs);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.report-cluster-chips .cluster-chip:hover {
+    color: var(--cs-text-primary);
+    border-color: var(--cs-text-tertiary);
+}
+
+.report-cluster-chips .cluster-chip.active {
+    background: var(--cs-text-primary);
+    border-color: var(--cs-text-primary);
+    color: var(--cs-bg-card, #fff);
+}
+
+.report-filter-reset {
+    margin-left: auto;
+    font-size: var(--cs-text-xs);
+    color: var(--cs-text-secondary);
+}
+
+/* Badge de set en tablas/listas de prompts */
+.prompt-set-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: var(--cs-weight-medium);
+    border: 1px solid var(--cs-border);
+    color: var(--cs-text-secondary);
+    background: var(--cs-bg-subtle);
+    white-space: nowrap;
+}
+
+.prompt-set-badge.set-core {
+    color: var(--cs-text-secondary);
+}
+
+.prompt-set-badge.set-custom {
+    color: #7c3aed;
+    border-color: rgba(124, 58, 237, 0.35);
+    background: rgba(124, 58, 237, 0.08);
+}
+
+@media (max-width: 768px) {
+    .report-filter-bar {
+        position: static;
+    }
+    .report-filter-reset {
+        margin-left: 0;
+    }
+}
+
+.report-set-toggle .set-count {
+    font-weight: var(--cs-weight-regular, 400);
+    opacity: 0.7;
+}
+
+/* Filas del gestor de sets (pane "Sets" del modal Manage Prompts) */
+.llm-set-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.25rem;
+    border-bottom: 1px solid var(--cs-border);
+}
+
+.llm-set-row:last-child {
+    border-bottom: none;
+}
+
+.llm-set-row-core {
+    background: var(--cs-bg-subtle);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    margin-bottom: 0.35rem;
+    border-bottom: none;
+}
+
+.llm-set-row .set-row-hint {
+    font-size: var(--cs-text-xs);
+    color: var(--cs-text-secondary);
+}
+
+.llm-set-row .set-name-input {
+    flex: 1;
+    min-width: 140px;
+}
+
+.llm-set-row .set-window-fields {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.llm-set-row .set-window-fields input {
+    width: 4.6rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.llm-set-row .set-window-arrow {
+    color: var(--cs-text-tertiary);
+    font-size: 0.8rem;
+}
+
+.llm-set-row .set-row-count {
+    font-size: var(--cs-text-xs);
+    color: var(--cs-text-secondary);
+    min-width: 2rem;
+    text-align: right;
+}
+
+.llm-set-row .set-window-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.llm-set-row .set-window-dot.in-window { background: #10b981; }
+.llm-set-row .set-window-dot.out-of-window { background: var(--cs-text-tertiary); }
+
+.clusters-save-hint.error {
+    color: #dc2626;
+}

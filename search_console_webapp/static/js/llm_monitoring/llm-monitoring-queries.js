@@ -25,7 +25,7 @@ async loadQueriesTable(projectId) {
         console.log(`📝 Loading queries table for project ${projectId}...`);
 
         try {
-            const response = await fetch(`${this.baseUrl}/projects/${projectId}/queries?days=${this.globalTimeRange}`);
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/queries?days=${this.globalTimeRange}${this.getReportFilterParams()}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -767,7 +767,7 @@ async populateQueryFilter() {
 
         try {
             // Fetch queries for the project based on global time range
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries?days=${this.globalTimeRange}`);
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries?days=${this.globalTimeRange}${this.getReportFilterParams()}`);
             if (!response.ok) {
                 console.warn('Could not load queries for filter');
                 return;

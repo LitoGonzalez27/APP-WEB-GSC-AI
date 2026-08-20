@@ -86,14 +86,19 @@ def _llm_opportunities(project_id: int, current_start, end) -> List[Dict]:
         if not conn:
             return []
         cur = conn.cursor()
+        # Solo prompts del set núcleo (prompt_set IS NULL): las oportunidades
+        # de sets estacionales fuera de temporada serían ruido accionable a
+        # destiempo. Mismo criterio core-only que el adapter del canal LLM.
         cur.execute("""
-            SELECT query_text, competitors_mentioned
-            FROM llm_monitoring_results
-            WHERE project_id = %s
-              AND analysis_date > %s AND analysis_date <= %s
-              AND brand_mentioned = FALSE
-              AND competitors_mentioned IS NOT NULL
-              AND competitors_mentioned != '{}'::jsonb
+            SELECT r.query_text, r.competitors_mentioned
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_queries q ON q.id = r.query_id
+            WHERE r.project_id = %s
+              AND r.analysis_date > %s AND r.analysis_date <= %s
+              AND r.brand_mentioned = FALSE
+              AND r.competitors_mentioned IS NOT NULL
+              AND r.competitors_mentioned != '{}'::jsonb
+              AND q.prompt_set IS NULL
         """, (project_id, current_start, end))
         rows = cur.fetchall()
 

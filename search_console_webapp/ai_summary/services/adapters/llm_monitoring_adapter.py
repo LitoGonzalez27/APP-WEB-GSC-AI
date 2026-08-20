@@ -8,10 +8,13 @@ sentimiento y desglose por LLM y por competidor.
 
 import logging
 from collections import defaultdict
+from datetime import timedelta
 from typing import Dict, List, Optional
 
 from database import db_conn
 from services.utils import normalize_search_console_url
+from services.llm_monitoring import prompt_sets as prompt_sets_lib
+from services.llm_monitoring import pseudo_snapshots as pseudo_snapshots_lib
 from ai_summary.services.adapters.base import (
     empty_channel, window_bounds, ranking_days, split_windows, avg, delta, rounded
 )
@@ -41,7 +44,8 @@ def get_channel_summary(project_id: int, period: str = '30') -> Dict:
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT name, brand_domain, selected_competitors, competitor_domains, enabled_llms
+            SELECT name, brand_domain, selected_competitors, competitor_domains,
+                   enabled_llms, prompt_sets
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -50,17 +54,38 @@ def get_channel_summary(project_id: int, period: str = '30') -> Dict:
             return summary
         summary['project_name'] = project['name']
 
-        cur.execute("""
-            SELECT snapshot_date, llm_provider, total_queries, total_mentions,
-                   mention_rate, share_of_voice, avg_position,
-                   positive_mentions, neutral_mentions, negative_mentions,
-                   total_competitor_mentions, competitor_breakdown
-            FROM llm_monitoring_snapshots
-            WHERE project_id = %s
-              AND snapshot_date > %s AND snapshot_date <= %s
-            ORDER BY snapshot_date ASC
-        """, (project_id, previous_start, end))
-        rows = cur.fetchall()
+        # El score del AI Summary bebe SOLO del set núcleo (decisión de
+        # producto): los sets estacionales/tendencia harían oscilar el score
+        # por calendario, no por visibilidad real. Con sets definidos, los
+        # snapshots agregados no sirven (mezclan todo) → pseudo-snapshots
+        # de los prompts core (prompt_set IS NULL).
+        core_only = bool(
+            prompt_sets_lib.get_defined_set_names(project.get('prompt_sets'))
+        )
+        if core_only:
+            cur.execute("""
+                SELECT id FROM llm_monitoring_queries
+                WHERE project_id = %s AND prompt_set IS NULL
+            """, (project_id,))
+            core_ids = [r['id'] for r in cur.fetchall()]
+            rows = pseudo_snapshots_lib.build_pseudo_snapshots(
+                cur, project_id, core_ids,
+                previous_start + timedelta(days=1), end,
+                enabled_llms=project.get('enabled_llms') or None,
+            )
+            summary['core_only'] = True
+        else:
+            cur.execute("""
+                SELECT snapshot_date, llm_provider, total_queries, total_mentions,
+                       mention_rate, share_of_voice, avg_position,
+                       positive_mentions, neutral_mentions, negative_mentions,
+                       total_competitor_mentions, competitor_breakdown
+                FROM llm_monitoring_snapshots
+                WHERE project_id = %s
+                  AND snapshot_date > %s AND snapshot_date <= %s
+                ORDER BY snapshot_date ASC
+            """, (project_id, previous_start, end))
+            rows = cur.fetchall()
 
     previous, current = split_windows(rows, 'snapshot_date', current_start)
     mention_rate = _weighted_rate(current, 'mention_rate') if current else None

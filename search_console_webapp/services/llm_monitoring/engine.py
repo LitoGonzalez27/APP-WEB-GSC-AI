@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Semaphore
 
 from database import get_db_connection
+from services.llm_monitoring import prompt_sets as prompt_sets_lib
 from llm_monitoring_limits import (
     can_access_llm_monitoring,
     get_llm_plan_limits,
@@ -108,7 +109,8 @@ class _EngineMixin:
                     competitor_domains, competitor_keywords,
                     selected_competitors,
                     language, country_code, queries_per_llm,
-                    is_paused_by_quota, paused_until, paused_at, paused_reason
+                    is_paused_by_quota, paused_until, paused_at, paused_reason,
+                    prompt_sets
                 FROM llm_monitoring_projects
                 WHERE id = %s AND is_active = TRUE
             """, (project_id,))
@@ -215,13 +217,29 @@ class _EngineMixin:
                 f"({project_locale.fingerprint()})"
             )
 
-            # Obtener o generar queries
-            cur.execute("""
-                SELECT id, query_text, language, query_type
-                FROM llm_monitoring_queries
-                WHERE project_id = %s AND is_active = TRUE
-            """, (project_id,))
-            
+            # Obtener o generar queries.
+            # Ventanas estacionales: los prompts de un set cuya ventana UTC no
+            # está activa hoy se EXCLUYEN de este análisis (evaluación en
+            # lectura — nunca se muta is_active, que es el interruptor manual
+            # del usuario). Ver services/llm_monitoring/prompt_sets.py.
+            inactive_sets = prompt_sets_lib.get_inactive_set_names(project.get('prompt_sets'))
+            if inactive_sets:
+                cur.execute("""
+                    SELECT id, query_text, language, query_type
+                    FROM llm_monitoring_queries
+                    WHERE project_id = %s AND is_active = TRUE
+                      AND (prompt_set IS NULL OR NOT (prompt_set = ANY(%s)))
+                """, (project_id, inactive_sets))
+                logger.info(
+                    f"   🗓️ Sets fuera de ventana hoy (excluidos): {inactive_sets}"
+                )
+            else:
+                cur.execute("""
+                    SELECT id, query_text, language, query_type
+                    FROM llm_monitoring_queries
+                    WHERE project_id = %s AND is_active = TRUE
+                """, (project_id,))
+
             queries = cur.fetchall()
             
             # No autogenerar prompts: solo se analizan queries configuradas explícitamente por el usuario.

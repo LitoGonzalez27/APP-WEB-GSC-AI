@@ -309,10 +309,14 @@ async viewProject(projectId) {
         this.showDownloadButtons(true);
 
         try {
+            // Filtro global del informe: cargar config de sets/clusters y
+            // pintar la barra ANTES de las cargas (todas leen el filtro activo)
+            await this.initReportFilters(projectId);
+
             // Load project details with time range
             const metricType = this.getSelectedSovMetric();
             const response = await fetch(
-                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}`
+                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}${this.getReportFilterParams()}`
             );
 
             if (!response.ok) {
@@ -382,12 +386,12 @@ async refreshProjectKPIs() {
         try {
             const metricType = this.getSelectedSovMetric();
             const response = await fetch(
-                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}`
+                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}${this.getReportFilterParams()}`
             );
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
-            
+
             const data = await response.json();
             this.currentTrends = data.trends || null;
             this.updateKPIs(data.latest_metrics, data.trends);
