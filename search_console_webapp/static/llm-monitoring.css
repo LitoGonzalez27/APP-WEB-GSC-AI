@@ -5280,14 +5280,19 @@ label:not(.search-form label) {
    inputs del brandbook (--cs-*). */
 .llm-set-row {
     display: grid;
-    grid-template-columns: 14px minmax(160px, 1fr) auto 2.25rem 34px;
+    grid-template-columns: 14px minmax(180px, 1fr) auto 2.25rem 34px;
     align-items: center;
     gap: 0.65rem;
-    padding: 0.5rem 0.65rem;
+    padding: 0.55rem 0.65rem;
     border: 1px solid var(--cs-border, #E2E8F0);
     border-radius: 10px;
     background: var(--cs-bg-card, #fff);
     margin-bottom: 0.4rem;
+}
+
+/* Todos los hijos directos centrados en su celda, sin sorpresas de línea base */
+.llm-set-row > * {
+    align-self: center;
 }
 
 .llm-set-row-core {
@@ -5305,10 +5310,14 @@ label:not(.search-form label) {
     line-height: 1.35;
 }
 
-.llm-set-row .set-name-input {
+#setsList .llm-set-row .set-name-input {
+    width: 100%;
+    min-width: 0;
     height: 36px;
     margin: 0;
+    padding: 0 0.65rem;
     font-size: 0.85rem;
+    line-height: 34px;
     border-radius: 8px;
     box-sizing: border-box;
 }
@@ -5366,16 +5375,32 @@ label:not(.search-form label) {
     justify-self: center;
 }
 
-.llm-set-row .set-row-delete {
+.llm-set-row .set-row-delete,
+.llm-set-row .btn.set-row-delete {
     width: 34px;
+    min-width: 34px;
+    max-width: 34px;
     height: 34px;
+    padding: 0;
+    margin: 0;
+    flex: 0 0 34px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 8px;
     border: 1px solid transparent;
+    background: transparent;
     color: var(--cs-text-tertiary, #94A3B8);
     transition: all 0.15s ease;
+    justify-self: center;
+}
+
+.llm-set-row .set-row-delete i,
+.llm-set-row .set-row-delete svg,
+.llm-set-row .set-row-delete .lucide-icon {
+    font-size: 0.8rem;
+    width: 14px;
+    height: 14px;
 }
 
 .llm-set-row .set-row-delete:hover {
@@ -5405,405 +5430,6 @@ label:not(.search-form label) {
     }
 }
 
-.clusters-save-hint.error  { color: #EF4444; font-style: normal; }
-
-/* Cluster editor rows */
-.clusters-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.llm-cluster-row {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0.625rem 0.75rem;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    transition: all 0.2s cubic-bezier(0.2,0.8,0.2,1);
-}
-
-.llm-cluster-row:hover {
-    border-color: rgba(217,249,184,0.5);
-    box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
-}
-
-.llm-cluster-row .cluster-name-input {
-    flex: 1;
-    min-width: 0;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 8px;
-    color: #0F172A;
-    transition: all 0.2s;
-}
-
-.llm-cluster-row .cluster-name-input::placeholder {
-    color: #94A3B8;
-    font-weight: 400;
-}
-
-.llm-cluster-row .cluster-name-input:focus {
-    outline: none;
-    border-color: #0A0A0B;
-    box-shadow: 0 0 0 2px rgba(10,10,11,0.06);
-    background: #FFFFFF;
-}
-
-.llm-cluster-row .cluster-row-count {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.2rem 0.55rem;
-    background: rgba(217,249,184,0.2);
-    color: #0F172A;
-    font-size: 0.72rem;
-    font-weight: 600;
-    border-radius: 9999px;
-    white-space: nowrap;
-}
-
-.llm-cluster-row .cluster-row-count.empty {
-    background: #F1F5F9;
-    color: #94A3B8;
-}
-
-.llm-cluster-row .btn-cluster-delete {
-    flex: 0 0 auto;
-    width: 30px; height: 30px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 8px;
-    color: #94A3B8;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.llm-cluster-row .btn-cluster-delete:hover {
-    background: #FEE2E2;
-    color: #DC2626;
-}
-
-.clusters-empty-hint {
-    padding: 1.5rem 1rem;
-    font-size: 0.85rem;
-    color: #64748B;
-    text-align: center;
-}
-
-.clusters-empty-hint i,
-.clusters-empty-hint svg.lucide {
-    margin-right: 0.35rem;
-    color: #94A3B8;
-}
-
-/* ── Clusters Performance chart card ──────────────────────── */
-#clustersPerformanceCard .chart-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.clusters-chart-empty {
-    padding: 2.5rem 1rem;
-    text-align: center;
-}
-
-.clusters-chart-empty .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.clusters-chart-empty .empty-state i,
-.clusters-chart-empty .empty-state svg.lucide {
-    font-size: 2.5rem;
-    color: #E2E8F0;
-}
-
-.clusters-chart-empty .empty-state h4 {
-    margin: 0; color: #0F172A; font-size: 1rem; font-weight: 600;
-}
-
-.clusters-chart-empty .empty-state p {
-    margin: 0; color: #64748B; font-size: 0.85rem; max-width: 520px; line-height: 1.5;
-}
-
-/* ── Responsive ───────────────────────────────────────────── */
-@media (max-width: 640px) {
-    .prompts-mgmt-tab {
-        padding: 0.625rem 0.875rem;
-        font-size: 0.82rem;
-    }
-    .prompts-cluster-filter {
-        margin-left: 0 !important;
-        margin-top: 0.25rem;
-        width: 100%;
-    }
-    .llm-cluster-row {
-        flex-wrap: wrap;
-    }
-    .llm-cluster-row .cluster-name-input {
-        flex: 1 1 100%;
-    }
-    .prompt-cluster-select-wrapper .prompt-cluster-select {
-        min-width: 120px;
-        max-width: 100%;
-    }
-    .prompt-item .prompt-bottom-row {
-        flex-wrap: wrap;
-    }
-}
-
-
-/* ============================================================================
-   FILTRO GLOBAL DEL INFORME (prompt sets + clusters)
-   Barra compacta y sticky bajo la cabecera del informe. El set es exclusivo
-   (núcleo O una tendencia); los clusters son multiselección.
-   ============================================================================ */
-.report-filter-bar {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    padding: 0.5rem 0.75rem;
-    margin-bottom: 1rem;
-    background: var(--cs-bg-subtle);
-    border: 1px solid var(--cs-border);
-    border-radius: 10px;
-    position: sticky;
-    top: 0;
-    z-index: 20;
-}
-
-.report-filter-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.report-filter-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: var(--cs-text-xs);
-    font-weight: var(--cs-weight-medium);
-    color: var(--cs-text-secondary);
-    white-space: nowrap;
-}
-
-.report-filter-label i {
-    font-size: 0.7rem;
-}
-
-/* Toggle exclusivo de sets (estilo segmented control) */
-.report-set-toggle {
-    display: inline-flex;
-    background: var(--cs-bg-card, #fff);
-    border: 1px solid var(--cs-border);
-    border-radius: 8px;
-    padding: 2px;
-    gap: 2px;
-}
-
-.report-set-toggle .set-option {
-    border: none;
-    background: transparent;
-    padding: 0.3rem 0.75rem;
-    border-radius: 6px;
-    font-size: var(--cs-text-xs);
-    font-weight: var(--cs-weight-medium);
-    color: var(--cs-text-secondary);
-    cursor: pointer;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-.report-set-toggle .set-option:hover {
-    color: var(--cs-text-primary);
-}
-
-.report-set-toggle .set-option.active {
-    background: var(--cs-text-primary);
-    color: var(--cs-bg-card, #fff);
-}
-
-/* Punto de estado de ventana estacional del set */
-.report-set-toggle .set-window-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    display: inline-block;
-}
-
-.report-set-toggle .set-window-dot.in-window {
-    background: #10b981; /* activo hoy */
-}
-
-.report-set-toggle .set-window-dot.out-of-window {
-    background: var(--cs-text-tertiary); /* fuera de temporada */
-}
-
-/* Chips multiselección de clusters */
-.report-cluster-chips {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-}
-
-.report-cluster-chips .cluster-chip {
-    border: 1px solid var(--cs-border);
-    background: var(--cs-bg-card, #fff);
-    color: var(--cs-text-secondary);
-    padding: 0.25rem 0.65rem;
-    border-radius: 999px;
-    font-size: var(--cs-text-xs);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.report-cluster-chips .cluster-chip:hover {
-    color: var(--cs-text-primary);
-    border-color: var(--cs-text-tertiary);
-}
-
-.report-cluster-chips .cluster-chip.active {
-    background: var(--cs-text-primary);
-    border-color: var(--cs-text-primary);
-    color: var(--cs-bg-card, #fff);
-}
-
-.report-filter-reset {
-    margin-left: auto;
-    font-size: var(--cs-text-xs);
-    color: var(--cs-text-secondary);
-}
-
-/* Badge de set en tablas/listas de prompts */
-.prompt-set-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: var(--cs-weight-medium);
-    border: 1px solid var(--cs-border);
-    color: var(--cs-text-secondary);
-    background: var(--cs-bg-subtle);
-    white-space: nowrap;
-}
-
-.prompt-set-badge.set-core {
-    color: var(--cs-text-secondary);
-}
-
-.prompt-set-badge.set-custom {
-    color: #1E3A8A;
-    border-color: #93C5FD;
-    background: #DBEAFE;
-}
-
-@media (max-width: 768px) {
-    .report-filter-bar {
-        position: static;
-    }
-    .report-filter-reset {
-        margin-left: 0;
-    }
-}
-
-.report-set-toggle .set-count {
-    font-weight: var(--cs-weight-regular, 400);
-    opacity: 0.7;
-}
-
-/* Filas del gestor de sets (pane "Sets" del modal Manage Prompts) */
-.llm-set-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.25rem;
-    border-bottom: 1px solid var(--cs-border);
-}
-
-.llm-set-row:last-child {
-    border-bottom: none;
-}
-
-.llm-set-row-core {
-    background: var(--cs-bg-subtle);
-    border-radius: 8px;
-    padding: 0.5rem 0.65rem;
-    margin-bottom: 0.35rem;
-    border-bottom: none;
-}
-
-.llm-set-row .set-row-hint {
-    font-size: var(--cs-text-xs);
-    color: var(--cs-text-secondary);
-}
-
-.llm-set-row .set-name-input {
-    flex: 1;
-    min-width: 140px;
-}
-
-.llm-set-row .set-window-fields {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.llm-set-row .set-window-fields input {
-    width: 4.6rem;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-}
-
-.llm-set-row .set-window-arrow {
-    color: var(--cs-text-tertiary);
-    font-size: 0.8rem;
-}
-
-.llm-set-row .set-row-count {
-    font-size: var(--cs-text-xs);
-    color: var(--cs-text-secondary);
-    min-width: 2rem;
-    text-align: right;
-}
-
-.llm-set-row .set-window-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.llm-set-row .set-window-dot.in-window { background: #10b981; }
-.llm-set-row .set-window-dot.out-of-window { background: var(--cs-text-tertiary); }
-
-.clusters-save-hint.error {
-    color: #dc2626;
-}
 
 /* ── Dropdowns de cluster/set en cada prompt: alineación e identidad ──
    El icono vive DENTRO del control (absoluto, centrado verticalmente) para
