@@ -194,7 +194,7 @@ renderPrompts(renderInModal = false) {
                     </div>
                     <div class="prompt-text">${this.escapeHtml(query.prompt)}</div>
                     <div class="prompt-bottom-row">
-                        <div>${clusterSelectHtml}${setSelectHtml}</div>
+                        <div class="prompt-selects">${clusterSelectHtml}${setSelectHtml}</div>
                         <div class="prompt-actions">
                             <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
                                 <i class="fas fa-trash"></i>

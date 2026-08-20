@@ -79,14 +79,14 @@ renderSetsManagerList() {
         `;
 
         html += sets.map((s, idx) => {
-            const count = counts[s.name] !== undefined ? ` (${counts[s.name]})` : '';
+            const count = counts[s.name] !== undefined ? counts[s.name] : 0;
             const win = s.window || {};
             const hasWindow = !!(win.start && win.end);
             const inWindow = activeToday[s.name] !== false;
             const windowState = hasWindow
                 ? `<span class="set-window-dot ${inWindow ? 'in-window' : 'out-of-window'}"
                          title="${inWindow ? 'In season today (UTC)' : 'Out of season today (UTC) — not analyzed by the daily run'}"></span>`
-                : '';
+                : `<span class="set-window-dot always-on" title="No seasonal window — always analyzed"></span>`;
             return `
                 <div class="llm-set-row" data-index="${idx}">
                     ${windowState}
@@ -95,17 +95,18 @@ renderSetsManagerList() {
                            placeholder="Set name (e.g. Black Friday)"
                            maxlength="80"
                            value="${this.escapeHtml(s.name)}">
-                    <span class="set-window-fields" title="Seasonal window (UTC). Leave empty for an always-active set.">
-                        <input type="text" class="form-control set-window-start"
-                               placeholder="MM-DD" maxlength="5" size="5"
-                               value="${this.escapeHtml(win.start || '')}">
-                        <span class="set-window-arrow">→</span>
-                        <input type="text" class="form-control set-window-end"
-                               placeholder="MM-DD" maxlength="5" size="5"
-                               value="${this.escapeHtml(win.end || '')}">
+                    <span class="set-window-fields" title="Seasonal window, repeats every year (UTC). Leave empty for an always-active set.">
+                        <i class="far fa-calendar set-window-icon"></i>
+                        <input type="date" class="form-control set-window-start"
+                               title="Window start (the year is ignored — the window repeats yearly)"
+                               value="${this._mmddToDateValue(win.start)}">
+                        <span class="set-window-arrow"><i class="fas fa-arrow-right"></i></span>
+                        <input type="date" class="form-control set-window-end"
+                               title="Window end (the year is ignored — the window repeats yearly)"
+                               value="${this._mmddToDateValue(win.end)}">
                     </span>
-                    <span class="set-row-count">${count}</span>
-                    <button type="button" class="btn btn-icon btn-sm"
+                    <span class="set-row-count" title="Prompts in this set">${count}</span>
+                    <button type="button" class="btn btn-icon btn-sm set-row-delete"
                             title="Remove set (its prompts go back to Core)"
                             onclick="window.llmMonitoring.removeSetRow(this)">
                         <i class="fas fa-trash"></i>
@@ -115,6 +116,18 @@ renderSetsManagerList() {
         }).join('');
 
         list.innerHTML = html;
+    },
+
+/** "11-15" → "2026-11-15" para el input type=date (el año es decorativo). */
+_mmddToDateValue(mmdd) {
+        if (!mmdd || !/^\d{2}-\d{2}$/.test(mmdd)) return '';
+        return `${new Date().getFullYear()}-${mmdd}`;
+    },
+
+/** "2026-11-15" (input date) → "11-15" (formato de la ventana anual). */
+_dateValueToMmdd(value) {
+        const m = /^\d{4}-(\d{2}-\d{2})$/.exec((value || '').trim());
+        return m ? m[1] : '';
     },
 
 addSetRow() {
@@ -175,11 +188,15 @@ _syncSetsConfigFromUI() {
             if (seen.has(key)) continue;
             seen.add(key);
 
-            const start = (row.querySelector('.set-window-start')?.value || '').trim();
-            const end = (row.querySelector('.set-window-end')?.value || '').trim();
+            // Los inputs son type=date (YYYY-MM-DD); la ventana guarda MM-DD
+            // porque se repite cada año — el año elegido se ignora.
+            const start = this._dateValueToMmdd(row.querySelector('.set-window-start')?.value);
+            const end = this._dateValueToMmdd(row.querySelector('.set-window-end')?.value);
+            const rawStart = (row.querySelector('.set-window-start')?.value || '').trim();
+            const rawEnd = (row.querySelector('.set-window-end')?.value || '').trim();
             const entry = { name: raw };
-            if (start || end) {
-                entry.window = { start, end };
+            if (rawStart || rawEnd) {
+                entry.window = { start, end, _partial: !(start && end) };
             }
             result.push(entry);
         }
@@ -202,19 +219,19 @@ async saveSetsConfig() {
         const hint = document.getElementById('setsSaveHint');
         this._syncSetsConfigFromUI();
 
-        // Validación front de ventanas MM-DD (el backend re-valida)
-        const windowRe = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+        // Validación front: si hay ventana, ambas fechas del calendario deben
+        // estar elegidas (el backend re-valida el MM-DD resultante)
         for (const s of (this.promptSetsConfig.sets || [])) {
             const win = s.window;
             if (!win) continue;
-            const bothFilled = !!(win.start && win.end);
-            if (!bothFilled || !windowRe.test(win.start) || !windowRe.test(win.end)) {
+            if (win._partial || !(win.start && win.end)) {
                 if (hint) {
-                    hint.textContent = `"${s.name}": seasonal window must be MM-DD → MM-DD (e.g. 11-15 → 12-02), or both empty.`;
+                    hint.textContent = `"${s.name}": pick both start and end dates for the seasonal window, or clear both.`;
                     hint.classList.add('error');
                 }
                 return;
             }
+            delete win._partial;
         }
 
         try {
