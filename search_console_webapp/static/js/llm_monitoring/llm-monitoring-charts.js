@@ -290,7 +290,7 @@ async renderShareOfVoiceChart() {
             const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             console.log(`📊 Rendering Share of Voice chart with metric: ${metricType}`);
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.sovScope || 'all'}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.sovScope || 'all'}${this.getReportFilterParams()}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -412,7 +412,7 @@ async renderMentionsTimelineChart() {
             // Una mención es una mención - el weighted solo aplica a Share of Voice
             const metricType = 'normal';
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.mentionsScope || 'all'}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.mentionsScope || 'all'}${this.getReportFilterParams()}`);
             if (!response.ok) {
                 console.warn('Could not load mentions timeline data');
                 return;
@@ -528,7 +528,7 @@ async renderShareOfVoiceDonutChart() {
             const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             console.log(`📊 Rendering Share of Voice Donut with metric: ${metricType}`);
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}${this.getReportFilterParams()}`);
             if (!response.ok) {
                 console.warn('Could not load Share of Voice donut data');
                 return;
@@ -601,7 +601,7 @@ async renderSentimentDistributionChart() {
             // Obtener datos de snapshots (comparación) que incluyen sentimiento
             const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             const response = await fetch(
-                `${this.baseUrl}/projects/${projectId}/comparison?metric=${metricType}&days=${this.globalTimeRange}`
+                `${this.baseUrl}/projects/${projectId}/comparison?metric=${metricType}&days=${this.globalTimeRange}${this.getReportFilterParams()}`
             );
             if (!response.ok) {
                 console.warn('Could not load sentiment data');

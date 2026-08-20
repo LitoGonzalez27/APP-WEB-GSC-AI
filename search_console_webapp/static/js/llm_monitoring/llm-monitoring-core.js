@@ -1138,7 +1138,7 @@ async downloadExcel() {
 
             // Fetch export data from API
             const response = await fetch(
-                `${this.baseUrl}/projects/${this.currentProject.id}/export/excel?days=${this.globalTimeRange}`,
+                `${this.baseUrl}/projects/${this.currentProject.id}/export/excel?days=${this.globalTimeRange}${this.getReportFilterParams()}`,
                 { credentials: 'same-origin' }
             );
 
@@ -1207,7 +1207,7 @@ async downloadPdf() {
             const sovMetric = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             const response = await fetch(
                 `${this.baseUrl}/projects/${this.currentProject.id}/export/pdf` +
-                `?days=${this.globalTimeRange}&metric=${encodeURIComponent(sovMetric)}`
+                `?days=${this.globalTimeRange}&metric=${encodeURIComponent(sovMetric)}${this.getReportFilterParams()}`
             );
 
             if (!response.ok) {

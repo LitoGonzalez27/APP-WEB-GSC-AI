@@ -92,7 +92,7 @@ async loadTopUrlsRanking(projectId) {
                 params.append('limit', '0');
             }
 
-            const response = await fetch(`${this.baseUrl}/projects/${projectId}/urls-ranking?${params}`);
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/urls-ranking?${params}${this.getReportFilterParams()}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);

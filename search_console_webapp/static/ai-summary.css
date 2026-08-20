@@ -1257,3 +1257,21 @@
 .edit-weights-sum.invalid {
   color: #E05252;
 }
+
+/* Nota "solo núcleo" en la tarjeta del canal LLM: las tendencias/estacionales
+   no puntúan en el score para que no oscile por calendario. */
+.channel-card-note {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--cs-border, #e5e7eb);
+    font-size: 0.7rem;
+    color: var(--cs-text-tertiary, #9ca3af);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.channel-card-note i {
+    font-size: 0.65rem;
+    flex-shrink: 0;
+}

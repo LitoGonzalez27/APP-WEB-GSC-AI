@@ -23,7 +23,8 @@ class LLMMonitoringStatsService:
         days: int = 30,
         llm_provider: Optional[str] = None,
         enabled_llms: Optional[List[str]] = None,
-        limit: Optional[int] = 50
+        limit: Optional[int] = 50,
+        query_ids: Optional[List[int]] = None
     ) -> List[Dict]:
         """
         Obtiene el ranking de URLs más mencionadas por los LLMs
@@ -87,7 +88,12 @@ class LLMMonitoringStatsService:
             """
             
             params = [project_id, start_date]
-            
+
+            # Filtro global del informe (prompt_set/clusters ya resueltos a IDs)
+            if query_ids is not None:
+                query += " AND query_id = ANY(%s)"
+                params.append(list(query_ids))
+
             # Filtro opcional por LLM
             if llm_provider:
                 query += " AND llm_provider = %s"

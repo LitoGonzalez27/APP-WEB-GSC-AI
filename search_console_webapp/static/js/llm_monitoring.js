@@ -42,6 +42,13 @@ class LLMMonitoring {
         // ✨ NEW: Global Time Range
         this.globalTimeRange = 30; // Default to 30 days
 
+        // Filtro global del informe (sets exclusivos + clusters multi).
+        // set: 'core' | nombre de set (nunca mezcla — decisión de producto:
+        // las series temporales no deben mezclar núcleo y tendencias).
+        this.reportFilters = { set: 'core', clusters: [] };
+        // Config de sets/clusters del proyecto activo (cargada por initReportFilters)
+        this.reportFilterConfig = null;
+
         // Plan limits snapshot loaded from /usage
         this.planLimits = null;
 
