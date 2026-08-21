@@ -5813,3 +5813,24 @@ label:not(.search-form label) {
 
 .llm-filter-menu .set-window-dot.in-window { background: #10B981; }
 .llm-filter-menu .set-window-dot.out-of-window { background: var(--cs-text-tertiary, #94A3B8); }
+
+/* ── Sentiment Over Time: contenedor compacto ──
+   Las barras apiladas al 100% no necesitan los 400px del timeline estándar:
+   con esa altura la gráfica quedaba con un colchón vacío por debajo. */
+.chart-container-sentiment {
+    height: 300px;
+    padding: 0.5rem 0 0;
+}
+
+.chart-container-sentiment canvas {
+    max-height: 290px !important;
+}
+
+@media (max-width: 1024px) {
+    .chart-container-sentiment {
+        height: 260px;
+    }
+    .chart-container-sentiment canvas {
+        max-height: 250px !important;
+    }
+}
