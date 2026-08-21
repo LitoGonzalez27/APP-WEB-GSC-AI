@@ -31,7 +31,7 @@ const REPORT_LLM_LABELS_REF = window.REPORT_LLM_LABELS;
 Object.assign(LLMMonitoring.prototype, {
 
     _defaultReportFilters() {
-        return { set: 'core', clusters: [], branded: 'all', llms: [] };
+        return { set: 'core', clusters: [], branded: 'all', llms: [], prompts: [] };
     },
 
     /** ¿Hay algún filtro distinto del default? (para Reset y contador) */
@@ -42,6 +42,7 @@ Object.assign(LLMMonitoring.prototype, {
         if ((f.clusters || []).length > 0) n += 1;
         if ((f.branded || 'all') !== 'all') n += 1;
         if ((f.llms || []).length > 0) n += 1;
+        if ((f.prompts || []).length > 0) n += 1;
         return n;
     },
 
@@ -68,6 +69,9 @@ Object.assign(LLMMonitoring.prototype, {
         const selected = f.llms || [];
         if (selected.length > 0 && selected.length < enabled.length) {
             params += `&llms=${encodeURIComponent(selected.join(','))}`;
+        }
+        if ((f.prompts || []).length > 0) {
+            params += `&prompts=${encodeURIComponent(f.prompts.join(','))}`;
         }
         return params;
     },
@@ -126,6 +130,7 @@ Object.assign(LLMMonitoring.prototype, {
         const enabled = new Set(cfg?.enabledLlms || []);
         f.llms = (f.llms || []).filter(l => enabled.has(l));
         if (!['all', 'branded', 'non_branded'].includes(f.branded)) f.branded = 'all';
+        if (!Array.isArray(f.prompts)) f.prompts = [];
         this.reportFilters = f;
     },
 
@@ -225,6 +230,9 @@ Object.assign(LLMMonitoring.prototype, {
         // ── LLMs (dropdown con checks) ──
         this._renderLlmFilterDropdown();
 
+        // ── Prompts concretos (dropdown con checks + búsqueda) ──
+        this._renderPromptsFilterDropdown();
+
         // ── Reset (visible solo si el filtro difiere del default) ──
         const resetBtn = document.getElementById('btnResetReportFilters');
         if (resetBtn) {
@@ -260,7 +268,6 @@ Object.assign(LLMMonitoring.prototype, {
         dropdown.innerHTML = `
             <button type="button" class="llm-filter-trigger ${effectiveAll ? '' : 'has-selection'}"
                     aria-haspopup="true" aria-expanded="false">
-                <i class="fas fa-microchip"></i>
                 <span class="llm-filter-trigger-label">${this.escapeHtml(triggerLabel)}</span>
                 <i class="fas fa-chevron-down llm-filter-caret"></i>
             </button>
@@ -307,6 +314,126 @@ Object.assign(LLMMonitoring.prototype, {
     },
 
     /**
+     * Dropdown de prompts concretos: mismo patrón visual que el de LLMs, con
+     * búsqueda y select all/none porque un proyecto puede tener 150+ prompts.
+     * La lista sale de this.allPrompts (cargada por viewProject→loadPrompts);
+     * si aún no está, el menú se completa al abrirse.
+     */
+    _renderPromptsFilterDropdown() {
+        const group = document.getElementById('promptsFilterGroup');
+        const dropdown = document.getElementById('promptsFilterDropdown');
+        if (!group || !dropdown) return;
+        group.style.display = 'flex';
+
+        const f = this.reportFilters || this._defaultReportFilters();
+        const selected = new Set(f.prompts || []);
+        const total = Array.isArray(this.allPrompts) ? this.allPrompts.length : 0;
+        const triggerLabel = selected.size === 0
+            ? 'All prompts'
+            : (total ? `${selected.size} of ${total} prompts` : `${selected.size} prompts`);
+
+        dropdown.innerHTML = `
+            <button type="button" class="llm-filter-trigger ${selected.size === 0 ? '' : 'has-selection'}"
+                    aria-haspopup="true" aria-expanded="false">
+                <span class="llm-filter-trigger-label">${this.escapeHtml(triggerLabel)}</span>
+                <i class="fas fa-chevron-down llm-filter-caret"></i>
+            </button>
+            <div class="llm-filter-menu prompts-filter-menu" role="menu" style="display:none;"></div>
+        `;
+
+        const trigger = dropdown.querySelector('.llm-filter-trigger');
+        const menu = dropdown.querySelector('.llm-filter-menu');
+        trigger.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const open = menu.style.display !== 'none';
+            if (open) {
+                menu.style.display = 'none';
+                trigger.setAttribute('aria-expanded', 'false');
+                return;
+            }
+            await this._fillPromptsFilterMenu(menu);
+            menu.style.display = 'block';
+            trigger.setAttribute('aria-expanded', 'true');
+            menu.querySelector('.prompts-filter-search input')?.focus();
+        });
+    },
+
+    async _fillPromptsFilterMenu(menu) {
+        // Asegurar la lista de prompts (viewProject normalmente ya la cargó)
+        if (!Array.isArray(this.allPrompts) || this.allPrompts.length === 0) {
+            try {
+                const projectId = this.currentProject?.id;
+                const data = await fetch(`${this.baseUrl}/projects/${projectId}/queries`)
+                    .then(r => r.json());
+                this.allPrompts = data.queries || [];
+            } catch (e) {
+                this.allPrompts = this.allPrompts || [];
+            }
+        }
+        const f = this.reportFilters || this._defaultReportFilters();
+        const selected = new Set(f.prompts || []);
+
+        menu.innerHTML = `
+            <div class="prompts-filter-search">
+                <input type="text" class="form-control" placeholder="Search prompts...">
+            </div>
+            <div class="prompts-filter-actions">
+                <button type="button" class="prompts-filter-action" data-action="all">Select all</button>
+                <button type="button" class="prompts-filter-action" data-action="none">Clear</button>
+            </div>
+            <div class="prompts-filter-list">
+                ${this.allPrompts.map(p => `
+                    <label class="llm-filter-option" title="${this.escapeHtml(p.prompt)}">
+                        <input type="checkbox" value="${p.id}" ${selected.has(p.id) ? 'checked' : ''}>
+                        <span class="prompts-filter-text">${this.escapeHtml(p.prompt)}</span>
+                    </label>
+                `).join('')}
+            </div>
+            <div class="prompts-filter-footer">
+                <button type="button" class="btn btn-primary btn-sm prompts-filter-apply">Apply</button>
+            </div>
+        `;
+
+        // Búsqueda en vivo (client-side sobre la lista pintada)
+        menu.querySelector('.prompts-filter-search input').addEventListener('input', (e) => {
+            const term = e.target.value.trim().toLowerCase();
+            menu.querySelectorAll('.prompts-filter-list .llm-filter-option').forEach(opt => {
+                const text = opt.querySelector('.prompts-filter-text')?.textContent.toLowerCase() || '';
+                opt.style.display = !term || text.includes(term) ? 'flex' : 'none';
+            });
+        });
+
+        // Select all / clear operan sobre lo VISIBLE (respetan la búsqueda)
+        menu.querySelectorAll('.prompts-filter-action').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const check = btn.dataset.action === 'all';
+                menu.querySelectorAll('.prompts-filter-list .llm-filter-option').forEach(opt => {
+                    if (opt.style.display !== 'none') {
+                        opt.querySelector('input').checked = check;
+                    }
+                });
+            });
+        });
+
+        // Con listas largas, recargar en cada check sería una tortura: el
+        // filtro de prompts se aplica con su botón Apply (o al cerrar fuera
+        // no — solo Apply, para que el usuario controle el momento).
+        menu.querySelector('.prompts-filter-apply').addEventListener('click', () => {
+            const checked = [...menu.querySelectorAll('.prompts-filter-list input:checked')]
+                .map(i => parseInt(i.value, 10));
+            menu.style.display = 'none';
+            // Todos marcados == sin filtro
+            const all = Array.isArray(this.allPrompts) ? this.allPrompts.length : 0;
+            this.onReportPromptsChange(checked.length >= all ? [] : checked);
+        });
+    },
+
+    async onReportPromptsChange(promptIds) {
+        this.reportFilters.prompts = promptIds;
+        await this._reloadReportWithFilters();
+    },
+
+    /**
      * Sombra sutil cuando la barra está pegada arriba. Listener de scroll con
      * rAF (barato y determinista): la barra está "stuck" cuando su sentinel
      * (1px justo encima) ha salido del viewport por arriba.
@@ -319,7 +446,10 @@ Object.assign(LLMMonitoring.prototype, {
             const bar = document.getElementById('reportFilterBar');
             const sentinel = document.getElementById('reportFilterBarSentinel');
             if (!bar || !sentinel) return;
-            bar.classList.toggle('is-stuck', sentinel.getBoundingClientRect().bottom < 0);
+            // La barra queda pegada a `top` px (bajo el navbar fijo), así que
+            // está "stuck" cuando el sentinel cruza esa línea, no el 0.
+            const stickyTop = parseFloat(getComputedStyle(bar).top) || 0;
+            bar.classList.toggle('is-stuck', sentinel.getBoundingClientRect().bottom < stickyTop);
         };
         const onScroll = () => {
             // Throttle sencillo (~60fps) sin depender de requestAnimationFrame

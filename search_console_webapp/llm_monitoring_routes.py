@@ -2894,19 +2894,21 @@ _REPORT_VALID_LLMS = ('openai', 'anthropic', 'google', 'perplexity')
 
 class ReportFilters:
     """Filtro global parseado. prompt_subset_active == True si algún filtro
-    exige resolver query_ids (set/clusters/branded)."""
+    exige resolver query_ids (set/clusters/branded/prompts concretos)."""
 
-    __slots__ = ('set_filter', 'clusters', 'branded', 'llms')
+    __slots__ = ('set_filter', 'clusters', 'branded', 'llms', 'prompt_ids')
 
-    def __init__(self, set_filter=None, clusters=None, branded=None, llms=None):
+    def __init__(self, set_filter=None, clusters=None, branded=None, llms=None,
+                 prompt_ids=None):
         self.set_filter = set_filter
         self.clusters = clusters
         self.branded = branded
         self.llms = llms
+        self.prompt_ids = prompt_ids
 
     @property
     def prompt_subset_active(self):
-        return bool(self.set_filter or self.clusters or self.branded)
+        return bool(self.set_filter or self.clusters or self.branded or self.prompt_ids)
 
 
 def _parse_report_filters(args):
@@ -2935,7 +2937,15 @@ def _parse_report_filters(args):
     if raw_llms:
         llms = [l.strip() for l in raw_llms.split(',') if l.strip() in _REPORT_VALID_LLMS] or None
 
-    return ReportFilters(set_filter, clusters, branded, llms)
+    # Prompts concretos (ids). Cap defensivo: nadie selecciona a mano miles.
+    raw_prompts = (args.get('prompts') or '').strip()
+    prompt_ids = None
+    if raw_prompts:
+        prompt_ids = [
+            int(p) for p in raw_prompts.split(',')[:500] if p.strip().isdigit()
+        ] or None
+
+    return ReportFilters(set_filter, clusters, branded, llms, prompt_ids)
 
 
 def _report_filter_conditions(set_filter, clusters, alias='q'):
@@ -2983,10 +2993,14 @@ def _resolve_filtered_query_ids(cur, project_id, report_filters, include_cluster
         lista de IDs (posiblemente vacía) si lo hay.
     """
     clusters = report_filters.clusters if include_clusters else None
-    if not report_filters.set_filter and not clusters and not report_filters.branded:
+    if not report_filters.set_filter and not clusters \
+            and not report_filters.branded and not report_filters.prompt_ids:
         return None
 
     conds, params = _report_filter_conditions(report_filters.set_filter, clusters, alias='q')
+    if report_filters.prompt_ids:
+        conds.append("q.id = ANY(%s)")
+        params.append(report_filters.prompt_ids)
     sql = "SELECT q.id, q.query_text FROM llm_monitoring_queries q WHERE q.project_id = %s"
     if conds:
         sql += " AND " + " AND ".join(conds)
@@ -3028,6 +3042,8 @@ def _report_view_label(report_filters):
                      else 'Non-branded prompts only')
     if report_filters.llms:
         parts.append('LLMs: ' + ', '.join(l.capitalize() for l in report_filters.llms))
+    if report_filters.prompt_ids:
+        parts.append(f'Prompts: {len(report_filters.prompt_ids)} selected')
     return ' · '.join(parts) if parts else 'All prompts'
 
 
