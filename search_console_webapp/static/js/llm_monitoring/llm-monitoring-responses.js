@@ -26,13 +26,6 @@ async loadResponses() {
         }
 
         const queryFilter = document.getElementById('responsesQueryFilter')?.value || '';
-        const enabledLlms = this.getProjectEnabledLlms();
-        const llmFilterSelect = document.getElementById('responsesLLMFilter');
-        let llmFilter = llmFilterSelect?.value || '';
-        if (llmFilter && !enabledLlms.includes(llmFilter)) {
-            llmFilter = '';
-            if (llmFilterSelect) llmFilterSelect.value = '';
-        }
         const daysFilter = this.globalTimeRange; // ✨ Use global time range
         const container = document.getElementById('responsesContainer');
 
@@ -47,24 +40,11 @@ async loadResponses() {
         `;
 
         try {
-            // ✨ NEW: optional cluster filter (server-side)
-            const clusterFilter = document.getElementById('responsesClusterFilter')?.value || '';
+            // LLM/cluster/branded llegan desde la barra de filtros global del
+            // dashboard (getReportFilterParams) — sus selects locales se retiraron.
             let url = `${this.baseUrl}/projects/${projectId}/responses?days=${daysFilter}`;
             if (queryFilter) url += `&query_id=${queryFilter}`;
-            if (llmFilter) url += `&llm_provider=${llmFilter}`;
-            if (clusterFilter) url += `&cluster=${encodeURIComponent(clusterFilter)}`;
             url += this.getReportFilterParams();
-
-            // Populate the cluster filter dropdown lazily if the project has clusters
-            if (!this._responsesClusterFilterBound) {
-                this.populateResponsesClusterFilter();
-                this._responsesClusterFilterBound = true;
-                const sel = document.getElementById('responsesClusterFilter');
-                if (sel && !sel.dataset.bound) {
-                    sel.dataset.bound = '1';
-                    sel.addEventListener('change', () => this.loadResponses());
-                }
-            }
 
             const response = await fetch(url);
             if (!response.ok) {

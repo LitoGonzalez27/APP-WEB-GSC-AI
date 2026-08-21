@@ -252,20 +252,51 @@ class TestReportFilterHelpers:
         return m
 
     def test_parse_sin_params(self, routes):
-        assert routes._parse_report_filters({}) == (None, None)
+        rf = routes._parse_report_filters({})
+        assert rf.set_filter is None and rf.clusters is None
+        assert rf.branded is None and rf.llms is None
+        assert rf.prompt_subset_active is False
 
     def test_parse_core_y_alias_nucleo(self, routes):
         for alias in ('core', 'Core', 'núcleo', 'nucleo'):
-            set_f, _ = routes._parse_report_filters({'prompt_set': alias})
-            assert set_f == 'core'
+            rf = routes._parse_report_filters({'prompt_set': alias})
+            assert rf.set_filter == 'core'
+            assert rf.prompt_subset_active is True
 
     def test_parse_set_con_nombre_y_clusters(self, routes):
-        set_f, clusters = routes._parse_report_filters({
+        rf = routes._parse_report_filters({
             'prompt_set': ' Black  Friday ',
             'clusters': 'T1 · Cat, T2 · Otro ,,',
         })
-        assert set_f == 'Black Friday'
-        assert clusters == ['T1 · Cat', 'T2 · Otro']
+        assert rf.set_filter == 'Black Friday'
+        assert rf.clusters == ['T1 · Cat', 'T2 · Otro']
+
+    def test_parse_branded(self, routes):
+        assert routes._parse_report_filters({'branded': 'branded'}).branded == 'branded'
+        assert routes._parse_report_filters({'branded': 'non_branded'}).branded == 'non_branded'
+        # Valores inválidos se ignoran (no rompen el endpoint)
+        assert routes._parse_report_filters({'branded': 'todo'}).branded is None
+        assert routes._parse_report_filters({'branded': 'branded'}).prompt_subset_active is True
+
+    def test_parse_llms_valida_contra_conocidos(self, routes):
+        rf = routes._parse_report_filters({'llms': 'openai, google ,inventado'})
+        assert rf.llms == ['openai', 'google']
+        # Solo desconocidos → sin filtro (no un filtro vacío que apague todo)
+        assert routes._parse_report_filters({'llms': 'inventado'}).llms is None
+        # llms NO exige resolver query_ids
+        assert routes._parse_report_filters({'llms': 'openai'}).prompt_subset_active is False
+
+    def test_narrow_llms(self, routes):
+        RF = routes.ReportFilters
+        enabled = ['openai', 'google', 'perplexity']
+        # Sin filtro → intactos
+        assert routes._narrow_llms(enabled, RF()) == enabled
+        # Subconjunto válido
+        assert routes._narrow_llms(enabled, RF(llms=['google'])) == ['google']
+        # Un LLM no habilitado no se resucita
+        assert routes._narrow_llms(enabled, RF(llms=['anthropic', 'google'])) == ['google']
+        # Intersección vacía → se ignora el filtro (mejor todo que nada)
+        assert routes._narrow_llms(enabled, RF(llms=['anthropic'])) == enabled
 
     def test_condiciones_sql_core(self, routes):
         conds, params = routes._report_filter_conditions('core', None)

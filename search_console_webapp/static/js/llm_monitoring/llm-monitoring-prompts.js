@@ -775,7 +775,6 @@ async onPromptClusterChange(selectEl, queryId) {
             await this.loadClustersConfig(projectId);
             this.renderClustersManagerList();
             this.populatePromptsListClusterFilter();
-            this.populateResponsesClusterFilter();
         } catch (err) {
             console.error('❌ Error updating cluster assignment:', err);
             // Revert selection

@@ -5260,10 +5260,9 @@ label:not(.search-form label) {
     background: #DBEAFE;
 }
 
+/* En móvil la barra sigue sticky (filtrar desde cualquier punto del scroll
+   es precisamente el objetivo); solo se recoloca el botón Reset. */
 @media (max-width: 768px) {
-    .report-filter-bar {
-        position: static;
-    }
     .report-filter-reset {
         margin-left: 0;
     }
@@ -5566,4 +5565,108 @@ label:not(.search-form label) {
     justify-content: center;
     margin: 0;
     line-height: 1;
+}
+
+/* ── Barra de filtros global: brand scope + LLMs + sticky ── */
+
+/* Sentinel invisible para detectar cuándo la barra está pegada arriba */
+#reportFilterBarSentinel {
+    height: 1px;
+}
+
+/* Sombra al despegarse del flujo (pegada arriba durante el scroll) */
+.report-filter-bar.is-stuck {
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    border-color: var(--cs-text-tertiary, #CBD5E1);
+}
+
+/* Mientras recarga el informe la barra no acepta más clicks (los cambios
+   en ráfaga se coalescen en una única recarga final) */
+.report-filter-bar.is-reloading {
+    pointer-events: none;
+    opacity: 0.65;
+}
+
+/* Dropdown de LLMs con checks */
+.llm-filter-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.llm-filter-dropdown .llm-filter-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    height: 30px;
+    padding: 0 0.75rem;
+    background: var(--cs-bg-card, #fff);
+    border: 1px solid var(--cs-border, #E2E8F0);
+    border-radius: 8px;
+    font-size: var(--cs-text-xs, 0.78rem);
+    font-weight: var(--cs-weight-medium, 500);
+    color: var(--cs-text-secondary, #64748B);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.llm-filter-dropdown .llm-filter-trigger:hover {
+    color: var(--cs-text-primary, #0F172A);
+    border-color: var(--cs-text-tertiary, #94A3B8);
+}
+
+.llm-filter-dropdown .llm-filter-trigger.has-selection {
+    background: var(--cs-text-primary, #0F172A);
+    border-color: var(--cs-text-primary, #0F172A);
+    color: var(--cs-bg-card, #fff);
+}
+
+.llm-filter-dropdown .llm-filter-trigger i {
+    font-size: 0.68rem;
+}
+
+.llm-filter-dropdown .llm-filter-caret {
+    font-size: 0.6rem;
+    opacity: 0.7;
+}
+
+.llm-filter-dropdown .llm-filter-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 170px;
+    background: var(--cs-bg-card, #fff);
+    border: 1px solid var(--cs-border, #E2E8F0);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+    padding: 0.35rem;
+    z-index: 50;
+}
+
+.llm-filter-dropdown .llm-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 7px;
+    font-size: var(--cs-text-xs, 0.78rem);
+    font-weight: var(--cs-weight-medium, 500);
+    color: var(--cs-text-primary, #0F172A);
+    cursor: pointer;
+}
+
+.llm-filter-dropdown .llm-filter-option:hover {
+    background: var(--cs-bg-subtle, #F8FAFC);
+}
+
+.llm-filter-dropdown .llm-filter-option input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--cs-text-primary, #0F172A);
+    cursor: pointer;
+}
+
+.report-filter-reset .reset-count {
+    opacity: 0.7;
+    font-weight: var(--cs-weight-regular, 400);
 }

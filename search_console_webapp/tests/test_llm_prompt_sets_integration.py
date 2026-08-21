@@ -259,6 +259,58 @@ class TestCronWindowSelection:
         assert analyzable + excluded == total
 
 
+class TestGlobalFilterBarDimensions:
+    """Filtros branded y llms de la barra global (encima de set/clusters)."""
+
+    def test_llms_subset_estrecha_los_providers(self, client, base, with_sets):
+        r = client.get(f'{base}/metrics?days=30&llms=google')
+        assert r.status_code == 200
+        providers = {s['llm_provider'] for s in r.get_json()['snapshots']}
+        assert providers and providers <= {'google'}
+
+    def test_llms_desconocido_se_ignora(self, client, base, with_sets):
+        r = client.get(f'{base}/metrics?days=30&llms=inventado')
+        assert r.status_code == 200
+        # Con el filtro roto se enseña lo habilitado, no un dashboard vacío
+        assert len(r.get_json()['snapshots']) > 0
+
+    def test_llms_compone_con_set(self, client, base, with_sets):
+        r = client.get(f'{base}/metrics?days=30&prompt_set=core&llms=google')
+        assert r.status_code == 200
+        providers = {s['llm_provider'] for s in r.get_json()['snapshots']}
+        assert providers <= {'google'}
+        # camino pseudo: cada fila agrega solo prompts del subconjunto
+        assert all(s['total_queries'] >= 1 for s in r.get_json()['snapshots'])
+
+    def test_branded_particiona_los_prompts(self, client, base, with_sets):
+        total = len(client.get(f'{base}/queries').get_json()['queries'])
+        branded = len(client.get(f'{base}/queries?branded=branded').get_json()['queries'])
+        non_branded = len(client.get(f'{base}/queries?branded=non_branded').get_json()['queries'])
+        assert branded + non_branded == total
+
+    @pytest.mark.parametrize('path', [
+        'metrics?days=30&branded=non_branded',
+        'share-of-voice-history?days=30&branded=non_branded',
+        'comparison?days=30&branded=non_branded',
+        'urls-ranking?days=30&branded=non_branded',
+        'responses?days=30&branded=non_branded',
+        'clusters/metrics?days=30&branded=non_branded',
+    ])
+    def test_endpoints_aceptan_branded(self, client, base, with_sets, path):
+        r = client.get(f'{base}/{path}')
+        assert r.status_code == 200, f'{path} → {r.status_code}'
+
+    def test_export_excel_con_todas_las_dimensiones(self, client, base, with_sets):
+        r = client.get(f'{base}/export/excel?days=30&prompt_set=core&branded=non_branded&llms=google,openai')
+        assert r.status_code == 200
+        assert 'spreadsheet' in r.headers.get('Content-Type', '')
+
+    def test_export_pdf_con_todas_las_dimensiones(self, client, base, with_sets):
+        r = client.get(f'{base}/export/pdf?days=30&metric=weighted&branded=non_branded&llms=google')
+        assert r.status_code == 200
+        assert r.data[:5] == b'%PDF-'
+
+
 class TestDeletionSafety:
 
     def test_borrar_sets_devuelve_prompts_a_core_sin_perderlos(self, client, base, with_sets):

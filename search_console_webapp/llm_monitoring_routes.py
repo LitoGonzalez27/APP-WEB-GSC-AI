@@ -1190,11 +1190,9 @@ def get_project(project_id):
         metric_type = request.args.get('metric', 'normal')
         if metric_type not in ['normal', 'weighted']:
             metric_type = 'normal'
-        enabled_llms_filter = project.get('enabled_llms') or []
-        report_set_filter, report_clusters = _parse_report_filters(request.args)
-        filtered_query_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_set_filter, report_clusters
-        )
+        report_filters = _parse_report_filters(request.args)
+        enabled_llms_filter = _narrow_llms(project.get('enabled_llms') or [], report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
         logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
 
         # Banner UX: mostrar aviso solo cuando hay histórico en el rango
@@ -2877,24 +2875,42 @@ def _resolve_set_assignment(requested, sets_config):
 
 
 # ─────────────────────────────────────────────────────────────────
-# Filtro global del informe (prompt_set exclusivo + clusters)
+# Filtro global del informe (barra de filtros del dashboard)
 # Query params compartidos por todos los endpoints de datos:
 #   prompt_set=core | <nombre de set>     (ausente = sin filtro, legacy)
 #   clusters=Nombre1,Nombre2              (ausente = todos)
-# Con filtro activo, los endpoints que leen snapshots preagregados
-# cambian a pseudo-snapshots calculados desde results (los snapshots
-# reales agregan TODOS los prompts y no pueden filtrarse a posteriori).
+#   branded=branded | non_branded         (ausente = todos)
+#   llms=openai,google                    (ausente = los habilitados)
+# Los filtros que definen un SUBCONJUNTO DE PROMPTS (set, clusters,
+# branded) se resuelven a una lista de query_ids; los endpoints que leen
+# snapshots preagregados cambian entonces a pseudo-snapshots calculados
+# desde results (los snapshots reales agregan TODOS los prompts y no
+# pueden filtrarse a posteriori). El filtro de LLMs estrecha la lista de
+# providers y funciona igual en ambos caminos.
 # ─────────────────────────────────────────────────────────────────
 
-def _parse_report_filters(args):
-    """
-    Lee el filtro global del query string.
+_REPORT_VALID_LLMS = ('openai', 'anthropic', 'google', 'perplexity')
 
-    Returns:
-        (set_filter, clusters)
-        set_filter: None (sin filtro) | 'core' | nombre de set.
-        clusters:   lista de nombres o None.
-    """
+
+class ReportFilters:
+    """Filtro global parseado. prompt_subset_active == True si algún filtro
+    exige resolver query_ids (set/clusters/branded)."""
+
+    __slots__ = ('set_filter', 'clusters', 'branded', 'llms')
+
+    def __init__(self, set_filter=None, clusters=None, branded=None, llms=None):
+        self.set_filter = set_filter
+        self.clusters = clusters
+        self.branded = branded
+        self.llms = llms
+
+    @property
+    def prompt_subset_active(self):
+        return bool(self.set_filter or self.clusters or self.branded)
+
+
+def _parse_report_filters(args):
+    """Lee el filtro global del query string. Devuelve ReportFilters."""
     raw_set = (args.get('prompt_set') or '').strip()
     set_filter = None
     if raw_set:
@@ -2911,11 +2927,19 @@ def _parse_report_filters(args):
             if _normalize_cluster_name(c)
         ] or None
 
-    return set_filter, clusters
+    raw_branded = (args.get('branded') or '').strip().lower()
+    branded = raw_branded if raw_branded in ('branded', 'non_branded') else None
+
+    raw_llms = (args.get('llms') or '').strip().lower()
+    llms = None
+    if raw_llms:
+        llms = [l.strip() for l in raw_llms.split(',') if l.strip() in _REPORT_VALID_LLMS] or None
+
+    return ReportFilters(set_filter, clusters, branded, llms)
 
 
 def _report_filter_conditions(set_filter, clusters, alias='q'):
-    """Condiciones SQL (lista) + params para el filtro sobre llm_monitoring_queries."""
+    """Condiciones SQL (lista) + params para set/clusters sobre llm_monitoring_queries."""
     conds, params = [], []
     if set_filter == 'core':
         conds.append(f"{alias}.prompt_set IS NULL")
@@ -2928,23 +2952,83 @@ def _report_filter_conditions(set_filter, clusters, alias='q'):
     return conds, params
 
 
-def _resolve_filtered_query_ids(cur, project_id, set_filter, clusters):
+def _narrow_llms(enabled_llms, report_filters):
     """
-    IDs de queries del proyecto que pasan el filtro global.
+    Estrecha la lista de providers al subconjunto pedido por el filtro global.
+
+    La intersección con los habilitados del proyecto es la autoridad: pedir un
+    LLM no habilitado no lo resucita. Intersección vacía → se ignora el filtro
+    (equivale a 'ninguno válido': mejor enseñar lo habilitado que un dashboard
+    en blanco por un parámetro roto).
+    """
+    if not report_filters or not report_filters.llms:
+        return enabled_llms
+    base = enabled_llms or list(_REPORT_VALID_LLMS)
+    narrowed = [l for l in base if l in report_filters.llms]
+    return narrowed or enabled_llms
+
+
+def _resolve_filtered_query_ids(cur, project_id, report_filters, include_clusters=True):
+    """
+    IDs de queries del proyecto que pasan el filtro global (set + clusters +
+    branded). branded NO es una columna: se clasifica en Python con las
+    brand_keywords del proyecto (classify_query_branded), así que el resolver
+    trae los textos y filtra aquí.
+
+    include_clusters=False para endpoints que ya desglosan por cluster
+    (/clusters/metrics y las hojas de clusters de los exports).
 
     Returns:
-        None si no hay filtro activo (los endpoints mantienen su camino legacy),
+        None si no hay filtro de subconjunto activo (camino legacy),
         lista de IDs (posiblemente vacía) si lo hay.
     """
-    if not set_filter and not clusters:
+    clusters = report_filters.clusters if include_clusters else None
+    if not report_filters.set_filter and not clusters and not report_filters.branded:
         return None
-    conds, params = _report_filter_conditions(set_filter, clusters, alias='q')
-    cur.execute(
-        "SELECT q.id FROM llm_monitoring_queries q "
-        "WHERE q.project_id = %s AND " + " AND ".join(conds),
-        [project_id] + params
-    )
-    return [r['id'] for r in cur.fetchall()]
+
+    conds, params = _report_filter_conditions(report_filters.set_filter, clusters, alias='q')
+    sql = "SELECT q.id, q.query_text FROM llm_monitoring_queries q WHERE q.project_id = %s"
+    if conds:
+        sql += " AND " + " AND ".join(conds)
+    cur.execute(sql, [project_id] + params)
+    rows = cur.fetchall()
+
+    if report_filters.branded:
+        cur.execute(
+            "SELECT brand_keywords FROM llm_monitoring_projects WHERE id = %s",
+            (project_id,)
+        )
+        project_row = cur.fetchone() or {}
+        brand_keywords = project_row.get('brand_keywords') or []
+        want_branded = report_filters.branded == 'branded'
+        rows = [
+            r for r in rows
+            if classify_query_branded(r.get('query_text', '') or '', brand_keywords) == want_branded
+        ]
+
+    return [r['id'] for r in rows]
+
+
+def _report_view_label(report_filters):
+    """
+    Etiqueta legible del filtro activo para las cabeceras de Excel/PDF.
+    Un documento filtrado que circule sin esta línea diría cifras parciales
+    sin explicación.
+    """
+    parts = []
+    if report_filters.set_filter:
+        parts.append(
+            'Set: Core' if report_filters.set_filter == 'core'
+            else f'Set: {report_filters.set_filter}'
+        )
+    if report_filters.clusters:
+        parts.append(f"Clusters: {', '.join(report_filters.clusters)}")
+    if report_filters.branded:
+        parts.append('Branded prompts only' if report_filters.branded == 'branded'
+                     else 'Non-branded prompts only')
+    if report_filters.llms:
+        parts.append('LLMs: ' + ', '.join(l.capitalize() for l in report_filters.llms))
+    return ' · '.join(parts) if parts else 'All prompts'
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/sets', methods=['GET'])
@@ -2988,11 +3072,20 @@ def get_project_sets(project_id):
                     entry.get('window')
                 )
 
+        # enabled_llms viaja aquí porque la barra de filtros global se pinta
+        # ANTES de que el detalle del proyecto esté cargado.
+        cur.execute(
+            "SELECT enabled_llms FROM llm_monitoring_projects WHERE id = %s",
+            (project_id,)
+        )
+        llms_row = cur.fetchone() or {}
+
         return jsonify({
             'success': True,
             'sets_config': cfg,
             'counts': counts,
-            'active_today': active_today
+            'active_today': active_today,
+            'enabled_llms': llms_row.get('enabled_llms') or []
         }), 200
 
     except Exception as e:
@@ -3276,9 +3369,9 @@ def get_clusters_metrics(project_id):
     metric = (request.args.get('metric') or 'weighted').lower()
     if metric not in ('weighted', 'classic'):
         metric = 'weighted'
-    # Solo aplica el filtro de SET (el de clusters no tiene sentido aquí:
-    # este endpoint ya desglosa por cluster)
-    report_set_filter, _ = _parse_report_filters(request.args)
+    # Aplica set/branded/llms; el filtro de clusters se ignora aquí a propósito
+    # (este endpoint ya desglosa por cluster)
+    report_filters = _parse_report_filters(request.args)
 
     conn = get_db_connection()
     if not conn:
@@ -3307,16 +3400,20 @@ def get_clusters_metrics(project_id):
             c.get('name') for c in (raw_config.get('clusters') or [])
             if isinstance(c, dict) and c.get('name')
         ]
-        enabled_llms = project.get('enabled_llms') or []
+        enabled_llms = _narrow_llms(project.get('enabled_llms') or [], report_filters)
 
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
 
         # Pull per-result rows (only for prompts with cluster assigned)
-        set_conds, set_params = _report_filter_conditions(report_set_filter, None)
-        set_filter_sql = ' '.join(f'AND {c}' for c in set_conds)
+        filtered_query_ids = _resolve_filtered_query_ids(
+            cur, project_id, report_filters, include_clusters=False
+        )
         params = [project_id, start_date, end_date]
-        params.extend(set_params)
+        ids_filter = ''
+        if filtered_query_ids is not None:
+            ids_filter = 'AND r.query_id = ANY(%s)'
+            params.append(filtered_query_ids)
         llm_filter = ''
         if enabled_llms:
             llm_filter = 'AND r.llm_provider = ANY(%s)'
@@ -3334,7 +3431,7 @@ def get_clusters_metrics(project_id):
               AND r.analysis_date >= %s
               AND r.analysis_date <= %s
               AND q.topic_cluster IS NOT NULL
-              {set_filter_sql}
+              {ids_filter}
               {llm_filter}
         """, params)
         rows = cur.fetchall() or []
@@ -4080,7 +4177,7 @@ def get_project_metrics(project_id):
         start_date = request.args.get('start_date', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
         
     llm_provider = request.args.get('llm_provider')
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
+    report_filters = _parse_report_filters(request.args)
 
     # ── Previous period dates (for period-over-period comparison) ──
     start_date_obj = datetime.strptime(start_date, '%Y-%m-%d') if isinstance(start_date, str) else start_date
@@ -4102,14 +4199,12 @@ def get_project_metrics(project_id):
         project_row = cur.fetchone()
         if not project_row:
             return jsonify({'error': 'Project not found'}), 404
-        enabled_llms_filter = project_row.get('enabled_llms') or []
+        enabled_llms_filter = _narrow_llms(project_row.get('enabled_llms') or [], report_filters)
         brand_keywords = project_row.get('brand_keywords') or []
 
-        # Filtro global: con set/clusters activos los snapshots preagregados
-        # no sirven (agregan todos los prompts) → pseudo-snapshots desde results.
-        filtered_query_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_set_filter, report_clusters
-        )
+        # Filtro global: con subconjunto de prompts activo (set/clusters/
+        # branded) los snapshots preagregados no sirven → pseudo-snapshots.
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
 
         if filtered_query_ids is not None:
             snapshots = pseudo_snapshots_lib.build_pseudo_snapshots(
@@ -4216,12 +4311,9 @@ def get_project_metrics(project_id):
                       AND r.analysis_date >= %s AND r.analysis_date <= %s
                 """
                 bparams = [project_id, start_date, end_date]
-                filter_conds, filter_params = _report_filter_conditions(
-                    report_set_filter, report_clusters
-                )
-                for cond in filter_conds:
-                    bq += f" AND {cond}"
-                bparams.extend(filter_params)
+                if filtered_query_ids is not None:
+                    bq += " AND r.query_id = ANY(%s)"
+                    bparams.append(filtered_query_ids)
                 if llm_provider:
                     bq += " AND r.llm_provider = %s"
                     bparams.append(llm_provider)
@@ -4293,12 +4385,9 @@ def get_project_metrics(project_id):
                       AND r.analysis_date >= %s AND r.analysis_date < %s
                 """
                 prev_bparams = [project_id, prev_start, prev_end]
-                prev_filter_conds, prev_filter_params = _report_filter_conditions(
-                    report_set_filter, report_clusters
-                )
-                for cond in prev_filter_conds:
-                    prev_bq += f" AND {cond}"
-                prev_bparams.extend(prev_filter_params)
+                if filtered_query_ids is not None:
+                    prev_bq += " AND r.query_id = ANY(%s)"
+                    prev_bparams.append(filtered_query_ids)
                 if llm_provider:
                     prev_bq += " AND r.llm_provider = %s"
                     prev_bparams.append(llm_provider)
@@ -4391,7 +4480,7 @@ def get_urls_ranking(project_id):
     """
     days = _normalize_days_param(request.args.get('days'), default=30)
     llm_provider = request.args.get('llm_provider')
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
+    report_filters = _parse_report_filters(request.args)
     raw_limit = request.args.get('limit')
     limit = 50
     if raw_limit is not None and str(raw_limit).strip() != '':
@@ -4419,12 +4508,11 @@ def get_urls_ranking(project_id):
                 'error': 'llm_provider no habilitado para este proyecto'
             }), 400
 
+        enabled_llms_filter = _narrow_llms(enabled_llms_filter, report_filters)
         if not llm_provider and not enabled_llms_filter:
             enabled_llms_filter = None
 
-        filtered_query_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_set_filter, report_clusters
-        )
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
 
         urls_ranking = LLMMonitoringStatsService.get_project_urls_ranking(
             project_id=project_id,
@@ -4566,12 +4654,12 @@ def get_llm_comparison(project_id):
     # ✨ NUEVO: Parámetro de días
     days = _normalize_days_param(request.args.get('days'), default=30)
     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
-    
+    report_filters = _parse_report_filters(request.args)
+
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-    
+
     try:
         cur = conn.cursor()
 
@@ -4583,7 +4671,7 @@ def get_llm_comparison(project_id):
         project_row = cur.fetchone()
         if not project_row:
             return jsonify({'error': 'Project not found'}), 404
-        enabled_llms_filter = project_row.get('enabled_llms') or []
+        enabled_llms_filter = _narrow_llms(project_row.get('enabled_llms') or [], report_filters)
         brand_domain_raw = project_row.get('brand_domain') or ''
 
         def _normalize_domain(value):
@@ -4612,11 +4700,9 @@ def get_llm_comparison(project_id):
                 return value.isoformat()
             return str(value)
         
-        # Filtro global set/clusters: con filtro activo se calculan
+        # Filtro global: con subconjunto de prompts activo se calculan
         # pseudo-snapshots desde results (los snapshots agregan todos los prompts)
-        filtered_query_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_set_filter, report_clusters
-        )
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
 
         if filtered_query_ids is not None:
             rows = pseudo_snapshots_lib.build_pseudo_snapshots(
@@ -4914,7 +5000,7 @@ def get_project_queries(project_id):
     """
     user = get_current_user()
     days = _normalize_days_param(request.args.get('days'), default=30)
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
+    report_filters = _parse_report_filters(request.args)
 
     conn = get_db_connection()
     if not conn:
@@ -4929,11 +5015,11 @@ def get_project_queries(project_id):
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
-        
+
         project = cur.fetchone()
         if not project:
             return jsonify({'error': 'Project not found'}), 404
-        enabled_llms_filter = project.get('enabled_llms') or []
+        enabled_llms_filter = _narrow_llms(project.get('enabled_llms') or [], report_filters)
         
         # Calcular rango de fechas
         end_date = datetime.now().date()
@@ -5009,18 +5095,17 @@ def get_project_queries(project_id):
             FROM query_metrics
             ORDER BY last_update DESC NULLS LAST, created_at DESC
         """
-        report_conds, report_params = _report_filter_conditions(
-            report_set_filter, report_clusters
-        )
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
         query_metrics_sql = query_metrics_sql.format(
             llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else "",
-            report_filter=' '.join(f"AND {c}" for c in report_conds)
+            report_filter="AND q.id = ANY(%s)" if filtered_query_ids is not None else ""
         )
         query_metrics_params = [f'%{brand_domain}%' if brand_domain else '%', start_date, end_date]
         if enabled_llms_filter:
             query_metrics_params.append(enabled_llms_filter)
         query_metrics_params.append(project_id)
-        query_metrics_params.extend(report_params)
+        if filtered_query_ids is not None:
+            query_metrics_params.append(filtered_query_ids)
         cur.execute(query_metrics_sql, query_metrics_params)
         
         queries_raw = cur.fetchall()
@@ -5207,8 +5292,11 @@ def get_share_of_voice_history(project_id):
     user = get_current_user()
     days = _normalize_days_param(request.args.get('days'), default=30)
     metric_type = request.args.get('metric', 'weighted')  # 'normal' o 'weighted'
+    # query_scope es el legacy de los toggles por-gráfica (retirados de la UI);
+    # se mantiene por compatibilidad. El filtro global usa `branded=` y viaja
+    # dentro de report_filters.
     query_scope = request.args.get('query_scope', 'all')  # 'all', 'branded', 'non_branded'
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
+    report_filters = _parse_report_filters(request.args)
 
     # Validar metric_type
     if metric_type not in ['normal', 'weighted']:
@@ -5246,15 +5334,15 @@ def get_share_of_voice_history(project_id):
         # Calcular fechas de inicio y fin
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-        enabled_llms_filter = project.get('enabled_llms') or []
+        enabled_llms_filter = _narrow_llms(project.get('enabled_llms') or [], report_filters)
         brand_keywords_sov = project.get('brand_keywords') or []
 
         # ── Rama basada en results individuales ──
-        # Se usa cuando el scope branded/non-branded está activo Y/O cuando hay
-        # filtro global de set/clusters (los snapshots agregan todos los
-        # prompts y no pueden filtrarse a posteriori).
-        has_report_filter = bool(report_set_filter or report_clusters)
-        if (query_scope != 'all' and brand_keywords_sov) or has_report_filter:
+        # Se usa cuando el scope branded/non-branded legacy está activo Y/O
+        # cuando hay filtro global de subconjunto de prompts (los snapshots
+        # agregan todos los prompts y no pueden filtrarse a posteriori).
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        if (query_scope != 'all' and brand_keywords_sov) or filtered_query_ids is not None:
             sov_result_query = """
                 SELECT r.analysis_date, r.llm_provider, q.query_text,
                        r.brand_mentioned, r.competitors_mentioned
@@ -5263,12 +5351,9 @@ def get_share_of_voice_history(project_id):
                 WHERE r.project_id = %s AND r.analysis_date >= %s
             """
             sov_result_params = [project_id, start_date]
-            filter_conds, filter_params = _report_filter_conditions(
-                report_set_filter, report_clusters
-            )
-            for cond in filter_conds:
-                sov_result_query += f" AND {cond}"
-            sov_result_params.extend(filter_params)
+            if filtered_query_ids is not None:
+                sov_result_query += " AND r.query_id = ANY(%s)"
+                sov_result_params.append(filtered_query_ids)
             if enabled_llms_filter:
                 sov_result_query += " AND r.llm_provider = ANY(%s)"
                 sov_result_params.append(enabled_llms_filter)
@@ -6476,7 +6561,7 @@ def get_project_responses(project_id):
     # ✨ NEW: optional cluster filter. Use the literal value "__unassigned__" to
     # request only prompts without a cluster assigned.
     cluster_filter_raw = request.args.get('cluster')
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
+    report_filters = _parse_report_filters(request.args)
     days = _normalize_days_param(request.args.get('days'), default=7)
 
     conn = get_db_connection()
@@ -6500,6 +6585,7 @@ def get_project_responses(project_id):
             return jsonify({
                 'error': 'llm_provider no habilitado para este proyecto'
             }), 400
+        enabled_llms_filter = _narrow_llms(enabled_llms_filter, report_filters)
 
         # Calcular rango de fechas
         end_date = datetime.now().date()
@@ -6554,13 +6640,11 @@ def get_project_responses(project_id):
                 query += " AND q.topic_cluster = %s"
                 params.append(cluster_filter_raw)
 
-        # Filtro global del informe (set exclusivo + clusters multi)
-        report_conds, report_cond_params = _report_filter_conditions(
-            report_set_filter, report_clusters
-        )
-        for cond in report_conds:
-            query += f" AND {cond}"
-        params.extend(report_cond_params)
+        # Filtro global del informe (set + clusters + branded → query_ids)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        if filtered_query_ids is not None:
+            query += " AND r.query_id = ANY(%s)"
+            params.append(filtered_query_ids)
 
         query += " ORDER BY r.analysis_date DESC, q.query_text, r.llm_provider"
 
@@ -6655,7 +6739,7 @@ def export_project_excel(project_id):
         return jsonify({'error': 'Excel export not available. Missing openpyxl library.'}), 500
 
     days = _normalize_days_param(request.args.get('days'), default=30)
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
+    report_filters = _parse_report_filters(request.args)
 
     conn = get_db_connection()
     if not conn:
@@ -6692,7 +6776,7 @@ def export_project_excel(project_id):
         if not project:
             return jsonify({'error': 'Project not found'}), 404
 
-        enabled_llms_filter = project.get('enabled_llms') or []
+        enabled_llms_filter = _narrow_llms(project.get('enabled_llms') or [], report_filters)
         brand_keywords = project.get('brand_keywords') or []
 
         # Helper for LLM filter in queries
@@ -6702,11 +6786,9 @@ def export_project_excel(project_id):
                 params_list.append(enabled_llms_filter)
             return query_str, params_list
 
-        # Filtro global del informe (set exclusivo + clusters): el Excel debe
-        # decir lo mismo que la pantalla desde la que se descargó.
-        filtered_query_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_set_filter, report_clusters
-        )
+        # Filtro global del informe: el Excel debe decir lo mismo que la
+        # pantalla desde la que se descargó.
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
 
         def _add_query_filter(query_str, params_list, column='r.query_id'):
             if filtered_query_ids is not None:
@@ -6715,14 +6797,7 @@ def export_project_excel(project_id):
             return query_str, params_list
 
         # Etiqueta legible del filtro para las cabeceras de las hojas
-        report_view_parts = []
-        if report_set_filter:
-            report_view_parts.append(
-                'Set: Core' if report_set_filter == 'core' else f'Set: {report_set_filter}'
-            )
-        if report_clusters:
-            report_view_parts.append(f"Clusters: {', '.join(report_clusters)}")
-        report_view_label = ' · '.join(report_view_parts) if report_view_parts else 'All prompts'
+        report_view_label = _report_view_label(report_filters)
 
         # 2. Snapshots (daily metrics per LLM) — source for multiple sheets.
         # Con filtro activo, los snapshots preagregados no sirven → pseudo.
@@ -6823,19 +6898,18 @@ def export_project_excel(project_id):
             GROUP BY q.id, q.query_text, q.language, q.query_type, q.topic_cluster, q.prompt_set
             ORDER BY text_mentions DESC, visibility_pct DESC
         """
-        _export_report_conds, _export_report_params = _report_filter_conditions(
-            report_set_filter, report_clusters
-        )
+        has_prompt_subset = filtered_query_ids is not None
         queries_query = queries_query.format(
             llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else "",
-            report_filter=' '.join(f"AND {c}" for c in _export_report_conds)
+            report_filter="AND q.id = ANY(%s)" if has_prompt_subset else ""
         )
         brand_domain_like = f"%{project['brand_domain']}%" if project.get('brand_domain') else '%'
         queries_params = [brand_domain_like, start_date, end_date]
         if enabled_llms_filter:
             queries_params.append(enabled_llms_filter)
         queries_params.append(project_id)
-        queries_params.extend(_export_report_params)
+        if has_prompt_subset:
+            queries_params.append(filtered_query_ids)
         cur.execute(queries_query, queries_params)
         queries = cur.fetchall()
 
@@ -6845,9 +6919,9 @@ def export_project_excel(project_id):
         trend_queries = []
         try:
             trend_sql = queries_query.replace(
-                ' '.join(f"AND {c}" for c in _export_report_conds),
+                "AND q.id = ANY(%s)",
                 "AND q.prompt_set IS NOT NULL"
-            ) if _export_report_conds else queries_query.replace(
+            ) if has_prompt_subset else queries_query.replace(
                 "WHERE q.project_id = %s AND q.is_active = TRUE",
                 "WHERE q.project_id = %s AND q.is_active = TRUE AND q.prompt_set IS NOT NULL"
             )
@@ -6887,9 +6961,13 @@ def export_project_excel(project_id):
 
         clusters_aggregates = []
         clusters_by_llm_rows = []
-        # Solo el filtro de SET aplica a las hojas de clusters (ya desglosan por cluster)
-        _set_conds, _set_params = _report_filter_conditions(report_set_filter, None)
-        _set_filter_sql = ' '.join(f'AND {c}' for c in _set_conds)
+        # A las hojas de clusters les aplica set/branded (el filtro de clusters
+        # no: ya desglosan por cluster) → ids resueltos sin clusters
+        _cluster_sheet_ids = _resolve_filtered_query_ids(
+            cur, project_id, report_filters, include_clusters=False
+        )
+        _set_filter_sql = 'AND q.id = ANY(%s)' if _cluster_sheet_ids is not None else ''
+        _set_params = [_cluster_sheet_ids] if _cluster_sheet_ids is not None else []
         if defined_cluster_names:
             cluster_agg_sql = """
                 SELECT
@@ -8086,7 +8164,7 @@ def export_project_pdf(project_id):
     sov_metric = 'weighted' if request.args.get('metric', 'weighted') != 'normal' else 'normal'
     sov_column = 'weighted_share_of_voice' if sov_metric == 'weighted' else 'share_of_voice'
     sov_metric_label = 'weighted by position' if sov_metric == 'weighted' else 'standard'
-    report_set_filter, report_clusters = _parse_report_filters(request.args)
+    report_filters = _parse_report_filters(request.args)
 
     conn = get_db_connection()
     if not conn:
@@ -8110,7 +8188,7 @@ def export_project_pdf(project_id):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         prev_start = start_date - timedelta(days=days)
-        enabled_llms_filter = project.get('enabled_llms') or []
+        enabled_llms_filter = _narrow_llms(project.get('enabled_llms') or [], report_filters)
         brand_keywords_pdf = project.get('brand_keywords') or []
 
         # Modelos vigentes. Mismo helper que el modal "Models" del panel, para
@@ -8125,10 +8203,8 @@ def export_project_pdf(project_id):
             return query, params
 
         # Filtro global del informe: el PDF refleja la vista con la que se
-        # descargó (set exclusivo + clusters), como el panel y el Excel.
-        pdf_filtered_query_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_set_filter, report_clusters
-        )
+        # descargó, como el panel y el Excel.
+        pdf_filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
 
         def _pdf_query_filter(query, params, column='query_id'):
             if pdf_filtered_query_ids is not None:
@@ -8136,14 +8212,8 @@ def export_project_pdf(project_id):
                 params.append(pdf_filtered_query_ids)
             return query, params
 
-        pdf_view_parts = []
-        if report_set_filter:
-            pdf_view_parts.append(
-                'Set: Core' if report_set_filter == 'core' else f'Set: {report_set_filter}'
-            )
-        if report_clusters:
-            pdf_view_parts.append(f"Clusters: {', '.join(report_clusters)}")
-        pdf_report_view_label = ' · '.join(pdf_view_parts) if pdf_view_parts else ''
+        _pdf_label = _report_view_label(report_filters)
+        pdf_report_view_label = '' if _pdf_label == 'All prompts' else _pdf_label
 
         # ── 2. LLM results metrics (per provider) ──
         pdf_q = """
@@ -8335,8 +8405,11 @@ def export_project_pdf(project_id):
             if enabled_llms_filter:
                 cluster_pdf_sql += " AND r.llm_provider = ANY(%s) "
                 cluster_pdf_params.append(enabled_llms_filter)
-            _pdf_set_conds, _pdf_set_params = _report_filter_conditions(report_set_filter, None)
-            _pdf_set_sql = ' '.join(f'AND {c}' for c in _pdf_set_conds)
+            _pdf_cluster_ids = _resolve_filtered_query_ids(
+                cur, project_id, report_filters, include_clusters=False
+            )
+            _pdf_set_sql = 'AND q.id = ANY(%s)' if _pdf_cluster_ids is not None else ''
+            _pdf_set_params = [_pdf_cluster_ids] if _pdf_cluster_ids is not None else []
             cluster_pdf_sql += f"""
                 WHERE q.project_id = %s
                   AND q.is_active = TRUE
