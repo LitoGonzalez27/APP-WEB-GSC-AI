@@ -83,6 +83,14 @@ renderBrandedComparisonCards(data) {
         const grid = document.getElementById('brandedComparisonGrid');
         if (!grid) return;
 
+        // Con el filtro global de brand scope activo, comparar branded vs
+        // non-branded dentro de una vista ya filtrada a uno de los dos lados
+        // no significa nada: se ocultan las tarjetas.
+        if ((this.reportFilters?.branded || 'all') !== 'all') {
+            grid.style.display = 'none';
+            return;
+        }
+
         const branded = data.branded_metrics;
         const nonBranded = data.non_branded_metrics;
 

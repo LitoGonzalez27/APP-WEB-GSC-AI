@@ -632,30 +632,8 @@ setupEventListeners() {
             });
         });
 
-        // Scope chips for Mention Rate and SOV charts
-        document.querySelectorAll('.chart-scope-chips').forEach(container => {
-            container.addEventListener('click', (e) => {
-                const chip = e.target.closest('.scope-chip');
-                if (!chip) return;
-                const scope = chip.dataset.scope;
-                const chart = container.dataset.chart;
-
-                // Toggle active class
-                container.querySelectorAll('.scope-chip').forEach(c => c.classList.remove('scope-chip--active'));
-                chip.classList.add('scope-chip--active');
-
-                if (chart === 'mentionRate') {
-                    this.mentionRateScope = scope;
-                    this.renderMentionRateChartScoped(scope);
-                } else if (chart === 'sov') {
-                    this.sovScope = scope;
-                    this.renderShareOfVoiceChart();
-                } else if (chart === 'mentions') {
-                    this.mentionsScope = scope;
-                    this.renderMentionsTimelineChart();
-                }
-            });
-        });
+        // Los toggles de scope por-gráfica se retiraron: el scope branded vive
+        // en la barra de filtros global del dashboard (sin duplicidades).
 
         // ✨ responsesDaysFilter listener removed - now using global time range
 

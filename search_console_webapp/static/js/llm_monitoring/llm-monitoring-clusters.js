@@ -201,7 +201,6 @@ async saveClustersConfig() {
             // Refresh UI pieces that depend on clusters
             this.refreshPromptClusterSelects();
             this.populatePromptsListClusterFilter();
-            this.populateResponsesClusterFilter();
             this.renderClustersManagerList();
             // If the chart is on screen, refresh it
             this.loadClustersPerformance(projectId);
@@ -235,29 +234,8 @@ async saveClustersConfig() {
         }
     },
 
-populateResponsesClusterFilter() {
-        const sel = document.getElementById('responsesClusterFilter');
-        const wrapper = document.getElementById('responsesClusterFilterWrapper');
-        if (!sel) return;
-        const clusters = this.getDefinedClusterNames();
-        const enabled = this.promptClustersConfig?.enabled;
-        if (!enabled || clusters.length === 0) {
-            if (wrapper) wrapper.style.display = 'none';
-            sel.value = '';
-            return;
-        }
-        if (wrapper) wrapper.style.display = '';
-        const prev = sel.value;
-        const options = [
-            `<option value="">All Clusters</option>`,
-            `<option value="__unassigned__">Unassigned</option>`,
-            ...clusters.map(n => `<option value="${this.escapeHtml(n)}">${this.escapeHtml(n)}</option>`)
-        ].join('');
-        sel.innerHTML = options;
-        if (prev && (prev === '__unassigned__' || clusters.includes(prev))) {
-            sel.value = prev;
-        }
-    },
+// populateResponsesClusterFilter se retiró: el filtro de cluster del
+// Responses Inspector vive ahora en la barra de filtros global.
 
 async loadClustersPerformance(projectId) {
         if (!projectId) projectId = this.currentProject?.id;

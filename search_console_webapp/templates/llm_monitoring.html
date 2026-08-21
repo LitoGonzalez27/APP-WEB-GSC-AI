@@ -517,10 +517,11 @@
                     <span id="llmModelScopeBannerText"></span>
                 </div>
 
-                <!-- Filtro global del informe: set de prompts (exclusivo) + clusters.
-                     Solo visible cuando el proyecto tiene sets o clusters configurados.
-                     El set es una vista exclusiva (núcleo O una tendencia, nunca mezcla)
-                     para no contaminar las series temporales. -->
+                <!-- Barra de filtros global del dashboard: filtra TODO el informe
+                     (KPIs, gráficas, tablas, inspector y exports). Sticky al hacer
+                     scroll. El set es una vista exclusiva (núcleo O una tendencia,
+                     nunca mezcla) para no contaminar las series temporales. -->
+                <div id="reportFilterBarSentinel" aria-hidden="true"></div>
                 <div id="reportFilterBar" class="report-filter-bar" style="display: none;">
                     <div class="report-filter-group" id="setFilterGroup" style="display: none;">
                         <span class="report-filter-label">
@@ -543,9 +544,23 @@
                         </span>
                         <div class="report-cluster-chips" id="clusterFilterChips"></div>
                     </div>
+                    <div class="report-filter-group" id="brandFilterGroup">
+                        <span class="report-filter-label">
+                            <i class="fas fa-bullseye"></i>
+                            Prompt type
+                        </span>
+                        <div class="report-set-toggle" id="brandFilterToggle" role="tablist"></div>
+                    </div>
+                    <div class="report-filter-group" id="llmFilterGroup" style="display: none;">
+                        <span class="report-filter-label">
+                            <i class="fas fa-microchip"></i>
+                            LLMs
+                        </span>
+                        <div class="llm-filter-dropdown" id="llmFilterDropdown"></div>
+                    </div>
                     <button class="btn btn-ghost btn-sm report-filter-reset" id="btnResetReportFilters" style="display: none;">
                         <i class="fas fa-rotate-left"></i>
-                        Reset
+                        Reset <span class="reset-count"></span>
                     </button>
                 </div>
                 
@@ -797,11 +812,7 @@
                     <div class="chart-card">
                         <div class="chart-header">
                             <h3>Mention Rate by LLM</h3>
-                            <div class="chart-scope-chips" data-chart="mentionRate">
-                                <button class="scope-chip scope-chip--active" data-scope="all" title="Show all queries">All</button>
-                                <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">Non-Branded</button>
-                                <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">Branded</button>
-                            </div>
+                            <!-- El scope branded vive ahora en la barra de filtros global -->
                         </div>
                         <div class="chart-container">
                             <canvas id="chartMentionRate"></canvas>
@@ -818,11 +829,7 @@
                             </h3>
                             <div class="chart-subtitle">Track your brand's visibility vs competitors across all LLMs</div>
                         </div>
-                        <div class="chart-scope-chips" data-chart="sov">
-                            <button class="scope-chip scope-chip--active" data-scope="all" title="Show all queries">All</button>
-                            <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">Non-Branded</button>
-                            <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">Branded</button>
-                        </div>
+                        <!-- El scope branded vive ahora en la barra de filtros global -->
                     </div>
                     <div class="chart-container chart-container-timeline">
                         <canvas id="chartShareOfVoice"></canvas>
@@ -839,11 +846,7 @@
                             </h3>
                             <div class="chart-subtitle">Track total brand mentions across all LLMs over time</div>
                         </div>
-                        <div class="chart-scope-chips" data-chart="mentions">
-                            <button class="scope-chip scope-chip--active" data-scope="all" title="Show all queries">All</button>
-                            <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">Non-Branded</button>
-                            <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">Branded</button>
-                        </div>
+                        <!-- El scope branded vive ahora en la barra de filtros global -->
                     </div>
                     <div class="chart-container chart-container-timeline">
                         <canvas id="chartMentionsTimeline"></canvas>
@@ -957,16 +960,7 @@
                             </button>
                         </div>
                         
-                        <!-- Filtro de LLM a la derecha -->
-                        <div style="flex: 0 0 220px;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                <i class="fas fa-robot" style="margin-right: 0.5rem;"></i>
-                                LLM Source
-                            </label>
-                            <select id="urlsLLMFilter" class="form-control" style="width: 100%;">
-                                <option value="">All Active LLMs (Combined)</option>
-                            </select>
-                        </div>
+                        <!-- El filtro de LLM vive en la barra de filtros global del dashboard -->
                     </div>
                     
                     <!-- ✨ Resumen del análisis de contenido (mixin url-content) -->
@@ -1036,16 +1030,8 @@
                             </select>
                         </div>
 
-                        <div class="responses-filter">
-                            <label for="responsesLLMFilter">
-                                <i class="fas fa-robot"></i>
-                                LLM
-                            </label>
-                            <select id="responsesLLMFilter" class="form-control">
-                                <option value="">All Active LLMs</option>
-                            </select>
-                        </div>
-
+                        <!-- LLM, Cluster y Prompt Type se filtran desde la barra
+                             de filtros global del dashboard (sin duplicidades) -->
                         <div class="responses-filter">
                             <label for="responsesMentionFilter">
                                 <i class="fas fa-check-circle"></i>
@@ -1068,29 +1054,6 @@
                                 <option value="positive">Positive</option>
                                 <option value="neutral">Neutral</option>
                                 <option value="negative">Negative</option>
-                            </select>
-                        </div>
-
-                        <div class="responses-filter" id="responsesClusterFilterWrapper">
-                            <label for="responsesClusterFilter">
-                                <i class="fas fa-layer-group"></i>
-                                Cluster
-                            </label>
-                            <select id="responsesClusterFilter" class="form-control">
-                                <option value="">All Clusters</option>
-                                <!-- populated dynamically -->
-                            </select>
-                        </div>
-
-                        <div class="responses-filter">
-                            <label for="responsesQueryTypeFilter">
-                                <i class="fas fa-tag"></i>
-                                Prompt Type
-                            </label>
-                            <select id="responsesQueryTypeFilter" class="form-control">
-                                <option value="">All Prompts</option>
-                                <option value="branded">Branded</option>
-                                <option value="non-branded">Non-Branded</option>
                             </select>
                         </div>
                     </div>

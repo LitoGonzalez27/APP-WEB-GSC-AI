@@ -75,22 +75,13 @@ isUrlFromCompetitor(url) {
 async loadTopUrlsRanking(projectId) {
         console.log(`🔗 Loading top URLs ranking for project ${projectId}...`);
 
-        const enabledLlms = this.getProjectEnabledLlms();
-        const llmFilterSelect = document.getElementById('urlsLLMFilter');
-        let llmFilter = llmFilterSelect?.value || '';
-        if (llmFilter && !enabledLlms.includes(llmFilter)) {
-            llmFilter = '';
-            if (llmFilterSelect) llmFilterSelect.value = '';
-        }
+        // El filtro de LLM vive en la barra global (getReportFilterParams);
+        // el select local se retiró para no duplicar controles.
         const days = this.globalTimeRange; // ✨ Use global time range
 
         try {
-            const params = new URLSearchParams({ days });
-            if (llmFilter) params.append('llm_provider', llmFilter);
-            if (!llmFilter) {
-                // In "All LLMs (Combined)" we need the full union of URLs, not a top-N subset.
-                params.append('limit', '0');
-            }
+            // Vista combinada: unión completa de URLs, no un top-N parcial.
+            const params = new URLSearchParams({ days, limit: '0' });
 
             const response = await fetch(`${this.baseUrl}/projects/${projectId}/urls-ranking?${params}${this.getReportFilterParams()}`);
 

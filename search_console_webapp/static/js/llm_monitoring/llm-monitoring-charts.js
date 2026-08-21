@@ -211,63 +211,8 @@ renderMentionRateChart(data) {
         });
     },
 
-renderMentionRateChartScoped(scope) {
-        if (!this.lastMetricsData) return;
-
-        if (scope === 'all') {
-            this.renderMentionRateChart(this.lastMetricsData);
-            return;
-        }
-
-        // Use per-LLM breakdown from the API
-        const byLlm = scope === 'branded'
-            ? this.lastMetricsData.branded_by_llm
-            : this.lastMetricsData.non_branded_by_llm;
-
-        const canvas = document.getElementById('chartMentionRate');
-        if (!canvas || !this.charts.mentionRate) return;
-
-        const providerLabels = {
-            openai: 'ChatGPT', anthropic: 'Claude',
-            google: 'Gemini', perplexity: 'Perplexity'
-        };
-        const providerOrder = ['openai', 'anthropic', 'google', 'perplexity'];
-
-        if (!byLlm || Object.keys(byLlm).length === 0) {
-            this.charts.mentionRate.data.labels = providerOrder.map(p => providerLabels[p] || p);
-            this.charts.mentionRate.data.datasets[0].data = [0, 0, 0, 0];
-            this.charts.mentionRate.update();
-            return;
-        }
-
-        const labels = [];
-        const data = [];
-        const colors = [];
-        for (const prov of providerOrder) {
-            if (byLlm[prov] !== undefined) {
-                labels.push(providerLabels[prov] || prov);
-                data.push(byLlm[prov]);
-                colors.push(CSChartTheme.seriesColorFor(prov));
-            }
-        }
-        // Include any providers not in the fixed order
-        for (const [prov, rate] of Object.entries(byLlm)) {
-            if (!providerOrder.includes(prov)) {
-                labels.push(providerLabels[prov] || prov);
-                data.push(rate);
-                colors.push(CSChartTheme.seriesMuted);
-            }
-        }
-
-        this.charts.mentionRate.data.labels = labels;
-        this.charts.mentionRate.data.datasets[0].data = data;
-        this.charts.mentionRate.data.datasets[0].backgroundColor = colors;
-        // Remove ghost bars when scoped
-        if (this.charts.mentionRate.data.datasets.length > 1) {
-            this.charts.mentionRate.data.datasets[1].data = new Array(data.length).fill(0);
-        }
-        this.charts.mentionRate.update();
-    },
+// renderMentionRateChartScoped se retiró: el scope branded vive en la barra
+// de filtros global y los datos ya llegan filtrados del backend.
 
 async renderShareOfVoiceChart() {
         const canvas = document.getElementById('chartShareOfVoice');
@@ -290,7 +235,7 @@ async renderShareOfVoiceChart() {
             const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             console.log(`📊 Rendering Share of Voice chart with metric: ${metricType}`);
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.sovScope || 'all'}${this.getReportFilterParams()}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}${this.getReportFilterParams()}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -310,7 +255,7 @@ async renderShareOfVoiceChart() {
             // centrado y limpiar la leyenda del render anterior
             if (!dates || dates.length === 0 || !datasets || datasets.length === 0) {
                 console.warn('⚠️ No data available for Share of Voice chart');
-                const copy = this.chartEmptyStateCopy(this.sovScope);
+                const copy = this.chartEmptyStateCopy(this.reportFilters?.branded || 'all');
                 this.showChartEmptyState('chartShareOfVoice', 'shareOfVoiceLegend', copy.title, copy.subtitle);
                 return;
             }
@@ -412,7 +357,7 @@ async renderMentionsTimelineChart() {
             // Una mención es una mención - el weighted solo aplica a Share of Voice
             const metricType = 'normal';
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.mentionsScope || 'all'}${this.getReportFilterParams()}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}${this.getReportFilterParams()}`);
             if (!response.ok) {
                 console.warn('Could not load mentions timeline data');
                 return;
@@ -423,7 +368,7 @@ async renderMentionsTimelineChart() {
             if (!result.success || !result.mentions_datasets || !result.dates || result.dates.length === 0) {
                 console.warn('⚠️ No mentions data available yet for this project');
                 // El chart ya se destruyó arriba: empty state centrado según el scope
-                const copy = this.chartEmptyStateCopy(this.mentionsScope);
+                const copy = this.chartEmptyStateCopy(this.reportFilters?.branded || 'all');
                 this.showChartEmptyState('chartMentionsTimeline', 'mentionsTimelineLegend', copy.title, copy.subtitle);
                 return;
             }
