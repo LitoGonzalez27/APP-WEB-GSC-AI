@@ -474,7 +474,6 @@ setupEventListeners() {
 
                     // Actualizar TODOS los gráficos, métricas y tablas
                     this.renderShareOfVoiceChart();  // Gráfico de líneas temporal
-                    this.renderShareOfVoiceDonutChart();  // Gráfico de rosco/distribución
                     this.renderMentionsTimelineChart();  // Timeline de menciones (usa los mismos datos)
                     this.loadClustersPerformance(this.currentProject.id);  // ✨ NUEVO: Clusters Performance chart (reemplaza LLM Comparison)
                     this.refreshProjectKPIs();  // ✨ NUEVO: KPIs alineados con la métrica
@@ -617,7 +616,7 @@ setupEventListeners() {
         });
 
         // Client-side filters: Mention, Sentiment, Prompt Type
-        ['responsesMentionFilter', 'responsesSentimentFilter', 'responsesQueryTypeFilter'].forEach(filterId => {
+        ['responsesMentionFilter'].forEach(filterId => {
             document.getElementById(filterId)?.addEventListener('change', () => {
                 if (this.allResponses && this.allResponses.length > 0) {
                     this.applyClientSideFilters();
@@ -1549,7 +1548,6 @@ parseMarkdown(text) {
 
 applyClientSideFilters() {
         const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
-        const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';
 
         // Start with all responses
         let filtered = [...this.allResponses];
@@ -1561,17 +1559,6 @@ applyClientSideFilters() {
             filtered = filtered.filter(r => r.brand_mentioned === false);
         }
 
-        // Apply sentiment filter
-        if (sentimentFilter) {
-            filtered = filtered.filter(r => r.sentiment === sentimentFilter);
-        }
-
-        const queryTypeFilter = document.getElementById('responsesQueryTypeFilter')?.value || '';
-        if (queryTypeFilter === 'branded') {
-            filtered = filtered.filter(r => this.isQueryBranded(r.query_text));
-        } else if (queryTypeFilter === 'non-branded') {
-            filtered = filtered.filter(r => !this.isQueryBranded(r.query_text));
-        }
 
         // Store filtered responses and reset pagination
         this.filteredResponses = filtered;
@@ -1583,7 +1570,7 @@ applyClientSideFilters() {
             this.renderResponsesPaginated(container);
         }
 
-        console.log(`🔍 Applied filters: mention=${mentionFilter || 'all'}, sentiment=${sentimentFilter || 'all'} -> ${filtered.length} results`);
+        console.log(`🔍 Applied filters: mention=${mentionFilter || 'all'} -> ${filtered.length} results`);
     },
 
 updateQuickStats(responses) {

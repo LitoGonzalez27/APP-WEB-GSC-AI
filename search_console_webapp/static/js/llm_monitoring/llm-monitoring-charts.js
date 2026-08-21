@@ -453,228 +453,98 @@ async renderMentionsTimelineChart() {
         }
     },
 
-async renderShareOfVoiceDonutChart() {
-        const canvas = document.getElementById('chartShareOfVoiceDonut');
+renderSentimentOverTimeChart(data) {
+        // Barras apiladas al 100% por día: qué parte de las menciones de cada
+        // día fue positiva, neutra o negativa. Sustituye a los roscos de
+        // Sentiment y SOV (petición de Carlos 2026-08-21): aquí es donde una
+        // crisis reputacional se ve — la banda roja creciendo un día concreto.
+        const canvas = document.getElementById('chartSentimentOverTime');
         if (!canvas) return;
 
-        // Destroy existing chart
-        if (this.charts.shareOfVoiceDonut) {
-            this.charts.shareOfVoiceDonut.destroy();
+        if (this.charts.sentimentOverTime) {
+            this.charts.sentimentOverTime.destroy();
         }
 
-        try {
-            const projectId = this.currentProject?.id;
-            if (!projectId) {
-                console.warn('No project ID available for Share of Voice Donut');
-                return;
-            }
+        // Sumar contadores por día entre LLMs (los snapshots vienen por día×LLM)
+        const byDate = {};
+        for (const s of (data?.snapshots || [])) {
+            const day = String(s.snapshot_date).slice(0, 10);
+            const c = s.sentiment_counts || {};
+            const bucket = byDate[day] || { positive: 0, neutral: 0, negative: 0 };
+            bucket.positive += c.positive || 0;
+            bucket.neutral += c.neutral || 0;
+            bucket.negative += c.negative || 0;
+            byDate[day] = bucket;
+        }
+        const days = Object.keys(byDate).sort();
+        if (days.length === 0) {
+            return;
+        }
 
-            // ✨ GLOBAL: Get selected metric type from global FAB toggle
-            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
-            console.log(`📊 Rendering Share of Voice Donut with metric: ${metricType}`);
+        const pct = (part, total) => total > 0 ? Math.round(part / total * 1000) / 10 : 0;
+        const rows = days.map(d => {
+            const b = byDate[d];
+            const total = b.positive + b.neutral + b.negative;
+            return {
+                day: d,
+                total,
+                positive: pct(b.positive, total),
+                neutral: pct(b.neutral, total),
+                negative: pct(b.negative, total),
+                raw: b
+            };
+        });
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}${this.getReportFilterParams()}`);
-            if (!response.ok) {
-                console.warn('Could not load Share of Voice donut data');
-                return;
-            }
+        const labels = rows.map(r => {
+            const date = new Date(r.day);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
 
-            const result = await response.json();
+        const SENTIMENT_SERIES = [
+            { key: 'positive', label: 'Positive', color: '#10B981' },
+            { key: 'neutral', label: 'Neutral', color: '#CBD5E1' },
+            { key: 'negative', label: 'Negative', color: '#EF4444' },
+        ];
 
-            if (!result.success || !result.donut_data) {
-                console.warn('⚠️ No donut data available yet for this project');
-                return;
-            }
-
-            const { donut_data } = result;
-
-            // Si no hay datos, simplemente retornar
-            if (!donut_data.labels || donut_data.labels.length === 0) {
-                console.warn('⚠️ No distribution data available');
-                return;
-            }
-
-            // Crear gráfico de rosco
-            this.charts.shareOfVoiceDonut = new Chart(canvas, {
-                type: 'doughnut',
-                data: {
-                    labels: donut_data.labels,
-                    datasets: [{
-                        data: donut_data.values,
-                        backgroundColor: donut_data.colors,
-                        hoverOffset: 10
-                    }]
+        this.charts.sentimentOverTime = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: SENTIMENT_SERIES.map(serie => ({
+                    label: serie.label,
+                    data: rows.map(r => r[serie.key]),
+                    backgroundColor: serie.color,
+                    stack: 'sentiment',
+                    borderWidth: 0,
+                    maxBarThickness: 42
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: {
+                        stacked: true,
+                        min: 0,
+                        max: 100,
+                        ticks: { callback: v => `${v}%` }
+                    }
                 },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            callbacks: {
-                                label: context => {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    return `${label}: ${value.toFixed(1)}%`;
-                                }
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const row = rows[ctx.dataIndex];
+                                const key = SENTIMENT_SERIES[ctx.datasetIndex].key;
+                                return `${ctx.dataset.label}: ${ctx.parsed.y}% (${row.raw[key]} of ${row.total} mentions)`;
                             }
                         }
                     }
                 }
-            });
-
-        } catch (error) {
-            console.error('❌ Error loading Share of Voice Donut:', error);
-        }
-    },
-
-async renderSentimentDistributionChart() {
-        const canvas = document.getElementById('chartSentimentDistribution');
-        if (!canvas) return;
-
-        // Destroy existing chart
-        if (this.charts.sentimentDistribution) {
-            this.charts.sentimentDistribution.destroy();
-        }
-
-        try {
-            const projectId = this.currentProject?.id;
-            if (!projectId) {
-                console.warn('No project ID available for Sentiment Distribution');
-                return;
             }
-
-            // Obtener datos de snapshots (comparación) que incluyen sentimiento
-            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
-            const response = await fetch(
-                `${this.baseUrl}/projects/${projectId}/comparison?metric=${metricType}&days=${this.globalTimeRange}${this.getReportFilterParams()}`
-            );
-            if (!response.ok) {
-                console.warn('Could not load sentiment data');
-                return;
-            }
-
-            const result = await response.json();
-
-            if (!result.comparison || result.comparison.length === 0) {
-                console.warn('⚠️ No comparison data available for sentiment analysis');
-                return;
-            }
-
-            // Agregar contadores de sentimiento de todos los LLMs (último snapshot real)
-            let totalPositive = 0;
-            let totalNeutral = 0;
-            let totalNegative = 0;
-
-            // Usar solo filas del snapshot_date más reciente para evitar mezclar fechas.
-            const toDateKey = (value) => {
-                const parsed = new Date(value);
-                if (Number.isNaN(parsed.getTime())) return String(value || '');
-                return parsed.toISOString().slice(0, 10);
-            };
-            const datedSnapshots = Array.isArray(result.comparison)
-                ? result.comparison.filter((row) => row?.snapshot_date)
-                : [];
-            if (datedSnapshots.length === 0) {
-                console.warn('⚠️ No dated snapshots available for sentiment analysis');
-                return;
-            }
-            datedSnapshots.sort((a, b) => new Date(b.snapshot_date) - new Date(a.snapshot_date));
-            const latestDateKey = toDateKey(datedSnapshots[0].snapshot_date);
-            const recentSnapshots = datedSnapshots.filter(
-                (snapshot) => toDateKey(snapshot.snapshot_date) === latestDateKey
-            );
-            if (recentSnapshots.length === 0) {
-                console.warn('⚠️ No recent snapshots available for sentiment analysis');
-                return;
-            }
-
-            recentSnapshots.forEach(snapshot => {
-                if (snapshot.sentiment) {
-                    totalPositive += snapshot.sentiment.positive || 0;
-                    totalNeutral += snapshot.sentiment.neutral || 0;
-                    totalNegative += snapshot.sentiment.negative || 0;
-                }
-            });
-
-            const total = totalPositive + totalNeutral + totalNegative;
-
-            if (total === 0) {
-                console.warn('⚠️ No sentiment data available');
-                return;
-            }
-
-            // Calcular porcentajes promedio
-            const avgPositive = totalPositive / recentSnapshots.length;
-            const avgNeutral = totalNeutral / recentSnapshots.length;
-            const avgNegative = totalNegative / recentSnapshots.length;
-
-            const data = {
-                labels: ['Positive', 'Neutral', 'Negative'],
-                values: [
-                    avgPositive.toFixed(1),
-                    avgNeutral.toFixed(1),
-                    avgNegative.toFixed(1)
-                ],
-                // El sentimiento SÍ significa bueno/malo, así que va con los
-                // colores de estado de la marca, nunca con los de serie: un
-                // color de estado no debe hacerse pasar por una categoría.
-                colors: [
-                    CSChartTheme.status.success,
-                    CSChartTheme.status.neutral,
-                    CSChartTheme.status.error
-                ]
-            };
-
-            // Crear gráfico de rosco
-            this.charts.sentimentDistribution = new Chart(canvas, {
-                type: 'doughnut',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        data: data.values,
-                        backgroundColor: data.colors,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    // ✨ Click en un segmento → LLM Responses Inspector con el
-                    // filtro de sentimiento correspondiente activo
-                    onHover: (event, elements) => {
-                        const target = event?.native?.target;
-                        if (target) target.style.cursor = elements.length ? 'pointer' : 'default';
-                    },
-                    onClick: (event, elements) => {
-                        if (!elements || elements.length === 0) return;
-                        const label = this.charts.sentimentDistribution?.data?.labels?.[elements[0].index];
-                        if (!label) return;
-                        this.goToResponsesWithSentiment(String(label).toLowerCase());
-                    },
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            footerFont: {
-                                size: 11,
-                                style: 'italic',
-                                weight: '400'
-                            },
-                            footerColor: CSChartTheme.ink.tertiary,
-                            callbacks: {
-                                label: context => {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    return `${label}: ${value}%`;
-                                },
-                                footer: () => 'Click to inspect these responses'
-                            }
-                        }
-                    }
-                }
-            });
-
-        } catch (error) {
-            console.error('❌ Error loading Sentiment Distribution:', error);
-        }
+        });
     },
 
 async loadQueryHistoryChart(queryId) {

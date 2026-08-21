@@ -1192,7 +1192,7 @@ def get_project(project_id):
             metric_type = 'normal'
         report_filters = _parse_report_filters(request.args)
         enabled_llms_filter = _narrow_llms(project.get('enabled_llms') or [], report_filters)
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=datetime.now().date() - timedelta(days=days), end_date=datetime.now().date())
         logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
 
         # Banner UX: mostrar aviso solo cuando hay histórico en el rango
@@ -2894,21 +2894,23 @@ _REPORT_VALID_LLMS = ('openai', 'anthropic', 'google', 'perplexity')
 
 class ReportFilters:
     """Filtro global parseado. prompt_subset_active == True si algún filtro
-    exige resolver query_ids (set/clusters/branded/prompts concretos)."""
+    exige resolver query_ids (set/clusters/branded/prompts/sentiment)."""
 
-    __slots__ = ('set_filter', 'clusters', 'branded', 'llms', 'prompt_ids')
+    __slots__ = ('set_filter', 'clusters', 'branded', 'llms', 'prompt_ids', 'sentiment')
 
     def __init__(self, set_filter=None, clusters=None, branded=None, llms=None,
-                 prompt_ids=None):
+                 prompt_ids=None, sentiment=None):
         self.set_filter = set_filter
         self.clusters = clusters
         self.branded = branded
         self.llms = llms
         self.prompt_ids = prompt_ids
+        self.sentiment = sentiment
 
     @property
     def prompt_subset_active(self):
-        return bool(self.set_filter or self.clusters or self.branded or self.prompt_ids)
+        return bool(self.set_filter or self.clusters or self.branded
+                    or self.prompt_ids or self.sentiment)
 
 
 def _parse_report_filters(args):
@@ -2945,7 +2947,10 @@ def _parse_report_filters(args):
             int(p) for p in raw_prompts.split(',')[:500] if p.strip().isdigit()
         ] or None
 
-    return ReportFilters(set_filter, clusters, branded, llms, prompt_ids)
+    raw_sentiment = (args.get('sentiment') or '').strip().lower()
+    sentiment = raw_sentiment if raw_sentiment in ('positive', 'neutral', 'negative') else None
+
+    return ReportFilters(set_filter, clusters, branded, llms, prompt_ids, sentiment)
 
 
 def _report_filter_conditions(set_filter, clusters, alias='q'):
@@ -2978,12 +2983,20 @@ def _narrow_llms(enabled_llms, report_filters):
     return narrowed or enabled_llms
 
 
-def _resolve_filtered_query_ids(cur, project_id, report_filters, include_clusters=True):
+def _resolve_filtered_query_ids(cur, project_id, report_filters, include_clusters=True,
+                                start_date=None, end_date=None):
     """
     IDs de queries del proyecto que pasan el filtro global (set + clusters +
-    branded). branded NO es una columna: se clasifica en Python con las
-    brand_keywords del proyecto (classify_query_branded), así que el resolver
-    trae los textos y filtra aquí.
+    branded + prompts + sentiment). branded NO es una columna: se clasifica en
+    Python con las brand_keywords del proyecto (classify_query_branded), así
+    que el resolver trae los textos y filtra aquí.
+
+    sentiment usa semántica de SUBCONJUNTO DE PROMPTS: "prompts con al menos
+    una respuesta de ese sentimiento en el rango" (start/end_date del
+    endpoint). Filtrar respuestas individuales rompería los denominadores
+    (mention rate ~100% por construcción); así todas las métricas siguen
+    siendo verdad sobre los prompts afectados. El Inspector aplica ADEMÁS el
+    filtro a nivel de respuesta por su cuenta.
 
     include_clusters=False para endpoints que ya desglosan por cluster
     (/clusters/metrics y las hojas de clusters de los exports).
@@ -2994,13 +3007,26 @@ def _resolve_filtered_query_ids(cur, project_id, report_filters, include_cluster
     """
     clusters = report_filters.clusters if include_clusters else None
     if not report_filters.set_filter and not clusters \
-            and not report_filters.branded and not report_filters.prompt_ids:
+            and not report_filters.branded and not report_filters.prompt_ids \
+            and not report_filters.sentiment:
         return None
 
     conds, params = _report_filter_conditions(report_filters.set_filter, clusters, alias='q')
     if report_filters.prompt_ids:
         conds.append("q.id = ANY(%s)")
         params.append(report_filters.prompt_ids)
+    if report_filters.sentiment:
+        sentiment_sql = ("SELECT 1 FROM llm_monitoring_results r "
+                         "WHERE r.query_id = q.id AND r.sentiment = %s")
+        sentiment_params = [report_filters.sentiment]
+        if start_date is not None:
+            sentiment_sql += " AND r.analysis_date >= %s"
+            sentiment_params.append(start_date)
+        if end_date is not None:
+            sentiment_sql += " AND r.analysis_date <= %s"
+            sentiment_params.append(end_date)
+        conds.append(f"EXISTS ({sentiment_sql})")
+        params.extend(sentiment_params)
     sql = "SELECT q.id, q.query_text FROM llm_monitoring_queries q WHERE q.project_id = %s"
     if conds:
         sql += " AND " + " AND ".join(conds)
@@ -3044,6 +3070,8 @@ def _report_view_label(report_filters):
         parts.append('LLMs: ' + ', '.join(l.capitalize() for l in report_filters.llms))
     if report_filters.prompt_ids:
         parts.append(f'Prompts: {len(report_filters.prompt_ids)} selected')
+    if report_filters.sentiment:
+        parts.append(f'Sentiment: prompts with {report_filters.sentiment} responses')
     return ' · '.join(parts) if parts else 'All prompts'
 
 
@@ -3423,7 +3451,8 @@ def get_clusters_metrics(project_id):
 
         # Pull per-result rows (only for prompts with cluster assigned)
         filtered_query_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_filters, include_clusters=False
+            cur, project_id, report_filters, include_clusters=False,
+            start_date=start_date, end_date=end_date
         )
         params = [project_id, start_date, end_date]
         ids_filter = ''
@@ -4220,7 +4249,7 @@ def get_project_metrics(project_id):
 
         # Filtro global: con subconjunto de prompts activo (set/clusters/
         # branded) los snapshots preagregados no sirven → pseudo-snapshots.
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=start_date, end_date=end_date)
 
         if filtered_query_ids is not None:
             snapshots = pseudo_snapshots_lib.build_pseudo_snapshots(
@@ -4293,6 +4322,14 @@ def get_project_metrics(project_id):
                     'positive': float(positive_pct),
                     'neutral': float(neutral_pct),
                     'negative': float(negative_pct)
+                },
+                # Contadores crudos para la gráfica "Sentiment Over Time"
+                # (barras apiladas por día: hay que sumar entre LLMs, y eso
+                # con porcentajes no se puede)
+                'sentiment_counts': {
+                    'positive': int(pos_mentions),
+                    'neutral': int(neu_mentions),
+                    'negative': int(neg_mentions)
                 },
                 'total_queries': s.get('total_queries') or 0,
                 'total_cost': float(s['total_cost_usd']) if s['total_cost_usd'] is not None else 0
@@ -4528,7 +4565,11 @@ def get_urls_ranking(project_id):
         if not llm_provider and not enabled_llms_filter:
             enabled_llms_filter = None
 
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(
+            cur, project_id, report_filters,
+            start_date=datetime.now().date() - timedelta(days=days),
+            end_date=datetime.now().date()
+        )
 
         urls_ranking = LLMMonitoringStatsService.get_project_urls_ranking(
             project_id=project_id,
@@ -4718,7 +4759,7 @@ def get_llm_comparison(project_id):
         
         # Filtro global: con subconjunto de prompts activo se calculan
         # pseudo-snapshots desde results (los snapshots agregan todos los prompts)
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=datetime.now().date() - timedelta(days=days), end_date=datetime.now().date())
 
         if filtered_query_ids is not None:
             rows = pseudo_snapshots_lib.build_pseudo_snapshots(
@@ -5111,7 +5152,7 @@ def get_project_queries(project_id):
             FROM query_metrics
             ORDER BY last_update DESC NULLS LAST, created_at DESC
         """
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=start_date, end_date=end_date)
         query_metrics_sql = query_metrics_sql.format(
             llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else "",
             report_filter="AND q.id = ANY(%s)" if filtered_query_ids is not None else ""
@@ -5357,7 +5398,7 @@ def get_share_of_voice_history(project_id):
         # Se usa cuando el scope branded/non-branded legacy está activo Y/O
         # cuando hay filtro global de subconjunto de prompts (los snapshots
         # agregan todos los prompts y no pueden filtrarse a posteriori).
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=start_date)
         if (query_scope != 'all' and brand_keywords_sov) or filtered_query_ids is not None:
             sov_result_query = """
                 SELECT r.analysis_date, r.llm_provider, q.query_text,
@@ -6657,10 +6698,17 @@ def get_project_responses(project_id):
                 params.append(cluster_filter_raw)
 
         # Filtro global del informe (set + clusters + branded → query_ids)
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=start_date, end_date=end_date)
         if filtered_query_ids is not None:
             query += " AND r.query_id = ANY(%s)"
             params.append(filtered_query_ids)
+
+        # Sentiment: el Inspector es la vista de nivel RESPUESTA, así que aquí
+        # el filtro global de sentimiento sí baja al detalle (además del
+        # subconjunto de prompts que ya aplican las métricas)
+        if report_filters.sentiment:
+            query += " AND r.sentiment = %s"
+            params.append(report_filters.sentiment)
 
         query += " ORDER BY r.analysis_date DESC, q.query_text, r.llm_provider"
 
@@ -6804,7 +6852,7 @@ def export_project_excel(project_id):
 
         # Filtro global del informe: el Excel debe decir lo mismo que la
         # pantalla desde la que se descargó.
-        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=start_date, end_date=end_date)
 
         def _add_query_filter(query_str, params_list, column='r.query_id'):
             if filtered_query_ids is not None:
@@ -6980,7 +7028,8 @@ def export_project_excel(project_id):
         # A las hojas de clusters les aplica set/branded (el filtro de clusters
         # no: ya desglosan por cluster) → ids resueltos sin clusters
         _cluster_sheet_ids = _resolve_filtered_query_ids(
-            cur, project_id, report_filters, include_clusters=False
+            cur, project_id, report_filters, include_clusters=False,
+            start_date=start_date, end_date=end_date
         )
         _set_filter_sql = 'AND q.id = ANY(%s)' if _cluster_sheet_ids is not None else ''
         _set_params = [_cluster_sheet_ids] if _cluster_sheet_ids is not None else []
@@ -8220,7 +8269,7 @@ def export_project_pdf(project_id):
 
         # Filtro global del informe: el PDF refleja la vista con la que se
         # descargó, como el panel y el Excel.
-        pdf_filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters)
+        pdf_filtered_query_ids = _resolve_filtered_query_ids(cur, project_id, report_filters, start_date=start_date, end_date=end_date)
 
         def _pdf_query_filter(query, params, column='query_id'):
             if pdf_filtered_query_ids is not None:
@@ -8422,7 +8471,8 @@ def export_project_pdf(project_id):
                 cluster_pdf_sql += " AND r.llm_provider = ANY(%s) "
                 cluster_pdf_params.append(enabled_llms_filter)
             _pdf_cluster_ids = _resolve_filtered_query_ids(
-                cur, project_id, report_filters, include_clusters=False
+                cur, project_id, report_filters, include_clusters=False,
+            start_date=start_date, end_date=end_date
             )
             _pdf_set_sql = 'AND q.id = ANY(%s)' if _pdf_cluster_ids is not None else ''
             _pdf_set_params = [_pdf_cluster_ids] if _pdf_cluster_ids is not None else []

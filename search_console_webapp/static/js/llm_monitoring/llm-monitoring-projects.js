@@ -273,7 +273,7 @@ async viewProject(projectId) {
         const respStatus = document.getElementById('responsesStatus');
         if (respStatus) respStatus.textContent = '';
         // Reset all response filters
-        ['responsesMentionFilter', 'responsesSentimentFilter'].forEach(id => {
+        ['responsesMentionFilter'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
