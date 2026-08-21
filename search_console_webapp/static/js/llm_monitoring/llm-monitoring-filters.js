@@ -149,83 +149,85 @@ Object.assign(LLMMonitoring.prototype, {
         // proyecto; sets/clusters solo si están configurados.
         bar.style.display = 'flex';
 
-        // ── Toggle exclusivo de sets ──
+        // ── Prompt set (dropdown exclusivo) ──
         const setGroup = document.getElementById('setFilterGroup');
-        const setToggle = document.getElementById('setFilterToggle');
-        if (setGroup && setToggle) {
+        if (setGroup) {
             const showSets = !!cfg.setsEnabled;
             setGroup.style.display = showSets ? 'flex' : 'none';
             if (showSets) {
                 const counts = cfg.setCounts || {};
                 const active = cfg.activeToday || {};
-                const options = [{ key: 'core', label: 'Core', window: null, inWindow: true }]
-                    .concat(cfg.sets.map(s => ({
-                        key: s.name,
-                        label: s.name,
-                        window: s.window || null,
-                        inWindow: active[s.name] !== false
-                    })));
-                setToggle.innerHTML = options.map(opt => {
-                    const isActive = (f.set || 'core') === opt.key;
-                    const count = counts[opt.key === 'core' ? 'core' : opt.key];
-                    const countHtml = (count !== undefined)
-                        ? ` <span class="set-count">(${count})</span>` : '';
-                    const dotHtml = opt.window
-                        ? `<span class="set-window-dot ${opt.inWindow ? 'in-window' : 'out-of-window'}"
-                                 title="${opt.inWindow ? 'In season today' : 'Out of season today'} (${this.escapeHtml(opt.window.start)} → ${this.escapeHtml(opt.window.end)} UTC)"></span>`
-                        : '';
-                    return `<button type="button" role="tab"
-                                    class="set-option ${isActive ? 'active' : ''}"
-                                    data-set="${this.escapeHtml(opt.key)}">
-                                ${dotHtml}${this.escapeHtml(opt.label)}${countHtml}
-                            </button>`;
-                }).join('');
-                setToggle.querySelectorAll('.set-option').forEach(btn => {
-                    btn.addEventListener('click', () => this.onReportSetChange(btn.dataset.set));
+                const options = [{
+                    key: 'core',
+                    label: 'Core',
+                    count: counts.core,
+                    dot: null
+                }].concat(cfg.sets.map(s => ({
+                    key: s.name,
+                    label: s.name,
+                    count: counts[s.name],
+                    dot: s.window
+                        ? {
+                            cls: active[s.name] !== false ? 'in-window' : 'out-of-window',
+                            title: `${active[s.name] !== false ? 'In season today' : 'Out of season today'} (${s.window.start} → ${s.window.end} UTC)`
+                        }
+                        : null
+                })));
+                const current = f.set || 'core';
+                const currentOpt = options.find(o => o.key === current) || options[0];
+                this._renderExclusiveDropdown({
+                    containerId: 'setFilterDropdown',
+                    options,
+                    currentKey: current,
+                    triggerLabel: currentOpt.label
+                        + (currentOpt.count !== undefined ? ` (${currentOpt.count})` : ''),
+                    hasSelection: current !== 'core',
+                    onSelect: (key) => this.onReportSetChange(key)
                 });
             }
         }
 
-        // ── Chips multiselección de clusters ──
+        // ── Clusters (dropdown multiselección) ──
         const clusterGroup = document.getElementById('clusterFilterGroup');
-        const clusterChips = document.getElementById('clusterFilterChips');
-        if (clusterGroup && clusterChips) {
+        if (clusterGroup) {
             const showClusters = !!cfg.clustersEnabled;
             clusterGroup.style.display = showClusters ? 'flex' : 'none';
             if (showClusters) {
                 const selected = new Set(f.clusters || []);
-                clusterChips.innerHTML = cfg.clusters.map(name => `
-                    <button type="button"
-                            class="cluster-chip ${selected.has(name) ? 'active' : ''}"
-                            data-cluster="${this.escapeHtml(name)}">
-                        ${this.escapeHtml(name)}
-                    </button>
-                `).join('');
-                clusterChips.querySelectorAll('.cluster-chip').forEach(chip => {
-                    chip.addEventListener('click', () => this.onReportClusterToggle(chip.dataset.cluster));
+                const effectiveAll = selected.size === 0;
+                const triggerLabel = effectiveAll
+                    ? 'All clusters'
+                    : (selected.size === 1
+                        ? [...selected][0]
+                        : `${selected.size} of ${cfg.clusters.length} clusters`);
+                this._renderMultiCheckDropdown({
+                    containerId: 'clustersFilterDropdown',
+                    items: cfg.clusters.map(name => ({ value: name, label: name })),
+                    selectedValues: selected,
+                    checkAllWhenEmpty: true,
+                    triggerLabel,
+                    hasSelection: !effectiveAll,
+                    onChange: (values) => {
+                        // Todos marcados == sin filtro de clusters
+                        const all = values.length >= cfg.clusters.length ? [] : values;
+                        this.reportFilters.clusters = all;
+                        this._reloadReportWithFilters();
+                    }
                 });
             }
         }
 
-        // ── Brand scope (exclusivo: Todos / Non-branded / Branded) ──
-        const brandToggle = document.getElementById('brandFilterToggle');
-        if (brandToggle) {
-            const current = f.branded || 'all';
-            brandToggle.innerHTML = [
-                { key: 'all', label: 'All' },
-                { key: 'non_branded', label: 'Non-branded' },
-                { key: 'branded', label: 'Branded' },
-            ].map(opt => `
-                <button type="button" role="tab"
-                        class="set-option ${current === opt.key ? 'active' : ''}"
-                        data-branded="${opt.key}">
-                    ${opt.label}
-                </button>
-            `).join('');
-            brandToggle.querySelectorAll('.set-option').forEach(btn => {
-                btn.addEventListener('click', () => this.onReportBrandedChange(btn.dataset.branded));
-            });
-        }
+        // ── Prompt type (dropdown exclusivo) ──
+        const current = f.branded || 'all';
+        const brandLabels = { all: 'All', non_branded: 'Non-branded', branded: 'Branded' };
+        this._renderExclusiveDropdown({
+            containerId: 'brandFilterDropdown',
+            options: Object.entries(brandLabels).map(([key, label]) => ({ key, label })),
+            currentKey: current,
+            triggerLabel: brandLabels[current],
+            hasSelection: current !== 'all',
+            onSelect: (key) => this.onReportBrandedChange(key)
+        });
 
         // ── LLMs (dropdown con checks) ──
         this._renderLlmFilterDropdown();
@@ -242,6 +244,123 @@ Object.assign(LLMMonitoring.prototype, {
             if (countEl) countEl.textContent = activeCount > 0 ? `(${activeCount})` : '';
             resetBtn.onclick = () => this.resetReportFilters();
         }
+    },
+
+    /** Cierre por clic fuera, compartido por TODOS los dropdowns de la barra. */
+    _bindDropdownOutsideClose() {
+        if (this._filterDropdownOutsideBound) return;
+        this._filterDropdownOutsideBound = true;
+        document.addEventListener('click', (e) => {
+            document.querySelectorAll('#reportFilterBar .llm-filter-dropdown').forEach(dd => {
+                if (!dd.contains(e.target)) {
+                    const m = dd.querySelector('.llm-filter-menu');
+                    const t = dd.querySelector('.llm-filter-trigger');
+                    if (m) m.style.display = 'none';
+                    if (t) t.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    },
+
+    /** Abre/cierra un menú cerrando los demás (solo un dropdown abierto a la vez). */
+    _toggleFilterMenu(dropdown) {
+        const menu = dropdown.querySelector('.llm-filter-menu');
+        const trigger = dropdown.querySelector('.llm-filter-trigger');
+        const open = menu.style.display !== 'none';
+        document.querySelectorAll('#reportFilterBar .llm-filter-menu').forEach(m => {
+            m.style.display = 'none';
+        });
+        if (!open) {
+            menu.style.display = 'block';
+        }
+        trigger?.setAttribute('aria-expanded', String(!open));
+        return !open;
+    },
+
+    /**
+     * Dropdown EXCLUSIVO (una opción activa): Prompt set y Prompt type.
+     * Cada opción aplica al clicarla y cierra el menú.
+     */
+    _renderExclusiveDropdown({ containerId, options, currentKey, triggerLabel, hasSelection, onSelect }) {
+        const dropdown = document.getElementById(containerId);
+        if (!dropdown) return;
+
+        dropdown.innerHTML = `
+            <button type="button" class="llm-filter-trigger ${hasSelection ? 'has-selection' : ''}"
+                    aria-haspopup="true" aria-expanded="false">
+                <span class="llm-filter-trigger-label">${this.escapeHtml(triggerLabel)}</span>
+                <i class="fas fa-chevron-down llm-filter-caret"></i>
+            </button>
+            <div class="llm-filter-menu" role="menu" style="display:none;">
+                ${options.map(opt => `
+                    <button type="button"
+                            class="llm-filter-option filter-option-exclusive ${opt.key === currentKey ? 'is-selected' : ''}"
+                            data-key="${this.escapeHtml(opt.key)}">
+                        ${opt.dot ? `<span class="set-window-dot ${opt.dot.cls}" title="${this.escapeHtml(opt.dot.title)}"></span>` : ''}
+                        <span>${this.escapeHtml(opt.label)}</span>
+                        ${opt.count !== undefined ? `<span class="filter-option-count">${opt.count}</span>` : ''}
+                        <i class="fas fa-check filter-option-check"></i>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+
+        const trigger = dropdown.querySelector('.llm-filter-trigger');
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleFilterMenu(dropdown);
+        });
+        dropdown.querySelectorAll('.filter-option-exclusive').forEach(btn => {
+            btn.addEventListener('click', () => {
+                dropdown.querySelector('.llm-filter-menu').style.display = 'none';
+                onSelect(btn.dataset.key);
+            });
+        });
+        this._bindDropdownOutsideClose();
+    },
+
+    /**
+     * Dropdown MULTISELECCIÓN con checks (Clusters): aplica en cada cambio,
+     * como el de LLMs — son listas cortas.
+     */
+    _renderMultiCheckDropdown({ containerId, items, selectedValues, checkAllWhenEmpty,
+                                triggerLabel, hasSelection, onChange }) {
+        const dropdown = document.getElementById(containerId);
+        if (!dropdown) return;
+
+        const isChecked = (value) => (checkAllWhenEmpty && selectedValues.size === 0)
+            || selectedValues.has(value);
+
+        dropdown.innerHTML = `
+            <button type="button" class="llm-filter-trigger ${hasSelection ? 'has-selection' : ''}"
+                    aria-haspopup="true" aria-expanded="false">
+                <span class="llm-filter-trigger-label">${this.escapeHtml(triggerLabel)}</span>
+                <i class="fas fa-chevron-down llm-filter-caret"></i>
+            </button>
+            <div class="llm-filter-menu" role="menu" style="display:none;">
+                ${items.map(item => `
+                    <label class="llm-filter-option">
+                        <input type="checkbox" value="${this.escapeHtml(item.value)}"
+                               ${isChecked(item.value) ? 'checked' : ''}>
+                        <span>${this.escapeHtml(item.label)}</span>
+                    </label>
+                `).join('')}
+            </div>
+        `;
+
+        const trigger = dropdown.querySelector('.llm-filter-trigger');
+        const menu = dropdown.querySelector('.llm-filter-menu');
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._toggleFilterMenu(dropdown);
+        });
+        menu.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const checked = [...menu.querySelectorAll('input:checked')].map(i => i.value);
+                onChange(checked);
+            });
+        });
+        this._bindDropdownOutsideClose();
     },
 
     _renderLlmFilterDropdown() {
@@ -286,23 +405,9 @@ Object.assign(LLMMonitoring.prototype, {
         const menu = dropdown.querySelector('.llm-filter-menu');
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            const open = menu.style.display !== 'none';
-            menu.style.display = open ? 'none' : 'block';
-            trigger.setAttribute('aria-expanded', String(!open));
+            this._toggleFilterMenu(dropdown);
         });
-        // Cierre al clicar fuera (listener único a nivel de documento)
-        if (!this._llmDropdownOutsideBound) {
-            this._llmDropdownOutsideBound = true;
-            document.addEventListener('click', (e) => {
-                const dd = document.getElementById('llmFilterDropdown');
-                if (dd && !dd.contains(e.target)) {
-                    const m = dd.querySelector('.llm-filter-menu');
-                    const t = dd.querySelector('.llm-filter-trigger');
-                    if (m) m.style.display = 'none';
-                    if (t) t.setAttribute('aria-expanded', 'false');
-                }
-            });
-        }
+        this._bindDropdownOutsideClose();
         menu.querySelectorAll('input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => {
                 const checked = [...menu.querySelectorAll('input:checked')].map(i => i.value);
@@ -345,17 +450,13 @@ Object.assign(LLMMonitoring.prototype, {
         const menu = dropdown.querySelector('.llm-filter-menu');
         trigger.addEventListener('click', async (e) => {
             e.stopPropagation();
-            const open = menu.style.display !== 'none';
-            if (open) {
-                menu.style.display = 'none';
-                trigger.setAttribute('aria-expanded', 'false');
-                return;
+            const opened = this._toggleFilterMenu(dropdown);
+            if (opened) {
+                await this._fillPromptsFilterMenu(menu);
+                menu.querySelector('.prompts-filter-search input')?.focus();
             }
-            await this._fillPromptsFilterMenu(menu);
-            menu.style.display = 'block';
-            trigger.setAttribute('aria-expanded', 'true');
-            menu.querySelector('.prompts-filter-search input')?.focus();
         });
+        this._bindDropdownOutsideClose();
     },
 
     async _fillPromptsFilterMenu(menu) {

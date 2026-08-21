@@ -5114,8 +5114,10 @@ label:not(.search-form label) {
 .report-filter-bar {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
+    /* Una sola fila: todos los grupos son dropdowns compactos. En pantallas
+       estrechas se permite el salto de línea como salida de emergencia. */
+    flex-wrap: nowrap;
+    gap: 0.85rem;
     padding: 0.5rem 0.75rem;
     margin-bottom: 1rem;
     background: var(--cs-bg-subtle);
@@ -5125,7 +5127,20 @@ label:not(.search-form label) {
     /* El navbar de la app es fixed de ~71px: sin este offset la barra
        quedaba oculta debajo al hacer scroll. */
     top: 82px;
-    z-index: 20;
+    /* Por encima del z-index:40 que las tarjetas adoptan en hover (regla de
+       tooltips en brand-dashboard-overrides): sin esto, pasar el ratón por
+       una tarjeta la pintaba SOBRE la barra. */
+    z-index: 60;
+}
+
+@media (max-width: 1100px) {
+    .report-filter-bar {
+        flex-wrap: wrap;
+    }
+}
+
+.report-filter-group {
+    flex-shrink: 0;
 }
 
 .report-filter-group {
@@ -5641,7 +5656,7 @@ label:not(.search-form label) {
     border-radius: 10px;
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
     padding: 0.35rem;
-    z-index: 50;
+    z-index: 70;
 }
 
 .llm-filter-dropdown .llm-filter-option {
@@ -5675,11 +5690,11 @@ label:not(.search-form label) {
 
 
 /* ── Dropdown de prompts (variante con búsqueda y lista larga) ── */
-.prompts-filter-menu {
-    min-width: 340px;
-    max-width: 420px;
-    right: 0;
-    left: auto;
+/* Doble clase para ganar a `.llm-filter-dropdown .llm-filter-menu` (0,2,0) */
+.llm-filter-dropdown .llm-filter-menu.prompts-filter-menu {
+    min-width: 540px;
+    max-width: 680px;
+    width: max-content;
 }
 
 .prompts-filter-search {
@@ -5751,3 +5766,44 @@ label:not(.search-form label) {
     padding: 0 0.9rem;
     font-size: 0.75rem;
 }
+
+
+/* ── Opciones exclusivas de los dropdowns (Set / Type) ── */
+.llm-filter-option.filter-option-exclusive {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+}
+
+.filter-option-exclusive .filter-option-check {
+    margin-left: auto;
+    font-size: 0.65rem;
+    color: var(--cs-text-primary, #0F172A);
+    visibility: hidden;
+}
+
+.filter-option-exclusive.is-selected .filter-option-check {
+    visibility: visible;
+}
+
+.filter-option-exclusive.is-selected {
+    background: var(--cs-bg-subtle, #F8FAFC);
+    font-weight: var(--cs-weight-semibold, 600);
+}
+
+.filter-option-exclusive .filter-option-count {
+    font-size: 0.68rem;
+    color: var(--cs-text-tertiary, #94A3B8);
+}
+
+.llm-filter-menu .set-window-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.llm-filter-menu .set-window-dot.in-window { background: #10B981; }
+.llm-filter-menu .set-window-dot.out-of-window { background: var(--cs-text-tertiary, #94A3B8); }
