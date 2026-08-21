@@ -732,7 +732,6 @@ async addSelectedSuggestions() {
             await this.refreshPromptViews();
 
             // Keep query filter synced after adding suggestions
-            await this.populateQueryFilter();
 
             // Refresh project cards so CTA state stays in sync
             await this.refreshProjectsListIfVisible();
@@ -753,56 +752,7 @@ async addSelectedSuggestions() {
         }
     },
 
-async populateQueryFilter() {
-        const select = document.getElementById('responsesQueryFilter');
-        if (!select || !this.currentProject?.id) return;
-
-        // Save current selection
-        const currentSelection = select.value;
-
-        // Clear all options except the default "All Prompts"
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
-
-        try {
-            // Fetch queries for the project based on global time range
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries?days=${this.globalTimeRange}${this.getReportFilterParams()}`);
-            if (!response.ok) {
-                console.warn('Could not load queries for filter');
-                return;
-            }
-
-            const data = await response.json();
-            if (!data.success || !data.queries || data.queries.length === 0) {
-                console.warn('No queries available for filter');
-                return;
-            }
-
-            // Sort queries by last update (most recent first)
-            const sortedQueries = data.queries.sort((a, b) => {
-                const dateA = new Date(a.last_update || a.created_at || 0);
-                const dateB = new Date(b.last_update || b.created_at || 0);
-                return dateB - dateA;
-            });
-
-            // Add all queries to dropdown
-            sortedQueries.forEach(query => {
-                const option = document.createElement('option');
-                option.value = query.id;
-                option.textContent = query.prompt.length > 60 ? query.prompt.substring(0, 60) + '...' : query.prompt;
-                select.appendChild(option);
-            });
-
-            // Restore previous selection if it still exists
-            if (currentSelection && select.querySelector(`option[value="${currentSelection}"]`)) {
-                select.value = currentSelection;
-            }
-
-            console.log(`✅ Loaded ${sortedQueries.length} prompts into filter dropdown`);
-        } catch (error) {
-            console.error('❌ Error populating query filter:', error);
-        }
-    }
+// populateQueryFilter se retiró: el filtro de prompt del Inspector
+// vive ahora en la barra de filtros global (dropdown Prompts).
 
 });

@@ -595,7 +595,6 @@ async savePrompts() {
             await this.refreshPromptViews();
 
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
-            await this.populateQueryFilter();
 
             // Refresh project cards so "Run First Analysis" CTA updates immediately
             await this.refreshProjectsListIfVisible();
@@ -654,7 +653,6 @@ async deletePrompt(queryId) {
             await this.refreshPromptViews();
 
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
-            await this.populateQueryFilter();
 
             // Refresh project cards so CTA state stays in sync
             await this.refreshProjectsListIfVisible();
