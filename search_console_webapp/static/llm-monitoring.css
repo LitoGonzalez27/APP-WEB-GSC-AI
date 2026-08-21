@@ -5690,11 +5690,17 @@ label:not(.search-form label) {
 
 
 /* ── Dropdown de prompts (variante con búsqueda y lista larga) ── */
-/* Doble clase para ganar a `.llm-filter-dropdown .llm-filter-menu` (0,2,0) */
+/* Doble clase para ganar a `.llm-filter-dropdown .llm-filter-menu` (0,2,0).
+   Anclado a la DERECHA del trigger (se despliega hacia la izquierda): el
+   grupo Prompts es el último de la barra y abierto hacia la derecha se
+   salía del viewport provocando scroll horizontal. El max-width se capa al
+   ancho de la ventana por si la barra queda pegada al borde. */
 .llm-filter-dropdown .llm-filter-menu.prompts-filter-menu {
     min-width: 540px;
-    max-width: 680px;
+    max-width: min(680px, calc(100vw - 48px));
     width: max-content;
+    left: auto;
+    right: 0;
 }
 
 .prompts-filter-search {
