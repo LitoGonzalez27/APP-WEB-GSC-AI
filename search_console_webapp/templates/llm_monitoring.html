@@ -524,32 +524,25 @@
                 <div id="reportFilterBarSentinel" aria-hidden="true"></div>
                 <div id="reportFilterBar" class="report-filter-bar" style="display: none;">
                     <div class="report-filter-group" id="setFilterGroup" style="display: none;">
-                        <span class="report-filter-label">
+                        <span class="report-filter-label" title="Exclusive view: the report shows one prompt set at a time (Core or a seasonal/trend set) so time series are never mixed.">
                             <i class="fas fa-layer-group"></i>
-                            Prompt set
-                            <span class="cg-info-tooltip">
-                                <i class="fas fa-info-circle"></i>
-                                <span class="cg-info-tooltip-content">
-                                    <strong>Exclusive view</strong>
-                                    The report shows one prompt set at a time (Core or a seasonal/trend set) so time series are never mixed.
-                                </span>
-                            </span>
+                            Set
                         </span>
-                        <div class="report-set-toggle" id="setFilterToggle" role="tablist"></div>
+                        <div class="llm-filter-dropdown" id="setFilterDropdown"></div>
                     </div>
                     <div class="report-filter-group" id="clusterFilterGroup" style="display: none;">
                         <span class="report-filter-label">
                             <i class="fas fa-tags"></i>
                             Clusters
                         </span>
-                        <div class="report-cluster-chips" id="clusterFilterChips"></div>
+                        <div class="llm-filter-dropdown" id="clustersFilterDropdown"></div>
                     </div>
                     <div class="report-filter-group" id="brandFilterGroup">
                         <span class="report-filter-label">
                             <i class="fas fa-bullseye"></i>
-                            Prompt type
+                            Type
                         </span>
-                        <div class="report-set-toggle" id="brandFilterToggle" role="tablist"></div>
+                        <div class="llm-filter-dropdown" id="brandFilterDropdown"></div>
                     </div>
                     <div class="report-filter-group" id="llmFilterGroup" style="display: none;">
                         <span class="report-filter-label">

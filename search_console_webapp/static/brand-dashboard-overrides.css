@@ -825,3 +825,20 @@ i.lucide-icon {
 svg.lucide-spin {
   animation: lucideSpin 1s linear infinite;
 }
+
+/* ── Hover de tarjetas: NINGUNA respuesta visual al puntero ─────────────────
+   (petición de Carlos, 2026-08-21). El bloque de arriba ya anulaba
+   box-shadow/transform; esto remata los cambios de borde que quedaban vivos
+   (llm-monitoring-enhanced.css:175 subía el border-color en hover). El
+   z-index:40 en hover SÍ se mantiene — lo necesitan los tooltips para pasar
+   sobre las tarjetas vecinas — y la barra de filtros global vive en z-index
+   60 para que nunca quede por debajo.
+   ─────────────────────────────────────────────────────────────────────────── */
+.chart-card:hover {
+  border-color: var(--cs-border-subtle);
+}
+
+.competitor-section:hover {
+  border-color: var(--cs-border-subtle);
+  box-shadow: none;
+}
