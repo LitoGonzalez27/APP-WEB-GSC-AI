@@ -273,7 +273,7 @@ async viewProject(projectId) {
         const respStatus = document.getElementById('responsesStatus');
         if (respStatus) respStatus.textContent = '';
         // Reset all response filters
-        ['responsesQueryFilter', 'responsesLLMFilter', 'responsesMentionFilter', 'responsesSentimentFilter', 'responsesQueryTypeFilter'].forEach(id => {
+        ['responsesMentionFilter', 'responsesSentimentFilter'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -349,9 +349,6 @@ async viewProject(projectId) {
 
             // ✅ NUEVO: Cargar prompts del proyecto
             await this.loadPrompts(projectId);
-
-            // ✨ NUEVO: Poblar dropdown de prompts en Responses Inspector
-            await this.populateQueryFilter();
 
             // Load detailed metrics
             await this.loadMetrics(projectId);

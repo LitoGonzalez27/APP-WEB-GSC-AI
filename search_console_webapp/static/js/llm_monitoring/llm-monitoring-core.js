@@ -609,12 +609,7 @@ setupEventListeners() {
         });
 
         // ✨ NUEVO: Event listeners para filtros de Responses Inspector
-        document.getElementById('responsesQueryFilter')?.addEventListener('change', () => {
-            if (this.currentProject?.id) {
-                this.loadResponses();
-            }
-        });
-
+        // (el filtro de Prompt se retiró: vive en la barra de filtros global)
         document.getElementById('responsesLLMFilter')?.addEventListener('change', () => {
             if (this.currentProject?.id) {
                 this.loadResponses();

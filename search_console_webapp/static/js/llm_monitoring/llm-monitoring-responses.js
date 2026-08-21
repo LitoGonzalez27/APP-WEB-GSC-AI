@@ -25,7 +25,6 @@ async loadResponses() {
             return;
         }
 
-        const queryFilter = document.getElementById('responsesQueryFilter')?.value || '';
         const daysFilter = this.globalTimeRange; // ✨ Use global time range
         const container = document.getElementById('responsesContainer');
 
@@ -43,7 +42,6 @@ async loadResponses() {
             // LLM/cluster/branded llegan desde la barra de filtros global del
             // dashboard (getReportFilterParams) — sus selects locales se retiraron.
             let url = `${this.baseUrl}/projects/${projectId}/responses?days=${daysFilter}`;
-            if (queryFilter) url += `&query_id=${queryFilter}`;
             url += this.getReportFilterParams();
 
             const response = await fetch(url);
@@ -82,7 +80,6 @@ async loadResponses() {
             if (sentimentFilter) sentimentFilter.value = '';
 
             // Populate query filter dropdown with ALL queries from project
-            await this.populateQueryFilter();
 
             // Render responses with pagination
             this.renderResponsesPaginated(container);
