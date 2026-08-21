@@ -286,6 +286,21 @@ class TestReportFilterHelpers:
         # llms NO exige resolver query_ids
         assert routes._parse_report_filters({'llms': 'openai'}).prompt_subset_active is False
 
+    def test_parse_prompts_ids(self, routes):
+        rf = routes._parse_report_filters({'prompts': '12, 34,x,56'})
+        assert rf.prompt_ids == [12, 34, 56]
+        assert rf.prompt_subset_active is True
+        # Vacío o basura → sin filtro
+        assert routes._parse_report_filters({'prompts': 'a,b'}).prompt_ids is None
+        assert routes._parse_report_filters({'prompts': ''}).prompt_ids is None
+
+    def test_report_view_label_incluye_prompts(self, routes):
+        RF = routes.ReportFilters
+        label = routes._report_view_label(RF(branded='non_branded', prompt_ids=[1, 2, 3]))
+        assert 'Non-branded prompts only' in label
+        assert 'Prompts: 3 selected' in label
+        assert routes._report_view_label(RF()) == 'All prompts'
+
     def test_narrow_llms(self, routes):
         RF = routes.ReportFilters
         enabled = ['openai', 'google', 'perplexity']

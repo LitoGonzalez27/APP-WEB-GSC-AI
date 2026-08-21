@@ -5122,7 +5122,9 @@ label:not(.search-form label) {
     border: 1px solid var(--cs-border);
     border-radius: 10px;
     position: sticky;
-    top: 0;
+    /* El navbar de la app es fixed de ~71px: sin este offset la barra
+       quedaba oculta debajo al hacer scroll. */
+    top: 82px;
     z-index: 20;
 }
 
@@ -5669,4 +5671,83 @@ label:not(.search-form label) {
 .report-filter-reset .reset-count {
     opacity: 0.7;
     font-weight: var(--cs-weight-regular, 400);
+}
+
+
+/* ── Dropdown de prompts (variante con búsqueda y lista larga) ── */
+.prompts-filter-menu {
+    min-width: 340px;
+    max-width: 420px;
+    right: 0;
+    left: auto;
+}
+
+.prompts-filter-search {
+    padding: 0.25rem 0.25rem 0.4rem;
+}
+
+.prompts-filter-search input {
+    height: 32px;
+    margin: 0;
+    padding: 0 0.6rem;
+    font-size: var(--cs-text-xs, 0.78rem);
+    border: 1px solid var(--cs-border, #E2E8F0);
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.prompts-filter-actions {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0 0.25rem 0.4rem;
+    border-bottom: 1px solid var(--cs-border, #E2E8F0);
+    margin-bottom: 0.3rem;
+}
+
+.prompts-filter-action {
+    border: none;
+    background: transparent;
+    color: var(--cs-text-secondary, #64748B);
+    font-size: 0.72rem;
+    font-weight: var(--cs-weight-medium, 500);
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: 6px;
+}
+
+.prompts-filter-action:hover {
+    background: var(--cs-bg-subtle, #F8FAFC);
+    color: var(--cs-text-primary, #0F172A);
+}
+
+.prompts-filter-list {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.prompts-filter-list .llm-filter-option {
+    align-items: flex-start;
+}
+
+.prompts-filter-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+}
+
+.prompts-filter-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.4rem 0.25rem 0.1rem;
+    border-top: 1px solid var(--cs-border, #E2E8F0);
+    margin-top: 0.3rem;
+}
+
+.prompts-filter-footer .prompts-filter-apply {
+    height: 28px;
+    padding: 0 0.9rem;
+    font-size: 0.75rem;
 }

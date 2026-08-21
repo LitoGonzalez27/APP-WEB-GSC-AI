@@ -310,6 +310,27 @@ class TestGlobalFilterBarDimensions:
         assert r.status_code == 200
         assert r.data[:5] == b'%PDF-'
 
+    def test_prompts_concretos_filtran_todo(self, client, base, with_sets):
+        rows = client.get(f'{base}/queries').get_json()['queries']
+        assert len(rows) >= 2
+        chosen = rows[0]['id']
+        r = client.get(f'{base}/queries?prompts={chosen}')
+        filtered = r.get_json()['queries']
+        assert [q['id'] for q in filtered] == [chosen]
+        # métricas con el subconjunto: cada fila pseudo agrega 1 solo prompt
+        m = client.get(f'{base}/metrics?days=30&prompts={chosen}').get_json()
+        assert all(s['total_queries'] == 1 for s in m['snapshots'])
+        # ids inexistentes → dashboard vacío pero sin error
+        r = client.get(f'{base}/metrics?days=30&prompts=99999998')
+        assert r.status_code == 200 and r.get_json()['snapshots'] == []
+
+    def test_prompts_compone_con_llms(self, client, base, with_sets):
+        rows = client.get(f'{base}/queries').get_json()['queries']
+        chosen = rows[0]['id']
+        m = client.get(f'{base}/metrics?days=30&prompts={chosen}&llms=google').get_json()
+        providers = {s['llm_provider'] for s in m['snapshots']}
+        assert providers <= {'google'}
+
 
 class TestDeletionSafety:
 
