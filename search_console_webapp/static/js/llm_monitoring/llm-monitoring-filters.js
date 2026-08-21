@@ -31,7 +31,7 @@ const REPORT_LLM_LABELS_REF = window.REPORT_LLM_LABELS;
 Object.assign(LLMMonitoring.prototype, {
 
     _defaultReportFilters() {
-        return { set: 'core', clusters: [], branded: 'all', llms: [], prompts: [] };
+        return { set: 'core', clusters: [], branded: 'all', llms: [], prompts: [], sentiment: 'all' };
     },
 
     /** ¿Hay algún filtro distinto del default? (para Reset y contador) */
@@ -43,6 +43,7 @@ Object.assign(LLMMonitoring.prototype, {
         if ((f.branded || 'all') !== 'all') n += 1;
         if ((f.llms || []).length > 0) n += 1;
         if ((f.prompts || []).length > 0) n += 1;
+        if ((f.sentiment || 'all') !== 'all') n += 1;
         return n;
     },
 
@@ -72,6 +73,9 @@ Object.assign(LLMMonitoring.prototype, {
         }
         if ((f.prompts || []).length > 0) {
             params += `&prompts=${encodeURIComponent(f.prompts.join(','))}`;
+        }
+        if ((f.sentiment || 'all') !== 'all') {
+            params += `&sentiment=${encodeURIComponent(f.sentiment)}`;
         }
         return params;
     },
@@ -131,6 +135,7 @@ Object.assign(LLMMonitoring.prototype, {
         f.llms = (f.llms || []).filter(l => enabled.has(l));
         if (!['all', 'branded', 'non_branded'].includes(f.branded)) f.branded = 'all';
         if (!Array.isArray(f.prompts)) f.prompts = [];
+        if (!['all', 'positive', 'neutral', 'negative'].includes(f.sentiment)) f.sentiment = 'all';
         this.reportFilters = f;
     },
 
@@ -227,6 +232,22 @@ Object.assign(LLMMonitoring.prototype, {
             triggerLabel: brandLabels[current],
             hasSelection: current !== 'all',
             onSelect: (key) => this.onReportBrandedChange(key)
+        });
+
+        // ── Sentiment (dropdown exclusivo) ──
+        // Semántica: "prompts con al menos una respuesta de ese sentimiento
+        // en el rango" — así las métricas siguen siendo verdad (filtrar
+        // respuestas sueltas haría el mention rate ~100% por construcción).
+        // El Inspector baja además al detalle de respuesta.
+        const sentimentValue = f.sentiment || 'all';
+        const sentimentLabels = { all: 'All', positive: 'Positive', neutral: 'Neutral', negative: 'Negative' };
+        this._renderExclusiveDropdown({
+            containerId: 'sentimentFilterDropdown',
+            options: Object.entries(sentimentLabels).map(([key, label]) => ({ key, label })),
+            currentKey: sentimentValue,
+            triggerLabel: sentimentLabels[sentimentValue],
+            hasSelection: sentimentValue !== 'all',
+            onSelect: (key) => this.onReportSentimentChange(key)
         });
 
         // ── LLMs (dropdown con checks) ──
@@ -527,6 +548,12 @@ Object.assign(LLMMonitoring.prototype, {
             const all = Array.isArray(this.allPrompts) ? this.allPrompts.length : 0;
             this.onReportPromptsChange(checked.length >= all ? [] : checked);
         });
+    },
+
+    async onReportSentimentChange(value) {
+        if ((this.reportFilters.sentiment || 'all') === value) return;
+        this.reportFilters.sentiment = value;
+        await this._reloadReportWithFilters();
     },
 
     async onReportPromptsChange(promptIds) {

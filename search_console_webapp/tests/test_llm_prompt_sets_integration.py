@@ -324,6 +324,37 @@ class TestGlobalFilterBarDimensions:
         r = client.get(f'{base}/metrics?days=30&prompts=99999998')
         assert r.status_code == 200 and r.get_json()['snapshots'] == []
 
+    def test_sentiment_filtra_como_subconjunto_de_prompts(self, client, base, with_sets):
+        """Semántica: prompts con ≥1 respuesta de ese sentimiento en el rango.
+        La unión de los tres sentimientos no puede superar el total, y las
+        métricas del subconjunto deben responder 200 con datos coherentes."""
+        total = len(client.get(f'{base}/queries?days=90').get_json()['queries'])
+        counts = {}
+        for s in ('positive', 'neutral', 'negative'):
+            rows = client.get(f'{base}/queries?days=90&sentiment={s}').get_json()['queries']
+            counts[s] = len(rows)
+            assert counts[s] <= total
+        assert any(c > 0 for c in counts.values()), f'sin datos de sentimiento: {counts}'
+        r = client.get(f'{base}/metrics?days=90&sentiment=neutral')
+        assert r.status_code == 200
+
+    def test_sentiment_en_responses_baja_a_nivel_respuesta(self, client, base, with_sets):
+        r = client.get(f'{base}/responses?days=90&sentiment=neutral')
+        assert r.status_code == 200
+        rows = r.get_json()['responses']
+        assert all(resp['sentiment'] == 'neutral' for resp in rows)
+
+    def test_metrics_expone_sentiment_counts(self, client, base, with_sets):
+        d = client.get(f'{base}/metrics?days=30').get_json()
+        assert d['snapshots'], 'sin snapshots'
+        for s in d['snapshots']:
+            sc = s.get('sentiment_counts')
+            assert sc is not None and set(sc) == {'positive', 'neutral', 'negative'}
+        # También en el camino filtrado (pseudo-snapshots)
+        d = client.get(f'{base}/metrics?days=30&prompt_set=core').get_json()
+        for s in d['snapshots']:
+            assert 'sentiment_counts' in s
+
     def test_prompts_compone_con_llms(self, client, base, with_sets):
         rows = client.get(f'{base}/queries').get_json()['queries']
         chosen = rows[0]['id']

@@ -294,6 +294,20 @@ class TestReportFilterHelpers:
         assert routes._parse_report_filters({'prompts': 'a,b'}).prompt_ids is None
         assert routes._parse_report_filters({'prompts': ''}).prompt_ids is None
 
+    def test_parse_sentiment(self, routes):
+        for v in ('positive', 'neutral', 'negative'):
+            rf = routes._parse_report_filters({'sentiment': v})
+            assert rf.sentiment == v
+            assert rf.prompt_subset_active is True
+        # Inválido o vacío → sin filtro
+        assert routes._parse_report_filters({'sentiment': 'meh'}).sentiment is None
+        assert routes._parse_report_filters({}).sentiment is None
+
+    def test_report_view_label_incluye_sentiment(self, routes):
+        RF = routes.ReportFilters
+        label = routes._report_view_label(RF(sentiment='negative'))
+        assert 'Sentiment: prompts with negative responses' in label
+
     def test_report_view_label_incluye_prompts(self, routes):
         RF = routes.ReportFilters
         label = routes._report_view_label(RF(branded='non_branded', prompt_ids=[1, 2, 3]))

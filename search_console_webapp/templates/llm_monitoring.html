@@ -544,6 +544,13 @@
                         </span>
                         <div class="llm-filter-dropdown" id="brandFilterDropdown"></div>
                     </div>
+                    <div class="report-filter-group" id="sentimentFilterGroup">
+                        <span class="report-filter-label" title="Filters the dashboard to the prompts that had at least one response with this sentiment in the selected period. The Responses Inspector also narrows to those responses.">
+                            <i class="fas fa-heart"></i>
+                            Sentiment
+                        </span>
+                        <div class="llm-filter-dropdown" id="sentimentFilterDropdown"></div>
+                    </div>
                     <div class="report-filter-group" id="llmFilterGroup" style="display: none;">
                         <span class="report-filter-label">
                             <i class="fas fa-microchip"></i>
@@ -854,30 +861,18 @@
                     </div>
                 </div>
 
-                <!-- Distribution Charts Grid (2 columns) -->
-                <div class="charts-grid">
-                    <!-- Sentiment Distribution Donut -->
-                    <div class="chart-card">
-                        <div class="chart-header">
+                <!-- Sentiment Over Time (Full Width, barras apiladas 100%) -->
+                <div class="chart-card chart-card-full-width">
+                    <div class="chart-header">
+                        <div class="chart-header-left">
                             <h3>
-                                Sentiment Distribution
+                                Sentiment Over Time
                             </h3>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="chartSentimentDistribution"></canvas>
+                            <div class="chart-subtitle">Share of positive, neutral and negative brand mentions per day — spikes in red are your early reputational alarm</div>
                         </div>
                     </div>
-
-                    <!-- Share of Voice Donut -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>
-                                Share of Voice Distribution
-                            </h3>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="chartShareOfVoiceDonut"></canvas>
-                        </div>
+                    <div class="chart-container chart-container-timeline">
+                        <canvas id="chartSentimentOverTime"></canvas>
                     </div>
                 </div>
 
@@ -1020,8 +1015,8 @@
                     
                     <!-- Filters Panel (brandbook) -->
                     <div class="responses-filters-panel" id="responsesFiltersPanel">
-                        <!-- Prompt, LLM, Cluster y Prompt Type se filtran desde la
-                             barra de filtros global del dashboard (sin duplicidades) -->
+                        <!-- Prompt, LLM, Cluster, Prompt Type y Sentiment se filtran
+                             desde la barra de filtros global (sin duplicidades) -->
                         <div class="responses-filter">
                             <label for="responsesMentionFilter">
                                 <i class="fas fa-check-circle"></i>
@@ -1031,19 +1026,6 @@
                                 <option value="">All</option>
                                 <option value="mentioned">Mentioned</option>
                                 <option value="not-mentioned">Not Mentioned</option>
-                            </select>
-                        </div>
-
-                        <div class="responses-filter">
-                            <label for="responsesSentimentFilter">
-                                <i class="fas fa-heart"></i>
-                                Sentiment
-                            </label>
-                            <select id="responsesSentimentFilter" class="form-control">
-                                <option value="">All</option>
-                                <option value="positive">Positive</option>
-                                <option value="neutral">Neutral</option>
-                                <option value="negative">Negative</option>
                             </select>
                         </div>
                     </div>

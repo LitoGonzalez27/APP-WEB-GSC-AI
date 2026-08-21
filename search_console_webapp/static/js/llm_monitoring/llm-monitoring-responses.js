@@ -75,9 +75,7 @@ async loadResponses() {
 
             // ✨ Reset client-side filters when loading new data
             const mentionFilter = document.getElementById('responsesMentionFilter');
-            const sentimentFilter = document.getElementById('responsesSentimentFilter');
             if (mentionFilter) mentionFilter.value = '';
-            if (sentimentFilter) sentimentFilter.value = '';
 
             // Populate query filter dropdown with ALL queries from project
 
@@ -100,44 +98,14 @@ async loadResponses() {
         }
     },
 
-async goToResponsesWithSentiment(sentiment) {
-        const validSentiments = ['positive', 'neutral', 'negative'];
-        if (!validSentiments.includes(sentiment)) return;
-
-        const card = document.getElementById('responsesInspectorCard');
-        const select = document.getElementById('responsesSentimentFilter');
-
-        card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        if (this.allResponses && this.allResponses.length > 0) {
-            if (select) select.value = sentiment;
-            this.applyClientSideFilters();
-        } else if (this.currentProject?.id) {
-            // loadResponses() resetea los filtros client-side al terminar,
-            // así que hay que fijar el sentimiento DESPUÉS de cargar.
-            await this.loadResponses();
-            if (select) select.value = sentiment;
-            if (this.allResponses && this.allResponses.length > 0) {
-                this.applyClientSideFilters();
-            }
-        }
-
-        // Feedback visual: destacar brevemente el panel de filtros
-        const filtersPanel = document.getElementById('responsesFiltersPanel');
-        if (filtersPanel) {
-            filtersPanel.classList.remove('filters-flash');
-            void filtersPanel.offsetWidth; // reiniciar la animación
-            filtersPanel.classList.add('filters-flash');
-        }
-    },
+// goToResponsesWithSentiment se retiró con el rosco de sentimiento: el
+// filtrado por sentimiento vive en la barra de filtros global.
 
 getDisplayResponses() {
         const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
-        const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';
-        const queryTypeFilter = document.getElementById('responsesQueryTypeFilter')?.value || '';
 
         // If no client-side filters active, return all responses
-        if (!mentionFilter && !sentimentFilter && !queryTypeFilter) {
+        if (!mentionFilter) {
             return this.allResponses;
         }
         
@@ -201,8 +169,7 @@ renderResponsesPaginated(container) {
 
         // Show total count (with filter info if applicable)
         const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
-        const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';
-        const isFiltered = mentionFilter || sentimentFilter;
+        const isFiltered = !!mentionFilter;
         
         const countSection = document.createElement('div');
         countSection.className = 'responses-count';

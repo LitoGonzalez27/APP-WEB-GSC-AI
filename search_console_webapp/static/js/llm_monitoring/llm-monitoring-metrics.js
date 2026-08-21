@@ -61,8 +61,7 @@ async loadMetrics(projectId) {
             this.renderMentionRateChart(data);
             await this.renderShareOfVoiceChart();  // Now async - fetches its own data
             await this.renderMentionsTimelineChart();  // Gráfico de líneas de menciones
-            await this.renderSentimentDistributionChart();  // Gráfico de distribución de sentimiento
-            await this.renderShareOfVoiceDonutChart();  // Gráfico de rosco
+            this.renderSentimentOverTimeChart(data);  // Barras apiladas de sentimiento por día
 
             // ✨ NEW: Load Clusters Performance (replaces LLM Comparison table)
             await this.loadClustersPerformance(projectId);
