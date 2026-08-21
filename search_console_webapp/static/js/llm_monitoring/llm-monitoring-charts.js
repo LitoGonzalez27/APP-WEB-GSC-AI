@@ -49,6 +49,14 @@ chartEmptyStateCopy(scope) {
                 subtitle: 'All analyzed prompts include your brand name. Switch to "All" or "Branded" to see data.'
             };
         }
+        // Con filtros activos en la barra, "no hay datos" casi siempre
+        // significa "TU FILTRO no tiene resultados", y hay que decirlo así.
+        if (this._activeReportFilterCount && this._activeReportFilterCount() > 0) {
+            return {
+                title: 'No results for the current filters',
+                subtitle: 'The combination of filters in the bar above returns no data. Adjust them or hit Reset to see the full picture.'
+            };
+        }
         return {
             title: 'No data yet for this period',
             subtitle: 'Run an analysis or extend the time range to see this chart.'
@@ -465,6 +473,8 @@ renderSentimentOverTimeChart(data) {
             this.charts.sentimentOverTime.destroy();
         }
 
+        this.clearChartEmptyState('chartSentimentOverTime');
+
         // Sumar contadores por día entre LLMs (los snapshots vienen por día×LLM)
         const byDate = {};
         for (const s of (data?.snapshots || [])) {
@@ -476,8 +486,13 @@ renderSentimentOverTimeChart(data) {
             bucket.negative += c.negative || 0;
             byDate[day] = bucket;
         }
-        const days = Object.keys(byDate).sort();
+        // Días sin NINGUNA mención no aportan barra (0/0); si no queda ninguno,
+        // empty state con el mismo patrón que las demás gráficas timeline.
+        const days = Object.keys(byDate).sort()
+            .filter(d => (byDate[d].positive + byDate[d].neutral + byDate[d].negative) > 0);
         if (days.length === 0) {
+            const copy = this.chartEmptyStateCopy(this.reportFilters?.branded || 'all');
+            this.showChartEmptyState('chartSentimentOverTime', null, copy.title, copy.subtitle);
             return;
         }
 
