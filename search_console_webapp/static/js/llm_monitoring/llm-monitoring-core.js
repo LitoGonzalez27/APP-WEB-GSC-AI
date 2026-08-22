@@ -1028,7 +1028,9 @@ updateQualityComponent(type, value, detail1 = null, detail2 = null) {
         
         if (detailEl) {
             if (type === 'completeness' && detail1 !== null && detail2 !== null) {
-                detailEl.textContent = `${detail1}/${detail2} prompts`;
+                // Son RESPUESTAS (prompts × LLMs), no prompts: con 59 prompts y
+                // 4 LLMs lo esperado es 236 y llamarlo "prompts" descolocaba.
+                detailEl.textContent = `${detail1}/${detail2} responses (prompts × LLMs)`;
             } else if (type === 'freshness' && detail1 !== null) {
                 if (detail1 === 0) {
                     detailEl.textContent = 'Updated today';

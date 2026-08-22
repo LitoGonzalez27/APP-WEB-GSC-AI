@@ -2382,7 +2382,13 @@ label:not(.search-form label) {
     color: var(--cs-text-secondary);
     font-size: var(--cs-text-xs);
     font-weight: var(--cs-weight-semibold);
-    white-space: nowrap;
+    /* La columna mide 110px y nombres como "T3 · Celebraciones y volumen"
+       con nowrap se salían de la celda pisando la de Sentiment: se permite
+       el salto de línea dentro de la celda. */
+    white-space: normal;
+    overflow-wrap: break-word;
+    line-height: 1.35;
+    max-width: 100%;
 }
 
 .lm-sentiment-cell {
