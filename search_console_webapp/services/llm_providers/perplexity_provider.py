@@ -15,7 +15,7 @@ from typing import Dict, Optional
 import openai
 from .base_provider import BaseLLMProvider, get_model_pricing_from_db, get_current_model_for_provider
 from .locale_helpers import LocaleContext, build_system_instruction
-from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
+from .retry_handler import with_retry, RetryConfig  # ✨ NUEVO: Sistema de retry
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +46,12 @@ class PerplexityProvider(BaseLLMProvider):
             >>> # Respuesta incluirá información actualizada de hoy
         """
         # ✅ DIFERENCIA CLAVE: Base URL de Perplexity
+        # timeout explícito: el default del SDK son 600s y una llamada colgada
+        # retiene un slot de concurrencia todo ese tiempo
         self.client = openai.OpenAI(
             api_key=api_key,
-            base_url="https://api.perplexity.ai"
+            base_url="https://api.perplexity.ai",
+            timeout=float(RetryConfig.PROVIDER_TIMEOUTS['perplexity'])
         )
         
         # ✅ CORRECCIÓN: Obtener modelo actual de BD
