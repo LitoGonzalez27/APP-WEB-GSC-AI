@@ -363,6 +363,33 @@ class TestGlobalFilterBarDimensions:
         assert providers <= {'google'}
 
 
+class TestQualityScoreUnfiltered:
+    """El Data Quality Score es una propiedad del PROYECTO: los filtros de la
+    barra no deben degradarlo (regresión: con llms=google la cobertura caía a
+    1/4 y la completeness a un cuarto sin ser verdad)."""
+
+    def test_quality_no_cambia_al_filtrar_llms(self, client, base, with_sets):
+        baseline = client.get(f'{base}?days=30').get_json()['quality_score']
+        filtered = client.get(f'{base}?days=30&llms=google').get_json()['quality_score']
+        assert filtered['components']['coverage'] == baseline['components']['coverage']
+        assert filtered['components']['completeness'] == baseline['components']['completeness']
+        assert filtered['details']['llms_with_data'] == baseline['details']['llms_with_data']
+        assert filtered['details']['total_analyzed_queries'] == baseline['details']['total_analyzed_queries']
+
+    def test_quality_no_cambia_con_subconjunto_de_prompts(self, client, base, with_sets):
+        baseline = client.get(f'{base}?days=30').get_json()['quality_score']
+        filtered = client.get(f'{base}?days=30&prompt_set=core&branded=non_branded').get_json()['quality_score']
+        assert filtered['components'] == baseline['components']
+
+    def test_kpis_si_siguen_el_filtro(self, client, base, with_sets):
+        """Contraste: las MÉTRICAS sí deben cambiar con el filtro (solo la
+        calidad es invariante)."""
+        r = client.get(f'{base}?days=30&llms=google')
+        assert r.status_code == 200
+        by_llm = r.get_json().get('metrics_by_llm') or {}
+        assert set(by_llm.keys()) <= {'google'}
+
+
 class TestDeletionSafety:
 
     def test_borrar_sets_devuelve_prompts_a_core_sin_perderlos(self, client, base, with_sets):

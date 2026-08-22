@@ -1639,8 +1639,35 @@ def get_project(project_id):
         # 1. Completeness: ¿Cada LLM analizó todas las queries esperadas?
         # 2. Freshness: ¿Cuánto hace del último análisis?
         # 3. Coverage: ¿Qué % de LLMs tienen datos?
+        #
+        # IMPORTANTE: la calidad del dato es una propiedad del PROYECTO, no de
+        # la vista. Con la barra de filtros activa (p.ej. 2 de 4 LLMs), los
+        # snapshots de arriba están filtrados y la calidad saldría degradada
+        # (cobertura 2/4, completeness a la mitad) sin serlo. Se calcula
+        # SIEMPRE sobre los snapshots reales sin filtrar.
         enabled_llms = project['enabled_llms'] or []
         llms_expected = len(enabled_llms)
+
+        view_is_filtered = (filtered_query_ids is not None) or bool(report_filters.llms)
+        if view_is_filtered:
+            quality_sql = """
+                SELECT llm_provider, total_queries, snapshot_date
+                FROM llm_monitoring_snapshots
+                WHERE project_id = %s
+                    AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
+            """
+            quality_params = [project_id, days]
+            if enabled_llms:
+                quality_sql += " AND llm_provider = ANY(%s)"
+                quality_params.append(enabled_llms)
+            cur.execute(quality_sql, quality_params)
+            quality_rows = cur.fetchall()
+        else:
+            quality_rows = all_snapshots
+
+        quality_snapshots_by_llm = {}
+        for _q_snap in quality_rows:
+            quality_snapshots_by_llm.setdefault(_q_snap['llm_provider'], []).append(_q_snap)
         
         # Completeness (0-100): promedio de completitud por LLM (queries analizadas / esperadas)
         # La completitud se calcula contra prompts realmente configurados en el proyecto.
@@ -1651,7 +1678,7 @@ def get_project(project_id):
         total_expected_queries = expected_queries * llms_expected if expected_queries else 0
         
         for llm_name in enabled_llms:
-            snapshots = snapshots_by_llm.get(llm_name, [])
+            snapshots = quality_snapshots_by_llm.get(llm_name, [])
             latest_snapshot = None
             if snapshots:
                 latest_snapshot = max(
@@ -1675,7 +1702,7 @@ def get_project(project_id):
             completeness = 0
         
         # Coverage (0-100): % de LLMs con al menos un snapshot
-        llms_with_data = sum(1 for llm in enabled_llms if llm in snapshots_by_llm)
+        llms_with_data = sum(1 for llm in enabled_llms if llm in quality_snapshots_by_llm)
         coverage = (llms_with_data / llms_expected * 100) if llms_expected > 0 else 0
         
         # Freshness (0-100): 100 si datos de hoy, decrece con el tiempo
@@ -1704,7 +1731,7 @@ def get_project(project_id):
                 'total_expected_queries': total_expected_queries,
                 'queries_by_llm': llm_completeness,
                 'days_since_update': (date_type.today() - last_snapshot).days if last_snapshot else None,
-                'total_snapshots_in_period': len(all_snapshots)
+                'total_snapshots_in_period': len(quality_rows)
             }
         }
         
