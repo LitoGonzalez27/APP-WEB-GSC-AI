@@ -6280,7 +6280,17 @@ def trigger_daily_analysis():
         if single_project_id:
             def run_single_project(pid):
                 service = MultiLLMMonitoringService(api_keys=None)
-                return service.analyze_project(project_id=pid, max_workers=8)
+                result = service.analyze_project(project_id=pid, max_workers=8)
+                # 🩹 Fase B también en re-runs de proyecto único: si quedaron
+                # huecos, reintentar solo los pares faltantes y reconstruir
+                # snapshots. Nunca debe tumbar el run principal.
+                try:
+                    if isinstance(result, dict) and result.get('incomplete_llms'):
+                        from services.llm_monitoring_service import _run_completion_pass
+                        _run_completion_pass(service, [result], max_workers=8)
+                except Exception as completion_err:
+                    logger.error(f"Error en pasada de completitud (single project {pid}): {completion_err}", exc_info=True)
+                return result
 
             if is_async:
                 def run_single_bg():
