@@ -97,6 +97,14 @@ class CircuitBreaker:
                     )
                 self._state[provider] = self.STATE_OPEN
 
+    def seconds_until_half_open(self, provider: str) -> float:
+        """Segundos hasta que un circuito OPEN permita una request de prueba (0 si no está abierto)."""
+        with self._lock:
+            if self._get_state(provider) != self.STATE_OPEN:
+                return 0.0
+            last_fail = self._last_failure_time.get(provider, 0)
+            return max(0.0, self.cooldown_seconds - (time.time() - last_fail))
+
     def get_status(self, provider: str) -> Dict:
         """Get diagnostic info for a provider."""
         with self._lock:
@@ -159,12 +167,16 @@ class RetryConfig:
     # Timeout por defecto para todas las requests
     DEFAULT_TIMEOUT = 60  # segundos
     
-    # Timeouts específicos por provider (pueden ajustarse)
+    # Timeouts específicos por provider — cableados al cliente HTTP de cada
+    # provider (antes eran config muerta y los SDKs usaban su default de 600s,
+    # con lo que una llamada colgada retenía un slot de concurrencia 10 min).
+    # OJO: deben superar con margen la generación más larga posible
+    # (anthropic con max_tokens=8000 puede tardar ~2 min legítimamente).
     PROVIDER_TIMEOUTS = {
-        'openai': 60,      # GPT-5.1 puede tardar en respuestas largas
-        'google': 45,      # Gemini puede tener picos de latencia
-        'anthropic': 90,   # Claude puede hacer reasoning extenso
-        'perplexity': 45   # Búsqueda en tiempo real
+        'openai': 120,     # GPT-5.1 puede tardar en respuestas largas (ya se pasa por request)
+        'google': 60,      # Gemini: cap por request ya aplicado en google_provider
+        'anthropic': 180,  # Claude: respuestas largas legítimas de ~2 min con max_tokens=8000
+        'perplexity': 90   # Búsqueda en tiempo real + generación
     }
 
 
@@ -207,6 +219,9 @@ def classify_error(error: Exception) -> str:
     
     # Server errors (retriables)
     if '500' in error_str or '502' in error_str or '503' in error_str:
+        return 'server_error'
+    # Anthropic 529 "overloaded_error" — transitorio, el más común en horas punta
+    if '529' in error_str or 'overloaded' in error_str:
         return 'server_error'
     if 'internal server error' in error_str:
         return 'server_error'

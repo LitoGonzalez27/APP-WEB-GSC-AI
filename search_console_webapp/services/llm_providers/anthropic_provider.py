@@ -18,7 +18,7 @@ from .base_provider import (
     extract_urls_from_text
 )
 from .locale_helpers import LocaleContext, build_system_instruction
-from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
+from .retry_handler import with_retry, RetryConfig  # ✨ NUEVO: Sistema de retry
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,12 @@ class AnthropicProvider(BaseLLMProvider):
             api_key: API key de Anthropic (obtener en console.anthropic.com)
             model: Modelo específico a usar (opcional)
         """
-        self.client = anthropic.Anthropic(api_key=api_key)
+        # timeout explícito: el default del SDK son 600s y una llamada colgada
+        # retiene un slot de concurrencia todo ese tiempo
+        self.client = anthropic.Anthropic(
+            api_key=api_key,
+            timeout=float(RetryConfig.PROVIDER_TIMEOUTS['anthropic'])
+        )
         
         # ✅ CORRECCIÓN: Obtener modelo actual de BD
         if model:

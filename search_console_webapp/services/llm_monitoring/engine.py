@@ -30,6 +30,7 @@ from llm_monitoring_limits import (
     get_user_monthly_llm_usage,
 )
 from services.llm_providers import LLMProviderFactory, BaseLLMProvider
+from services.llm_providers.retry_handler import circuit_breaker
 from services.llm_providers.locale_helpers import (
     LocaleContext,
     create_locale_context,
@@ -593,7 +594,21 @@ class _EngineMixin:
 
                 # ✅ Delay reducido: 3s, 6s (antes era 5s, 10s, 20s, 30s)
                 delay = 3 * attempt
-                
+
+                # ✨ Breaker-aware: si el circuit breaker de algún provider implicado
+                # sigue abierto, reintentar antes de que expire su cooldown es tirar
+                # el intento (el decorator rechaza la llamada en 0ms sin tocar la API).
+                # Esperamos a que pase a HALF_OPEN — el cron es nocturno, el tiempo
+                # extra solo se paga cuando hubo cascada de fallos.
+                providers_in_retry = {item['task']['llm_name'] for item in failed_task_list}
+                breaker_wait = max(
+                    (circuit_breaker.seconds_until_half_open(p) for p in providers_in_retry),
+                    default=0.0
+                )
+                if breaker_wait > 0:
+                    delay = min(max(delay, breaker_wait + 5), 300)
+                    logger.info(f"   ⚡ Circuit breaker abierto — esperando {delay:.0f}s a que expire el cooldown")
+
                 logger.info(f"📍 Intento {attempt}/{max_retries} ({len(failed_task_list)} tareas)")
                 logger.info(f"   Esperando {delay}s para evitar rate limits...")
                 
