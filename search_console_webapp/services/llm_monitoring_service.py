@@ -359,7 +359,175 @@ def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_wor
                     }
         results = [indexed[i] for i in range(len(eligible_projects))]
 
+    # ------------------------------------------------------------------
+    # STEP 3 — Pasada de completitud (Fase B).
+    #
+    # Si algún proyecto terminó incompleto (huecos por 529/breaker/timeouts),
+    # reintenta SOLO los pares (query, llm) que faltan y reconstruye sus
+    # snapshots. Coste cero cuando todo está completo; acotada en tiempo.
+    # Sigue dentro del advisory lock del run.
+    # ------------------------------------------------------------------
+    try:
+        _run_completion_pass(service, results, max_workers=max_workers)
+    except Exception as e:
+        # La pasada de completitud nunca debe tumbar el run principal
+        logger.error(f"❌ Error en la pasada de completitud (se ignora): {e}", exc_info=True)
+
     return results
+
+
+def _run_completion_pass(service: 'MultiLLMMonitoringService', results: List[Dict], max_workers: int = 8) -> None:
+    """
+    Reintenta los pares (query, llm) que faltan en los proyectos que terminaron
+    incompletos y actualiza sus entradas de `results` in-place.
+
+    Escalable por diseño:
+    - Solo mira proyectos con `incomplete_llms` (cero overhead si no hay huecos).
+    - Reintenta pares sueltos, nunca proyectos enteros.
+    - Deadline global + cap de pares por proyecto (env-configurables, con log
+      explícito si trunca — nada de caps silenciosos).
+    - Un intento por proyecto y run.
+    """
+    from services.llm_monitoring.completion import get_completion_config, compute_missing_pairs
+    from services.llm_monitoring import prompt_sets as prompt_sets_lib
+
+    config = get_completion_config()
+    if not config['enabled']:
+        logger.info("🩹 Pasada de completitud deshabilitada (LLM_COMPLETION_PASS_ENABLED=false)")
+        return
+
+    candidates = [
+        r for r in results
+        if isinstance(r, dict) and r.get('incomplete_llms') and r.get('project_id')
+    ]
+    if not candidates:
+        return
+
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info(f"🩹 PASADA DE COMPLETITUD: {len(candidates)} proyecto(s) incompleto(s)")
+    logger.info("=" * 70)
+    logger.info(f"   Presupuesto: {config['max_seconds']}s | settle: {config['settle_seconds']}s | "
+                f"cap por proyecto: {config['max_pairs_per_project']} pares")
+
+    # Dejar que pase la tormenta (sobrecarga del provider / cooldown del breaker)
+    if config['settle_seconds'] > 0:
+        logger.info(f"   ⏳ Esperando {config['settle_seconds']}s antes de reintentar...")
+        time.sleep(config['settle_seconds'])
+
+    deadline = time.time() + config['max_seconds']
+
+    for r in candidates:
+        if time.time() >= deadline:
+            logger.warning(f"   ⏱️ Presupuesto de tiempo agotado — proyectos restantes quedan para el próximo cron")
+            break
+
+        pid = r['project_id']
+        try:
+            analysis_date_val = datetime.strptime(str(r.get('analysis_date')), '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            logger.warning(f"   ⚠️ Proyecto #{pid}: analysis_date no parseable ({r.get('analysis_date')}) — omitido")
+            continue
+
+        # Calcular pares faltantes desde BD (estado autoritativo: las filas con
+        # has_error=TRUE también cuentan como faltantes y se reintentan)
+        conn = get_db_connection()
+        if not conn:
+            logger.error(f"   ❌ Proyecto #{pid}: sin conexión a BD — omitido")
+            continue
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT prompt_sets FROM llm_monitoring_projects WHERE id = %s", (pid,))
+            proj_row = cur.fetchone()
+            inactive_sets = prompt_sets_lib.get_inactive_set_names(
+                proj_row.get('prompt_sets') if proj_row else None
+            )
+            if inactive_sets:
+                cur.execute("""
+                    SELECT id FROM llm_monitoring_queries
+                    WHERE project_id = %s AND is_active = TRUE
+                      AND (prompt_set IS NULL OR NOT (prompt_set = ANY(%s)))
+                    ORDER BY id
+                """, (pid, inactive_sets))
+            else:
+                cur.execute("""
+                    SELECT id FROM llm_monitoring_queries
+                    WHERE project_id = %s AND is_active = TRUE
+                    ORDER BY id
+                """, (pid,))
+            active_query_ids = [row['id'] for row in cur.fetchall()]
+
+            cur.execute("""
+                SELECT query_id, llm_provider
+                FROM llm_monitoring_results
+                WHERE project_id = %s AND analysis_date = %s
+                  AND COALESCE(has_error, FALSE) = FALSE
+            """, (pid, analysis_date_val))
+            ok_pairs = {(row['query_id'], row['llm_provider']) for row in cur.fetchall()}
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass
+            conn.close()
+
+        missing, truncated = compute_missing_pairs(
+            active_query_ids=active_query_ids,
+            ok_pairs=ok_pairs,
+            llms=r['incomplete_llms'],
+            max_pairs=config['max_pairs_per_project']
+        )
+        if truncated:
+            logger.warning(
+                f"   ⚠️ Proyecto #{pid}: {truncated} pares fuera del cap "
+                f"({config['max_pairs_per_project']}) — quedarán para el próximo cron"
+            )
+
+        if not missing:
+            logger.info(f"   ✅ Proyecto #{pid}: sin pares faltantes en BD (ya completo)")
+            r['incomplete_llms'] = []
+            r['all_queries_analyzed'] = True
+            continue
+
+        total_pairs = sum(len(v) for v in missing.values())
+        logger.info(f"   🔁 Proyecto #{pid}: reintentando {total_pairs} par(es) — "
+                    + ", ".join(f"{llm}: {len(ids)}" for llm, ids in missing.items()))
+
+        try:
+            completion_result = service.analyze_project(
+                project_id=pid,
+                max_workers=min(4, max_workers),  # más conservador que el batch
+                analysis_date=analysis_date_val,
+                restrict_pairs=missing
+            )
+        except Exception as e:
+            logger.error(f"   ❌ Proyecto #{pid}: la pasada de completitud falló: {e}")
+            r['completion_pass'] = {'attempted_pairs': total_pairs, 'error': str(e)}
+            continue
+
+        # Actualizar la entrada del run con el estado post-completitud
+        r['completion_pass'] = {
+            'attempted_pairs': total_pairs,
+            'recovered_pairs': completion_result.get('total_queries_executed', 0),
+            'truncated_pairs': truncated,
+        }
+        new_completeness = completion_result.get('completeness_by_llm') or {}
+        if new_completeness:
+            merged = dict(r.get('completeness_by_llm') or {})
+            merged.update(new_completeness)
+            r['completeness_by_llm'] = merged
+            r['incomplete_llms'] = [
+                llm for llm, data in merged.items()
+                if data.get('queries_analyzed', 0) < data.get('queries_expected', 0)
+            ]
+            r['all_queries_analyzed'] = len(r['incomplete_llms']) == 0
+
+        if r['all_queries_analyzed']:
+            logger.info(f"   ✅ Proyecto #{pid}: 100% completo tras la pasada")
+        else:
+            logger.warning(f"   ⚠️ Proyecto #{pid}: aún incompleto ({', '.join(r['incomplete_llms'])})")
+
+    logger.info("=" * 70)
 
 
 # =====================================================

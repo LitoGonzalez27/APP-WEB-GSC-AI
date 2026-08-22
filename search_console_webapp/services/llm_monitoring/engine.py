@@ -24,6 +24,7 @@ from threading import Semaphore
 
 from database import get_db_connection
 from services.llm_monitoring import prompt_sets as prompt_sets_lib
+from services.llm_monitoring.completion import task_allowed, count_planned_tasks
 from llm_monitoring_limits import (
     can_access_llm_monitoring,
     get_llm_plan_limits,
@@ -52,7 +53,8 @@ class _EngineMixin:
         self,
         project_id: int,
         max_workers: int = 8,  # Reducido de 10 a 8 para más estabilidad
-        analysis_date: date = None
+        analysis_date: date = None,
+        restrict_pairs: Optional[Dict[str, List[int]]] = None
     ) -> Dict:
         """
         Analiza un proyecto completo en todos los LLMs habilitados
@@ -74,7 +76,12 @@ class _EngineMixin:
             project_id: ID del proyecto a analizar
             max_workers: Número de threads paralelos (default: 8, conservador)
             analysis_date: Fecha del análisis (default: hoy)
-            
+            restrict_pairs: Si se pasa, MODO COMPLETITUD: solo se ejecutan los
+                pares {llm_name: [query_ids]} indicados (huecos de un análisis
+                incompleto). En este modo los snapshots se RECONSTRUYEN desde
+                los resultados de BD del día (los in-memory solo cubren el
+                subconjunto reintentado) y la completitud se mide contra BD.
+
         Returns:
             Dict con métricas globales y completitud por LLM
         """
@@ -296,7 +303,7 @@ class _EngineMixin:
             max_units = plan_limits.get('max_monthly_units')
             if max_units is not None:
                 used_units = get_user_monthly_llm_usage(user_row['id'], analysis_date)
-                expected_units = len(queries) * len(active_providers)
+                expected_units = count_planned_tasks(queries, list(active_providers.keys()), restrict_pairs)
                 if used_units >= max_units or used_units + expected_units > max_units:
                     paused_until = None
                     try:
@@ -492,10 +499,15 @@ class _EngineMixin:
                     if term_name not in competitor_names:
                         competitor_names.append(term_name)
         
-        # Crear todas las tareas (combinaciones de LLM + query)
+        # Crear todas las tareas (combinaciones de LLM + query).
+        # En modo completitud (restrict_pairs) solo los pares que faltan.
+        if restrict_pairs is not None:
+            logger.info(f"   🩹 MODO COMPLETITUD: solo pares faltantes {[(k, len(v)) for k, v in restrict_pairs.items()]}")
         tasks = []
         for llm_name, provider in active_providers.items():
             for query in queries:
+                if not task_allowed(restrict_pairs, llm_name, query['id']):
+                    continue
                 # ✨ NUEVO (2026-04-08): execution_query es la query RAW,
                 # sin prepend inline. El locale se aplica dentro del
                 # provider vía provider.execute_query(..., locale=...).
@@ -696,9 +708,76 @@ class _EngineMixin:
 
         try:
             cur = conn.cursor()
+
+            if restrict_pairs is not None:
+                # 🩹 MODO COMPLETITUD: los resultados in-memory solo cubren el
+                # subconjunto reintentado — el snapshot debe reconstruirse desde
+                # TODOS los resultados OK del día en BD (misma matemática:
+                # _create_snapshot es la única fuente de verdad).
+                for llm_name in restrict_pairs.keys():
+                    if llm_name not in active_providers:
+                        continue
+                    self._rebuild_snapshot_from_db(
+                        cur=cur,
+                        project_id=project_id,
+                        analysis_date=analysis_date,
+                        llm_provider=llm_name,
+                        competitors=all_competitor_names,
+                        total_queries_expected=total_queries_expected
+                    )
+                cur.execute("""
+                    UPDATE llm_monitoring_projects
+                    SET last_analysis_date = %s, updated_at = NOW()
+                    WHERE id = %s
+                """, (datetime.now(), project_id))
+                conn.commit()
+                logger.info("💾 Snapshots reconstruidos desde BD (modo completitud)")
+
+                # Completitud medida contra BD (estado real post-reintentos)
+                cur.execute("""
+                    SELECT llm_provider, COUNT(*) AS ok_count
+                    FROM llm_monitoring_results
+                    WHERE project_id = %s AND analysis_date = %s
+                      AND COALESCE(has_error, FALSE) = FALSE
+                    GROUP BY llm_provider
+                """, (project_id, analysis_date))
+                db_ok_counts = {r['llm_provider']: r['ok_count'] for r in cur.fetchall()}
+
+                completeness_by_llm = {}
+                incomplete_llms = []
+                for llm_name in restrict_pairs.keys():
+                    if llm_name not in active_providers:
+                        continue
+                    ok_count = db_ok_counts.get(llm_name, 0)
+                    pct = (ok_count / total_queries_expected * 100) if total_queries_expected > 0 else 0
+                    completeness_by_llm[llm_name] = {
+                        'queries_analyzed': ok_count,
+                        'queries_expected': total_queries_expected,
+                        'completeness_pct': round(pct, 1)
+                    }
+                    if ok_count < total_queries_expected:
+                        incomplete_llms.append(llm_name)
+
+                duration = time.time() - start_time
+                return {
+                    'project_id': project_id,
+                    'analysis_date': str(analysis_date),
+                    'duration_seconds': round(duration, 1),
+                    'total_queries_executed': completed_tasks,
+                    'failed_queries': failed_tasks,
+                    'llms_analyzed': len(results_by_llm),
+                    'results_by_llm': {
+                        llm: len(results) for llm, results in results_by_llm.items()
+                    },
+                    'completeness_by_llm': completeness_by_llm,
+                    'incomplete_llms': incomplete_llms,
+                    'all_queries_analyzed': len(incomplete_llms) == 0,
+                    'completion_mode': True
+                }
+
             for llm_name, llm_results in results_by_llm.items():
                 queries_analyzed = len(llm_results)
-                
+
                 if queries_analyzed > 0:
                     # ⚠️ VALIDACIÓN: Advertir si faltan queries
                     if queries_analyzed < total_queries_expected:
@@ -1077,6 +1156,65 @@ class _EngineMixin:
                 except Exception:
                     pass
     
+    def _rebuild_snapshot_from_db(
+        self,
+        cur,
+        project_id: int,
+        analysis_date: date,
+        llm_provider: str,
+        competitors: List[str],
+        total_queries_expected: int = None
+    ):
+        """
+        Reconstruye el snapshot de un (proyecto, llm, fecha) desde los
+        resultados OK guardados en BD y lo upserta vía _create_snapshot
+        (única fuente de verdad de la matemática de agregación).
+
+        Se usa en modo completitud: tras reintentar solo los pares faltantes,
+        los resultados in-memory no bastan para agregar el día entero.
+        """
+        from services.llm_monitoring.pseudo_snapshots import _parse_competitors_mentioned
+
+        cur.execute("""
+            SELECT brand_mentioned, position_in_list, competitors_mentioned,
+                   sentiment, sentiment_score,
+                   COALESCE(response_time_ms, 0) AS response_time_ms,
+                   COALESCE(cost_usd, 0) AS cost_usd,
+                   COALESCE(tokens_used, 0) AS tokens_used
+            FROM llm_monitoring_results
+            WHERE project_id = %s AND analysis_date = %s AND llm_provider = %s
+              AND COALESCE(has_error, FALSE) = FALSE
+        """, (project_id, analysis_date, llm_provider))
+        rows = cur.fetchall()
+
+        if not rows:
+            logger.warning(
+                f"   🩹 Sin resultados OK en BD para {llm_provider} el {analysis_date} — snapshot no reconstruido"
+            )
+            return
+
+        # Mapear filas de BD a la forma que espera _create_snapshot
+        llm_results = [{
+            'brand_mentioned': bool(r['brand_mentioned']),
+            'position_in_list': r['position_in_list'],
+            'competitors_mentioned': _parse_competitors_mentioned(r['competitors_mentioned']),
+            'sentiment': r['sentiment'],
+            'sentiment_score': float(r['sentiment_score']) if r['sentiment_score'] is not None else None,
+            'response_time_ms': int(r['response_time_ms']),
+            'cost_usd': float(r['cost_usd']),
+            'tokens_used': int(r['tokens_used']),
+        } for r in rows]
+
+        self._create_snapshot(
+            cur=cur,
+            project_id=project_id,
+            date=analysis_date,
+            llm_provider=llm_provider,
+            llm_results=llm_results,
+            competitors=competitors or [],
+            total_queries_expected=total_queries_expected
+        )
+
     # =====================================================
     # CREACIÓN DE SNAPSHOTS
     # =====================================================
