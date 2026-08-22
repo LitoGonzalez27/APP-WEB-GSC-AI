@@ -72,7 +72,7 @@ def main():
         # 2. Importar el servicio
         logger.info("📦 Importando servicio de monitorización...")
         try:
-            from services.llm_monitoring_service import analyze_all_active_projects, MultiLLMMonitoringService
+            from services.llm_monitoring_service import analyze_all_active_projects
             logger.info("✅ Servicio importado correctamente")
         except ImportError as e:
             logger.error(f"❌ Error importando servicio: {e}")
@@ -131,58 +131,32 @@ def main():
         logger.info(f"   📊 Total queries: {total_queries}")
         logger.info(f"   ⏱️  Duración total: {total_duration:.1f}s")
         
-        # 5. Pasada de reconciliación si hay análisis incompletos
+        # 5. Informe de completitud.
+        # La pasada de completitud (Fase B) ya corre DENTRO de
+        # analyze_all_active_projects: reintenta solo los pares (query, llm)
+        # que faltan y reconstruye los snapshots afectados. La antigua
+        # reconciliación de este script re-analizaba proyectos ENTEROS
+        # (doble coste API) y solo existía en este entrypoint — el cron real
+        # de Railway usa el endpoint HTTP y nunca la ejecutaba.
         projects_with_incomplete = [r for r in results if isinstance(r, dict) and r.get('incomplete_llms')]
         if projects_with_incomplete:
-            logger.info("")
-            logger.info("=" * 70)
-            logger.info("🔄 RECONCILIACIÓN: PROYECTOS CON ANÁLISIS INCOMPLETO")
-            logger.info("=" * 70)
+            logger.warning("")
+            logger.warning("=" * 70)
+            logger.warning("⚠️  PROYECTOS AÚN INCOMPLETOS TRAS LA PASADA DE COMPLETITUD")
+            logger.warning("=" * 70)
             for r in projects_with_incomplete:
                 incomplete_llms = r.get('incomplete_llms', [])
                 completeness = r.get('completeness_by_llm', {})
-                logger.info(f"   • Proyecto #{r.get('project_id')}:")
+                completion_info = r.get('completion_pass') or {}
+                logger.warning(f"   • Proyecto #{r.get('project_id')}:")
                 for llm in incomplete_llms:
                     llm_data = completeness.get(llm, {})
                     analyzed = llm_data.get('queries_analyzed', 0)
                     expected = llm_data.get('queries_expected', 0)
                     pct = llm_data.get('completeness_pct', 0)
-                    logger.info(f"      - {llm}: {analyzed}/{expected} ({pct}%)")
-            
-            # Reducir AÚN MÁS la concurrencia para máxima fiabilidad en reconciliación
-            logger.info("")
-            logger.info("   Estrategia de reconciliación:")
-            logger.info("   • OpenAI: 1 worker (secuencial para máxima fiabilidad)")
-            logger.info("   • Google: 3 workers")
-            logger.info("   • Max workers global: 5")
-            logger.info("   • Delays más largos entre reintentos")
-            logger.info("")
-            
-            os.environ['OPENAI_CONCURRENCY'] = '1'  # Secuencial para OpenAI
-            os.environ['GOOGLE_CONCURRENCY'] = '3'  # Más conservador para Gemini
-            
-            try:
-                service = MultiLLMMonitoringService(api_keys=None)
-                for r in projects_with_incomplete:
-                    pid = r.get('project_id')
-                    if not pid:
-                        continue
-                    logger.info("")
-                    logger.info(f"🔁 Reintentando proyecto #{pid} con concurrencia MÍNIMA...")
-                    logger.info(f"   Esto puede tardar 30-45 minutos pero asegura completitud")
-                    try:
-                        result = service.analyze_project(project_id=pid, max_workers=5)
-                        
-                        # Verificar si ahora está completo
-                        if result.get('all_queries_analyzed'):
-                            logger.info(f"   ✅ Proyecto #{pid} ahora está 100% completo")
-                        else:
-                            still_incomplete = result.get('incomplete_llms', [])
-                            logger.warning(f"   ⚠️ Proyecto #{pid} aún incompleto: {', '.join(still_incomplete)}")
-                    except Exception as e:
-                        logger.error(f"❌ Reintento falló para proyecto #{pid}: {e}")
-            except Exception as e:
-                logger.error(f"❌ No se pudo ejecutar la reconciliación: {e}")
+                    logger.warning(f"      - {llm}: {analyzed}/{expected} ({pct}%)")
+                if completion_info:
+                    logger.warning(f"      (pasada de completitud: {completion_info})")
         
         if total_duration > 0 and total_queries > 0:
             queries_per_second = total_queries / total_duration
