@@ -30,6 +30,7 @@ from services.ai_analysis import detect_ai_overview_elements
 from services.aio_recommendations import get_ai_recommendations
 from stripe_webhooks import create_webhook_route
 from services.utils import extract_domain, normalize_search_console_url, urls_match
+from services.google_redirects import clean_serp_link, domain_from_serp_link
 from services.country_config import get_country_config
 
 # --- NUEVO: Sistema de autenticación ---
@@ -1900,10 +1901,9 @@ def detect_top_competitor_domains(results_list, site_url, min_competitors=10):
                 link = ref.get('link', '')
                 if link:
                     try:
-                        from urllib.parse import urlparse
-                        parsed = urlparse(link)
-                        domain = parsed.netloc.replace('www.', '').lower()
-                        
+                        # Extraer dominio (resuelve redirects google.com/goto)
+                        domain = domain_from_serp_link(link)
+
                         # Excluir dominio principal y dominios vacíos
                         if domain and domain != main_domain:
                             if domain not in competitors_data:
@@ -2050,7 +2050,9 @@ def aggregate_cited_urls(results_list, max_urls=20):
         references_found = debug_info.get('references_found', [])
 
         for ref in references_found:
-            link = ref.get('link', '')
+            # Resolver redirects google.com/goto; si el destino es
+            # irrecuperable no hay URL real que agregar y se omite.
+            link = clean_serp_link(ref.get('link', ''))
             if not link:
                 continue
 

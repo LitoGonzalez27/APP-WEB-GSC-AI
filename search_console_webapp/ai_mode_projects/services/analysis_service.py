@@ -10,6 +10,7 @@ import os
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional
 from database import get_db_connection, pause_ai_mode_projects_for_quota
+from services.google_redirects import clean_serp_link
 from auth import get_user_by_id, get_current_user
 from quota_manager import get_user_quota_status
 from ai_mode_projects.config import AI_MODE_KEYWORD_ANALYSIS_COST
@@ -527,7 +528,9 @@ class AnalysisService:
 
         for loop_idx, (index_value, original_idx, ref) in enumerate(enriched_refs):
             title = str(ref.get('title', '')).lower()
-            link = str(ref.get('link', '')).lower()
+            # Resolver redirects goto para poder detectar la marca en el destino
+            # real; si es irresoluble queda '' (el link no aporta señal de marca)
+            link = (clean_serp_link(str(ref.get('link', ''))) or '').lower()
             source = str(ref.get('source', '')).lower()
             snippet = str(ref.get('snippet', '')).lower()  # FIX CRÍTICO: Añadir snippet
             

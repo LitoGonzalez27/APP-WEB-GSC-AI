@@ -6,6 +6,7 @@ import logging
 from datetime import date, timedelta
 from typing import List, Dict
 from database import get_db_connection
+from services.google_redirects import domain_from_serp_link
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +171,6 @@ class _KeywordsMixin:
                     result_row = cur.fetchone()
                     if result_row and result_row['raw_ai_mode_data']:
                         try:
-                            from urllib.parse import urlparse
                             serp_data = result_row['raw_ai_mode_data']
                             references = serp_data.get('references', [])
 
@@ -193,13 +193,11 @@ class _KeywordsMixin:
                                     link = ref.get('link', '')
                                     if link:
                                         try:
-                                            parsed = urlparse(link)
-                                            domain = parsed.netloc.lower()
-                                            if domain.startswith('www.'):
-                                                domain = domain[4:]
+                                            # Extraer dominio (resuelve redirects goto)
+                                            domain = domain_from_serp_link(link)
 
                                             # Si el dominio coincide con el competidor
-                                            if comp_lower in domain or domain in comp_lower:
+                                            if domain and (comp_lower in domain or domain in comp_lower):
                                                 # Calcular posición: usar index (0-based) + 1, igual que en analysis_service.py
                                                 actual_index = ref.get('index')
                                                 position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)

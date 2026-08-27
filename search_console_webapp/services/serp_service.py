@@ -8,6 +8,7 @@ from serpapi import GoogleSearch
 from playwright.sync_api import sync_playwright
 from flask import Response
 from .utils import normalize_search_console_url
+from .google_redirects import log_redirect_stats
 from .country_config import get_country_config # Importar get_country_config
 import json # Importar json para los logs de depuración
 
@@ -73,6 +74,14 @@ def get_serp_json(params: dict) -> dict:
     
     # ✅ Llamada exitosa
     logger.info(f"✅ SERP JSON exitoso para keyword: {params.get('q')}")
+
+    # Alarma centralizada: si SerpAPI devuelve enlaces google.com/goto sin
+    # resolver (regresión del proveedor), queda registrado en logs.
+    try:
+        log_redirect_stats(result, context=params.get('q', ''))
+    except Exception as e_scan:
+        logger.debug(f"[GOOGLE GOTO] Error escaneando respuesta SERP: {e_scan}")
+
     return result
 
 
@@ -198,12 +207,47 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
     document.addEventListener('DOMContentLoaded', () => {{
         const targetDomain = '{domain_norm}';
         let matchesFound = 0;
+
+        // Google reescribe hrefs como google.com/goto?url=... (redirect
+        // intermedio). Si el parámetro es una URL real la usamos; si es un
+        // token opaco devolvemos null y caemos al <cite> visible del bloque.
+        const resolveSerpHref = (href) => {{
+            try {{
+                const u = new URL(href);
+                const isGoogleHost = /^(www\\.)?google\\.[a-z]{{2,3}}(\\.[a-z]{{2}})?$/.test(u.hostname);
+                const isRedirectPath = /^\\/(goto|url|interstitial)(\\/|$)/.test(u.pathname);
+                if (!isGoogleHost || !isRedirectPath) return href;
+                for (const key of ['url', 'q', 'target', 'dest', 'u']) {{
+                    const val = u.searchParams.get(key);
+                    if (val && /^https?:\\/\\//i.test(val)) return val;
+                }}
+                return null;
+            }} catch (e) {{
+                return href;
+            }}
+        }};
+
+        const domainFromResult = (res, link) => {{
+            const resolved = resolveSerpHref(link.href);
+            if (resolved) {{
+                return new URL(resolved).hostname.replace(/^www\\./, '');
+            }}
+            // Fallback: el <cite> del resultado muestra el dominio real
+            // aunque el href sea un goto irresoluble.
+            const cite = res.querySelector('cite');
+            if (cite && cite.textContent) {{
+                const citeText = cite.textContent.trim().split(/[\\s›»]/)[0];
+                return citeText.replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0].toLowerCase();
+            }}
+            return null;
+        }};
+
         const results = document.querySelectorAll('div.yuRUbf');
         results.forEach(res => {{
             const link = res.querySelector('a');
             if (link) {{
                 try {{
-                    const hostname = new URL(link.href).hostname.replace(/^www\\./, '');
+                    const hostname = domainFromResult(res, link);
                     if (hostname === targetDomain && matchesFound === 0) {{
                         matchesFound++;
                         res.style.position = 'relative';
