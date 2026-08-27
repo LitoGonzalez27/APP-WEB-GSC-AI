@@ -42,8 +42,17 @@ _REDIRECT_PATH_PREFIXES = ('/goto', '/url', '/interstitial')
 # preferencia observado ('url' en /goto, 'q'/'url' en /url).
 _DESTINATION_PARAMS = ('url', 'q', 'target', 'dest', 'u')
 
-# Algo con pinta de dominio real: "ejemplo.com/pagina", "sub.ejemplo.co.uk"
-_DOMAIN_LIKE_RE = re.compile(r'^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([/?#].*)?$', re.IGNORECASE)
+# Algo con pinta de dominio real: "ejemplo.com/pagina", "sub.ejemplo.co.uk".
+# Solo minúsculas en el host: los dominios reales que Google emite en el
+# parámetro van en lowercase, mientras que un token opaco con un punto
+# casual ("AbC12.xYz") suele mezclar mayúsculas — mejor descartarlo que
+# fabricar un dominio inexistente en los rankings.
+_DOMAIN_LIKE_RE = re.compile(r'^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([/?#].*)?$')
+
+# Parámetros de tracking que Google añade DETRÁS del destino en /url
+# (q=<destino>&sa=...&ved=...). Sirven para no truncar un destino sin
+# codificar en su primer '&' real.
+_GOOGLE_TRACKING_PARAM_RE = re.compile(r'&(sa|ved|usg|source|opi|rct|cd|cad|ei|sqi|bvm)=')
 
 # Throttling de warnings: los crons diarios procesan miles de referencias y
 # un proveedor roto inundaría los logs. Avisamos con detalle las primeras
@@ -100,7 +109,8 @@ def resolve_google_redirect(url: str) -> Optional[str]:
     if not candidate.lower().startswith(('http://', 'https://')):
         candidate = 'https://' + candidate
     try:
-        query = parse_qs(urlparse(candidate).query)
+        raw_query = urlparse(candidate).query
+        query = parse_qs(raw_query)
     except Exception:
         return None
 
@@ -112,6 +122,16 @@ def resolve_google_redirect(url: str) -> Optional[str]:
                 value = unquote(value)
             if not _looks_like_destination(value):
                 continue
+            # Un destino SIN codificar con sus propios parámetros
+            # (q=https://x.com/p?a=1&b=2&sa=U) queda partido por parse_qs en
+            # el primer '&'. Recuperar el valor completo del query crudo y
+            # cortar solo ante los parámetros de tracking de Google.
+            if value.lower().startswith(('http://', 'https://')) and '?' in value:
+                start = raw_query.find(f'{param}={raw_value}')
+                if start != -1:
+                    full_value = raw_query[start + len(param) + 1:]
+                    tracking = _GOOGLE_TRACKING_PARAM_RE.search(full_value)
+                    value = (full_value[:tracking.start()] if tracking else full_value).strip()
             if not value.lower().startswith(('http://', 'https://')):
                 value = 'https://' + value
             return value
@@ -191,6 +211,12 @@ def _iter_payload_links(serp_data: dict):
             for ref in ai_overview.get(key) or []:
                 if isinstance(ref, dict) and ref.get('link'):
                     yield f'ai_overview.{key}', ref['link']
+
+    # Respuestas de Google AI Mode: {text_blocks, references, inline_images}
+    # con las referencias directamente en la raíz del payload.
+    for ref in serp_data.get('references') or []:
+        if isinstance(ref, dict) and ref.get('link'):
+            yield 'references', ref['link']
 
     for key in ('featured_snippet', 'answer_box'):
         block = serp_data.get(key) or {}
