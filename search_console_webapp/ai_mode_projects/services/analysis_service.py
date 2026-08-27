@@ -386,7 +386,16 @@ class AnalysisService:
             # Hacer la llamada a SerpApi
             search = GoogleSearch(params)
             serp_data = search.get_dict()
-            
+
+            # Alarma: detectar enlaces google.com/goto sin resolver en la
+            # respuesta (regresión del proveedor) — misma telemetría que
+            # get_serp_json para el resto de SERPs.
+            try:
+                from services.google_redirects import log_redirect_stats
+                log_redirect_stats(serp_data, context=keyword)
+            except Exception as e_scan:
+                logger.debug(f"[GOOGLE GOTO] Error escaneando respuesta AI Mode: {e_scan}")
+
             # Analizar resultados para detectar menciones de la marca
             ai_result = self._parse_ai_mode_response(serp_data, brand_name)
             

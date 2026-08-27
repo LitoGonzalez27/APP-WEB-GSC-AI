@@ -102,6 +102,19 @@ class TestResolveGoogleRedirect:
     def test_url_normal_devuelve_none(self):
         assert resolve_google_redirect(NORMAL) is None
 
+    def test_token_opaco_con_punto_no_fabrica_dominio(self):
+        # Un token con un punto casual no debe convertirse en un "dominio"
+        assert resolve_google_redirect("https://www.google.com/goto?url=AbC12.xYz") is None
+
+    def test_destino_sin_codificar_con_parametros_no_se_trunca(self):
+        # parse_qs partiría el destino en el primer '&'; debe conservarse entero
+        url = "https://www.google.com/url?q=https://ejemplo.com/pag?a=1&b=2&sa=U"
+        assert resolve_google_redirect(url) == "https://ejemplo.com/pag?a=1&b=2"
+
+    def test_destino_sin_codificar_corta_tracking_de_google(self):
+        url = "https://www.google.com/url?q=https://ejemplo.com/p?x=1&ved=abc&usg=z"
+        assert resolve_google_redirect(url) == "https://ejemplo.com/p?x=1"
+
 
 class TestCleanSerpLink:
 
@@ -221,6 +234,18 @@ class TestScanSerpPayload:
         assert stats["sections"]["ai_overview.references"] == {"resolved": 1, "unresolved": 1}
         assert stats["sections"]["ai_overview.sources"] == {"resolved": 0, "unresolved": 1}
         assert stats["sections"]["answer_box"] == {"resolved": 0, "unresolved": 1}
+
+    def test_payload_ai_mode_con_references_en_raiz(self):
+        # Google AI Mode: {text_blocks, references, inline_images}
+        stats = scan_serp_payload({
+            "text_blocks": [{"type": "paragraph", "snippet": "x"}],
+            "references": [
+                {"link": GOTO_OPAQUE},
+                {"link": NORMAL},
+            ],
+        })
+        assert stats["redirects"] == 1
+        assert stats["sections"]["references"] == {"resolved": 0, "unresolved": 1}
 
     def test_payload_limpio(self):
         stats = scan_serp_payload({
