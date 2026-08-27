@@ -6,6 +6,7 @@ import logging
 from datetime import date, timedelta
 from typing import List, Dict
 from database import get_db_connection
+from services.google_redirects import clean_serp_link, domain_from_serp_link
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,6 @@ class _DomainsMixin:
         Returns:
             Lista de dominios con ranking completo y formateado para el frontend
         """
-        from urllib.parse import urlparse
         from collections import defaultdict
         from datetime import timedelta
 
@@ -161,11 +161,8 @@ class _DomainsMixin:
                     position = ref.get('position', 0)
                     if link:
                         try:
-                            # Extraer dominio limpio
-                            parsed = urlparse(link)
-                            domain = parsed.netloc.lower()
-                            if domain.startswith('www.'):
-                                domain = domain[4:]
+                            # Extraer dominio limpio (resuelve redirects goto)
+                            domain = domain_from_serp_link(link)
 
                             if domain:
                                 domain_stats[domain]['mentions'] += 1
@@ -278,7 +275,8 @@ class _DomainsMixin:
             references = raw_data.get('references', [])
             
             for ref in references:
-                url = ref.get('link', '').strip()
+                # Resolver redirects goto; None = destino irrecuperable, se omite
+                url = (clean_serp_link(ref.get('link', '').strip()) or '')
                 # AI Mode usa 'index' (0-based) en lugar de 'position'
                 index = ref.get('index')
                 position = None
