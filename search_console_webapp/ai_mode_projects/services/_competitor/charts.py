@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from typing import List, Dict
 from database import get_db_connection
 from services.utils import normalize_search_console_url
+from services.google_redirects import domain_from_serp_link
 from ai_mode_projects.config import MAX_COMPETITORS_PER_PROJECT
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,6 @@ class _ChartsMixin:
         Returns:
             Dict con datos para Brand Visibility Index y Brand Position Over Time
         """
-        from urllib.parse import urlparse
         from collections import defaultdict
 
         # Refactor 2026-05-25: null-check + cursor inside try.
@@ -115,11 +115,11 @@ class _ChartsMixin:
                         
                         if link:
                             try:
-                                parsed = urlparse(link)
-                                domain = parsed.netloc.lower()
-                                if domain.startswith('www.'):
-                                    domain = domain[4:]
-                                
+                                # Extraer dominio (resuelve redirects goto)
+                                domain = domain_from_serp_link(link)
+                                if not domain:
+                                    continue
+
                                 # Verificar si el dominio está en la lista de competidores
                                 matched_domain = None
                                 for target_domain in all_domains:
@@ -307,7 +307,6 @@ class _ChartsMixin:
                         position_by_date[str(row['analysis_date'])] = row['avg_position']
                 else:
                     # Competidor: leer del JSON raw_ai_mode_data
-                    from urllib.parse import urlparse
                     from collections import defaultdict
                     
                     domain_lower = domain.lower()
@@ -353,11 +352,11 @@ class _ChartsMixin:
                                 
                                 if link:
                                     try:
-                                        parsed = urlparse(link)
-                                        link_domain = parsed.netloc.lower()
-                                        if link_domain.startswith('www.'):
-                                            link_domain = link_domain[4:]
-                                        
+                                        # Extraer dominio (resuelve redirects goto)
+                                        link_domain = domain_from_serp_link(link)
+                                        if not link_domain:
+                                            continue
+
                                         # Verificar si coincide con el competidor
                                         if domain_lower in link_domain or link_domain in domain_lower:
                                             mentions_by_date[date_key]['keywords'].add(keyword_id)

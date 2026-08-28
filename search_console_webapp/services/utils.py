@@ -2,12 +2,20 @@
 import logging
 from urllib.parse import urlparse
 
+from .google_redirects import clean_serp_link
+
 logger = logging.getLogger(__name__)
 
 def extract_domain(url_str):
     """
     Versión mejorada y más robusta para extraer dominios
     """
+    if not url_str:
+        return ''
+    # Los enlaces google.com/goto son redirects intermedios: si no se puede
+    # recuperar el destino real, el dominio es desconocido ('') — nunca
+    # debe contarse como google.com.
+    url_str = clean_serp_link(url_str)
     if not url_str:
         return ''
     try:

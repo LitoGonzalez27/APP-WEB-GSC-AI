@@ -1,8 +1,8 @@
 import pandas as pd
 from io import BytesIO
 import logging
-from urllib.parse import urlparse
 from services.country_config import get_country_name # Importar la función get_country_name
+from services.google_redirects import domain_from_serp_link
 
 logger = logging.getLogger(__name__)
 
@@ -845,11 +845,12 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                             # Extraer dominio del link
                             link = ref.get('link', '')
                             if link:
-                                # Extraer dominio de la URL
+                                # Extraer dominio (resuelve redirects goto)
                                 try:
-                                    parsed = urlparse(link)
-                                    domain = parsed.netloc.replace('www.', '')
-                                    
+                                    domain = domain_from_serp_link(link)
+                                    if not domain:
+                                        continue
+
                                     ai_sources.append({
                                         'domain': domain,
                                         'position': ref.get('index', 0) + 1,  # +1 porque index empieza en 0
@@ -1003,11 +1004,11 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                 link = ref.get('link', '')
                 if link:
                     try:
-                        parsed = urlparse(link)
-                        domain = parsed.netloc.replace('www.', '')
+                        # Extraer dominio (resuelve redirects goto)
+                        domain = domain_from_serp_link(link)
                         position = ref.get('index', 0) + 1  # +1 porque index empieza en 0
-                        
-                        if domain in top_competitor_domains:
+
+                        if domain and domain in top_competitor_domains:
                             competitor_positions[domain] = position
                     except:
                         continue

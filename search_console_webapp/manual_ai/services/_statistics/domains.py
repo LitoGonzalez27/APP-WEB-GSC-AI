@@ -6,6 +6,7 @@ import logging
 from datetime import date, timedelta
 from typing import List, Dict
 from database import get_db_connection
+from services.google_redirects import clean_serp_link, domain_from_serp_link
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,6 @@ class _DomainsMixin:
         Returns:
             Lista de dominios con ranking completo y formateado para el frontend
         """
-        from urllib.parse import urlparse
         from collections import defaultdict
 
         # Refactor 2026-05-25: try/finally GUARANTEES conn release back to the
@@ -155,12 +155,9 @@ class _DomainsMixin:
                     
                     if url:
                         try:
-                            # Extraer dominio limpio
-                            parsed = urlparse(url)
-                            domain = parsed.netloc.lower()
-                            if domain.startswith('www.'):
-                                domain = domain[4:]
-                            
+                            # Extraer dominio limpio (resuelve redirects goto)
+                            domain = domain_from_serp_link(url)
+
                             if domain:
                                 # Contar CADA mención (coherente con ranking de URLs)
                                 domain_stats[domain]['mentions'] += 1
@@ -280,9 +277,10 @@ class _DomainsMixin:
             references_found = debug_info.get('references_found', [])
             
             for ref in references_found:
-                url = ref.get('link', '').strip()
+                # Resolver redirects goto; None = destino irrecuperable, se omite
+                url = (clean_serp_link(ref.get('link', '').strip()) or '')
                 position = ref.get('index')
-                
+
                 if url:
                     # Contar menciones
                     if url not in url_mentions:

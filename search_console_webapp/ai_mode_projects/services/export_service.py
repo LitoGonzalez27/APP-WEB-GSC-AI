@@ -9,6 +9,7 @@ from io import BytesIO
 from datetime import datetime, date, timedelta
 from typing import Dict, Optional
 from database import get_db_connection
+from services.google_redirects import domain_from_serp_link
 
 logger = logging.getLogger(__name__)
 
@@ -262,7 +263,6 @@ class ExportService:
     @staticmethod
     def _create_competitive_analysis_sheet(writer, workbook, header_format, date_format, percent_format, project_id, project_info, days):
         """Crear Hoja 3: Competitive Analysis - extraer datos desde raw_ai_mode_data"""
-        from urllib.parse import urlparse
         from collections import defaultdict
         
         conn = get_db_connection()
@@ -341,11 +341,11 @@ class ExportService:
                         link = ref.get('link', '')
                         if link:
                             try:
-                                parsed = urlparse(link)
-                                domain = parsed.netloc.lower()
-                                if domain.startswith('www.'):
-                                    domain = domain[4:]
-                                
+                                # Extraer dominio (resuelve redirects goto)
+                                domain = domain_from_serp_link(link)
+                                if not domain:
+                                    continue
+
                                 # Verificar si este dominio coincide con algún competidor
                                 for competitor in selected_competitors:
                                     comp_lower = competitor.lower()

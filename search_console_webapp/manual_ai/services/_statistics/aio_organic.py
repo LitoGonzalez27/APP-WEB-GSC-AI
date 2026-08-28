@@ -6,6 +6,7 @@ import logging
 from datetime import date, timedelta
 from typing import List, Dict
 from database import get_db_connection
+from services.google_redirects import clean_serp_link, domain_from_serp_link
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,9 @@ class _AioOrganicMixin:
 
         def _normalize_url(u):
             """Normaliza una URL para comparación: lowercase host, strip www,
-            strip trailing slash. Devuelve None si la URL está vacía."""
+            strip trailing slash. Devuelve None si la URL está vacía o es un
+            redirect google.com/goto irresoluble."""
+            u = clean_serp_link(u) if u else None
             if not u:
                 return None
             try:
@@ -61,16 +64,11 @@ class _AioOrganicMixin:
                 return u.lower() if u else None
 
         def _domain_of(u):
-            """Extrae el dominio canónico (sin www) de una URL."""
+            """Extrae el dominio canónico (sin www) de una URL, resolviendo
+            redirects google.com/goto (None si el destino es irrecuperable)."""
             if not u:
                 return None
-            try:
-                host = (urlparse(u).netloc or '').lower()
-                if host.startswith('www.'):
-                    host = host[4:]
-                return host or None
-            except Exception:
-                return None
+            return domain_from_serp_link(u) or None
 
         conn = get_db_connection()
         cur = conn.cursor()

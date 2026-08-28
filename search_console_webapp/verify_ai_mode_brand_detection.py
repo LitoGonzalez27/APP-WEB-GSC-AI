@@ -3,6 +3,7 @@ Script para verificar el sistema de detección de marca en AI Mode
 """
 import sys
 from database import get_db_connection
+from services.google_redirects import clean_serp_link
 import json
 
 def verify_brand_detection(project_id: int):
@@ -75,7 +76,8 @@ def verify_brand_detection(project_id: int):
         brand_refs = []
         for ref in references:
             title = str(ref.get('title', '')).lower()
-            link = str(ref.get('link', '')).lower()
+            # Igual que producción: resolver redirects goto antes de buscar la marca
+            link = (clean_serp_link(str(ref.get('link', ''))) or '').lower()
             source = str(ref.get('source', '')).lower()
             
             if brand_lower in title or brand_lower in link or brand_lower in source:

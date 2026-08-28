@@ -6,6 +6,8 @@ from datetime import datetime
 from urllib.parse import urlparse
 import re
 
+from services.google_redirects import clean_serp_link
+
 
 def now_utc_iso() -> str:
     """
@@ -33,7 +35,13 @@ def extract_domain_from_url(url: str) -> str:
     """
     if not url or not isinstance(url, str):
         return ''
-    
+
+    # Resolver redirects google.com/goto; si el destino es irrecuperable,
+    # el dominio es desconocido (nunca debe contarse como google.com).
+    url = clean_serp_link(url)
+    if not url:
+        return ''
+
     url = url.strip().lower()
     
     # Si no tiene protocolo, añadir temporalmente para parsing
