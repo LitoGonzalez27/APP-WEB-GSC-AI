@@ -278,3 +278,242 @@ class TestLogRedirectStats:
             stats = log_redirect_stats(payload)
         assert stats["clean"] is True
         assert not caplog.records
+
+
+# ---------------------------------------------------------------------------
+# Resolución activa (HTTP + metadata): capa que recupera las URLs reales en
+# vez de descartar las referencias con token opaco. Sin red: sesión falseada.
+# ---------------------------------------------------------------------------
+
+import services.google_redirects as gr
+from services.google_redirects import (
+    _domain_from_reference_metadata,
+    resolve_payload_redirects,
+    resolve_redirect_via_http,
+    sanitize_serp_response,
+)
+
+GOTO_OPAQUE_2 = "https://www.google.es/goto?url=CAESotroTokenOpaco123"
+REAL_DEST = "https://www.esic.edu/rethink/canales-de-distribucion"
+
+
+class _FakeResponse:
+    def __init__(self, status_code, location=None):
+        self.status_code = status_code
+        self.headers = {"Location": location} if location else {}
+
+
+class _FakeSession:
+    """Devuelve respuestas por URL (dict) o en secuencia (list)."""
+
+    def __init__(self, responses):
+        self.responses = responses
+        self.calls = []
+
+    def get(self, url, allow_redirects=False, timeout=None, proxies=None):
+        self.calls.append({"url": url, "proxies": proxies})
+        if isinstance(self.responses, dict):
+            resp = self.responses[url]
+        else:
+            resp = self.responses.pop(0)
+        if isinstance(resp, Exception):
+            raise resp
+        return resp
+
+
+@pytest.fixture()
+def fake_http(monkeypatch):
+    """Instala una sesión falsa y limpia la caché HTTP antes y después."""
+
+    def _install(responses):
+        session = _FakeSession(responses)
+        monkeypatch.setattr(gr, "_http_session", session)
+        return session
+
+    gr._clear_http_cache()
+    yield _install
+    gr._clear_http_cache()
+
+
+class TestResolveRedirectViaHttp:
+
+    def test_302_devuelve_location(self, fake_http):
+        fake_http({GOTO_OPAQUE: _FakeResponse(302, REAL_DEST)})
+        assert resolve_redirect_via_http(GOTO_OPAQUE) == REAL_DEST
+
+    def test_location_relativo_se_absolutiza(self, fake_http):
+        session = fake_http([
+            _FakeResponse(302, "/url?q=https://ejemplo.com/pagina"),
+        ])
+        # /url?q=... es a su vez un redirect de Google descifrable
+        assert resolve_redirect_via_http(GOTO_OPAQUE) == "https://ejemplo.com/pagina"
+        assert len(session.calls) == 1
+
+    def test_multi_hop_goto_a_goto(self, fake_http):
+        fake_http({
+            GOTO_OPAQUE: _FakeResponse(302, GOTO_OPAQUE_2),
+            GOTO_OPAQUE_2: _FakeResponse(302, REAL_DEST),
+        })
+        assert resolve_redirect_via_http(GOTO_OPAQUE) == REAL_DEST
+
+    def test_200_sin_redirect_es_none(self, fake_http):
+        fake_http({GOTO_OPAQUE: _FakeResponse(200)})
+        assert resolve_redirect_via_http(GOTO_OPAQUE) is None
+
+    def test_error_de_red_es_none(self, fake_http):
+        fake_http({GOTO_OPAQUE: ConnectionError("boom")})
+        assert resolve_redirect_via_http(GOTO_OPAQUE) is None
+
+    def test_consent_google_es_bloqueo(self, fake_http):
+        fake_http({GOTO_OPAQUE: _FakeResponse(302, "https://consent.google.com/m?continue=x")})
+        assert resolve_redirect_via_http(GOTO_OPAQUE) is None
+
+    def test_cachea_aciertos(self, fake_http):
+        session = fake_http({GOTO_OPAQUE: _FakeResponse(302, REAL_DEST)})
+        assert resolve_redirect_via_http(GOTO_OPAQUE) == REAL_DEST
+        assert resolve_redirect_via_http(GOTO_OPAQUE) == REAL_DEST
+        assert len(session.calls) == 1
+
+    def test_cachea_fallos(self, fake_http):
+        session = fake_http({GOTO_OPAQUE: _FakeResponse(200)})
+        assert resolve_redirect_via_http(GOTO_OPAQUE) is None
+        assert resolve_redirect_via_http(GOTO_OPAQUE) is None
+        assert len(session.calls) == 1
+
+    def test_desactivable_por_env(self, fake_http, monkeypatch):
+        session = fake_http({GOTO_OPAQUE: _FakeResponse(302, REAL_DEST)})
+        monkeypatch.setenv("GOTO_HTTP_RESOLUTION_ENABLED", "false")
+        assert resolve_redirect_via_http(GOTO_OPAQUE) is None
+        assert session.calls == []
+
+    def test_url_normal_no_se_toca(self, fake_http):
+        session = fake_http({})
+        assert resolve_redirect_via_http(NORMAL) is None
+        assert session.calls == []
+
+    def test_429_reintenta_por_proxy(self, fake_http, monkeypatch):
+        monkeypatch.setenv("SCANNER_PROXY_URL", "http://proxy.interno:3128")
+        session = fake_http([
+            _FakeResponse(429),
+            _FakeResponse(302, REAL_DEST),
+        ])
+        assert resolve_redirect_via_http(GOTO_OPAQUE) == REAL_DEST
+        assert session.calls[0]["proxies"] is None
+        assert session.calls[1]["proxies"] == {
+            "http": "http://proxy.interno:3128",
+            "https": "http://proxy.interno:3128",
+        }
+
+
+class TestDomainFromReferenceMetadata:
+
+    def test_source_es_dominio(self):
+        assert _domain_from_reference_metadata({"source": "esic.edu"}) == "esic.edu"
+        assert _domain_from_reference_metadata(
+            {"source": "www.plangeneralcontable.com"}
+        ) == "plangeneralcontable.com"
+        assert _domain_from_reference_metadata(
+            {"source": "sede.agenciatributaria.gob.es"}
+        ) == "sede.agenciatributaria.gob.es"
+
+    def test_source_marca_cae_a_source_icon(self):
+        ref = {
+            "source": "ESIC University",
+            "source_icon": (
+                "https://encrypted-tbn0.gstatic.com/faviconV2"
+                "?url=https://www.esic.edu&client=AIM&size=128&type=FAVICON"
+            ),
+        }
+        assert _domain_from_reference_metadata(ref) == "esic.edu"
+
+    def test_thumbnail_gstatic_sin_url_no_sirve(self):
+        ref = {
+            "source": "Una Marca",
+            "thumbnail": "https://encrypted-tbn1.gstatic.com/images?q=tbn:abc123",
+        }
+        assert _domain_from_reference_metadata(ref) == ""
+
+    def test_source_google_se_descarta(self):
+        assert _domain_from_reference_metadata({"source": "google.com"}) == ""
+
+    def test_sin_metadata(self):
+        assert _domain_from_reference_metadata({}) == ""
+        assert _domain_from_reference_metadata(None) == ""
+
+
+class TestResolvePayloadRedirects:
+
+    def test_cadena_completa_de_recuperacion(self, fake_http):
+        fake_http({
+            GOTO_OPAQUE: _FakeResponse(302, REAL_DEST),   # capa HTTP
+            GOTO_OPAQUE_2: _FakeResponse(200),            # HTTP falla → metadata
+        })
+        goto_sin_nada = "https://www.google.com/goto?url=CAESduplicadoSinMetadata"
+        payload = {
+            "ai_overview": {
+                "references": [
+                    {"link": GOTO_RESOLVABLE},                      # capa token
+                    {"link": GOTO_OPAQUE, "source": "ESIC"},        # capa HTTP
+                    {"link": GOTO_OPAQUE_2, "source": "bbva.es"},   # capa metadata
+                    {"link": NORMAL},                               # intacto
+                ],
+            },
+            "organic_results": [{"link": goto_sin_nada}],           # irresoluble
+        }
+        # el goto irresoluble también pasa por HTTP y falla
+        gr._http_session.responses[goto_sin_nada] = _FakeResponse(200)
+
+        stats = resolve_payload_redirects(payload, context="kw")
+
+        refs = payload["ai_overview"]["references"]
+        assert refs[0]["link"] == "https://www.clinica.com/tratamientos"
+        assert refs[0]["google_goto_original"] == GOTO_RESOLVABLE
+        assert refs[1]["link"] == REAL_DEST
+        assert refs[2]["link"] == "https://bbva.es/"
+        assert refs[2]["google_goto_domain_only"] is True
+        assert refs[3]["link"] == NORMAL
+        assert "google_goto_original" not in refs[3]
+        assert payload["organic_results"][0]["link"] == goto_sin_nada  # intacto
+        assert stats == {
+            "redirects": 4, "via_token": 1, "via_http": 1,
+            "via_metadata": 1, "unresolved": 1,
+        }
+
+    def test_walk_generico_alcanza_dicts_anidados(self, fake_http):
+        fake_http({GOTO_OPAQUE: _FakeResponse(302, REAL_DEST)})
+        payload = {
+            "text_blocks": [
+                {"type": "list", "list": [{"reference": {"link": GOTO_OPAQUE}}]},
+            ],
+        }
+        stats = resolve_payload_redirects(payload)
+        assert payload["text_blocks"][0]["list"][0]["reference"]["link"] == REAL_DEST
+        assert stats["via_http"] == 1
+
+    def test_payload_sin_redirects_no_llama_http(self, fake_http):
+        session = fake_http({})
+        payload = {"organic_results": [{"link": NORMAL}]}
+        stats = resolve_payload_redirects(payload)
+        assert stats["redirects"] == 0
+        assert session.calls == []
+        assert payload["organic_results"][0]["link"] == NORMAL
+
+    def test_payload_malformado_no_rompe(self, fake_http):
+        fake_http({})
+        assert resolve_payload_redirects(None)["redirects"] == 0
+        assert resolve_payload_redirects({})["redirects"] == 0
+        assert resolve_payload_redirects({"organic_results": "x"})["redirects"] == 0
+
+
+class TestSanitizeSerpResponse:
+
+    def test_alarma_y_resolucion(self, fake_http, caplog):
+        fake_http({GOTO_OPAQUE: _FakeResponse(302, REAL_DEST)})
+        payload = {"ai_overview": {"references": [{"link": GOTO_OPAQUE}]}}
+        with caplog.at_level(logging.WARNING, logger="services.google_redirects"):
+            stats = sanitize_serp_response(payload, context="kw")
+        # la alarma de regresión del proveedor sigue saltando…
+        assert any("GOOGLE GOTO" in rec.message for rec in caplog.records)
+        # …y el payload queda saneado con la URL real
+        assert payload["ai_overview"]["references"][0]["link"] == REAL_DEST
+        assert stats["via_http"] == 1
