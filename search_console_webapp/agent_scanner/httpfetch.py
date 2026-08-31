@@ -18,6 +18,21 @@ from .config import BOT_UAS, TIMEOUT_DEFAULT, UA_HUMAN
 _SESSION = requests.Session()
 _SESSION.max_redirects = 5
 
+# Solo se anuncia Brotli si este runtime sabe descomprimirlo. Caso real
+# (soycarlosgonzalez.com, 2026-08-31): producción anunciaba "br" sin el paquete
+# brotli instalado; el LiteSpeed de Raiola respondía en Brotli y el cuerpo
+# llegaba como bytes crudos — el guardarraíl leía "página sin enlaces ni texto"
+# y degradaba TODO el análisis a "No evaluable", culpando a la red.
+try:
+    import brotli  # noqa: F401  (lo usa urllib3 por debajo)
+    _ACCEPT_ENCODING = "gzip, deflate, br"
+except ImportError:
+    try:
+        import brotlicffi  # noqa: F401
+        _ACCEPT_ENCODING = "gzip, deflate, br"
+    except ImportError:
+        _ACCEPT_ENCODING = "gzip, deflate"
+
 
 def _proxies():
     """Proxy de salida opcional. Con SCANNER_PROXY_URL, TODO el tráfico del
@@ -174,7 +189,7 @@ def fetch(url, ua=UA_HUMAN, timeout=TIMEOUT_DEFAULT, headers=None, verify_public
         except BlockedURLError as exc:
             result["error"] = str(exc)
             return result
-    hdrs = {"User-Agent": ua, "Accept-Encoding": "gzip, deflate, br"}
+    hdrs = {"User-Agent": ua, "Accept-Encoding": _ACCEPT_ENCODING}
     # La medición de referencia "como un humano" necesita el perfil de cabeceras
     # completo: WAF tipo Akamai (BBVA, Mango) devuelven 403 a un UA de navegador
     # que llega sin Sec-Fetch/sec-ch-ua, y entonces reportábamos como "no existe"
