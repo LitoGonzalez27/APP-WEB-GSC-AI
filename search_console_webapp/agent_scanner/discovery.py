@@ -406,6 +406,22 @@ def classify_and_sample(urls, per_bucket=2, max_total=10):
                 break
         else:
             buckets["otras"].append(u)
+    # El bucket blog mezcla artículos con sus hubs (/blog/, /blog/categoria-x/)
+    # y el sitemap suele listar los hubs PRIMERO: tomando [:2] en orden de
+    # sitemap la muestra editorial eran dos índices sin firma, y 5.3 exigía
+    # autoría de artículo a páginas que no son artículos (caso real:
+    # soycarlosgonzalez.com salió "0/2 articulos" con un blog perfectamente
+    # firmado). Los artículos reales se distinguen por el slug: multi-palabra
+    # y largo ("como-trabajar-el-linkbuilding-en-4-pasos") frente al hub corto
+    # ("articulos-geo", "blog"). Se ordena por esa señal; no elimina hubs (si
+    # no hay artículos, siguen entrando), solo los deja para el final.
+    def _prioridad_articulo(url):
+        segmentos = [s for s in urlparse(url).path.split("/") if s]
+        slug = segmentos[-1] if segmentos else ""
+        return (slug.count("-"), len(slug), len(segmentos))
+
+    buckets["blog"].sort(key=_prioridad_articulo, reverse=True)
+
     sample = []
     for name in ("producto", "categoria", "servicio", "blog", "otras", "legal"):
         take = 1 if name in ("legal", "otras") else per_bucket

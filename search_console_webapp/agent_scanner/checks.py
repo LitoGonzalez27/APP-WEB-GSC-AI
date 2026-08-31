@@ -712,19 +712,52 @@ def run_c5(ctx):
     # Una web sin fecha ni responsable en ninguna pagina es contenido que un
     # LLM no puede fechar ni atribuir, sea blog o corporativa.
     blog_pages = [p for p in ctx["pages"] if p["bucket"] == "blog" and p["fetch"]["status"] == 200]
-    if blog_pages:
-        hits = 0
-        for p in blog_pages:
-            body = p["fetch"]["body"]
-            valid, _ = jsonld_blocks(body)
-            has_author = bool(find_nodes(valid, "Person")) or '"author"' in json.dumps(valid) \
-                or re.search(r"(?i)class=[\"'][^\"']*(author|byline)", body)
-            has_date = '"datePublished"' in json.dumps(valid) or re.search(r"(?i)<time[\s>]", body)
-            hits += 1 if (has_author and has_date) else 0.5 if (has_author or has_date) else 0
-        ratio = hits / len(blog_pages)
+
+    def _senales_eeat(body):
+        """(autor, fecha, es_articulo) de una página. Las señales cubren tanto
+        el marcado formal (JSON-LD, <time>, metas) como la firma VISIBLE que
+        usan muchos blogs reales: "Por <a href=/sobre-mi/>Carlos</a> ·
+        Publicado: 28/08/2026" no llevaba class=author ni <time> y salía como
+        "sin autoría" — un enlace de byline accesible ES autoría verificable.
+        """
+        valid, _ = jsonld_blocks(body)
+        js = json.dumps(valid)
+        autor = (bool(find_nodes(valid, "Person")) or '"author"' in js
+                 or bool(re.search(r"(?i)class=[\"'][^\"']*(author|byline)", body))
+                 or bool(re.search(r"(?i)<meta[^>]+name=[\"']author", body))
+                 or bool(re.search(r"(?i)rel=[\"']author", body))
+                 or bool(re.search(r"(?i)(?:>|\s)(por|by|escrito por|written by|"
+                                   r"autora?)\s*:?\s*<a\b", body)))
+        fecha = ('"datePublished"' in js or '"dateModified"' in js
+                 or bool(re.search(r"(?i)<time[\s>]", body))
+                 or bool(re.search(r"(?i)(article:published_time|og:updated_time)", body))
+                 or bool(re.search(r"(?i)(publicado|actualizado|published|updated)"
+                                   r"[^<>]{0,20}\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4}", body)))
+        # ¿Es un artículo o un hub del blog? El sitemap mete a los dos en el
+        # mismo bucket, y a un índice no se le puede exigir firma de artículo.
+        es_articulo = (bool(re.search(r'(?i)"@type"\s*:\s*"[^"]*(article|blogposting)',
+                                      js)) or autor or fecha)
+        return autor, fecha, es_articulo
+
+    articulos, hubs = [], 0
+    for p in blog_pages:
+        autor, fecha, es_articulo = _senales_eeat(p["fetch"]["body"] or "")
+        if es_articulo:
+            articulos.append((autor, fecha))
+        else:
+            hubs += 1
+    if articulos:
+        hits = sum(1 if (a and f) else 0.5 for a, f in articulos)
+        ratio = hits / len(articulos)
         score = 1 if ratio >= 0.85 else 0.5 if ratio >= 0.4 else 0
-        ev = f"Autoria+fecha verificables en {hits}/{len(blog_pages)} articulos muestreados"
+        ev = (f"Autoria+fecha verificables en {hits}/{len(articulos)} articulos muestreados"
+              + (f" ({hubs} pagina(s) indice del blog excluidas: a un listado "
+                 f"no se le exige firma)" if hubs else ""))
     else:
+        # Sin ningún artículo reconocible en la muestra (solo hubs, o nada):
+        # exigir firma aquí sería culpar a la web de nuestro muestreo. Se cae
+        # a la evaluación genérica de frescura/autoría sobre el resto del
+        # contenido, cuyo texto ya avisa de que el blog pudo no entrar.
         contenido = [p["fetch"]["body"] for p in ctx["pages"]
                      if p["fetch"]["status"] == 200 and p["bucket"] != "legal"]
         contenido.append(ctx["home"]["body"] or "")
