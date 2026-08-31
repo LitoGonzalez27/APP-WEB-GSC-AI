@@ -1921,6 +1921,66 @@ def test_53_eeat_se_mide_sin_blog():
       "hay que decir que su blog pudo no entrar en la muestra")
 
 
+def test_53_eeat_byline_visible_y_hubs():
+    """Caso real (soycarlosgonzalez.com): la muestra de blog pilló /blog/ y una
+    categoría —dos índices sin firma— y 5.3 salió "0/2 articulos" con un blog
+    perfectamente firmado ("Por <a href=/sobre-mi/>Carlos</a> · Publicado:
+    28/08/2026"). Dos garantías: (1) la firma VISIBLE cuenta como autoría
+    aunque no haya class=author ni <time>; (2) a un índice no se le exige
+    firma de artículo — sin artículos reconocibles se cae a la rama genérica,
+    que no castiga con 0.
+    """
+    def ctx_blog(*bodies):
+        c = ctx_base()
+        c["pages"] = [{"url": f"https://x.test/blog/p{i}", "bucket": "blog",
+                       "fetch": {"status": 200, "body": b}}
+                      for i, b in enumerate(bodies)]
+        c["home"] = {"body": "<html>" + "hola " * 200 + "</html>", "status": 200,
+                     "headers": "", "ttfb": 0.2, "_via": "http"}
+        return c
+
+    # Byline visible + fecha en texto, sin class=author, sin <time>, sin JSON-LD
+    firmado = ("<html><h1>Titulo</h1><p>Por <a href='/sobre-mi/'>Carlos "
+               "González</a> · Publicado: 28/08/2026</p>" + "texto " * 300 + "</html>")
+    c = by_id(checks.run_c5(ctx_blog(firmado)), "5.3")
+    t("eeat_byline_visible_cuenta", c["score"] == 1,
+      f"un byline enlazado y fecha visible SON autoria+fecha verificables: {c}")
+
+    # Dos índices de blog (listas de enlaces, sin señal alguna de artículo)
+    hub = "<html><ul>" + "".join(
+        f"<li><a href='/blog/post-{i}/'>Post {i}</a></li>" for i in range(12)
+    ) + "</ul>" + "texto " * 200 + "</html>"
+    c = by_id(checks.run_c5(ctx_blog(hub, hub)), "5.3")
+    t("eeat_hubs_no_castigan_a_cero", c["score"] != 0,
+      f"exigir firma de articulo a dos indices es culpar a la web del muestreo: {c}")
+
+    # Mezcla: un artículo firmado + un hub -> el hub no diluye la nota
+    c = by_id(checks.run_c5(ctx_blog(firmado, hub)), "5.3")
+    t("eeat_hub_no_diluye", c["score"] == 1,
+      f"1/1 articulos firmados; el indice queda excluido del denominador: {c}")
+    t("eeat_hub_excluido_se_explica", "indice" in c["evidence"],
+      f"la evidencia debe decir que el indice se excluyo: {c['evidence']}")
+
+
+def test_muestreo_blog_prefiere_articulos():
+    """El sitemap lista los hubs del blog primero (/blog/, /blog/categoria/):
+    tomando [:2] en orden de sitemap, la muestra editorial eran dos índices.
+    Los slugs multi-palabra (artículos reales) deben entrar antes.
+    """
+    urls = ["https://x.test/blog/",
+            "https://x.test/blog/articulos-geo/",
+            "https://x.test/blog/como-trabajar-el-linkbuilding-en-4-pasos/",
+            "https://x.test/blog/information-gain/",
+            "https://x.test/servicios/uno/"]
+    _, sample = discovery.classify_and_sample(urls, per_bucket=2)
+    blogs = [s["url"] for s in sample if s["bucket"] == "blog"]
+    t("muestreo_blog_articulos_primero",
+      "como-trabajar-el-linkbuilding-en-4-pasos" in blogs[0],
+      f"el slug mas rico en palabras debe ir primero: {blogs}")
+    t("muestreo_blog_hub_al_final", "https://x.test/blog/" not in blogs[:2],
+      f"la raiz del blog no debe comerse la muestra editorial: {blogs}")
+
+
 def test_24_rate_limiting_no_regala_el_1():
     """Barrido: 2.4 daba 1 con cualquier 429 (`n429 > 0`). Un sitio que responde
     429 a las DIEZ peticiones —el bot no obtiene NADA— salía con nota perfecta
