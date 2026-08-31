@@ -284,16 +284,29 @@ _MAX_SALIDA = 2000
 def _ask_openai(messages, key):
     import openai
     client = openai.OpenAI(api_key=key)
+
+    def _llamar(model):
+        # GPT-5.x usa max_completion_tokens y no admite temperature; GPT-4o usa max_tokens
+        params = {"model": model, "messages": messages}
+        if model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3"):
+            params["max_completion_tokens"] = _MAX_SALIDA
+        else:
+            params["max_tokens"] = 800
+            params["temperature"] = 0
+        r = client.chat.completions.create(**params)
+        return r.choices[0].message.content
+
     model = _model_for("chatgpt")
-    # GPT-5.x usa max_completion_tokens y no admite temperature; GPT-4o usa max_tokens
-    params = {"model": model, "messages": messages}
-    if model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3"):
-        params["max_completion_tokens"] = _MAX_SALIDA
-    else:
-        params["max_tokens"] = 800
-        params["temperature"] = 0
-    r = client.chat.completions.create(**params)
-    return r.choices[0].message.content
+    try:
+        return _llamar(model)
+    except openai.NotFoundError:
+        # El modelo "current" de BD puede morir sin avisar (caso real 2026-08-31:
+        # gpt-5.3-chat-latest 404 "deprecated" aun con is_current=TRUE). Perder
+        # el agente entero por eso deja el 6.3 sin evidencia; mejor degradar al
+        # modelo de reserva y que la simulación se complete.
+        if model != _FALLBACK_MODELS["chatgpt"]:
+            return _llamar(_FALLBACK_MODELS["chatgpt"])
+        raise
 
 
 def _ask_anthropic(messages, key):
@@ -301,9 +314,12 @@ def _ask_anthropic(messages, key):
     client = anthropic.Anthropic(api_key=key)
     system = next((m["content"] for m in messages if m["role"] == "system"), "")
     convo = [m for m in messages if m["role"] != "system"]
+    # Sin temperature: en Claude Sonnet 5 (y toda la familia 4.6+) los
+    # parámetros de sampling están eliminados y la API devuelve 400
+    # "`temperature` is deprecated for this model" (visto 2026-08-31).
     r = client.messages.create(
         model=_model_for("claude"), system=system, messages=convo,
-        max_tokens=_MAX_SALIDA, temperature=0)
+        max_tokens=_MAX_SALIDA)
     return r.content[0].text
 
 
