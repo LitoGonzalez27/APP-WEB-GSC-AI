@@ -932,12 +932,27 @@ def run_c5(ctx):
         rotas = [f"{nombres[k]} ({v['url']} sin contenido util)"
                  for k, v in tp.items() if v and not v.get("ok")]
         faltan = [nombres[k] for k, v in tp.items() if not v]
-        score = 1 if len(oks) == 3 else 0.5 if len(oks) == 2 else 0
+        # Las candidatas salen de la home (footer incluido) y del sitemap. Si
+        # la portada solo se leyo via rescate, su footer puede no estar en lo
+        # que vimos: lo VERIFICADO vale (evidencia positiva), pero afirmar que
+        # "falta" lo demas seria describir nuestra via de acceso. Caso real
+        # (mediamarkt.es): su home directa enlaza /es/legal/politica-de-
+        # privacidad y sobre el cuerpo de Jina la dabamos por inexistente.
+        via_home = ctx["home"].get("_via", "http")
+        if len(oks) == 3:
+            score = 1
+        elif faltan and via_home not in ("http", "render"):
+            score = None
+        else:
+            score = 0.5 if len(oks) == 2 else 0
         ev = f"Verificadas {len(oks)}/3: {', '.join(oks) or 'ninguna'}"
         if rotas:
             ev += f". Localizadas pero sin contenido: {'; '.join(rotas)}"
         if faltan:
-            ev += f". No localizadas (home + sitemap): {', '.join(faltan)}"
+            ev += (f". No afirmable si falta {', '.join(faltan)}: la portada solo "
+                   f"se leyo via rescate y su footer pudo no llegar entero"
+                   if score is None else
+                   f". No localizadas (home + sitemap): {', '.join(faltan)}")
         out.append(R("5.7", "C5", "Paginas de confianza", score, ev))
 
     # 5.8 Presupuesto de tokens por pagina (~25K tokens de texto extraido, a

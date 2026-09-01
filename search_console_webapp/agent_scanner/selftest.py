@@ -2048,6 +2048,19 @@ def test_quick_wins_ora():
     t("confianza_1_de_3_es_0", r["score"] == 0, str(r))
     c["trust_pages"] = None
     t("confianza_sin_sondas_no_medible", by_id(checks.run_c5(c), "5.7")["score"] is None, "")
+    # batería 2026-09-01 (mediamarkt.es): con la portada rescatada, el footer
+    # pudo no llegar — lo verificado vale, las ausencias no se afirman
+    c = ctx_base()
+    c["home"]["_via"] = "jina-html"
+    c["trust_pages"] = {"quien": {"url": "https://x.test/about/", "ok": True},
+                        "contacto": {"url": "https://x.test/contact/", "ok": True},
+                        "legal": None}
+    r = by_id(checks.run_c5(c), "5.7")
+    t("confianza_rescate_no_afirma_ausencia", r["score"] is None,
+      f"sobre una portada rescatada no se afirma que falte una pagina: {r}")
+    c["trust_pages"]["legal"] = {"url": "https://x.test/privacy/", "ok": True}
+    t("confianza_rescate_3_de_3_si_puntua", by_id(checks.run_c5(c), "5.7")["score"] == 1,
+      "la evidencia POSITIVA vale aunque la portada viniera por rescate")
 
     # --- 5.8 presupuesto de tokens
     c = ctx_base()
