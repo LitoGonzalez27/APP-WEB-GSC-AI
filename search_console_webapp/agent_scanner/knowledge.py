@@ -187,6 +187,36 @@ KB = {
         "como": "Configurar content negotiation en el servidor/CDN: cuando la petición llegue con Accept: text/markdown, servir la versión Markdown de la página (Cloudflare lo ofrece como feature; también se puede generar en el build).",
         "esfuerzo": "Medio", "impacto": "Medio (creciente)",
     },
+    "1.8": {
+        "titulo": "Faltan metadatos básicos de cita en las páginas",
+        "por_que": "Canonical, idioma y Open Graph son lo mínimo que un sistema usa para identificar y citar una página. Sin canonical, las citas se reparten entre variantes de la misma URL; sin lang, el idioma se adivina; sin og:image/og:type, el preview sale roto cuando alguien comparte tu contenido.",
+        "como": "Añadir en cada plantilla: <link rel=canonical>, lang en <html>, y las metas og:image y og:type. Es configuración de plantilla, no de contenido: una vez por tipo de página.",
+        "esfuerzo": "Bajo", "impacto": "Medio",
+    },
+    "3.7": {
+        "titulo": "La marca no existe como entidad en Wikipedia/Wikidata",
+        "por_que": "Wikipedia es la mayor fuente individual de citas en respuestas de IA, y Wikidata es el grafo con el que los sistemas desambiguan quién eres. Sin un item con tu dominio como sitio oficial (P856), la IA no puede verificar tu identidad ni distinguirte de homónimos: compites sin ficha en el registro que más consultan.",
+        "como": "Crear (o reclamar) el item de Wikidata de la marca con la propiedad P856 apuntando al dominio, notabilidad mediante. Si hay cobertura en prensa suficiente, valorar el artículo de Wikipedia — con las reglas de conflicto de interés en mente: mejor propuesto con fuentes que autopublicado.",
+        "esfuerzo": "Medio", "impacto": "Alto",
+    },
+    "4.9": {
+        "titulo": "Hay redirecciones que dejan tirado a un agente sin JS",
+        "por_que": "Un stub de meta-refresh o de location.href solo funciona ejecutando JavaScript o esperando: un agente que lee el HTML se queda en la página intermedia, y un salto a otro dominio le rompe la atribución de la cita. Cada stub es una página tuya que los agentes leen vacía.",
+        "como": "Sustituir meta-refresh y redirecciones JavaScript por redirecciones HTTP 301/308 en el servidor, y evitar que URLs propias acaben sirviendo el contenido desde otro dominio.",
+        "esfuerzo": "Bajo", "impacto": "Medio",
+    },
+    "5.7": {
+        "titulo": "Faltan páginas de confianza verificables (quién hay detrás)",
+        "por_que": "Antes de recomendar, un agente comprueba lo mismo que una persona cuidadosa: quién está detrás (About), cómo contactar y la base legal. Si no las encuentra o están vacías, tu contenido compite con menos confianza — es E-E-A-T a nivel de sitio, no de artículo.",
+        "como": "Publicar y enlazar desde el footer páginas de Sobre nosotros/Sobre mí, Contacto y Privacidad/Aviso legal con contenido real (no plantillas vacías), y que estén en el sitemap.",
+        "esfuerzo": "Bajo", "impacto": "Medio",
+    },
+    "5.8": {
+        "titulo": "Hay páginas que no caben en el contexto de un agente",
+        "por_que": "Una página cuyo texto supera ~25K tokens no se lee entera: el agente la trunca, y lo truncado se cita mal o se ignora. Suele delatar páginas-río autogeneradas o archivos enteros volcados en una URL.",
+        "como": "Trocear las páginas-río en URLs por tema (mejor también para SEO clásico), y mover los volcados largos (changelogs, listados completos) a páginas propias enlazadas.",
+        "esfuerzo": "Medio", "impacto": "Bajo",
+    },
     "6.1": {
         "titulo": "La web no ofrece ninguna 'ventanilla' para agentes",
         "por_que": "Los agentes prefieren consultar un servicio estructurado (MCP) a interpretar HTML. Menos de 15 de los 200.000 sitios más visitados lo ofrecen: quien lo tenga primero en su sector será el sitio 'fácil' que los agentes usen por defecto.",

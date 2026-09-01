@@ -48,6 +48,10 @@ BOT_UAS = {
 }
 
 WELLKNOWN_PATHS = [
+    # ARD (Agentic Resource Discovery, agenticresourcediscovery.org) y su
+    # predecesor AI Catalog: el catálogo único de capacidades agénticas.
+    "/.well-known/ard.json", "/.well-known/ai-catalog.json",
+    "/pricing.md",
     "/.well-known/mcp.json", "/.well-known/api-catalog",
     "/.well-known/oauth-authorization-server", "/.well-known/ai-plugin.json",
     "/.well-known/http-message-signatures-directory",

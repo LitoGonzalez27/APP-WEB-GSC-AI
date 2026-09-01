@@ -646,6 +646,22 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     T("DNS-AID", "ok" if ctx["dns_aid"] else "ok",
       ctx["dns_aid"] or "consultados TXT _aid/_agent: sin registros (evidencia negativa válida)")
 
+    _log("entidad Wikidata y páginas de confianza…")
+    ctx["wikidata"] = discovery.wikidata_entity(urlparse(base).hostname or "")
+    wd = ctx["wikidata"]
+    T("entidad Wikidata (3.7)", "warn" if wd.get("error") else "ok",
+      (f"item {wd['qid']} (P856 → dominio), {wd.get('sitelinks', 0)} sitelink(s)"
+       if wd.get("qid") else
+       wd.get("error") or "sin item con P856 apuntando al dominio (fuente externa: "
+                          "evidencia válida aunque el sitio nos bloquease)"))
+
+    ctx["trust_pages"] = discovery.probe_trust_pages(
+        base, ctx["home"].get("body") or "", ctx["sitemap"]["urls"])
+    verificadas = [f"{k} ({v['url']})" for k, v in ctx["trust_pages"].items()
+                   if v and v.get("ok")]
+    T("páginas de confianza (5.7)", "ok",
+      "verificadas con contenido real: " + ("; ".join(verificadas) or "ninguna"))
+
     _log("vista LLM (Jina)…")
     jina = jina_read(base + "/")
     cuerpo = jina["body"] if jina else ""
@@ -678,9 +694,14 @@ from .catalog import CATEGORIES as CAT_NAMES
 # Checks cuyo "0" significa "no lo he encontrado". Si el sitio nos ha bloqueado,
 # ese 0 no es un hallazgo sobre la web: es una ceguera nuestra, y afirmarlo sería
 # mentir. Se degradan a "no verificable" en vez de puntuar como fallo.
-CHECKS_POR_AUSENCIA = {"1.4", "1.5", "1.7", "2.1", "2.3", "3.1", "3.2", "3.3",
-                       "3.4", "3.5", "3.6", "4.5", "5.1", "5.2", "5.3", "5.5",
-                       "5.6", "6.1", "6.2", "7.1", "7.5", "7.6"}
+CHECKS_POR_AUSENCIA = {"1.4", "1.5", "1.7", "1.8", "2.1", "2.3", "3.1", "3.2",
+                       "3.3", "3.4", "3.5", "3.6", "4.5", "5.1", "5.2", "5.3",
+                       "5.5", "5.6", "5.7", "6.1", "6.2", "7.1", "7.5", "7.6"}
+# 3.7 (Wikidata) se queda FUERA a propósito: su evidencia viene de una fuente
+# EXTERNA (query.wikidata.org), así que un sitio que nos bloquee no la ciega.
+# 4.9 y 5.8 tampoco entran: su fallo exige evidencia POSITIVA (un meta-refresh
+# visto, una página que excede el presupuesto) y ellos mismos se marcan "no
+# medido" cuando no hay páginas vistas por HTTP directo.
 # Se quedan FUERA a propósito aunque el sitio bloquee: 1.6, 2.4 y 4.4 miden
 # exactamente esa hostilidad al acceso automatizado, que es lo que un agente
 # sufriría. Que el sitio nos bloquee ES el hallazgo, no ruido.
@@ -689,13 +710,13 @@ CHECKS_POR_AUSENCIA = {"1.4", "1.5", "1.7", "2.1", "2.3", "3.1", "3.2", "3.3",
 # un fallback de texto (Jina), el marcado sencillamente no está en lo que vemos:
 # reportar "no tiene datos estructurados" sería describir nuestra vía de acceso,
 # no la web del cliente.
-CHECKS_DE_MARCADO = {"3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "4.2", "6.2",
-                     "7.1", "7.2", "7.5", "7.6"}
+CHECKS_DE_MARCADO = {"1.8", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "4.2",
+                     "6.2", "7.1", "7.2", "7.5", "7.6"}
 
 # Checks cuyo "no encontrado" depende de SONDAS adicionales (robots, sitemap,
 # .well-known, negociación de contenido), no de la portada. Si la portada se vio
 # pero esas sondas recibieron bloqueos, solo estas ausencias son inafirmables.
-CHECKS_DE_SONDA = {"1.4", "1.5", "2.1", "4.5", "5.5", "5.6", "6.1"}
+CHECKS_DE_SONDA = {"1.4", "1.5", "2.1", "4.5", "5.5", "5.6", "5.7", "6.1"}
 
 
 # Checks que NO pueden responderse sin abrir al menos una ficha de producto.
