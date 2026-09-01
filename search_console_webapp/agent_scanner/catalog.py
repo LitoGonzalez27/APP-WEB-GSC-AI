@@ -24,6 +24,7 @@ CHECKS = [
     ("1.5", "C1", "Link headers (RFC 8288)", "Cabeceras Link de descubrimiento"),
     ("1.6", "C1", "Contenido accesible sin login", "Las páginas clave rinden contenido sin sesión"),
     ("1.7", "C1", "DNS-AID", "Registros TXT _aid/_agent (estándar experimental)"),
+    ("1.8", "C1", "Metadatos de cita", "canonical, lang y Open Graph: lo que evita citas y previews rotos"),
 
     ("2.1", "C2", "Content Signals declarados", "search / ai-input / ai-train en robots.txt"),
     ("2.2", "C2", "Gestión activa de crawl", "CDN/WAF que vigile y controle los bots de IA"),
@@ -36,6 +37,7 @@ CHECKS = [
     ("3.4", "C3", "Atributos ricos en el marcado", "GTIN, brand, reviews, fechas, specs"),
     ("3.5", "C3", "HTML semántico", "Jerarquía de headings, landmarks, botones reales"),
     ("3.6", "C3", "Controles legibles por un agente", "Controles del árbol de accesibilidad sin nombre propio: el agente los ve pero no sabe qué hacen"),
+    ("3.7", "C3", "Entidad en Wikipedia/Wikidata", "Item de Wikidata con P856 apuntando al dominio: identidad verificable desde fuera"),
 
     ("4.1", "C4", "Contenido sin ejecutar JS", "HTML crudo vs renderizado: lo que ven los bots de IA"),
     ("4.2", "C4", "Precio y CTA sin JS", "El precio y el botón de compra existen sin JavaScript"),
@@ -45,12 +47,15 @@ CHECKS = [
     ("4.6", "C4", "Estabilidad visual (CLS)", "Saltos de layout que confunden a los agentes"),
     ("4.7", "C4", "Zonas de clic operables", "Tamaño real de los controles (≥24px) medido en el render"),
     ("4.8", "C4", "Estados de error correctos", "URL inexistente: ¿404 real o soft-404 que engaña al agente?"),
+    ("4.9", "C4", "Higiene de redirecciones", "Sin stubs meta-refresh/JS ni saltos de dominio que pierdan a un agente sin JS"),
 
     ("5.1", "C5", "Respuesta directa arriba", "Densidad de datos vs relleno de marketing tras el H1"),
     ("5.2", "C5", "Estructura chunkeable", "Secciones H2/H3 autocontenidas y citables"),
     ("5.3", "C5", "E-E-A-T verificable", "Autoría, fechas y fuentes en el contenido"),
     ("5.5", "C5", "llms.txt (higiene)", "Fichero guía para LLMs (peso bajo: casi nadie lo lee)"),
     ("5.6", "C5", "Negociación Markdown", "Accept: text/markdown → ¿sirve versión ligera?"),
+    ("5.7", "C5", "Páginas de confianza", "About/Contacto/Privacidad verificadas con contenido real (multiidioma)"),
+    ("5.8", "C5", "Presupuesto de tokens por página", "Cada página cabe en ~25K tokens: se lee entera, sin truncar"),
 
     ("6.1", "C6", "Superficie agéntica", "MCP Server Card, A2A, WebMCP, API Catalog, OAuth"),
     ("6.2", "C6", "Formularios operables", "label for=id verificado, autocomplete, submit real"),

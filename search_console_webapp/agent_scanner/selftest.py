@@ -1981,6 +1981,91 @@ def test_muestreo_blog_prefiere_articulos():
       f"la raiz del blog no debe comerse la muestra editorial: {blogs}")
 
 
+def test_quick_wins_ora():
+    """Los 5 factores añadidos tras el análisis competitivo (2026-09-01):
+    metadatos de cita (1.8), entidad Wikidata (3.7), higiene de redirecciones
+    (4.9), páginas de confianza (5.7) y presupuesto de tokens (5.8). Las
+    garantías vienen de las lecciones de este proyecto: multiidioma, no culpar
+    a la web de límites nuestros, y "no medible" antes que un pass ciego.
+    """
+    # --- 1.8 metadatos de cita
+    c = ctx_base()
+    c["home"]["body"] = ('<html lang="es"><head><link rel="canonical" href="https://x.test/">'
+                         '<meta property="og:image" content="x.jpg">'
+                         '<meta property="og:type" content="website"></head>'
+                         + "texto " * 200 + "</html>")
+    r = by_id(checks.run_c1(c), "1.8")
+    t("meta_cita_completos_es_1", r["score"] == 1, str(r))
+    c["home"]["body"] = "<html>" + "texto " * 200 + "</html>"
+    r = by_id(checks.run_c1(c), "1.8")
+    t("meta_cita_vacios_es_0", r["score"] == 0, str(r))
+    t("meta_cita_dice_que_falta", "faltan" in r["evidence"], r["evidence"])
+
+    # --- 3.7 Wikidata: fuente externa, tres estados + no verificable
+    c = ctx_base(); c["wikidata"] = {"qid": "Q42", "sitelinks": 12, "error": None}
+    t("wikidata_con_wikipedia_es_1", by_id(checks.run_c3(c), "3.7")["score"] == 1, "")
+    c["wikidata"] = {"qid": "Q42", "sitelinks": 0, "error": None}
+    t("wikidata_sin_articulo_es_05", by_id(checks.run_c3(c), "3.7")["score"] == 0.5, "")
+    c["wikidata"] = {"qid": None, "sitelinks": 0, "error": None}
+    r = by_id(checks.run_c3(c), "3.7")
+    t("wikidata_ausente_es_0", r["score"] == 0, str(r))
+    t("wikidata_explica_fuente_externa", "externa" in r["evidence"], r["evidence"])
+    c["wikidata"] = {"qid": None, "sitelinks": 0, "error": "Wikidata HTTP 503"}
+    t("wikidata_caida_no_afirma", by_id(checks.run_c3(c), "3.7")["score"] is None,
+      "si la fuente no responde, no se afirma ausencia")
+
+    # --- 4.9 higiene de redirecciones
+    def ctx49(body, final=None, via="http"):
+        c = ctx_base()
+        c["pages"] = [{"url": "https://x.test/a", "bucket": "servicio",
+                       "fetch": {"status": 200, "_via": via, "body": body,
+                                 "ttfb": 0.2, "headers": "",
+                                 "url": final or "https://x.test/a"}}]
+        c["home"] = {"status": 0, "body": "", "headers": "", "ttfb": 0.2}
+        return c
+    t("redir_limpia_es_1",
+      by_id(checks.run_c4(ctx49("texto " * 300)), "4.9")["score"] == 1, "")
+    t("redir_meta_refresh_penaliza",
+      by_id(checks.run_c4(ctx49('<meta http-equiv="refresh" content="0;url=/b">')),
+            "4.9")["score"] != 1, "")
+    t("redir_salto_dominio_penaliza",
+      by_id(checks.run_c4(ctx49("texto " * 300, final="https://otro.test/a")),
+            "4.9")["score"] != 1, "")
+    t("redir_sin_http_directo_no_medible",
+      by_id(checks.run_c4(ctx49("texto " * 300, via="jina-html")), "4.9")["score"] is None,
+      "sobre un rescate no se puede afirmar higiene")
+
+    # --- 5.7 páginas de confianza
+    c = ctx_base()
+    c["trust_pages"] = {"quien": {"url": "https://x.test/sobre-mi/", "ok": True},
+                        "contacto": {"url": "https://x.test/contacto/", "ok": True},
+                        "legal": {"url": "https://x.test/legal/privacidad/", "ok": True}}
+    t("confianza_3_de_3_es_1", by_id(checks.run_c5(c), "5.7")["score"] == 1,
+      "sobre-mi + contacto + legal/privacidad en español deben contar")
+    c["trust_pages"] = {"quien": None, "contacto": {"url": "https://x.test/contacto/", "ok": True},
+                        "legal": None}
+    r = by_id(checks.run_c5(c), "5.7")
+    t("confianza_1_de_3_es_0", r["score"] == 0, str(r))
+    c["trust_pages"] = None
+    t("confianza_sin_sondas_no_medible", by_id(checks.run_c5(c), "5.7")["score"] is None, "")
+
+    # --- 5.8 presupuesto de tokens
+    c = ctx_base()
+    c["pages"] = [{"url": "https://x.test/a", "bucket": "servicio",
+                   "fetch": {"status": 200, "_via": "http", "ttfb": 0.2,
+                             "headers": "", "body": "palabra " * 500}}]
+    c["home"] = {"status": 0, "body": "", "headers": "", "ttfb": 0.2}
+    t("tokens_pagina_normal_es_1", by_id(checks.run_c5(c), "5.8")["score"] == 1, "")
+    c["pages"][0]["fetch"]["body"] = "palabra " * 60000   # ~120K tokens
+    t("tokens_pagina_rio_penaliza", by_id(checks.run_c5(c), "5.8")["score"] != 1, "")
+
+    # --- el muestreo multiidioma de confianza reconoce el caso real
+    tp = discovery.TRUST_PATTERNS
+    t("confianza_patron_sobre_mi", bool(tp["quien"].search("/sobre-mi/")), "")
+    t("confianza_patron_legal_es", bool(tp["legal"].search("/legal/privacidad/")), "")
+    t("confianza_patron_impressum", bool(tp["legal"].search("/impressum/")), "")
+
+
 def test_24_rate_limiting_no_regala_el_1():
     """Barrido: 2.4 daba 1 con cualquier 429 (`n429 > 0`). Un sitio que responde
     429 a las DIEZ peticiones —el bot no obtiene NADA— salía con nota perfecta
@@ -2210,7 +2295,9 @@ def test_super_prompt_bloqueo_total_delega_todo():
     t("bloqueo_total_confirma_solo_acceso", conf == {"1.6", "2.4", "4.4"},
       f"confirmados: {sorted(conf)} (debe ser exactamente los de hostilidad)")
     pend = set(_re.findall(r"\[(\d\.\d)\][^\[]*?PENDIENTE", p))
-    t("bloqueo_total_delega_37", len(pend) == 37, f"pendientes: {len(pend)}")
+    # todos los del catálogo menos los 3 de hostilidad confirmados en campo
+    t("bloqueo_total_delega_el_resto", len(pend) == len(CHECKS) - 3,
+      f"pendientes: {len(pend)} (esperados {len(CHECKS) - 3})")
     t("bloqueo_total_no_da_por_bueno_lo_dudoso",
       {"1.1", "4.1", "6.3"} <= pend,
       "un factor de contenido leído sobre la página de bloqueo NO puede darse por verificado")

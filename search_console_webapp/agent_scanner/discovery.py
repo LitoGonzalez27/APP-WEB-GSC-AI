@@ -510,3 +510,98 @@ def detect_typology(home_html, all_urls):
     if saas_suficiente and saas_score > ecom_score:
         return "saas", ev
     return "corporativo", ev
+
+
+# --- Entidad externa y páginas de confianza (checks 3.7 y 5.7) -------------
+
+def wikidata_entity(host):
+    """¿Existe un item de Wikidata cuyo sitio oficial (P856) sea este dominio?
+
+    Wikipedia es la mayor fuente individual de citas en respuestas de IA, y la
+    forma NO ambigua de vincular dominio↔entidad es la propiedad P856 (sitio
+    web oficial): buscar por nombre de marca daría falsos positivos con
+    homónimos ("Carlos González" tiene decenas de items). haswbstatement no
+    indexa propiedades de tipo URL, así que se usa SPARQL con las 8 variantes
+    exactas de la URL (esquema × www × barra final), que va por índice y es
+    rápida. Fuente EXTERNA: esta evidencia no depende de que la web nos deje
+    entrar, así que sobrevive incluso a un sitio que nos bloquea.
+    """
+    host = (host or "").lower().lstrip(".").removeprefix("www.")
+    if not host:
+        return {"qid": None, "sitelinks": 0, "error": "sin host"}
+    variantes = " ".join(
+        f"<{esq}://{pref}{host}{barra}>"
+        for esq in ("https", "http") for pref in ("", "www.") for barra in ("", "/"))
+    q = ("SELECT ?item ?sitelinks WHERE { VALUES ?u { " + variantes + " } "
+         "?item wdt:P856 ?u . OPTIONAL { ?item wikibase:sitelinks ?sitelinks } } LIMIT 1")
+    from urllib.parse import quote
+    r = fetch("https://query.wikidata.org/sparql?format=json&query=" + quote(q),
+              timeout=20, verify_public=False)
+    if r["status"] != 200 or not r.get("body"):
+        return {"qid": None, "sitelinks": 0,
+                "error": f"Wikidata HTTP {r['status'] or r.get('error') or '?'}"}
+    try:
+        import json as _json
+        filas = _json.loads(r["body"])["results"]["bindings"]
+    except Exception:
+        return {"qid": None, "sitelinks": 0, "error": "respuesta SPARQL no parseable"}
+    if not filas:
+        return {"qid": None, "sitelinks": 0, "error": None}
+    fila = filas[0]
+    qid = (fila.get("item", {}).get("value") or "").rsplit("/", 1)[-1] or None
+    try:
+        sitelinks = int(fila.get("sitelinks", {}).get("value") or 0)
+    except (TypeError, ValueError):
+        sitelinks = 0
+    return {"qid": qid, "sitelinks": sitelinks, "error": None}
+
+
+# Patrones multiidioma a propósito: el caso que destapó el factor
+# (soycarlosgonzalez.com) tenía /sobre-mi/, /contacto/ y /legal/privacidad/ y
+# el scanner de la competencia solo encontró "Contact" — ceguera de patrones
+# solo en inglés. La lección de este proyecto: antes de afirmar "no tiene X",
+# asegurarse de que sabemos reconocer X en el idioma del sitio.
+TRUST_PATTERNS = {
+    "quien": re.compile(r"(?i)(sobre-?m[ií]|sobre-?nosotros|qui[eé]nes?-?somos|"
+                        r"quien-?soy|about|nosotros|equipo|team|empresa|company|"
+                        r"chi-siamo|a-propos|(?:ueber|uber)-uns)"),
+    "contacto": re.compile(r"(?i)(contact|kontakt|contatti)"),
+    "legal": re.compile(r"(?i)(privaci|privacy|aviso-?legal|legal|datenschutz|"
+                        r"impressum|mentions-legales|confidentialit)"),
+}
+
+
+def probe_trust_pages(base, home_html, sitemap_urls):
+    """Localiza y VERIFICA las páginas de confianza (quién/contacto/legal).
+
+    Candidatas de dos fuentes — enlaces de la home (footer incluido) y sitemap —
+    porque cualquiera de las dos puede faltar. Verificar importa: un enlace roto
+    a /about no es una página de confianza. Devuelve por categoría None o
+    {"url", "ok"} con ok=True solo si respondió 200 con contenido real.
+    """
+    base_host = (urlparse(base).hostname or "").lower().removeprefix("www.")
+    candidatas = []
+    for m in re.finditer(r"""(?i)href=["']([^"'#?]+)""", home_html or ""):
+        href = m.group(1).strip()
+        if href.startswith("/"):
+            candidatas.append(base.rstrip("/") + href)
+        elif href.startswith("http"):
+            h = (urlparse(href).hostname or "").lower().removeprefix("www.")
+            if h == base_host:
+                candidatas.append(href)
+    candidatas.extend(sitemap_urls or [])
+
+    out = {}
+    for cat, patron in TRUST_PATTERNS.items():
+        # la ruta más corta que encaje: /contacto/ antes que /blog/contactar-x/
+        rutas = sorted({u for u in candidatas if patron.search(urlparse(u).path or "")},
+                       key=lambda u: len(urlparse(u).path))
+        out[cat] = None
+        if not rutas:
+            continue
+        r = fetch(rutas[0], timeout=12)
+        texto = re.sub(r"(?s)<script.*?</script>|<style.*?</style>|<[^>]+>", " ",
+                       r.get("body") or "")
+        out[cat] = {"url": rutas[0],
+                    "ok": r["status"] == 200 and len(texto.split()) > 80}
+    return out

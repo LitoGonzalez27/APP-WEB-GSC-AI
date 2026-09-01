@@ -8,6 +8,7 @@ antes de entregar al cliente.
 """
 import json
 import re
+from urllib.parse import urlparse
 
 from .discovery import parse_robots_groups, robots_allows
 from .config import BOT_UAS
@@ -198,6 +199,25 @@ def run_c1(ctx):
     out.append(R("1.7", "C1", "DNS-AID (descubrimiento via DNS)",
                  1 if aid else 0,
                  aid or "Sin registros TXT _aid/_agent (estandar experimental: casi nadie lo tiene aun)"))
+
+    # 1.8 Metadatos de cita: canonical, idioma y Open Graph. Es lo minimo que
+    # un sistema usa para identificar la pagina al citarla; sin canonical las
+    # citas se reparten entre variantes de URL, sin lang el idioma se adivina,
+    # y sin og:image/og:type el preview sale roto.
+    home_body = ctx["home"]["body"] or ""
+    senales_meta = {
+        "canonical": bool(re.search(r"(?i)<link[^>]+rel=[\"']canonical", home_body)),
+        "lang": bool(re.search(r"(?i)<html[^>]+lang=[\"']?[a-z]{2}", home_body)),
+        "og:image": bool(re.search(r"(?i)(property|name)=[\"']og:image", home_body)),
+        "og:type": bool(re.search(r"(?i)(property|name)=[\"']og:type", home_body)),
+    }
+    presentes = sum(senales_meta.values())
+    faltan = [n for n, hay in senales_meta.items() if not hay]
+    score = 1 if presentes == 4 else 0.5 if presentes >= 2 else 0
+    out.append(R("1.8", "C1", "Metadatos de cita", score,
+                 "canonical + lang + og:image + og:type presentes en la home"
+                 if not faltan else
+                 f"{presentes}/4 metadatos de cita; faltan: {', '.join(faltan)}"))
     return out
 
 
@@ -421,6 +441,25 @@ def run_c3(ctx):
            "esto se estima con el HTML crudo y aproxima peor. Activa el render JS "
            "para medirlo de verdad]")
     out.append(R("3.6", "C3", "Controles legibles por un agente", score, ev))
+
+    # 3.7 Entidad en Wikipedia/Wikidata. Wikipedia es la mayor fuente
+    # individual de citas en respuestas de IA; el vinculo NO ambiguo entre
+    # dominio y entidad es P856 (sitio oficial) en Wikidata — buscar por nombre
+    # de marca daria falsos positivos con homonimos. Fuente EXTERNA: esta
+    # evidencia vale incluso si el sitio nos bloquea.
+    wd = ctx.get("wikidata") or {}
+    if wd.get("error"):
+        score, ev = None, f"Wikidata no respondio ({wd['error']}): no verificable"
+    elif wd.get("qid"):
+        n = wd.get("sitelinks") or 0
+        score = 1 if n > 0 else 0.5
+        ev = (f"Entidad {wd['qid']} en Wikidata con sitio oficial (P856) apuntando al dominio"
+              + (f", enlazada a {n} articulo(s) de Wikipedia" if n
+                 else "; existe el item pero sin articulo de Wikipedia aun"))
+    else:
+        score, ev = 0, ("Sin entidad en Wikidata con P856 apuntando al dominio "
+                        "(consultada la fuente externa: no depende de nuestro acceso a la web)")
+    out.append(R("3.7", "C3", "Entidad en Wikipedia/Wikidata", score, ev))
     return out
 
 
@@ -621,6 +660,41 @@ def run_c4(ctx):
     else:
         out.append(R("4.8", "C4", "Estados de error correctos", 0.5,
                      f"Una URL inexistente devuelve HTTP {st}, que no es un 404/410 claro"))
+
+    # 4.9 Higiene de redirecciones. Un agente sin JS se queda tirado en un stub
+    # de meta-refresh o de location.href, y un salto a otro dominio le rompe la
+    # atribucion. Solo paginas vistas por HTTP directo: sobre un rescate (Jina)
+    # o un bloqueo no se puede afirmar higiene, y el fallo aqui exige evidencia
+    # POSITIVA — por eso este check no entra en las listas de degradacion.
+    directas = [(p["url"], p["fetch"]) for p in ctx["pages"]
+                if p["fetch"]["status"] == 200
+                and p["fetch"].get("_via", "http") == "http"]
+    if ctx["home"].get("status") == 200 and ctx["home"].get("_via", "http") == "http":
+        directas.append((ctx["base"] + "/", ctx["home"]))
+    if not directas:
+        out.append(R("4.9", "C4", "Higiene de redirecciones", None,
+                     "Sin paginas vistas por HTTP directo: no medible"))
+    else:
+        incidencias = []
+        for pedida, f in directas:
+            body = f.get("body") or ""
+            final = f.get("url") or pedida
+            # Se compara el host PEDIDO con el final de ESA peticion, no con el
+            # dominio base: una pagina legitima en un subdominio del sitemap no
+            # es un salto — el salto es que la URL pedida acabe sirviendose
+            # desde otro sitio.
+            h_pedida = (urlparse(pedida).hostname or "").lower().removeprefix("www.")
+            h_final = (urlparse(final).hostname or "").lower().removeprefix("www.")
+            if re.search(r"(?i)<meta[^>]+http-equiv=[\"']?refresh", body):
+                incidencias.append(f"{pedida}: stub meta-refresh")
+            elif len(body) < 2000 and re.search(r"(?i)location\.(href|replace)", body):
+                incidencias.append(f"{pedida}: stub de redireccion JS")
+            elif h_pedida and h_final and h_final != h_pedida:
+                incidencias.append(f"{pedida}: acaba en {h_final} (salto de dominio)")
+        score = 1 if not incidencias else 0.5 if len(incidencias) == 1 else 0
+        out.append(R("4.9", "C4", "Higiene de redirecciones", score,
+                     f"{len(directas)} paginas llegan a contenido real sin stubs ni saltos de dominio"
+                     if not incidencias else "; ".join(incidencias)[:350]))
     return out
 
 
@@ -831,6 +905,64 @@ def run_c5(ctx):
         score, ev = 0, (f"Con Accept: text/markdown responde {mdn.get('content_type') or 'HTML'} "
                         "(solo el 3,9% de sitios lo soporta: diferenciador barato)")
     out.append(R("5.6", "C5", "Negociacion de contenido Markdown", score, ev))
+
+    # 5.7 Paginas de confianza: quien esta detras (About), como contactar y la
+    # base legal. Un agente las comprueba antes de recomendar, igual que una
+    # persona cuidadosa. Las candidatas salen de la home Y del sitemap con
+    # patrones multiidioma, y solo cuentan VERIFICADAS (200 + contenido real):
+    # el caso que destapo el factor tenia /sobre-mi/ y /legal/privacidad/ y un
+    # scanner solo-EN afirmaba que faltaban About y Privacy.
+    tp = ctx.get("trust_pages")
+    if tp is None:
+        out.append(R("5.7", "C5", "Paginas de confianza", None,
+                     "Sondas de confianza no ejecutadas: no medible"))
+    else:
+        nombres = {"quien": "quien-hay-detras (About)", "contacto": "contacto",
+                   "legal": "legal/privacidad"}
+        oks = [nombres[k] for k, v in tp.items() if v and v.get("ok")]
+        rotas = [f"{nombres[k]} ({v['url']} sin contenido util)"
+                 for k, v in tp.items() if v and not v.get("ok")]
+        faltan = [nombres[k] for k, v in tp.items() if not v]
+        score = 1 if len(oks) == 3 else 0.5 if len(oks) == 2 else 0
+        ev = f"Verificadas {len(oks)}/3: {', '.join(oks) or 'ninguna'}"
+        if rotas:
+            ev += f". Localizadas pero sin contenido: {'; '.join(rotas)}"
+        if faltan:
+            ev += f". No localizadas (home + sitemap): {', '.join(faltan)}"
+        out.append(R("5.7", "C5", "Paginas de confianza", score, ev))
+
+    # 5.8 Presupuesto de tokens por pagina (~25K tokens de texto extraido, a
+    # ~4 chars/token): una pagina que no cabe en el contexto del agente se lee
+    # truncada, y lo truncado se cita mal. El fallo exige evidencia positiva
+    # (una pagina medida que se pasa), asi que no entra en degradaciones.
+    medibles = [(p["url"], p["fetch"]["body"] or "") for p in ctx["pages"]
+                if p["fetch"]["status"] == 200
+                and p["fetch"].get("_via", "http") == "http"]
+    if ctx["home"].get("status") == 200 and ctx["home"].get("_via", "http") == "http":
+        medibles.append((ctx["base"] + "/", ctx["home"].get("body") or ""))
+    if not medibles:
+        out.append(R("5.8", "C5", "Presupuesto de tokens por pagina", None,
+                     "Sin paginas vistas por HTTP directo: no medible"))
+    else:
+        PRESUPUESTO = 25000
+        tokens = []
+        for u, body in medibles:
+            texto = re.sub(r"(?s)<(script|style).*?</\1>|<[^>]+>", " ", body)
+            tokens.append((u, len(texto) // 4))
+        grandes = [(u, t) for u, t in tokens if t > PRESUPUESTO]
+        mayor = max(tokens, key=lambda x: x[1])
+        if not grandes:
+            score, ev = 1, (f"Las {len(tokens)} paginas medidas caben en el presupuesto "
+                            f"(~{PRESUPUESTO // 1000}K tokens); la mayor ronda ~{mayor[1] // 1000}K")
+        elif len(grandes) <= len(tokens) // 2:
+            score = 0.5
+            ev = (f"{len(grandes)}/{len(tokens)} paginas exceden ~{PRESUPUESTO // 1000}K tokens "
+                  f"(peor: {grandes[0][0]} con ~{grandes[0][1] // 1000}K): se leen truncadas")
+        else:
+            score = 0
+            ev = (f"La mayoria de paginas medidas ({len(grandes)}/{len(tokens)}) exceden el "
+                  f"presupuesto de ~{PRESUPUESTO // 1000}K tokens: los agentes las leen truncadas")
+        out.append(R("5.8", "C5", "Presupuesto de tokens por pagina", score, ev))
     return out
 
 
