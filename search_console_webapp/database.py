@@ -500,6 +500,9 @@ def init_database():
         ''')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_analysis_runs_status ON llm_monitoring_analysis_runs(status)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_analysis_runs_started ON llm_monitoring_analysis_runs(started_at DESC)')
+        # Detalle por proyecto del run (quién falló y por qué) — permite que el
+        # email de completitud distinga "en pausa por cuota" de un fallo real.
+        cur.execute('ALTER TABLE llm_monitoring_analysis_runs ADD COLUMN IF NOT EXISTS project_results JSONB')
 
         # ── Migración: Google → Gemini 3.5 Flash (2026-06-01) ──
         # Asegurar que gemini-3.5-flash exista y sea el modelo current.
@@ -2814,10 +2817,52 @@ def acquire_analysis_lock(triggered_by: str = 'cron', stale_timeout_minutes: int
             conn.close()
 
 
+def _compact_project_results(results) -> Optional[list]:
+    """
+    Resumen compacto por proyecto para persistir en el run (JSONB).
+
+    Guarda solo lo que el email de completitud necesita: identidad del proyecto,
+    si terminó OK, y en caso de error el código + mensaje + paused_until (para
+    distinguir "en pausa por cuota, se reanuda solo" de un fallo real).
+    Nunca lanza: cualquier item raro se omite.
+    """
+    if not results:
+        return None
+    compact = []
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        try:
+            item = {
+                'project_id': r.get('project_id'),
+                'project_name': r.get('project_name'),
+                'success': 'error' not in r,
+            }
+            if 'error' in r:
+                item['error'] = str(r.get('error'))[:120]
+                if r.get('message'):
+                    item['message'] = str(r.get('message'))[:240]
+                pu = r.get('paused_until')
+                if pu is not None:
+                    item['paused_until'] = pu.isoformat() if hasattr(pu, 'isoformat') else str(pu)
+            else:
+                item['queries'] = r.get('total_queries_executed', 0)
+                if r.get('incomplete_llms'):
+                    item['incomplete_llms'] = list(r.get('incomplete_llms'))[:8]
+            compact.append(item)
+        except Exception:
+            continue
+    return compact or None
+
+
 def release_analysis_lock(run_id: int, total_projects: int = 0, successful: int = 0,
-                          failed: int = 0, total_queries: int = 0, error_message: str = None):
+                          failed: int = 0, total_queries: int = 0, error_message: str = None,
+                          project_results: list = None):
     """
     Libera el lock de análisis y actualiza el run con resultados.
+
+    `project_results` (opcional): lista de resultados por proyecto tal como la
+    devuelve analyze_all_active_projects; se compacta y persiste en JSONB.
     """
     conn = None
     try:
@@ -2835,6 +2880,12 @@ def release_analysis_lock(run_id: int, total_projects: int = 0, successful: int 
 
         # Actualizar run
         status = 'failed' if error_message else 'completed'
+        compact = None
+        try:
+            compact = _compact_project_results(project_results)
+        except Exception as compact_err:
+            logger.warning(f"No se pudo compactar project_results del run {run_id}: {compact_err}")
+        from psycopg2.extras import Json
         cur.execute('''
             UPDATE llm_monitoring_analysis_runs
             SET completed_at = NOW(),
@@ -2843,9 +2894,11 @@ def release_analysis_lock(run_id: int, total_projects: int = 0, successful: int 
                 successful_projects = %s,
                 failed_projects = %s,
                 total_queries = %s,
-                error_message = %s
+                error_message = %s,
+                project_results = %s
             WHERE id = %s
-        ''', (status, total_projects, successful, failed, total_queries, error_message, run_id))
+        ''', (status, total_projects, successful, failed, total_queries, error_message,
+              Json(compact) if compact is not None else None, run_id))
 
         conn.commit()
         logger.info(f"🔓 Analysis lock released (run_id={run_id}, status={status})")
