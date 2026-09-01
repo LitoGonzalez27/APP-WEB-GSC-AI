@@ -204,6 +204,15 @@ def run_c1(ctx):
     # un sistema usa para identificar la pagina al citarla; sin canonical las
     # citas se reparten entre variantes de URL, sin lang el idioma se adivina,
     # y sin og:image/og:type el preview sale roto.
+    # Solo sobre portada vista en directo (http/render): el rescate de Jina
+    # devuelve el DOM limpio SIN las metas del <head>. Caso real
+    # (mediamarkt.es, 2026-09-01): su home directa lleva canonical+og:image+
+    # og:type y sobre el cuerpo de Jina afirmabamos "faltan" los tres.
+    if ctx["home"].get("_via", "http") not in ("http", "render"):
+        out.append(R("1.8", "C1", "Metadatos de cita", None,
+                     "La portada solo se pudo leer via rescate (Jina), que no "
+                     "conserva las metas del <head>: no medible"))
+        return out
     home_body = ctx["home"]["body"] or ""
     senales_meta = {
         "canonical": bool(re.search(r"(?i)<link[^>]+rel=[\"']canonical", home_body)),
