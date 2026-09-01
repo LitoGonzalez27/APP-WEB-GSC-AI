@@ -2064,6 +2064,20 @@ def test_quick_wins_ora():
     t("confianza_patron_sobre_mi", bool(tp["quien"].search("/sobre-mi/")), "")
     t("confianza_patron_legal_es", bool(tp["legal"].search("/legal/privacidad/")), "")
     t("confianza_patron_impressum", bool(tp["legal"].search("/impressum/")), "")
+    # batería 2026-09-01: hetzner.com no tiene /contact pero sí /support-form/
+    t("confianza_patron_support", bool(tp["contacto"].search("/support-form/")), "")
+    t("confianza_patron_no_supported", not tp["contacto"].search("/supported-devices/"),
+      "'supported-devices' no es una pagina de contacto")
+
+    # --- 1.8 sobre portada rescatada: no medible, nunca un 0 inventado.
+    # Batería 2026-09-01: la home directa de mediamarkt.es lleva canonical y
+    # og:*, y sobre el cuerpo de Jina (sin <head>) afirmábamos que faltaban.
+    c = ctx_base()
+    c["home"]["body"] = "<html>" + "texto " * 300 + "</html>"
+    c["home"]["_via"] = "jina-html"
+    r = by_id(checks.run_c1(c), "1.8")
+    t("meta_cita_via_jina_no_afirma", r["score"] is None,
+      f"las metas del <head> no sobreviven al rescate; medir ahi es inventar: {r}")
 
 
 def test_24_rate_limiting_no_regala_el_1():

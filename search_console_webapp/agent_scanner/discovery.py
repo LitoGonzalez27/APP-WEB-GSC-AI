@@ -565,7 +565,14 @@ TRUST_PATTERNS = {
     "quien": re.compile(r"(?i)(sobre-?m[ií]|sobre-?nosotros|qui[eé]nes?-?somos|"
                         r"quien-?soy|about|nosotros|equipo|team|empresa|company|"
                         r"chi-siamo|a-propos|(?:ueber|uber)-uns)"),
-    "contacto": re.compile(r"(?i)(contact|kontakt|contatti)"),
+    # "support" y compañía cuentan como canal de contacto: hetzner.com no tiene
+    # /contact pero sí /support-form/ y /support-center/, que es exactamente
+    # cómo se les escribe. Con límites de token (^|/ … /|-|$) para no matchear
+    # "supported-devices". La verificación posterior (200 + contenido) filtra
+    # el resto.
+    "contacto": re.compile(r"(?i)(contact|kontakt|contatti"
+                           r"|(?:^|/)(soporte|support|ayuda|help-?center"
+                           r"|atencion-al-cliente)(?:[/-]|$))"),
     "legal": re.compile(r"(?i)(privaci|privacy|aviso-?legal|legal|datenschutz|"
                         r"impressum|mentions-legales|confidentialit)"),
 }
