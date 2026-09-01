@@ -6348,13 +6348,14 @@ def trigger_daily_analysis():
                     logger.info(f"✅ LLM Monitoring: Daily analysis completed - {len(results)} projects processed")
                     logger.info(f"   Successful: {successful}, Failed: {failed}, Total queries: {total_queries}")
 
-                    # ✅ Liberar lock y registrar resultados
+                    # ✅ Liberar lock y registrar resultados (con detalle por proyecto)
                     release_analysis_lock(
                         run_id=run_id,
                         total_projects=len(results),
                         successful=successful,
                         failed=failed,
-                        total_queries=total_queries
+                        total_queries=total_queries,
+                        project_results=results
                     )
                 except Exception as e:
                     logger.error(f"💥 LLM Monitoring: Background analysis error: {e}")
@@ -6399,7 +6400,8 @@ def trigger_daily_analysis():
                 total_projects=len(results),
                 successful=successful,
                 failed=failed,
-                total_queries=total_queries
+                total_queries=total_queries,
+                project_results=results
             )
 
             return jsonify({

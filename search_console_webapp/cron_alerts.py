@@ -43,6 +43,64 @@ def _get_config() -> Dict:
 
 
 # ---------------------------------------------------------------------------
+# Clasificación de fallos por proyecto (benignos vs reales)
+# ---------------------------------------------------------------------------
+
+# Errores "esperados" que NO indican que algo esté roto: el proyecto no se
+# analizó por una razón de negocio (cuota/plan) y se reanudará solo.
+BENIGN_PROJECT_ERRORS = {
+    'llm_quota_exceeded': 'Cuota mensual de LLM agotada',
+    'project_paused_quota': 'En pausa por cuota (esperando reset)',
+    'paywall': 'Plan sin acceso a LLM Monitoring',
+}
+
+
+def _split_project_failures(run: Dict) -> Tuple[List[Dict], List[Dict]]:
+    """
+    Separa los proyectos fallidos del run en (benignos, reales) leyendo
+    run['project_results'] (JSONB). En runs antiguos sin detalle devuelve
+    ([], []) y todo el pipeline cae al comportamiento clásico.
+    """
+    pr = run.get('project_results')
+    if isinstance(pr, str):
+        try:
+            import json as _json
+            pr = _json.loads(pr)
+        except Exception:
+            pr = None
+    if not isinstance(pr, list):
+        return [], []
+    benign, real = [], []
+    for item in pr:
+        if not isinstance(item, dict) or item.get('success', True):
+            continue
+        if item.get('error') in BENIGN_PROJECT_ERRORS:
+            benign.append(item)
+        else:
+            real.append(item)
+    return benign, real
+
+
+def _fmt_paused_until(val) -> str:
+    """'2026-09-02T14:15:48+00:00' → '02/09/2026 14:15 UTC' (best-effort)."""
+    if not val:
+        return ''
+    try:
+        d = datetime.fromisoformat(str(val))
+        return d.strftime('%d/%m/%Y %H:%M UTC')
+    except Exception:
+        return str(val)[:16]
+
+
+def _project_label(item: Dict) -> str:
+    name = item.get('project_name')
+    pid = item.get('project_id')
+    if name and pid:
+        return f'{name} (#{pid})'
+    return name or (f'#{pid}' if pid else '?')
+
+
+# ---------------------------------------------------------------------------
 # Individual checks
 # ---------------------------------------------------------------------------
 
@@ -71,9 +129,16 @@ def _check_duration(run: Dict, threshold_min: float) -> Optional[Dict]:
 
 
 def _check_error_rate(run: Dict, threshold: float) -> Optional[Dict]:
-    """Return alert dict if failed/total ratio exceeds threshold."""
+    """Return alert dict if failed/total ratio exceeds threshold.
+
+    Las pausas por cuota (y demás errores benignos) NO cuentan como fallo:
+    si hay detalle por proyecto, el ratio se calcula solo sobre fallos reales.
+    """
     total = run.get('total_projects') or 0
     failed = run.get('failed_projects') or 0
+    benign, real = _split_project_failures(run)
+    if benign or real:
+        failed = len(real)
     if total <= 0:
         return None
 
@@ -386,7 +451,7 @@ def check_and_send_cron_alerts(run_id: int, get_db_connection_fn=None) -> Dict:
         cur.execute("""
             SELECT id, started_at, completed_at, status,
                    total_projects, successful_projects, failed_projects,
-                   total_queries, error_message, triggered_by
+                   total_queries, error_message, triggered_by, project_results
             FROM llm_monitoring_analysis_runs
             WHERE id = %s
         """, (run_id,))
@@ -403,7 +468,7 @@ def check_and_send_cron_alerts(run_id: int, get_db_connection_fn=None) -> Dict:
                 'status': row[3], 'total_projects': row[4],
                 'successful_projects': row[5], 'failed_projects': row[6],
                 'total_queries': row[7], 'error_message': row[8],
-                'triggered_by': row[9],
+                'triggered_by': row[9], 'project_results': row[10],
             }
     except Exception as e:
         logger.warning(f"[cron_alerts] failed to load run {run_id}: {e}")
@@ -488,7 +553,7 @@ def _load_run(run_id: int, get_db_connection_fn) -> Optional[Dict]:
         cur.execute("""
             SELECT id, started_at, completed_at, status,
                    total_projects, successful_projects, failed_projects,
-                   total_queries, error_message, triggered_by
+                   total_queries, error_message, triggered_by, project_results
             FROM llm_monitoring_analysis_runs
             WHERE id = %s
         """, (run_id,))
@@ -502,7 +567,7 @@ def _load_run(run_id: int, get_db_connection_fn) -> Optional[Dict]:
             'status': row[3], 'total_projects': row[4],
             'successful_projects': row[5], 'failed_projects': row[6],
             'total_queries': row[7], 'error_message': row[8],
-            'triggered_by': row[9],
+            'triggered_by': row[9], 'project_results': row[10],
         }
     except Exception as e:
         logger.warning(f"[cron_alerts] _load_run({run_id}) failed: {e}")
@@ -591,13 +656,20 @@ def _load_top_errors(run: Dict, get_db_connection_fn, limit: int = 10) -> List[D
 
 
 def _derive_severity(run: Dict, alerts: List[Dict]) -> str:
-    """Pick a single severity for the email subject."""
+    """Pick a single severity for the email subject.
+
+    Un proyecto en pausa por cuota (u otro error benigno) NO degrada la
+    severidad: es comportamiento esperado del sistema, no una rotura.
+    """
     if run.get('status') == 'failed' or run.get('error_message'):
         return 'critical'
     if any(a.get('severity') == 'high' for a in alerts):
         return 'critical'
     if alerts:
         return 'warning'
+    benign, real = _split_project_failures(run)
+    if benign or real:
+        return 'warning' if real else 'ok'
     failed = run.get('failed_projects') or 0
     if failed > 0:
         return 'warning'
@@ -625,6 +697,58 @@ def _build_completion_email_html(run: Dict, alerts: List[Dict], run_cost: Option
     status = (run.get('status') or 'unknown').upper()
     triggered_by = run.get('triggered_by') or '-'
     err_msg = run.get('error_message') or ''
+
+    # Desglose de fallos: benignos (cuota/plan, esperados) vs reales
+    benign, real_failures = _split_project_failures(run)
+    if benign or real_failures:
+        parts = [f'{ok}/{total} OK']
+        if real_failures:
+            parts.append(f'{len(real_failures)} fallidos')
+        if benign:
+            parts.append(f'{len(benign)} en pausa por cuota')
+        projects_summary = ' · '.join(parts)
+    else:
+        projects_summary = f'{ok}/{total} OK · {failed} fallidos'
+
+    benign_block = ''
+    if benign:
+        benign_items = ''
+        for b in benign:
+            reason = BENIGN_PROJECT_ERRORS.get(b.get('error'), b.get('error', '-'))
+            resume = _fmt_paused_until(b.get('paused_until'))
+            resume_txt = f' · se reanuda automáticamente el <strong>{resume}</strong>' if resume else ''
+            benign_items += (
+                f'<li style="margin:4px 0;"><strong>{_project_label(b)}</strong> — '
+                f'{reason}{resume_txt}</li>'
+            )
+        benign_block = f"""
+        <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:12px 16px;
+                    border-radius:0 6px 6px 0;margin:16px 0;">
+            <p style="margin:0 0 8px 0;"><strong>ℹ️ Proyectos en pausa por cuota ({len(benign)}) — esto es normal, nada está roto</strong></p>
+            <ul style="margin:0;padding-left:20px;">{benign_items}</ul>
+            <p style="margin:8px 0 0 0;font-size:12px;color:#3730a3;">
+                El proyecto agotó su cuota mensual de unidades LLM y el sistema lo pausó.
+                Se reincorporará solo al cron cuando la cuota se resetee — no requiere ninguna acción.
+            </p>
+        </div>
+        """
+
+    real_failures_block = ''
+    if real_failures:
+        real_items = ''
+        for f in real_failures:
+            detail = f.get('message') or f.get('error') or '-'
+            real_items += (
+                f'<li style="margin:4px 0;"><strong>{_project_label(f)}</strong> — '
+                f'<code style="font-size:12px;color:#7f1d1d;">{str(detail)[:240]}</code></li>'
+            )
+        real_failures_block = f"""
+        <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;
+                    border-radius:0 6px 6px 0;margin:16px 0;">
+            <p style="margin:0 0 8px 0;"><strong>❌ Proyectos con fallo real ({len(real_failures)}) — requieren revisión</strong></p>
+            <ul style="margin:0;padding-left:20px;">{real_items}</ul>
+        </div>
+        """
 
     cost_row = ''
     if run_cost is not None:
@@ -709,10 +833,12 @@ def _build_completion_email_html(run: Dict, alerts: List[Dict], run_cost: Option
             <tr><td style="padding:8px 12px;color:#6b7280;">Inicio</td><td style="padding:8px 12px;font-family:monospace;">{started}</td></tr>
             <tr><td style="padding:8px 12px;color:#6b7280;">Fin</td><td style="padding:8px 12px;font-family:monospace;">{completed}</td></tr>
             <tr><td style="padding:8px 12px;color:#6b7280;">Duración</td><td style="padding:8px 12px;font-family:monospace;">{duration_str}</td></tr>
-            <tr><td style="padding:8px 12px;color:#6b7280;">Proyectos</td><td style="padding:8px 12px;font-family:monospace;">{ok}/{total} OK · {failed} fallidos</td></tr>
+            <tr><td style="padding:8px 12px;color:#6b7280;">Proyectos</td><td style="padding:8px 12px;font-family:monospace;">{projects_summary}</td></tr>
             <tr><td style="padding:8px 12px;color:#6b7280;">Queries totales</td><td style="padding:8px 12px;font-family:monospace;">{queries}</td></tr>
             {cost_row}
         </table>
+        {benign_block}
+        {real_failures_block}
         {alerts_block}
         {errors_block}
         <p style="color:#6b7280;font-size:12px;margin-top:32px;">
@@ -872,6 +998,11 @@ def send_run_completion_email(run_id: int, get_db_connection_fn=None) -> Dict:
         f"{subject_icon} [{cfg['environment'].upper()}] LLM Cron {severity.upper()} · "
         f"run #{run['id']} · {run.get('successful_projects',0)}/{run.get('total_projects',0)} OK"
     )
+    benign, real = _split_project_failures(run)
+    if benign:
+        subject += f" · {len(benign)} en pausa por cuota"
+    if real:
+        subject += f" · {len(real)} fallidos"
 
     try:
         from email_service import send_email

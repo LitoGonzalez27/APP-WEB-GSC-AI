@@ -322,13 +322,20 @@ def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_wor
     def _analyze_one(project):
         pid = project['id']
         try:
-            return run_project_with_timeout(
+            result = run_project_with_timeout(
                 target=lambda: service.analyze_project(project_id=pid, max_workers=max_workers),
                 project_id=pid,
             )
         except Exception as e:
             logger.error(f"❌ Error analizando proyecto {pid}: {e}")
-            return {'project_id': pid, 'success': False, 'error': str(e)}
+            result = {'project_id': pid, 'success': False, 'error': str(e)}
+        # Garantizar identidad del proyecto en el resultado: los early-returns de
+        # analyze_project (cuota, paywall...) no la incluyen, y el resumen del
+        # run + email de completitud necesitan saber QUIÉN falló y por qué.
+        if isinstance(result, dict):
+            result.setdefault('project_id', pid)
+            result.setdefault('project_name', project.get('name'))
+        return result
 
     if parallelism <= 1 or len(eligible_projects) <= 1:
         # Sequential path — preserves the previous behavior exactly.
@@ -354,6 +361,7 @@ def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_wor
                     logger.error(f"❌ Future for project {pid} raised unexpectedly: {e}")
                     indexed[idx] = {
                         'project_id': pid,
+                        'project_name': eligible_projects[idx].get('name'),
                         'success': False,
                         'error': f'executor_error: {e}',
                     }
