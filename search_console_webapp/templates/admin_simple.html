@@ -2373,6 +2373,23 @@
                 document.getElementById(CUSTOM_MODULE_LIMIT_INPUTS[field]).value = '';
             });
 
+            // Precargar los valores actuales del usuario: "Assign" SOBRESCRIBE todos los
+            // campos, así que un campo vacío al guardar significa "sin límite". Sin esta
+            // precarga, editar solo la cuota RU borraría los topes por módulo.
+            fetch(`/admin/users/${userId}/billing-details`)
+                .then((r) => r.json())
+                .then((data) => {
+                    const u = data && data.user;
+                    if (!u || !u.custom_quota_limit) return;
+                    const setIf = (id, v) => { const el = document.getElementById(id); if (el && v !== null && v !== undefined) el.value = v; };
+                    setIf('customQuotaLimit', u.custom_quota_limit);
+                    setIf('customQuotaNotes', u.custom_quota_notes || '');
+                    setIf('customLlmPromptsLimit', u.custom_llm_prompts_limit);
+                    setIf('customLlmMonthlyUnits', u.custom_llm_monthly_units_limit);
+                    Object.keys(CUSTOM_MODULE_LIMIT_INPUTS).forEach((field) => setIf(CUSTOM_MODULE_LIMIT_INPUTS[field], u[field]));
+                })
+                .catch((e) => console.warn('No se pudieron precargar los límites actuales:', e));
+
             // Remove previous event listeners
             const oldBtn = document.getElementById('confirmCustomQuotaBtn');
             const newBtn = oldBtn.cloneNode(true);
