@@ -34,15 +34,15 @@ La ventana es siempre la misma para los tres niveles: **30 días que terminan en
 
 | Campo | Ejemplo cliente 5+5+5 | Cómo se calcula |
 |---|---|---|
-| Custom RU Limit per month | 7.500 | Manual AI: proyectos × kws × 30 días. AI Mode: proyectos × prompts × 30. Suma y +25% (el AIO "collapsed" cuesta +1 RU y hay re-análisis manuales). Ej.: 5×30×30 + 5×10×30 = 6.000 → 7.500 |
+| Custom RU Limit per month | 3.500 | Manual AI: proyectos × kws × pasadas/mes. AI Mode: proyectos × prompts × pasadas/mes. Los crons de AI Overview y AI Mode corren **lun/jue/sáb (~13 pasadas/mes)**, no a diario. Suma y +35% (el AIO "collapsed" cuesta +1 RU y hay re-análisis manuales). Ej.: 5×30×13 + 5×10×13 = 2.600 → 3.500 |
 | LLM max prompts per project | 10 | Lo pactado |
-| LLM units per month | 6.600 | proyectos × prompts × nº LLMs × 30 días + 10%. Ej.: 5×10×4×30 = 6.000 → 6.600 |
+| LLM units per month | 2.400 | proyectos × prompts × nº LLMs × pasadas/mes + ~30%. El cron LLM corre **2 veces/semana (~cada 3 días, ~9 pasadas/mes)**, no a diario. Ej.: 5×10×4×9 = 1.800 → 2.400 |
 | Manual AI: max projects / keywords | 5 / 30 | Lo pactado |
 | AI Mode: max projects / prompts | 5 / 10 | Lo pactado |
 | LLM Monitoring: max projects | 5 | Lo pactado |
 
 3. Guardar. El usuario pasa a `enterprise`, `billing_status = active`. La primera pasada del cron diario le fija `quota_reset_date` a +30 días.
-4. **Opcional, por proyecto**: cuando el cliente cree sus proyectos, abre su ficha y en la tabla *Límite y ciclo por proyecto* pon a cada uno su tope (p. ej. 900 RU = 30 kws × 30 días) y su frecuencia (1 = cada pasada del cron, 3 = cada 3 días).
+4. **Opcional, por proyecto**: cuando el cliente cree sus proyectos, abre su ficha y en la tabla *Límite y ciclo por proyecto* pon a cada uno su tope (p. ej. 500 RU ≈ 30 kws × 13 pasadas + margen; LLM 500 units ≈ 10 prompts × 4 LLMs × 9 pasadas + margen) y su frecuencia (1 = cada pasada del cron, 3 = cada 3 días).
 5. **Facturación**:
    - **Stripe** (recomendado): crear en el Dashboard la suscripción con un precio colgado del **producto Enterprise** (`STRIPE_ENTERPRISE_PRODUCT_ID`) y el **mismo email** que la cuenta. Hacerlo **después** del paso 2 (si el webhook llega antes, el límite efectivo es 0 y pausaría todo). Cada cobro resetea la cuota; impago → `past_due`; cancelación → `free` y proyectos desactivados.
    - **Manual**: no hay paso 5. El cron resetea cada 30 días. Si deja de pagar: "Remove Custom Quota" (vuelve a free).
@@ -57,7 +57,7 @@ La ventana es siempre la misma para los tres niveles: **30 días que terminan en
 2. Cuando el cliente cree el proyecto nuevo, ponle su límite y su frecuencia en la tabla por proyecto.
 3. Sube el precio en Stripe (o factura aparte). Independiente del paso 1.
 
-Regla rápida por tramo de 5 proyectos con la configuración base: **+7.500 RU** y **+6.600 units**.
+Regla rápida por tramo de 5 proyectos con la configuración base: **+3.500 RU** y **+2.400 units**.
 
 Si el cliente pausa a mano un proyecto, deja de contar para el tope del módulo y puede crear otro en su lugar (rotación de clientes finales sin pedirte nada).
 
@@ -80,7 +80,7 @@ Si el cliente pausa a mano un proyecto, deja de contar para el tope del módulo 
 - **Manual AI y AI Mode**: suma de `quota_usage_events.ru_consumed` con `metadata->>'project_id'` en la ventana. Incluye re-análisis manuales. El +1 RU del AIO "collapsed" va por `serp_api` sin proyecto: cuenta para el usuario, no para el proyecto.
 - **LLM Monitoring**: filas de `llm_monitoring_results` del proyecto en la ventana (1 prompt × 1 LLM = 1 unit), igual que el contador por usuario.
 - El gate por proyecto usa un contador local durante el análisis (consumo previo + gastado en este run), así que un run largo no se pasa del tope.
-- **Frecuencia**: los crons saltan el proyecto si ya tiene resultados dentro de los últimos N días (`analysis_frequency_days`). Los crons de Manual AI / AI Mode corren lun/jue/sáb, así que frecuencia 1 = "cada pasada" (3 veces/semana), no "cada día". LLM corre a diario.
+- **Frecuencia**: los crons saltan el proyecto si ya tiene resultados dentro de los últimos N días (`analysis_frequency_days`). Los crons de Manual AI / AI Mode corren lun/jue/sáb y el de LLM 2 veces/semana (~cada 3 días), así que frecuencia 1 = "cada pasada", no "cada día". Verificado con las fechas de resultados en prod (2026-09-11).
 
 ---
 
