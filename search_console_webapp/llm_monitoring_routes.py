@@ -690,8 +690,9 @@ def _get_effective_plan_limits(user: dict) -> dict:
     """
     Devuelve límites efectivos por usuario.
     Admin opera sin límites para soporte y validación interna.
-    Enterprise: respeta custom_llm_prompts_limit y custom_llm_monthly_units_limit
-    si están configurados por el admin; si no, opera sin límites (None).
+    Enterprise: respeta custom_llm_prompts_limit, custom_llm_monthly_units_limit
+    y custom_llm_max_projects si están configurados por el admin; si no,
+    opera sin límites (None).
     """
     limits = get_llm_plan_limits((user or {}).get('plan', 'free'))
     if user and user.get('role') == 'admin':
@@ -704,10 +705,13 @@ def _get_effective_plan_limits(user: dict) -> dict:
         # Aplicar custom limits si el admin los ha configurado para este usuario
         custom_prompts = user.get('custom_llm_prompts_limit')
         custom_units = user.get('custom_llm_monthly_units_limit')
+        custom_projects = user.get('custom_llm_max_projects')
         if custom_prompts is not None:
             limits['max_prompts_per_project'] = int(custom_prompts)
         if custom_units is not None:
             limits['max_monthly_units'] = int(custom_units)
+        if custom_projects is not None:
+            limits['max_projects'] = int(custom_projects)
     return limits
 
 

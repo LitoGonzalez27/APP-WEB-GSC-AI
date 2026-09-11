@@ -363,6 +363,39 @@ def init_database():
         except Exception:
             pass
 
+        # ✅ Topes por módulo para Enterprise (ver enterprise_limits.py y
+        # migrate_enterprise_module_limits.py). Se aseguran aquí para que el
+        # deploy no dependa de ejecutar la migración antes que el código: las
+        # rutas y el cron LLM hacen SELECT explícito de estas columnas.
+        for _col in (
+            'custom_manual_ai_max_projects',
+            'custom_manual_ai_keywords_limit',
+            'custom_ai_mode_max_projects',
+            'custom_ai_mode_keywords_limit',
+            'custom_llm_max_projects',
+        ):
+            try:
+                cur.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {_col} INTEGER DEFAULT NULL")
+            except Exception:
+                pass
+
+        # ✅ Cuota y ciclo por PROYECTO (ver project_quota.py y
+        # migrate_project_quota_limits.py). Las tablas de proyectos las crean
+        # sus propios scripts, así que solo se intenta si ya existen.
+        for _tbl, _col_sql in (
+            ('manual_ai_projects', 'monthly_ru_limit INTEGER DEFAULT NULL'),
+            ('ai_mode_projects', 'monthly_ru_limit INTEGER DEFAULT NULL'),
+            ('llm_monitoring_projects', 'monthly_units_limit INTEGER DEFAULT NULL'),
+            ('llm_monitoring_projects', 'analysis_frequency_days INTEGER DEFAULT 1'),
+        ):
+            try:
+                cur.execute("SELECT to_regclass(%s) AS reg", (f'public.{_tbl}',))
+                _reg = cur.fetchone()
+                if _reg and (_reg['reg'] if isinstance(_reg, dict) else _reg[0]):
+                    cur.execute(f"ALTER TABLE {_tbl} ADD COLUMN IF NOT EXISTS {_col_sql}")
+            except Exception:
+                pass
+
         # ================================
         # Tablas para conexiones OAuth y propiedades GSC
         # ================================

@@ -119,24 +119,9 @@ def get_user_monthly_llm_usage(user_id: int, month_date: Optional[date] = None) 
         """, (user_id,))
         user = cur.fetchone() or {}
 
-        interval_days = int(os.getenv('QUOTA_RESET_INTERVAL_DAYS', '30'))
-        quota_reset_date = user.get('quota_reset_date')
-        current_period_start = user.get('current_period_start')
-        current_period_end = user.get('current_period_end')
-
-        if quota_reset_date:
-            window_end = quota_reset_date.date()
-            window_start = (quota_reset_date - timedelta(days=interval_days)).date()
-        elif current_period_start and current_period_end:
-            window_start = current_period_start.date()
-            window_end = current_period_end.date()
-        else:
-            month_date = month_date or date.today()
-            window_start = month_date.replace(day=1)
-            if window_start.month == 12:
-                window_end = window_start.replace(year=window_start.year + 1, month=1)
-            else:
-                window_end = window_start.replace(month=window_start.month + 1)
+        # Ventana compartida con la cuota por proyecto (project_quota.py)
+        from project_quota import compute_quota_window
+        window_start, window_end = compute_quota_window(user, today=month_date)
 
         cur.execute("""
             SELECT COUNT(*) AS count
@@ -193,13 +178,17 @@ def get_llm_limits_summary(user: dict) -> dict:
 
     # Enterprise: respetar custom limits si el admin los ha configurado
     max_prompts = limits.get('max_prompts_per_project')
+    max_projects = limits.get('max_projects')
     if plan == 'enterprise':
         custom_prompts = user.get('custom_llm_prompts_limit')
         custom_units = user.get('custom_llm_monthly_units_limit')
+        custom_projects = user.get('custom_llm_max_projects')
         if custom_prompts is not None:
             max_prompts = int(custom_prompts)
         if custom_units is not None:
             max_units = int(custom_units)
+        if custom_projects is not None:
+            max_projects = int(custom_projects)
 
     remaining_units = None if max_units is None else max(0, max_units - used_units)
     projects_count = count_user_active_projects(user['id'])
@@ -207,7 +196,7 @@ def get_llm_limits_summary(user: dict) -> dict:
     return {
         'plan': plan,
         'is_admin': False,
-        'max_projects': limits.get('max_projects'),
+        'max_projects': max_projects,
         'max_prompts_per_project': max_prompts,
         'max_monthly_units': max_units,
         'monthly_units_used': used_units,

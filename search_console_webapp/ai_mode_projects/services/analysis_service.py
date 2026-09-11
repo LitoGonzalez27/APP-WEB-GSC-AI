@@ -142,6 +142,25 @@ class AnalysisService:
                 'paused_until': paused_until
             }
 
+        # Cuota por PROYECTO (tope propio en la ventana del usuario, ver project_quota.py).
+        # Sin tope (limit None) → no aplica. Si no cabe ni una keyword, se pausa SOLO este proyecto.
+        from project_quota import check_project_quota, pause_project_for_quota
+        project_quota = check_project_quota('ai_mode', project_id, current_user['id'],
+                                            planned=AI_MODE_KEYWORD_ANALYSIS_COST)
+        project_limit = project_quota.get('limit')
+        project_used_before = int(project_quota.get('used') or 0)
+        if not project_quota.get('allowed', True):
+            paused_until = quota_info.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+            logger.warning(f"Proyecto AI Mode {project_id} sin cuota propia: {project_used_before}/{project_limit} RU")
+            pause_project_for_quota('ai_mode', project_id, paused_until)
+            return {
+                'success': False,
+                'error': 'project_quota_exceeded',
+                'message': 'This project has used its own monthly quota. It will resume automatically on the next cycle.',
+                'project_quota': project_quota,
+                'paused_until': paused_until
+            }
+
         results = []
         failed_keywords = 0
         consumed_ru = 0
@@ -174,6 +193,26 @@ class AnalysisService:
                     'keywords_analyzed': len(results),
                     'keywords_remaining': len(keywords) - len(results),
                     'error': 'QUOTA_EXCEEDED',
+                    'paused_until': paused_until
+                }
+
+            # Tope propio del proyecto (contador local: consumo previo en la ventana + lo gastado en este run)
+            if project_limit is not None and \
+                    project_used_before + consumed_ru + AI_MODE_KEYWORD_ANALYSIS_COST > project_limit:
+                logger.warning(f"Análisis AI Mode del proyecto {project_id} detenido por su tope propio "
+                               f"({project_used_before + consumed_ru}/{project_limit} RU). "
+                               f"Keywords procesadas: {len(results)}. Pendientes: {len(keywords) - len(results)}")
+                paused_until = current_quota.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+                pause_project_for_quota('ai_mode', project_id, paused_until)
+                return {
+                    'results': results,
+                    'quota_exceeded': True,
+                    'project_quota_exceeded': True,
+                    'quota_info': current_quota,
+                    'action_required': 'contact_support',
+                    'keywords_analyzed': len(results),
+                    'keywords_remaining': len(keywords) - len(results),
+                    'error': 'PROJECT_QUOTA_EXCEEDED',
                     'paused_until': paused_until
                 }
 

@@ -1305,6 +1305,18 @@
                             <span class="detail-value" id="detailCustomLlmUnits">-</span>
                         </div>
                         <div class="detail-item">
+                            <span class="detail-label"><i data-lucide="layers"></i> Manual AI (proyectos / kws):</span>
+                            <span class="detail-value" id="detailCustomManualAiCaps">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i data-lucide="layers"></i> AI Mode (proyectos / prompts):</span>
+                            <span class="detail-value" id="detailCustomAiModeCaps">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i data-lucide="layers"></i> LLM (proyectos):</span>
+                            <span class="detail-value" id="detailCustomLlmProjects">-</span>
+                        </div>
+                        <div class="detail-item">
                             <span class="detail-label">Asignado por:</span>
                             <span class="detail-value" id="detailCustomAssignedBy">-</span>
                         </div>
@@ -1332,6 +1344,21 @@
                         <div class="detail-item">
                             <span class="detail-label">LLM Monitoring:</span>
                             <span class="detail-value" id="detailLlmProjectsDetail">-</span>
+                        </div>
+                    </div>
+
+                    <!-- 🎯 Cuota y ciclo por PROYECTO (project_quota.py) -->
+                    <div style="margin-top: 1rem;">
+                        <p style="margin: 0 0 0.5rem; font-weight: 600; color: var(--color-text-primary); font-size: 0.9rem;">
+                            <i data-lucide="sliders-horizontal"></i> Límite y ciclo por proyecto
+                            <small id="detailProjectLimitsWindow" style="font-weight: 400; color: var(--color-text-secondary, #666);"></small>
+                        </p>
+                        <p style="margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--color-text-secondary, #666);">
+                            Límite vacío = sin tope propio (solo aplica la cuota del usuario). Frecuencia 1 = cada pasada del cron, 3 = cada 3 días.
+                            Al agotar su límite, solo se pausa ese proyecto hasta el próximo ciclo; subir el límite lo reanuda.
+                        </p>
+                        <div id="detailProjectLimits" style="overflow-x: auto;">
+                            <em style="font-size: 0.85rem;">Cargando proyectos...</em>
                         </div>
                     </div>
                 </div>
@@ -1530,6 +1557,39 @@
                         Example: 3000 prompts x 4 LLMs x 30 days = 360,000 units/month
                     </p>
                 </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--color-bg-subtle); border: 1px solid var(--color-border); border-radius: 5px;">
+                    <p style="margin: 0; font-weight: 600; color: var(--color-text-primary);"><i data-lucide="layers"></i> Project caps per module <small>(empty = unlimited)</small></p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem;">
+                        <div>
+                            <label for="customManualAiMaxProjects" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">Manual AI: max projects</label>
+                            <input type="number" id="customManualAiMaxProjects" min="1" max="1000" step="1" placeholder="e.g., 5"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px;">
+                        </div>
+                        <div>
+                            <label for="customManualAiKeywordsLimit" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">Manual AI: keywords/project <small>(max 200)</small></label>
+                            <input type="number" id="customManualAiKeywordsLimit" min="1" max="200" step="1" placeholder="e.g., 30"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px;">
+                        </div>
+                        <div>
+                            <label for="customAiModeMaxProjects" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">AI Mode: max projects</label>
+                            <input type="number" id="customAiModeMaxProjects" min="1" max="1000" step="1" placeholder="e.g., 5"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px;">
+                        </div>
+                        <div>
+                            <label for="customAiModeKeywordsLimit" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">AI Mode: prompts/project <small>(max 300)</small></label>
+                            <input type="number" id="customAiModeKeywordsLimit" min="1" max="300" step="1" placeholder="e.g., 10"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px;">
+                        </div>
+                        <div>
+                            <label for="customLlmMaxProjects" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">LLM Monitoring: max projects</label>
+                            <input type="number" id="customLlmMaxProjects" min="1" max="1000" step="1" placeholder="e.g., 5"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 5px;">
+                        </div>
+                    </div>
+                    <p style="margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--color-text-primary);">
+                        Caps count active projects (manually paused ones don't count). Prompts/project for LLM is the field above.
+                    </p>
+                </div>
                 <div style="margin-top: 1rem; padding: 1rem; background: var(--color-bg-subtle); border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Enterprise Features:</strong></p>
                     <p style="margin: 0.5rem 0 0 0; color: var(--color-text-primary);">
@@ -1567,7 +1627,10 @@
             
             // Mostrar modal inmediatamente
             openModal('userModal');
-            
+
+            // 🎯 Límite y ciclo por proyecto (independiente del fetch de billing)
+            loadUserProjectLimits(id);
+
             try {
                 // 🚀 NUEVO: Cargar detalles completos de billing
                 console.log('🔄 Cargando datos de billing...');
@@ -1680,6 +1743,23 @@
                             llmUnitsEl.textContent = user.custom_llm_monthly_units_limit
                                 ? `${user.custom_llm_monthly_units_limit} units/mes`
                                 : 'Unlimited';
+                        }
+
+                        // Topes por módulo
+                        const capText = (v) => (v ? `${v}` : '∞');
+                        const manualCapsEl = document.getElementById('detailCustomManualAiCaps');
+                        const aiModeCapsEl = document.getElementById('detailCustomAiModeCaps');
+                        const llmProjectsEl = document.getElementById('detailCustomLlmProjects');
+                        if (manualCapsEl) {
+                            manualCapsEl.textContent =
+                                `${capText(user.custom_manual_ai_max_projects)} / ${capText(user.custom_manual_ai_keywords_limit)}`;
+                        }
+                        if (aiModeCapsEl) {
+                            aiModeCapsEl.textContent =
+                                `${capText(user.custom_ai_mode_max_projects)} / ${capText(user.custom_ai_mode_keywords_limit)}`;
+                        }
+                        if (llmProjectsEl) {
+                            llmProjectsEl.textContent = capText(user.custom_llm_max_projects);
                         }
 
                         if (user.custom_quota_assigned_date) {
@@ -2289,6 +2369,9 @@
             document.getElementById('customQuotaNotes').value = '';
             document.getElementById('customLlmPromptsLimit').value = '';
             document.getElementById('customLlmMonthlyUnits').value = '';
+            Object.keys(CUSTOM_MODULE_LIMIT_INPUTS).forEach((field) => {
+                document.getElementById(CUSTOM_MODULE_LIMIT_INPUTS[field]).value = '';
+            });
 
             // Remove previous event listeners
             const oldBtn = document.getElementById('confirmCustomQuotaBtn');
@@ -2330,6 +2413,120 @@
             }
         }
 
+        // =====================================================================
+        // 🎯 Límite y ciclo por PROYECTO (project_quota.py)
+        // =====================================================================
+        const PROJECT_LIMIT_MODULE_ORDER = ['manual_ai', 'ai_mode', 'llm_monitoring'];
+
+        function escapeHtmlAdmin(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function projectStateBadge(p) {
+            if (!p.is_active) return '<span class="badge" style="background:#999;color:#fff;">Pausado (manual)</span>';
+            if (p.is_paused_by_quota) {
+                const until = p.paused_until ? new Date(p.paused_until).toLocaleDateString('es-ES') : '?';
+                const why = p.paused_reason === 'project_quota_exceeded' ? 'tope del proyecto' : 'cuota del usuario';
+                return `<span class="badge" style="background:#c0392b;color:#fff;" title="${escapeHtmlAdmin(p.paused_reason || '')}">Pausado por ${why} hasta ${until}</span>`;
+            }
+            return '<span class="badge" style="background:#27ae60;color:#fff;">Activo</span>';
+        }
+
+        async function loadUserProjectLimits(userId) {
+            const container = document.getElementById('detailProjectLimits');
+            const windowEl = document.getElementById('detailProjectLimitsWindow');
+            if (!container) return;
+            container.innerHTML = '<em style="font-size: 0.85rem;">Cargando proyectos...</em>';
+            try {
+                const response = await fetch(`/admin/users/${userId}/project-limits`);
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'Error');
+
+                if (windowEl && data.window) {
+                    const ws = new Date(data.window.start).toLocaleDateString('es-ES');
+                    const we = new Date(data.window.end).toLocaleDateString('es-ES');
+                    windowEl.textContent = `(ventana de cuota vigente: ${ws} → ${we})`;
+                }
+
+                let html = '';
+                let anyProject = false;
+                PROJECT_LIMIT_MODULE_ORDER.forEach((moduleKey) => {
+                    const mod = (data.modules || {})[moduleKey];
+                    if (!mod || !mod.projects || mod.projects.length === 0) return;
+                    anyProject = true;
+                    html += `<p style="margin: 0.75rem 0 0.25rem; font-weight: 600; font-size: 0.85rem;">${escapeHtmlAdmin(mod.label)} <small>(${escapeHtmlAdmin(mod.unit)} por ventana)</small></p>`;
+                    html += `<table style="width:100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead><tr style="text-align:left; border-bottom:1px solid var(--color-border);">
+                            <th style="padding:0.3rem;">ID</th>
+                            <th style="padding:0.3rem;">Proyecto</th>
+                            <th style="padding:0.3rem;">Kws/Prompts</th>
+                            <th style="padding:0.3rem;">Estado</th>
+                            <th style="padding:0.3rem;">Consumo</th>
+                            <th style="padding:0.3rem;">Límite</th>
+                            <th style="padding:0.3rem;">Cada N días</th>
+                            <th style="padding:0.3rem;"></th>
+                        </tr></thead><tbody>`;
+                    mod.projects.forEach((p) => {
+                        const limitText = p.monthly_limit === null || p.monthly_limit === undefined ? '∞' : p.monthly_limit;
+                        html += `<tr style="border-bottom:1px solid var(--color-border);">
+                            <td style="padding:0.3rem;">${p.id}</td>
+                            <td style="padding:0.3rem;">${escapeHtmlAdmin(p.name)}</td>
+                            <td style="padding:0.3rem;">${p.keyword_count ?? '-'}</td>
+                            <td style="padding:0.3rem;">${projectStateBadge(p)}</td>
+                            <td style="padding:0.3rem;">${p.used} / ${limitText}</td>
+                            <td style="padding:0.3rem;"><input type="number" min="1" step="1" style="width:6rem; padding:0.25rem;" id="pl-limit-${moduleKey}-${p.id}" value="${p.monthly_limit ?? ''}" placeholder="∞"></td>
+                            <td style="padding:0.3rem;"><input type="number" min="1" max="90" step="1" style="width:4.5rem; padding:0.25rem;" id="pl-freq-${moduleKey}-${p.id}" value="${p.analysis_frequency_days ?? 1}"></td>
+                            <td style="padding:0.3rem;"><button class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.8rem;" onclick="saveProjectLimits('${moduleKey}', ${p.id}, ${userId})">Guardar</button></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                });
+                container.innerHTML = anyProject ? html : '<em style="font-size: 0.85rem;">Este usuario no tiene proyectos.</em>';
+                if (window.lucide) lucide.createIcons();
+            } catch (error) {
+                console.error('Error cargando límites por proyecto:', error);
+                container.innerHTML = `<em style="font-size: 0.85rem; color:#c0392b;">No se pudieron cargar los proyectos: ${escapeHtmlAdmin(error.message)}</em>`;
+            }
+        }
+
+        async function saveProjectLimits(moduleKey, projectId, userId) {
+            const limitRaw = document.getElementById(`pl-limit-${moduleKey}-${projectId}`).value;
+            const freqRaw = document.getElementById(`pl-freq-${moduleKey}-${projectId}`).value;
+            const payload = {
+                monthly_limit: limitRaw && limitRaw.trim() !== '' ? parseInt(limitRaw) : null,
+                analysis_frequency_days: freqRaw && freqRaw.trim() !== '' ? parseInt(freqRaw) : 1
+            };
+            try {
+                const response = await fetch(`/admin/projects/${moduleKey}/${projectId}/limits`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    alert('❌ Error: ' + (result.error || 'No se pudo guardar'));
+                    return;
+                }
+                const extra = result.resumed ? ' (proyecto reanudado)' : '';
+                alert(`✅ Guardado: límite ${result.monthly_limit ?? '∞'}, cada ${result.analysis_frequency_days} día(s)${extra}`);
+                await loadUserProjectLimits(userId);
+            } catch (error) {
+                console.error('Error guardando límites de proyecto:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
+        // Topes por módulo (Enterprise): campo del payload → id del input
+        const CUSTOM_MODULE_LIMIT_INPUTS = {
+            custom_manual_ai_max_projects: 'customManualAiMaxProjects',
+            custom_manual_ai_keywords_limit: 'customManualAiKeywordsLimit',
+            custom_ai_mode_max_projects: 'customAiModeMaxProjects',
+            custom_ai_mode_keywords_limit: 'customAiModeKeywordsLimit',
+            custom_llm_max_projects: 'customLlmMaxProjects'
+        };
+
         async function assignCustomQuota(userId, userName) {
             const customLimit = parseInt(document.getElementById('customQuotaLimit').value);
             const notes = document.getElementById('customQuotaNotes').value;
@@ -2352,6 +2549,13 @@
             if (llmUnitsRaw && llmUnitsRaw.trim() !== '') {
                 payload.custom_llm_monthly_units_limit = parseInt(llmUnitsRaw);
             }
+            // Topes por módulo (vacío = unlimited)
+            Object.keys(CUSTOM_MODULE_LIMIT_INPUTS).forEach((field) => {
+                const raw = document.getElementById(CUSTOM_MODULE_LIMIT_INPUTS[field]).value;
+                if (raw && raw.trim() !== '') {
+                    payload[field] = parseInt(raw);
+                }
+            });
 
             console.log(`👑 Asignando enterprise quota a usuario ${userId}:`, payload);
 

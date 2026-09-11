@@ -2387,15 +2387,19 @@ def setup_auth_routes(app):
     def admin_assign_custom_quota(user_id):
         """Asignar quota personalizada (Enterprise) desde admin panel.
         Soporta custom_limit (RU generales), custom_llm_prompts_limit y
-        custom_llm_monthly_units_limit para LLM Monitoring."""
+        custom_llm_monthly_units_limit para LLM Monitoring, y los topes por
+        módulo custom_manual_ai_max_projects, custom_manual_ai_keywords_limit,
+        custom_ai_mode_max_projects, custom_ai_mode_keywords_limit y
+        custom_llm_max_projects (ver enterprise_limits.py)."""
         try:
-            from admin_billing_panel import assign_custom_quota
+            from admin_billing_panel import assign_custom_quota, MODULE_LIMIT_FIELDS
 
             data = request.get_json()
             custom_limit = data.get('custom_limit')
             notes = data.get('notes', '')
             custom_llm_prompts_limit = data.get('custom_llm_prompts_limit')
             custom_llm_monthly_units_limit = data.get('custom_llm_monthly_units_limit')
+            module_limits = {field: data.get(field) for field, _label in MODULE_LIMIT_FIELDS}
             current_user = get_current_user()
 
             if custom_limit is None:
@@ -2405,7 +2409,8 @@ def setup_auth_routes(app):
             result = assign_custom_quota(
                 user_id, custom_limit, notes, current_user['id'],
                 custom_llm_prompts_limit=custom_llm_prompts_limit,
-                custom_llm_monthly_units_limit=custom_llm_monthly_units_limit
+                custom_llm_monthly_units_limit=custom_llm_monthly_units_limit,
+                module_limits=module_limits
             )
 
             if result['success']:
@@ -2457,6 +2462,62 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error reseteando quota de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+    @app.route('/admin/users/<int:user_id>/project-limits')
+    @admin_required
+    def admin_user_project_limits(user_id):
+        """Proyectos del usuario en los 3 módulos con tope propio, consumo en la
+        ventana de cuota vigente, frecuencia de análisis y estado de pausa
+        (ver project_quota.py / CLAUDE-enterprise-agencias.md)."""
+        try:
+            from project_quota import list_user_projects_with_limits
+            return jsonify({'success': True, **list_user_projects_with_limits(user_id)})
+        except Exception as e:
+            logger.error(f"Error listando límites de proyectos de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+    @app.route('/admin/projects/<module>/<int:project_id>/limits', methods=['POST'])
+    @admin_required
+    def admin_set_project_limits(module, project_id):
+        """Fija tope propio (`monthly_limit`, null = sin tope) y/o frecuencia de
+        análisis (`analysis_frequency_days`, 1 = cada tick) de un proyecto.
+        `module` ∈ manual_ai | ai_mode | llm_monitoring."""
+        try:
+            from project_quota import set_project_limits, MODULES, _UNSET
+            from admin_billing_panel import log_admin_action
+
+            if module not in MODULES:
+                return jsonify({'success': False, 'error': f'Unknown module: {module}'}), 400
+            data = request.get_json(silent=True) or {}
+            kwargs = {}
+            if 'monthly_limit' in data:
+                kwargs['monthly_limit'] = data.get('monthly_limit')
+            if 'analysis_frequency_days' in data:
+                kwargs['analysis_frequency_days'] = data.get('analysis_frequency_days')
+            if not kwargs:
+                return jsonify({'success': False, 'error': 'Nothing to update'}), 400
+
+            try:
+                result = set_project_limits(module, project_id, **kwargs)
+            except ValueError as ve:
+                return jsonify({'success': False, 'error': str(ve)}), 400
+
+            if result.get('success'):
+                current_user = get_current_user()
+                try:
+                    log_admin_action(current_user['id'], 'set_project_limits', result.get('user_id'), {
+                        'module': module, 'project_id': project_id,
+                        'monthly_limit': result.get('monthly_limit'),
+                        'analysis_frequency_days': result.get('analysis_frequency_days'),
+                        'resumed': result.get('resumed'),
+                    })
+                except Exception as _audit_exc:
+                    logger.warning(f"Audit log set_project_limits falló: {_audit_exc}")
+                return jsonify(result)
+            return jsonify(result), 400
+        except Exception as e:
+            logger.error(f"Error fijando límites de proyecto {module}#{project_id}: {e}")
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/invitations')

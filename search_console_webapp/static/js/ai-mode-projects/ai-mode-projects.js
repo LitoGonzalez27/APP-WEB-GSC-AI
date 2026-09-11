@@ -496,7 +496,8 @@ export async function handleCreateProject(e) {
         this.switchTab('projects');
     }
         } else {
-            throw new Error(data.error || 'Failed to create project');
+            // 402 project_limit_reached trae un `message` legible; `error` es el código
+            throw new Error(data.message || data.error || 'Failed to create project');
         }
     } catch (error) {
         console.error('Error creating project:', error);
