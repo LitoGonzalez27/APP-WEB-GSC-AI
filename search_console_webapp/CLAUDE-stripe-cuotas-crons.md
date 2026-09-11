@@ -235,9 +235,9 @@ Esto separa "schedule" de "lógica" y permite reiniciar uno sin tocar el otro.
 
 | Servicio Bun                   | Schedule       | Endpoint que llama                  | Qué hace |
 |--------------------------------|----------------|-------------------------------------|----------|
-| `function-bun-LLM-Monitoring`  | Diario         | `/api/cron/llm-monitoring/run`      | Ejecuta análisis LLM diario para todos los proyectos activos |
-| `function-bun-Manual-AI`       | Diario         | (manual AI cron endpoint)           | Análisis Manual AI |
-| `function-bun-AI-Mode`         | Diario         | (AI Mode cron endpoint)             | Análisis AI Mode |
+| `function-bun-LLMs`            | 2×/semana (~cada 3 días; verificado por fechas de resultados 2026-09-11) | `/api/llm-monitoring/cron/daily-analysis?async=1` | Ejecuta análisis LLM para todos los proyectos activos elegibles |
+| `function-bun-AI-Overview`     | Lun/jue/sáb    | (manual AI cron endpoint)           | Análisis Manual AI (AI Overview) |
+| `function-bun-AI-Mode`         | Lun/jue/sáb    | (AI Mode cron endpoint)             | Análisis AI Mode |
 | `function-bun-Quota-reset`     | Diario         | `/api/cron/quota-reset?async=1`     | Resetea cuota de usuarios elegibles + health-check post-reset |
 | `function-bun-Model-Discovery` | Semanal        | (LLM model discovery)               | Descubre nuevos modelos LLM disponibles |
 
