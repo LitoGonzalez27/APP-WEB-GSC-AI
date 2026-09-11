@@ -2457,28 +2457,30 @@
                     if (!mod || !mod.projects || mod.projects.length === 0) return;
                     anyProject = true;
                     html += `<p style="margin: 0.75rem 0 0.25rem; font-weight: 600; font-size: 0.85rem;">${escapeHtmlAdmin(mod.label)} <small>(${escapeHtmlAdmin(mod.unit)} por ventana)</small></p>`;
-                    html += `<table style="width:100%; border-collapse: collapse; font-size: 0.85rem;">
+                    // Tabla compacta: el modal mide ~600px, así que cada columna va ajustada
+                    const td = 'padding:0.25rem 0.2rem; vertical-align:middle;';
+                    html += `<table style="width:100%; border-collapse: collapse; font-size: 0.8rem; table-layout:auto;">
                         <thead><tr style="text-align:left; border-bottom:1px solid var(--color-border);">
-                            <th style="padding:0.3rem;">ID</th>
-                            <th style="padding:0.3rem;">Proyecto</th>
-                            <th style="padding:0.3rem;">Kws/Prompts</th>
-                            <th style="padding:0.3rem;">Estado</th>
-                            <th style="padding:0.3rem;">Consumo</th>
-                            <th style="padding:0.3rem;">Límite</th>
-                            <th style="padding:0.3rem;">Cada N días</th>
-                            <th style="padding:0.3rem;"></th>
+                            <th style="${td}">ID</th>
+                            <th style="${td}">Proyecto</th>
+                            <th style="${td}" title="Keywords o prompts activos">Kws</th>
+                            <th style="${td}">Estado</th>
+                            <th style="${td}" title="Consumo en la ventana / límite">Uso</th>
+                            <th style="${td}" title="Límite propio por ventana (vacío = sin tope)">Límite</th>
+                            <th style="${td}" title="Frecuencia de análisis en días (1 = cada pasada del cron)">Días</th>
+                            <th style="${td}"></th>
                         </tr></thead><tbody>`;
                     mod.projects.forEach((p) => {
                         const limitText = p.monthly_limit === null || p.monthly_limit === undefined ? '∞' : p.monthly_limit;
                         html += `<tr style="border-bottom:1px solid var(--color-border);">
-                            <td style="padding:0.3rem;">${p.id}</td>
-                            <td style="padding:0.3rem;">${escapeHtmlAdmin(p.name)}</td>
-                            <td style="padding:0.3rem;">${p.keyword_count ?? '-'}</td>
-                            <td style="padding:0.3rem;">${projectStateBadge(p)}</td>
-                            <td style="padding:0.3rem;">${p.used} / ${limitText}</td>
-                            <td style="padding:0.3rem;"><input type="number" min="1" step="1" style="width:6rem; padding:0.25rem;" id="pl-limit-${moduleKey}-${p.id}" value="${p.monthly_limit ?? ''}" placeholder="∞"></td>
-                            <td style="padding:0.3rem;"><input type="number" min="1" max="90" step="1" style="width:4.5rem; padding:0.25rem;" id="pl-freq-${moduleKey}-${p.id}" value="${p.analysis_frequency_days ?? 1}"></td>
-                            <td style="padding:0.3rem;"><button class="btn btn-primary" style="padding:0.25rem 0.6rem; font-size:0.8rem;" onclick="saveProjectLimits('${moduleKey}', ${p.id}, ${userId})">Guardar</button></td>
+                            <td style="${td}">${p.id}</td>
+                            <td style="${td} max-width:11rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtmlAdmin(p.name)}">${escapeHtmlAdmin(p.name)}</td>
+                            <td style="${td}">${p.keyword_count ?? '-'}</td>
+                            <td style="${td}">${projectStateBadge(p)}</td>
+                            <td style="${td} white-space:nowrap;">${p.used} / ${limitText}</td>
+                            <td style="${td}"><input type="number" min="1" step="1" style="width:4.5rem; padding:0.2rem;" id="pl-limit-${moduleKey}-${p.id}" value="${p.monthly_limit ?? ''}" placeholder="∞"></td>
+                            <td style="${td}"><input type="number" min="1" max="90" step="1" style="width:3.2rem; padding:0.2rem;" id="pl-freq-${moduleKey}-${p.id}" value="${p.analysis_frequency_days ?? 1}"></td>
+                            <td style="${td}"><button class="btn btn-primary" style="padding:0.2rem 0.5rem; font-size:0.75rem;" title="Guardar límite y frecuencia" onclick="saveProjectLimits('${moduleKey}', ${p.id}, ${userId})">Guardar</button></td>
                         </tr>`;
                     });
                     html += '</tbody></table>';
