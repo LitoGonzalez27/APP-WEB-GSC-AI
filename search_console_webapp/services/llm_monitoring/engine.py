@@ -118,7 +118,7 @@ class _EngineMixin:
                     selected_competitors,
                     language, country_code, queries_per_llm,
                     is_paused_by_quota, paused_until, paused_at, paused_reason,
-                    prompt_sets
+                    prompt_sets, monthly_units_limit
                 FROM llm_monitoring_projects
                 WHERE id = %s AND is_active = TRUE
             """, (project_id,))
@@ -335,7 +335,42 @@ class _EngineMixin:
                         'plan': user_row.get('plan', 'free'),
                         'paused_until': paused_until
                     }
-            
+
+            # Cuota por PROYECTO (tope propio de units en la ventana del usuario,
+            # ver project_quota.py). Sin tope (NULL) → no aplica. Pausa SOLO este proyecto.
+            project_units_limit = project.get('monthly_units_limit')
+            if project_units_limit is not None:
+                from project_quota import get_project_usage, pause_project_for_quota
+                project_used = get_project_usage('llm_monitoring', project_id, user_row['id'])
+                expected_units = count_planned_tasks(queries, list(active_providers.keys()), restrict_pairs)
+                if project_used + expected_units > int(project_units_limit):
+                    paused_until = None
+                    try:
+                        from quota_manager import get_user_quota_status
+                        paused_until = get_user_quota_status(user_row['id']).get('reset_date')
+                    except Exception:
+                        pass
+                    if paused_until is None:
+                        paused_until = datetime.utcnow() + timedelta(days=30)
+                    pause_project_for_quota('llm_monitoring', project_id, paused_until)
+                    logger.warning(
+                        f"⏸️ Proyecto {project_id} pausado por su tope propio: "
+                        f"{project_used}+{expected_units} > {project_units_limit} units"
+                    )
+                    return {
+                        'success': False,
+                        'error': 'llm_project_quota_exceeded',
+                        'message': 'Este proyecto ha agotado su cuota propia mensual de peticiones LLM',
+                        'quota_info': {
+                            'project_limit': int(project_units_limit),
+                            'project_used': project_used,
+                            'project_remaining': max(0, int(project_units_limit) - project_used),
+                            'expected_units': expected_units
+                        },
+                        'plan': user_row.get('plan', 'free'),
+                        'paused_until': paused_until
+                    }
+
             # ✨ NUEVO: Health Check Pre-Análisis
             logger.info("=" * 70)
             logger.info("🏥 HEALTH CHECK DE PROVIDERS")

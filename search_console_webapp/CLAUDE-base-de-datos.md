@@ -206,6 +206,15 @@ custom_llm_prompts_limit        INTEGER
 custom_llm_monthly_units_limit  INTEGER
 ```
 
+**Topes por módulo Enterprise** (`migrate_enterprise_module_limits.py`, también en `init_database()`; resolución en `enterprise_limits.py`):
+```
+custom_manual_ai_max_projects     INTEGER  -- NULL = sin tope
+custom_manual_ai_keywords_limit   INTEGER  -- min(custom, 200)
+custom_ai_mode_max_projects       INTEGER
+custom_ai_mode_keywords_limit     INTEGER  -- min(custom, 300)
+custom_llm_max_projects           INTEGER
+```
+
 **CHECK constraints**:
 - `chk_plan` → `free | basic | premium | enterprise` (también se permite `business` tras migración).
 - `chk_billing_status` → `active | past_due | canceled | beta`.

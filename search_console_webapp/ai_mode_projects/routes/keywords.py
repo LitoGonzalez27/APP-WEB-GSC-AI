@@ -11,6 +11,7 @@ from ai_mode_projects.models.keyword_repository import KeywordRepository
 from ai_mode_projects.models.event_repository import EventRepository
 from ai_mode_projects.config import MAX_KEYWORDS_PER_PROJECT, EVENT_TYPES
 from ai_mode_projects.utils.validators import check_ai_mode_access
+from enterprise_limits import MODULE_AI_MODE, get_effective_keywords_limit
 
 logger = logging.getLogger(__name__)
 
@@ -76,13 +77,18 @@ def add_keywords_to_project(project_id):
     if not keywords_list:
         return jsonify({'success': False, 'error': 'No keywords provided'}), 400
     
-    # Verificar límite de keywords
+    # Verificar límite de keywords (global del módulo, o tope custom Enterprise si es menor)
+    max_keywords = get_effective_keywords_limit(user, MODULE_AI_MODE, MAX_KEYWORDS_PER_PROJECT)
     current_count = keyword_repo.get_project_keyword_count(project_id)
-    if current_count + len(keywords_list) > MAX_KEYWORDS_PER_PROJECT:
+    if current_count + len(keywords_list) > max_keywords:
+        error_msg = (f'Project would exceed {max_keywords} keywords limit. '
+                     f'Current: {current_count}, Adding: {len(keywords_list)}')
         return jsonify({
             'success': False,
-            'error': f'Project would exceed {MAX_KEYWORDS_PER_PROJECT} keywords limit. '
-                    f'Current: {current_count}, Adding: {len(keywords_list)}'
+            'error': error_msg,
+            'message': error_msg,
+            'limit': max_keywords,
+            'current': current_count
         }), 400
     
     try:

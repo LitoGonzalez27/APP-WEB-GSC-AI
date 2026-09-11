@@ -10,6 +10,10 @@ from ai_mode_projects.services.project_service import ProjectService
 from ai_mode_projects.utils.validators import check_ai_mode_access
 from services.project_access_service import user_has_any_module_access
 from llm_monitoring_limits import get_upgrade_options
+from ai_mode_projects.config import MAX_KEYWORDS_PER_PROJECT
+from enterprise_limits import (
+    MODULE_AI_MODE, check_project_cap, get_module_limits_summary
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +78,15 @@ def get_projects():
     
     if len(projects) == 0:
         logger.warning(f"⚠️ [AI MODE] ¡NO SE ENCONTRARON PROYECTOS para usuario {user.get('id')}!")
-    
+
+    # Límites efectivos (topes custom Enterprise; None = sin límite)
+    active_projects = sum(1 for p in projects if p.get('is_active', True))
+    limits = get_module_limits_summary(user, MODULE_AI_MODE, active_projects, MAX_KEYWORDS_PER_PROJECT)
+
     return jsonify({
         'success': True,
-        'projects': projects
+        'projects': projects,
+        'limits': limits
     })
 
 
@@ -108,7 +117,15 @@ def create_project():
     # Validaciones básicas
     if not data.get('name') or not data.get('brand_name'):
         return jsonify({'success': False, 'error': 'Name and brand name are required'}), 400
-    
+
+    # Tope de proyectos activos (solo usuarios Enterprise con override custom)
+    cap_error = check_project_cap(
+        user, MODULE_AI_MODE,
+        project_service.project_repo.count_user_active_projects(user['id'])
+    )
+    if cap_error:
+        return jsonify(cap_error), 402
+
     result = project_service.create_project(
         user_id=user['id'],
         name=data['name'],
@@ -244,6 +261,16 @@ def pause_project(project_id):
 def resume_project(project_id):
     """Resume a paused AI Mode project. Returns 402 with reset_date if quota is exhausted."""
     user = get_current_user()
+
+    # Reanudar vuelve a contar el proyecto como activo: respetar el tope Enterprise
+    if project_service.user_owns_project(user['id'], project_id):
+        cap_error = check_project_cap(
+            user, MODULE_AI_MODE,
+            project_service.project_repo.count_user_active_projects(user['id'])
+        )
+        if cap_error:
+            return jsonify(cap_error), 402
+
     result = project_service.resume_project(project_id, user['id'])
 
     if result.get('success'):

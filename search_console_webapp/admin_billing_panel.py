@@ -660,7 +660,10 @@ def get_user_billing_details(user_id):
                 current_period_start, current_period_end, pending_plan, pending_plan_date,
                 ai_overview_paused_until, ai_overview_paused_at, ai_overview_paused_reason,
                 custom_quota_limit, custom_quota_notes, custom_quota_assigned_by, custom_quota_assigned_date,
-                custom_llm_prompts_limit, custom_llm_monthly_units_limit
+                custom_llm_prompts_limit, custom_llm_monthly_units_limit,
+                custom_manual_ai_max_projects, custom_manual_ai_keywords_limit,
+                custom_ai_mode_max_projects, custom_ai_mode_keywords_limit,
+                custom_llm_max_projects
             FROM users
             WHERE id = %s
         ''', (user_id,))
@@ -897,9 +900,33 @@ def get_billing_status_display_info(billing_status):
         'icon': 'fas fa-question-circle'
     })
 
+MODULE_LIMIT_FIELDS = (
+    # (kwarg / columna, etiqueta para mensajes)
+    ('custom_manual_ai_max_projects', 'Manual AI max projects'),
+    ('custom_manual_ai_keywords_limit', 'Manual AI keywords/project'),
+    ('custom_ai_mode_max_projects', 'AI Mode max projects'),
+    ('custom_ai_mode_keywords_limit', 'AI Mode prompts/project'),
+    ('custom_llm_max_projects', 'LLM max projects'),
+)
+
+
+def _validate_optional_positive_int(value, label):
+    """None → None (sin override). Si viene valor, debe ser int >= 1."""
+    if value is None or value == '':
+        return None, None
+    try:
+        parsed = int(value)
+    except (ValueError, TypeError):
+        return None, f'{label} must be a valid number'
+    if parsed < 1:
+        return None, f'{label} must be >= 1'
+    return parsed, None
+
+
 def assign_custom_quota(user_id, custom_limit, notes, admin_id,
                         custom_llm_prompts_limit=None,
-                        custom_llm_monthly_units_limit=None):
+                        custom_llm_monthly_units_limit=None,
+                        module_limits=None):
     """
     Asigna una cuota personalizada a un usuario (para planes Enterprise).
 
@@ -910,7 +937,12 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id,
         admin_id: ID del admin que asigna
         custom_llm_prompts_limit: Máx prompts por proyecto en LLM Monitoring (ej: 3000)
         custom_llm_monthly_units_limit: Máx unidades mensuales LLM (1 prompt × 1 LLM = 1 unidad)
+        module_limits: dict opcional con topes por módulo (None/ausente = sin límite):
+            custom_manual_ai_max_projects, custom_manual_ai_keywords_limit,
+            custom_ai_mode_max_projects, custom_ai_mode_keywords_limit,
+            custom_llm_max_projects
     """
+    module_limits = module_limits or {}
     try:
         conn = get_db_connection()
         if not conn:
@@ -944,12 +976,20 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id,
             except (ValueError, TypeError):
                 return {'success': False, 'error': 'LLM monthly units limit must be a valid number'}
 
+        # Validar topes por módulo (proyectos y keywords/prompts por proyecto)
+        validated_module_limits = {}
+        for field, label in MODULE_LIMIT_FIELDS:
+            parsed, err = _validate_optional_positive_int(module_limits.get(field), label)
+            if err:
+                return {'success': False, 'error': err}
+            validated_module_limits[field] = parsed
+
         # Obtener información del admin que asigna
         cur.execute('SELECT name, email FROM users WHERE id = %s', (admin_id,))
         admin_info = cur.fetchone()
         admin_name = admin_info['email'] if admin_info else f'Admin ID {admin_id}'
 
-        # Actualizar usuario con custom quota + LLM limits
+        # Actualizar usuario con custom quota + LLM limits + topes por módulo
         cur.execute('''
             UPDATE users
             SET
@@ -959,6 +999,11 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id,
                 custom_quota_assigned_date = NOW(),
                 custom_llm_prompts_limit = %s,
                 custom_llm_monthly_units_limit = %s,
+                custom_manual_ai_max_projects = %s,
+                custom_manual_ai_keywords_limit = %s,
+                custom_ai_mode_max_projects = %s,
+                custom_ai_mode_keywords_limit = %s,
+                custom_llm_max_projects = %s,
                 -- También actualizar plan a enterprise si no lo es
                 plan = CASE WHEN plan != 'enterprise' THEN 'enterprise' ELSE plan END,
                 current_plan = CASE WHEN current_plan != 'enterprise' THEN 'enterprise' ELSE current_plan END,
@@ -970,6 +1015,11 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id,
             WHERE id = %s
         ''', (custom_limit, notes, admin_name,
               custom_llm_prompts_limit, custom_llm_monthly_units_limit,
+              validated_module_limits['custom_manual_ai_max_projects'],
+              validated_module_limits['custom_manual_ai_keywords_limit'],
+              validated_module_limits['custom_ai_mode_max_projects'],
+              validated_module_limits['custom_ai_mode_keywords_limit'],
+              validated_module_limits['custom_llm_max_projects'],
               user_id))
 
         if cur.rowcount == 0:
@@ -981,9 +1031,14 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id,
             llm_info += f', LLM prompts: {custom_llm_prompts_limit}'
         if custom_llm_monthly_units_limit:
             llm_info += f', LLM units/mes: {custom_llm_monthly_units_limit}'
+        module_info = ''.join(
+            f', {label}: {validated_module_limits[field]}'
+            for field, label in MODULE_LIMIT_FIELDS
+            if validated_module_limits[field] is not None
+        )
         logger.info(
             f"Admin {admin_id} ({admin_name}) asignó custom quota "
-            f"{custom_limit} RU{llm_info} a usuario {user_id}"
+            f"{custom_limit} RU{llm_info}{module_info} a usuario {user_id}"
         )
 
         conn.commit()
@@ -994,16 +1049,19 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id,
             'notes': notes,
             'custom_llm_prompts_limit': custom_llm_prompts_limit,
             'custom_llm_monthly_units_limit': custom_llm_monthly_units_limit,
+            **validated_module_limits,
         })
 
         return {
             'success': True,
             'message': f'Enterprise plan assigned: {custom_limit} RU/month'
                        + (f', {custom_llm_prompts_limit} LLM prompts/project' if custom_llm_prompts_limit else '')
-                       + (f', {custom_llm_monthly_units_limit} LLM units/month' if custom_llm_monthly_units_limit else ''),
+                       + (f', {custom_llm_monthly_units_limit} LLM units/month' if custom_llm_monthly_units_limit else '')
+                       + module_info,
             'custom_limit': custom_limit,
             'custom_llm_prompts_limit': custom_llm_prompts_limit,
             'custom_llm_monthly_units_limit': custom_llm_monthly_units_limit,
+            **validated_module_limits,
             'assigned_by': admin_name,
             'assigned_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -1041,6 +1099,11 @@ def remove_custom_quota(user_id, admin_id):
                 custom_quota_assigned_date = NULL,
                 custom_llm_prompts_limit = NULL,
                 custom_llm_monthly_units_limit = NULL,
+                custom_manual_ai_max_projects = NULL,
+                custom_manual_ai_keywords_limit = NULL,
+                custom_ai_mode_max_projects = NULL,
+                custom_ai_mode_keywords_limit = NULL,
+                custom_llm_max_projects = NULL,
                 plan = 'free',
                 current_plan = 'free',
                 quota_limit = 0,

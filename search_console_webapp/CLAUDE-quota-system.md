@@ -477,11 +477,29 @@ Hay **dos** vías de despausa. `resume_quota_pauses_for_user` es la global (tras
 
 Los LLM aplican **solo cuando `plan == 'enterprise'`** (`llm_monitoring_limits.py:196-202`).
 
+### Topes por módulo (2026-09-11, `migrate_enterprise_module_limits.py`)
+
+Cinco columnas más en `users`, todas `INTEGER NULL` (NULL = sin tope). Resolución centralizada en `enterprise_limits.py`; solo aplican con `plan == 'enterprise'` y nunca a `role == 'admin'`.
+
+| Campo | Dónde se aplica |
+|---|---|
+| `custom_manual_ai_max_projects` | `manual_ai/routes/projects.py` create + resume → 402 `project_limit_reached`. Cuenta proyectos `is_active = TRUE` (pausados a mano no cuentan). |
+| `custom_manual_ai_keywords_limit` | `manual_ai/routes/keywords.py` → `min(custom, 200)`. |
+| `custom_ai_mode_max_projects` | `ai_mode_projects/routes/projects.py` create + resume → 402. |
+| `custom_ai_mode_keywords_limit` | `ai_mode_projects/routes/keywords.py` → `min(custom, 300)`. |
+| `custom_llm_max_projects` | `llm_monitoring_routes._get_effective_plan_limits`, `llm_monitoring_limits.get_llm_limits_summary` y el filtro de elegibilidad del cron (`services/llm_monitoring_service.py`). Sustituye al `None` (ilimitado) de `LLM_PLAN_LIMITS['enterprise']`. |
+
+`GET /manual-ai/api/projects` y `GET /ai-mode-projects/api/projects` devuelven ahora `limits: {max_projects, active_projects, max_keywords_per_project, is_enterprise}` (mismo espíritu que `limits` en LLM). Las columnas se crean también en `init_database()` (ADD COLUMN IF NOT EXISTS), así que el deploy no depende del orden migración/código. Tests: `tests/test_enterprise_module_limits.py`.
+
+### Cuota y ciclo por PROYECTO (2026-09-11, `project_quota.py`)
+
+Tercer nivel, por debajo de la cuota del usuario: `manual_ai_projects.monthly_ru_limit`, `ai_mode_projects.monthly_ru_limit`, `llm_monitoring_projects.monthly_units_limit` (NULL = sin tope propio) y `analysis_frequency_days` en las tres tablas (LLM la estrena aquí). Misma ventana que el usuario (`compute_quota_window`, que ahora también usa `get_user_monthly_llm_usage`). Consumo por proyecto: `quota_usage_events` por `metadata->>'project_id'` (Manual AI / AI Mode) o `llm_monitoring_results` (LLM). Al agotarse se pausa **solo ese proyecto** con `paused_reason = 'project_quota_exceeded'` y `paused_until = reset_date`; la auto-reanudación y `resume_quota_pauses_for_user` existentes lo despausan. Gates en los tres `analysis_service`/`engine`; frecuencia LLM en el filtro de elegibilidad del cron. Admin: `GET /admin/users/<id>/project-limits` y `POST /admin/projects/<module>/<id>/limits` (tabla en la ficha del usuario). Migración `migrate_project_quota_limits.py` (+ `init_database`). Runbook completo: `CLAUDE-enterprise-agencias.md`.
+
 ### Asignación
 
-`admin_billing_panel.assign_custom_quota(user_id, custom_limit, notes, admin_id, custom_llm_prompts_limit=None, custom_llm_monthly_units_limit=None)` (línea 899).
+`admin_billing_panel.assign_custom_quota(user_id, custom_limit, notes, admin_id, custom_llm_prompts_limit=None, custom_llm_monthly_units_limit=None, module_limits=None)` (línea ~920). `module_limits` es un dict con las 5 columnas de topes por módulo (`MODULE_LIMIT_FIELDS`); el modal "Assign Custom Quota" del admin tiene un bloque "Project caps per module" que las rellena.
 
-Validaciones: tipos enteros, `>= 1`. Persiste también en `custom_quota_notes`, `custom_quota_assigned_by`, `custom_quota_assigned_date`.
+Validaciones: tipos enteros, `>= 1`. Persiste también en `custom_quota_notes`, `custom_quota_assigned_by`, `custom_quota_assigned_date`. `remove_custom_quota` pone las 5 columnas a NULL.
 
 ### Endpoint admin
 

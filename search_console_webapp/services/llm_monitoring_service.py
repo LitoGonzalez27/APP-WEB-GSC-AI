@@ -223,7 +223,11 @@ def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_wor
                 p.created_at,
                 u.plan,
                 u.billing_status,
-                u.role
+                u.role,
+                u.custom_llm_max_projects,
+                COALESCE(p.analysis_frequency_days, 1) AS analysis_frequency_days,
+                (SELECT MAX(r.analysis_date) FROM llm_monitoring_results r
+                  WHERE r.project_id = p.id) AS last_analysis_date
             FROM llm_monitoring_projects p
             JOIN users u ON u.id = p.user_id
             WHERE p.is_active = TRUE
@@ -275,6 +279,9 @@ def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_wor
 
             plan_limits = get_llm_plan_limits(project['plan'])
             max_projects_per_user = plan_limits.get('max_projects')
+            # Enterprise: tope custom de proyectos (mismo criterio que la API)
+            if project['plan'] == 'enterprise' and project.get('custom_llm_max_projects') is not None:
+                max_projects_per_user = int(project['custom_llm_max_projects'])
             user_count = user_project_counts.get(project['user_id'], 0)
             if max_projects_per_user is not None and user_count >= max_projects_per_user:
                 logger.info(
@@ -283,6 +290,23 @@ def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_wor
                 )
                 continue
             user_project_counts[project['user_id']] = user_count + 1
+
+            # Frecuencia de análisis por proyecto (1 = cada tick del cron, 3 = cada 3 días...).
+            # Mismo criterio que Manual AI / AI Mode: saltar si ya hay resultados
+            # dentro de la ventana de N días. Con freq=1 no cambia nada.
+            frequency_days = max(int(project.get('analysis_frequency_days') or 1), 1)
+            last_analysis_date = project.get('last_analysis_date')
+            if frequency_days > 1 and last_analysis_date is not None:
+                if isinstance(last_analysis_date, datetime):
+                    last_analysis_date = last_analysis_date.date()
+                if (date.today() - last_analysis_date).days < frequency_days:
+                    logger.info(
+                        f"⏭️ Skipping project {project['id']} - analyzed {last_analysis_date} "
+                        f"(frequency every {frequency_days} days)"
+                    )
+                    user_project_counts[project['user_id']] = user_count  # no ocupa cupo
+                    continue
+
             eligible_projects.append(project)
         except Exception as e:
             # Eligibility check itself failed — record an error result
