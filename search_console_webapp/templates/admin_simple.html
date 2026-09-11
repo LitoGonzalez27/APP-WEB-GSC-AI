@@ -916,18 +916,21 @@
                                                 title="Change Plan">
                                             <i data-lucide="arrow-left-right"></i>
                                         </button>
-                                        {% if not user.custom_quota_limit %}
-                                        <button class="btn-custom-quota btn-sm" 
+                                        {# La corona se muestra SIEMPRE: sirve para asignar y para editar
+                                           (el modal precarga los valores actuales). Antes desaparecía en
+                                           cuanto el usuario tenía cuota custom y solo quedaba "Remove",
+                                           que además devuelve al usuario a free. #}
+                                        <button class="btn-custom-quota btn-sm"
                                                 data-user-id="{{ user.id }}"
                                                 data-user-name="{{ user.name or user.email }}"
-                                                title="Assign Custom Quota">
+                                                title="{{ 'Edit Custom Quota / Enterprise limits' if user.custom_quota_limit else 'Assign Custom Quota' }}">
                                             <i data-lucide="crown"></i>
                                         </button>
-                                        {% else %}
-                                        <button class="btn-remove-custom btn-sm" 
+                                        {% if user.custom_quota_limit %}
+                                        <button class="btn-remove-custom btn-sm"
                                                 data-user-id="{{ user.id }}"
                                                 data-user-name="{{ user.name or user.email }}"
-                                                title="Remove Custom Quota">
+                                                title="Remove Custom Quota (vuelve a free)">
                                             <i data-lucide="x"></i>
                                         </button>
                                         {% endif %}
