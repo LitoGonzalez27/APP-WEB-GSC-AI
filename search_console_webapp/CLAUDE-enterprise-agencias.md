@@ -42,12 +42,21 @@ La ventana es siempre la misma para los tres niveles: **30 días que terminan en
 | LLM Monitoring: max projects | 5 | Lo pactado |
 
 3. Guardar. El usuario pasa a `enterprise`, `billing_status = active`. La primera pasada del cron diario le fija `quota_reset_date` a +30 días.
+
+> **Para editar después**: mismo botón (icono de corona 👑 en la fila del usuario en `/admin/users`). El modal precarga los valores actuales y **"Assign" sobrescribe todos los campos**: un campo vacío al guardar = sin límite. Los límites y la frecuencia **por proyecto** se editan en la ficha del usuario (botón "Ver" → sección "Límite y ciclo por proyecto"), no en ese modal.
 4. **Opcional, por proyecto**: cuando el cliente cree sus proyectos, abre su ficha y en la tabla *Límite y ciclo por proyecto* pon a cada uno su tope (p. ej. 500 RU ≈ 30 kws × 13 pasadas + margen; LLM 500 units ≈ 10 prompts × 4 LLMs × 9 pasadas + margen) y su frecuencia (1 = cada pasada del cron, 3 = cada 3 días).
 5. **Facturación**:
    - **Stripe** (recomendado): crear en el Dashboard la suscripción con un precio colgado del **producto Enterprise** (`STRIPE_ENTERPRISE_PRODUCT_ID`) y el **mismo email** que la cuenta. Hacerlo **después** del paso 2 (si el webhook llega antes, el límite efectivo es 0 y pausaría todo). Cada cobro resetea la cuota; impago → `past_due`; cancelación → `free` y proyectos desactivados.
    - **Manual**: no hay paso 5. El cron resetea cada 30 días. Si deja de pagar: "Remove Custom Quota" (vuelve a free).
 
 > ⚠️ Un precio de otro producto que no sea el Enterprise degrada al usuario a `free` en el webhook (`stripe_webhooks._get_plan_from_price_id`).
+
+### Dónde está cada cosa en Stripe (Dashboard, modo live)
+
+- **Antes de que el cliente pague no existe como Customer.** Lo que existe es: el precio (Products → "Plan Enterprise" → precios, nickname con el nombre del cliente) y el Payment Link (menú Payment Links). El customer, la suscripción y la primera factura aparecen en Customers / Subscriptions en cuanto completa el checkout.
+- El Payment Link se genera con `?client_reference_id=<user_id>&prefilled_email=<email>`: `client_reference_id` es lo que hace que `checkout.session.completed` enlace el customer con el usuario de la app (por id, no por email). Es de un solo uso (`restrictions.completed_sessions.limit = 1`).
+- Alta 2026-09-11 (Alberto Palazuelos, user 665754): price `price_1UEW90GR6GW4caYrGL4Qvflt` (89 €/mes + IVA), link `plink_1UEW90GR6GW4caYrcbSWa8UY`. Stripe Tax activo → IVA automático.
+- Receta para el siguiente cliente (Python con `stripe`, key en Railway `STRIPE_SECRET_KEY` de producción): `Price.create(product=STRIPE_ENTERPRISE_PRODUCT_ID, unit_amount=…, currency='eur', recurring={'interval':'month'}, tax_behavior='exclusive')` → `PaymentLink.create(line_items=[{price, quantity:1}], automatic_tax={'enabled':True}, tax_id_collection={'enabled':True}, billing_address_collection='required', after_completion={'type':'redirect','redirect':{'url':'https://app.clicandseo.com/billing/success?session_id={CHECKOUT_SESSION_ID}'}}, restrictions={'completed_sessions':{'limit':1}}, metadata={'user_id':…})` y enviar `link.url + '?client_reference_id=<user_id>&prefilled_email=<email>'`.
 
 ---
 
