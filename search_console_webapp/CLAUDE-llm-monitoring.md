@@ -116,7 +116,7 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 |---|---|
 | `services/llm_providers/base_provider.py` | Clase abstracta + `DEFAULT_MODELS` (fallback único de los 4 providers y del endpoint de modelos), `resolve_model_id`, `get_model_pricing_from_db`, `get_current_model_for_provider`, `extract_urls_from_text`. `get_model_display_name` lee el registry. |
 | `services/llm_providers/openai_provider.py` | OpenAI (Chat Completions). Soporta `max_completion_tokens` (gpt-5/o1) y `max_tokens` (legacy). Fallback a gpt-4o ante fallos. Respeta `OPENAI_PREFERRED_MODEL`. Health-check = llamada mínima real (detecta cuenta sin crédito). |
-| `services/llm_providers/anthropic_provider.py` | Anthropic. |
+| `services/llm_providers/anthropic_provider.py` | Anthropic. `extract_response_text` concatena solo los bloques `text`: Claude Sonnet 5 antepone a veces un bloque `thinking` (con el SDK 0.39 llega como TextBlock con `text=None`); leer `content[0].text` perdía el 5-10 % de las respuestas hasta el 2026-09-13. |
 | `services/llm_providers/google_provider.py` | Gemini (SDK legacy `google-generativeai`). `output_tokens` = total − prompt: incluye el razonamiento, que Gemini 3.x factura como salida. |
 | `services/llm_providers/perplexity_provider.py` | Perplexity sobre **Agent API** (`POST /v1/agent`, desde 2026-09-13; Sonar por Chat Completions se retira el 2026-09-27). `model_id` del registry → `preset` (`sonar`→`fast`). Idioma como mensaje `system` en `input` (NO `instructions`: sustituye el prompt del preset y se pierden las citas), país en `tools[web_search].user_location`. Coste real de `usage.cost`. Devuelve `search_queries` (fan-out). `parse_agent_response` es pura y tiene tests con respuestas reales. |
 | `services/llm_providers/fanout_utils.py` | Normalización compartida: `normalize_url` (quita `utm_*`), `normalize_domain` + `host_matches_domain` (única implementación; `url_content_analyzer` la reutiliza), `normalize_query` (clave de agrupación de sub-consultas), `resolve_redirects` (URIs de grounding de Gemini vía `Location`). |
@@ -275,6 +275,9 @@ prompt_version      VARCHAR
 created_at          TIMESTAMP
 UNIQUE(project_id, query_id, llm_provider, analysis_date)
 ```
+
+Ninguna tarea puede desaparecer sin fila: contenido vacío o excepción inesperada antes de guardar escriben una fila de error
+(`result_saved` en `_execute_single_query_task`), así la pasada de completitud la reintenta y las alertas la cuentan.
 
 El UPSERT del engine limpia `has_error`/`error_message` cuando un reintento del mismo día sale bien (hasta el 2026-09-13 la
 respuesta buena se quedaba marcada como error: 31 filas así en producción).
