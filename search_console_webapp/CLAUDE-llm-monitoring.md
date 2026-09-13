@@ -119,7 +119,10 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 | `services/llm_providers/anthropic_provider.py` | Anthropic. `extract_response_text` concatena solo los bloques `text`: Claude Sonnet 5 antepone a veces un bloque `thinking` (con el SDK 0.39 llega como TextBlock con `text=None`); leer `content[0].text` perdía el 5-10 % de las respuestas hasta el 2026-09-13. |
 | `services/llm_providers/google_provider.py` | Gemini (SDK legacy `google-generativeai`). `output_tokens` = total − prompt: incluye el razonamiento, que Gemini 3.x factura como salida. |
 | `services/llm_providers/perplexity_provider.py` | Perplexity sobre **Agent API** (`POST /v1/agent`, desde 2026-09-13; Sonar por Chat Completions se retira el 2026-09-27). `model_id` del registry → `preset` (`sonar`→`fast`). Idioma como mensaje `system` en `input` (NO `instructions`: sustituye el prompt del preset y se pierden las citas), país en `tools[web_search].user_location`. Coste real de `usage.cost`. Devuelve `search_queries` (fan-out). `parse_agent_response` es pura y tiene tests con respuestas reales. |
+| `services/llm_providers/web_search.py` | Búsqueda web detrás de `search_mode` (P3, 2026-09-13): `normalize_search_mode` (solo `'auto'` activa), `post_json` + `http_error_message` (errores con código HTTP para `classify_error`), `SourceCollector` (en `sources` solo URLs citadas), coste de tokens y de búsquedas, `build_search_result` (contrato común). Con `auto`: OpenAI Responses API + `web_search`, Anthropic `web_search_20250305` (con `pause_turn`), Gemini REST + `google_search`, todo por REST (sin depender del SDK); Perplexity sube a preset `low`. Parsers puros por provider: `parse_responses_output`, `parse_messages_response`, `parse_generate_content`. |
 | `services/llm_providers/fanout_utils.py` | Normalización compartida: `normalize_url` (quita `utm_*`), `normalize_domain` + `host_matches_domain` (única implementación; `url_content_analyzer` la reutiliza), `normalize_query` (clave de agrupación de sub-consultas), `resolve_redirects` (URIs de grounding de Gemini vía `Location`). |
+| `services/llm_monitoring/search_settings.py` | `set_project_search_mode` (interruptor del admin, fija `search_enabled_at` al activar). |
+| `services/llm_monitoring/schema_check.py` | `SchemaFeature`: comprobación cacheada de que una migración existe (fan-out, `units_consumed`). |
 | `services/llm_monitoring/fanout_store.py` | Persistencia del fan-out: `fanout_schema_available` (el engine no escribe fan-out si falta la migración), `build_fanout_rows`, `save_fanout`. |
 | `services/llm_providers/provider_factory.py` | `LLMProviderFactory.create_provider`, `create_all_providers`. |
 | `services/llm_providers/locale_helpers.py` | `LocaleContext`, `LANGUAGE_NAMES`, `COUNTRY_NAMES`, `COUNTRY_NAMES_LOCALIZED`, `create_locale_context`, `build_system_instruction`. |
@@ -145,7 +148,7 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 
 ### Migraciones / setup
 
-`create_llm_monitoring_tables.py`, `migrate_llm_brand_fields.py`, `migrate_competitors_structure.py`, `migrate_llm_add_country.py`, `migrate_quota_pause_fields.py`, `add_prompt_clusters_to_llm_monitoring.py`, `migrate_add_sources_field.py`, `migrate_add_position_source.py`, `migrate_add_error_fields.py`, `migrate_add_weighted_sov.py`, `migrate_llm_execution_metadata.py`, `migrate_llm_enterprise_support.py`, `migrate_llm_prompt_limits.py`, `migrate_llm_query_min_length.py`, `migrate_llm_queries_unique_constraint.py`, `migrate_llm_model_discovery_v2.py`, `migrate_models_2026_09.py` (registry con `--apply`), `migrate_llm_fanout_schema.py`.
+`create_llm_monitoring_tables.py`, `migrate_llm_brand_fields.py`, `migrate_competitors_structure.py`, `migrate_llm_add_country.py`, `migrate_quota_pause_fields.py`, `add_prompt_clusters_to_llm_monitoring.py`, `migrate_add_sources_field.py`, `migrate_add_position_source.py`, `migrate_add_error_fields.py`, `migrate_add_weighted_sov.py`, `migrate_llm_execution_metadata.py`, `migrate_llm_enterprise_support.py`, `migrate_llm_prompt_limits.py`, `migrate_llm_query_min_length.py`, `migrate_llm_queries_unique_constraint.py`, `migrate_llm_model_discovery_v2.py`, `migrate_models_2026_09.py` (registry con `--apply`), `migrate_llm_fanout_schema.py`, `migrate_llm_search_p3.py` (`cost_per_1k_search_calls` + `units_consumed`, con `--apply`).
 
 SQL: `update_llm_models_freetier_may2026.sql`, `update_llm_pricing_2026.sql`, `update_llm_models.sql`, `migrate_to_gemini_flash.sql`.
 
@@ -268,6 +271,8 @@ response_time_ms    INTEGER
 -- errores:
 has_error           BOOLEAN
 error_message       TEXT
+-- cuota (migrate_llm_search_p3.py, 2026-09-13):
+units_consumed      SMALLINT NOT NULL DEFAULT 1  -- 1 sin búsqueda; con search_mode='auto', peso del proveedor; errores 1
 -- locale audit + búsqueda web (search_mode, search_tool, search_country, search_used,
 -- search_calls, page_opens, search_cost_usd, model_reported = modelo que devuelve la API):
 execution_metadata  JSONB
@@ -295,8 +300,11 @@ brand_in_sources BOOLEAN  -- NULL si el proveedor no atribuye fuentes por búsqu
 competitor_hosts TEXT[]
 ```
 
-`llm_monitoring_projects.search_mode` (`off` | `auto`, por defecto `off`) y `search_enabled_at` preparan la activación de la
-búsqueda web por proyecto (fase 3 del plan). Perplexity busca siempre, así que su fan-out se guarda ya en todos los proyectos.
+`llm_monitoring_projects.search_mode` (`off` | `auto`, por defecto `off`) es el interruptor de búsqueda web por proyecto. Solo
+lo cambia el admin (ficha del usuario → "Límite y ciclo por proyecto" → "Búsqueda web", endpoint
+`POST /admin/projects/llm_monitoring/<id>/search-mode`, con audit log). `search_enabled_at` guarda la última activación
+(cambio de metodología). Con `auto` OpenAI, Anthropic y Gemini guardan fan-out y fuentes citadas; Perplexity busca siempre,
+así que su fan-out se guarda en todos los proyectos. En `execution_metadata.search_mode` queda el modo del proyecto.
 
 ### `llm_monitoring_snapshots`
 
@@ -544,9 +552,17 @@ Enterprise puede sobrescribir con `users.custom_llm_prompts_limit` y `users.cust
 
 ### Unidad de consumo
 
-**1 unidad = 1 prompt × 1 LLM** (un row insertado en `llm_monitoring_results`).
+**1 unidad = 1 prompt × 1 LLM sin búsqueda web.** Con `search_mode='auto'` cada respuesta consume el peso de su proveedor
+(`llm_monitoring_limits.SEARCH_UNIT_WEIGHTS`: OpenAI ×7, Anthropic ×10, Gemini ×3, Perplexity ×3; coste medido en P1,
+ajustable sin deploy con `LLM_SEARCH_UNIT_WEIGHTS='{"openai": 7, ...}'`). Decisión de Carlos (2026-09-13): por modo del
+proyecto, no por si el modelo buscó, para que el consumo sea previsible; las filas con error cuentan 1. Se guarda por fila en
+`units_consumed`.
 
-`get_user_monthly_llm_usage(user_id)` cuenta filas en `llm_monitoring_results` para los proyectos del usuario, en ventana basada en `users.quota_reset_date - interval_days` (default 30) o `current_period_start/end`.
+`get_user_monthly_llm_usage(user_id)` suma `units_consumed` (`llm_units_sql()`; sin la migración cuenta filas, que es lo mismo
+que antes) para los proyectos del usuario, en ventana basada en `users.quota_reset_date - interval_days` (default 30) o
+`current_period_start/end`. Igual en la cuota por proyecto (`project_quota`), en la comprobación previa del engine
+(`count_planned_tasks` con pesos) y en el panel de facturación del admin. `admin_cost_panel` sigue contando respuestas (coste
+por respuesta).
 
 ### Pausa por cuota
 
@@ -577,8 +593,14 @@ Al inicializar cada provider, se cachea en `self.pricing`.
 Cada provider calcula:
 
 ```
-cost_usd = input_tokens * pricing['input'] + output_tokens * pricing['output']
+cost_usd = input_tokens * pricing['input'] + output_tokens * pricing['output'] + búsquedas * pricing['search']
 ```
+
+`pricing['search']` = `llm_model_registry.cost_per_1k_search_calls / 1000` (solo con `search_mode='auto'`). Precios oficiales
+del 2026-09-13: `gpt-5.5` 10 USD/1.000 llamadas (se cuentan todas las llamadas a la herramienta, también abrir página),
+`gpt-4o` 25, `claude-sonnet-5` 10/1.000 búsquedas (`usage.server_tool_use.web_search_requests`), `gemini-3.6-flash`
+14/1.000 consultas (a precio de lista aunque haya 5.000 gratis al mes, decisión de Carlos). Sin precio en el registry la
+búsqueda cuenta 0 y se avisa en el log. Activar la búsqueda en un proyecto dispara la alerta de cost spike por diseño.
 
 y lo devuelve en el dict de respuesta. Se persiste en `llm_monitoring_results.cost_usd` y se agrega en `llm_monitoring_snapshots.total_cost_usd`.
 

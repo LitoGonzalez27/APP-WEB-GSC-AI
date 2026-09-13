@@ -95,7 +95,16 @@ entrada/min y 2M de salida/min. Gemini no expone límites en cabeceras. Con el p
 5/30), `claude-sonnet-5` (3/15 frente a 2/10) y `gemini-3.6-flash`; Gemini no contaba los tokens de razonamiento como salida;
 `init_database()` forzaba `gemini-3.5-flash` como current en cada arranque.
 
-## 2. Cómo está la app hoy (2026-09-13)
+## 1c. P3 en staging (2026-09-13, noche)
+
+Implementado detrás de `search_mode` (código en `services/llm_providers/web_search.py` y un parser puro por provider; manual
+en `CLAUDE-llm-monitoring.md` §3, §4, §8 y §9). Por REST en los tres proveedores: el SDK de Anthropic de prod (0.39) no puede
+ni representar los bloques `thinking` de una respuesta con búsqueda. Primera medición real por el cron desplegado en staging
+(3 prompts EN/FR × 4 LLMs, `auto`): 12/12 OK, coste 0,50 USD por prompt con los 4 proveedores (OpenAI 0,36, Claude 0,095,
+Gemini 0,037, Perplexity `low` 0,009), en línea con el ×6 de P1. Con búsqueda, `sources` guarda solo las URLs citadas
+(la detección de marca cuenta los enlaces como mención); todas las recuperadas quedan en el fan-out.
+
+## 2. Cómo estaba la app antes del fan-out (2026-09-13)
 
 - `services/llm_providers/openai_provider.py`: Chat Completions **sin tools**.
 - `services/llm_providers/anthropic_provider.py`: `messages.create` **sin tools**.
