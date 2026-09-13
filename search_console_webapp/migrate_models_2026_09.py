@@ -11,6 +11,9 @@ Qué cambia en llm_model_registry (fuentes oficiales consultadas el 2026-09-13):
 - OpenAI: gpt-5.5 a 5 / 30 USD por 1M (developers.openai.com/api/docs/models/gpt-5.5).
   gpt-5.3-chat-latest deja de estar disponible (404 desde 2026-08-31).
 - Perplexity: sonar pasa a servirse por el Agent API (preset fast).
+- Fecha de conocimiento (modal "Active LLM Models"): claude-sonnet-5 "Jan 2026" (reliable knowledge
+  cutoff, platform.claude.com/docs/en/about-claude/models/overview), gpt-5.5 "Dec 2025"
+  (developers.openai.com/api/docs/models/gpt-5.5). Google no publica la de gemini-3.6-flash.
 
 Cada cambio real deja una fila en llm_model_changelog. Idempotente: si el
 registry ya está así, no escribe nada.
@@ -25,6 +28,7 @@ import json
 import logging
 import os
 import sys
+from datetime import date
 from decimal import Decimal
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -44,15 +48,20 @@ TARGETS = [
         'cost_per_1m_output_tokens': Decimal('3.75'),
         'is_available': True,
         'pending_approval': False,
+        'knowledge_cutoff': 'Not published by Google',
     }, 'Precio oficial y alta como modelo por defecto de la app Gemini'),
     ('anthropic', 'claude-sonnet-5', {
         'cost_per_1m_input_tokens': Decimal('2'),
         'cost_per_1m_output_tokens': Decimal('10'),
+        'knowledge_cutoff': 'Jan 2026',
+        'knowledge_cutoff_date': date(2026, 1, 1),
     }, 'El precio introductorio 2/10 pasa a estándar'),
     ('openai', 'gpt-5.5', {
         'model_display_name': 'GPT-5.5',
         'cost_per_1m_input_tokens': Decimal('5'),
         'cost_per_1m_output_tokens': Decimal('30'),
+        'knowledge_cutoff': 'Dec 2025',
+        'knowledge_cutoff_date': date(2025, 12, 1),
     }, 'Precio oficial de la página del modelo'),
     ('openai', 'gpt-5.3-chat-latest', {
         'model_display_name': 'GPT-5.3 Instant (retirado)',
@@ -114,6 +123,8 @@ def apply_changes(cur, changes):
                 change_type = 'deprecated'
             elif any(k.startswith('cost_per_') for k in diff):
                 change_type = 'price_fix'
+            elif any(k.startswith('knowledge_cutoff') for k in diff):
+                change_type = 'cutoff_update'
             else:
                 change_type = 'metadata_update'
             cur.execute("""

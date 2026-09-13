@@ -401,6 +401,114 @@ def _check_provider_billing(run: Dict, get_db_connection_fn) -> Optional[Dict]:
                 pass
 
 
+def _check_provider_completeness(run: Dict, get_db_connection_fn) -> Optional[Dict]:
+    """
+    Alert si a algún LLM le faltan respuestas válidas en los proyectos del run.
+
+    Esperado por proyecto = filas del proveedor que más filas tiene en ese
+    proyecto durante el run (así no depende de ventanas de prompt sets ni de
+    prompts desactivados a mitad de run). Cuenta como hueco tanto la fila de
+    error como la fila que ni siquiera se escribió: el caso del 2026-09
+    (respuestas de Claude con bloque thinking que desaparecían sin error y que
+    ningún check veía porque el proveedor no llegaba a 0 resultados).
+    """
+    started = run.get('started_at')
+    completed = run.get('completed_at')
+    if not started or not completed:
+        return None
+    conn = None
+    try:
+        conn = get_db_connection_fn()
+        if conn is None:
+            return None
+        cur = conn.cursor()
+        cur.execute("""
+            WITH per_provider AS (
+                SELECT project_id, llm_provider,
+                       COUNT(*) AS rows_total,
+                       COUNT(*) FILTER (WHERE NOT COALESCE(has_error, FALSE)) AS rows_ok
+                FROM llm_monitoring_results
+                WHERE created_at >= %s AND created_at <= %s
+                GROUP BY project_id, llm_provider
+            ),
+            expected AS (
+                SELECT project_id, MAX(rows_total) AS n
+                FROM per_provider GROUP BY project_id
+            )
+            SELECT p.llm_provider,
+                   SUM(e.n) AS expected,
+                   SUM(p.rows_ok) AS ok
+            FROM per_provider p JOIN expected e ON e.project_id = p.project_id
+            GROUP BY p.llm_provider
+            ORDER BY p.llm_provider
+        """, (started, completed))
+        rows = cur.fetchall() or []
+
+        gaps = []
+        worst_share = 0.0
+        for r in rows:
+            prov, expected, ok = (
+                (r['llm_provider'], r['expected'], r['ok']) if isinstance(r, dict) else (r[0], r[1], r[2])
+            )
+            expected, ok = int(expected or 0), int(ok or 0)
+            if expected and ok < expected:
+                share = (expected - ok) / expected
+                worst_share = max(worst_share, share)
+                gaps.append(f"{prov} {ok}/{expected} ({share * 100:.1f}% sin respuesta)")
+        if not gaps:
+            return None
+        return {
+            'type': 'provider_incomplete',
+            'severity': 'high' if worst_share > 0.05 else 'medium',
+            'metric': '; '.join(gaps),
+            'threshold': '100% de respuestas por LLM',
+            'message': (
+                'Faltan respuestas válidas de algún LLM tras los reintentos y la pasada de completitud: '
+                + '; '.join(gaps) + '. Los informes de esos proyectos quedan incompletos para ese día. '
+                'Revisa los errores del run y los logs del provider.'
+            ),
+        }
+    except Exception as e:
+        logger.warning(f"[cron_alerts] provider-completeness check skipped: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return None
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _run_checks(run: Dict, cfg: Dict, get_db_connection_fn) -> List[Dict]:
+    """
+    Todas las comprobaciones de un run (una sola lista para el email de alertas y
+    el de fin de run: antes cada uno tenía la suya y se desalineaban).
+    Cada check es independiente: si uno falla se registra y se sigue.
+    """
+    checks = (
+        ('duration', lambda: _check_duration(run, cfg['duration_min_threshold'])),
+        ('error-rate', lambda: _check_error_rate(run, cfg['error_rate_threshold'])),
+        ('cost-spike', lambda: _check_cost_spike(get_db_connection_fn, cfg['cost_multiplier_threshold'])),
+        ('provider-coverage', lambda: _check_provider_coverage(run, get_db_connection_fn)),
+        ('provider-completeness', lambda: _check_provider_completeness(run, get_db_connection_fn)),
+        ('provider-billing', lambda: _check_provider_billing(run, get_db_connection_fn)),
+    )
+    alerts = []
+    for name, check in checks:
+        try:
+            alert = check()
+            if alert:
+                alerts.append(alert)
+        except Exception as e:
+            logger.warning(f"[cron_alerts] {name} check failed: {e}")
+    return alerts
+
+
 # ---------------------------------------------------------------------------
 # Email rendering and sending
 # ---------------------------------------------------------------------------
@@ -481,7 +589,7 @@ def _build_subject(alerts: List[Dict], env_name: str) -> str:
 
 def check_and_send_cron_alerts(run_id: int, get_db_connection_fn=None) -> Dict:
     """
-    Evaluate the three alert thresholds for a completed run and send a single
+    Evaluate all alert checks (_run_checks) for a completed run and send a single
     email if any of them are breached.
 
     Args:
@@ -545,37 +653,7 @@ def check_and_send_cron_alerts(run_id: int, get_db_connection_fn=None) -> Dict:
             except Exception:
                 pass
 
-    # Run the three checks
-    alerts = []
-    try:
-        a = _check_duration(run, cfg['duration_min_threshold'])
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] duration check failed: {e}")
-
-    try:
-        a = _check_error_rate(run, cfg['error_rate_threshold'])
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] error-rate check failed: {e}")
-
-    try:
-        a = _check_cost_spike(get_db_connection_fn, cfg['cost_multiplier_threshold'])
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] cost-spike check failed: {e}")
-
-    try:
-        a = _check_provider_coverage(run, get_db_connection_fn)
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] provider-coverage check failed: {e}")
-
-    try:
-        a = _check_provider_billing(run, get_db_connection_fn)
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] provider-billing check failed: {e}")
+    alerts = _run_checks(run, cfg, get_db_connection_fn)
 
     if not alerts:
         logger.info(f"[cron_alerts] run {run_id}: no thresholds breached")
@@ -1019,8 +1097,8 @@ def send_run_completion_email(run_id: int, get_db_connection_fn=None) -> Dict:
       - ⚠️ WARNING    → algún proyecto falló o algún umbral medio superado
       - 🚨 CRITICAL   → run con status='failed' o umbral alto superado
 
-    Internamente reutiliza los tres checks (duration / error rate / cost spike)
-    y los anexa al cuerpo cuando aplican. Nunca lanza excepción.
+    Internamente reutiliza todas las comprobaciones de _run_checks y las anexa
+    al cuerpo cuando aplican. Nunca lanza excepción.
     """
     cfg = _get_config()
     if not cfg['enabled']:
@@ -1038,27 +1116,7 @@ def send_run_completion_email(run_id: int, get_db_connection_fn=None) -> Dict:
     if not run:
         return {'email_sent': False, 'reason': 'run_not_found'}
 
-    alerts: List[Dict] = []
-    try:
-        a = _check_duration(run, cfg['duration_min_threshold'])
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] duration check failed: {e}")
-    try:
-        a = _check_error_rate(run, cfg['error_rate_threshold'])
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] error-rate check failed: {e}")
-    try:
-        a = _check_cost_spike(get_db_connection_fn, cfg['cost_multiplier_threshold'])
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] cost-spike check failed: {e}")
-    try:
-        a = _check_provider_coverage(run, get_db_connection_fn)
-        if a: alerts.append(a)
-    except Exception as e:
-        logger.warning(f"[cron_alerts] provider-coverage check failed: {e}")
+    alerts = _run_checks(run, cfg, get_db_connection_fn)
 
     run_cost = _load_run_cost(run, get_db_connection_fn)
     errors = _load_top_errors(run, get_db_connection_fn, limit=10)
