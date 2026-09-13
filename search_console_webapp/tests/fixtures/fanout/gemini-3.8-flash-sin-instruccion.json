@@ -1,0 +1,77 @@
+[
+  {
+    "model": "gemini-3.8-flash",
+    "prompt": "¿Cuál es el mejor software de facturación para autónomos en España?",
+    "secs": 10.3,
+    "webSearchQueries": [
+      "mejores programas facturacion autonomos espana"
+    ],
+    "groundingChunks": [
+      "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH0GYZDp6OCtkYqsE1t96-",
+      "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFjfcn4bqvRsiPP9o5U2eV",
+      "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF5I2iQsJoQMoxnA4w63Wp",
+      "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF-IDSNrnWz93c4ecCQudI",
+      "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG7jg87lSN12kOTyj3tecX",
+      "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF4CCQfAJ_hDk4aYVueS9d"
+    ],
+    "n_chunks": 6,
+    "n_supports": 15,
+    "usage": {
+      "promptTokenCount": 257,
+      "candidatesTokenCount": 1221,
+      "totalTokenCount": 2350,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 257
+        }
+      ],
+      "thoughtsTokenCount": 872,
+      "serviceTier": "standard"
+    }
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "prompt": "¿Qué clínica de depilación láser me recomiendas en Madrid?",
+    "secs": 7.0,
+    "webSearchQueries": null,
+    "groundingChunks": [],
+    "n_chunks": 0,
+    "n_supports": 0,
+    "usage": {
+      "promptTokenCount": 14,
+      "candidatesTokenCount": 800,
+      "totalTokenCount": 1568,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 14
+        }
+      ],
+      "thoughtsTokenCount": 754,
+      "serviceTier": "standard"
+    }
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "prompt": "¿Cuál es el mejor software de facturación para autónomos en España?",
+    "secs": 9.5,
+    "webSearchQueries": null,
+    "groundingChunks": [],
+    "n_chunks": 0,
+    "n_supports": 0,
+    "usage": {
+      "promptTokenCount": 15,
+      "candidatesTokenCount": 1048,
+      "totalTokenCount": 1942,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 15
+        }
+      ],
+      "thoughtsTokenCount": 879,
+      "serviceTier": "standard"
+    }
+  }
+]

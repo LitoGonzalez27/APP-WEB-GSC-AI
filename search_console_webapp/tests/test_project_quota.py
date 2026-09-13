@@ -102,7 +102,7 @@ def test_serp_engines_apply_project_gate(rel, module, cost):
 def test_llm_engine_applies_project_gate():
     src = _read("services/llm_monitoring/engine.py")
     norm = re.sub(r"\s+", " ", src)
-    assert "prompt_sets, monthly_units_limit FROM llm_monitoring_projects" in norm
+    assert "prompt_sets, monthly_units_limit, search_mode FROM llm_monitoring_projects" in norm
     assert "project.get('monthly_units_limit')" in src
     assert "get_project_usage('llm_monitoring', project_id, user_row['id'])" in src
     assert "pause_project_for_quota('llm_monitoring', project_id, paused_until)" in src

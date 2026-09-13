@@ -2472,7 +2472,12 @@ def setup_auth_routes(app):
         (ver project_quota.py / CLAUDE-enterprise-agencias.md)."""
         try:
             from project_quota import list_user_projects_with_limits
-            return jsonify({'success': True, **list_user_projects_with_limits(user_id)})
+            from llm_monitoring_limits import SEARCH_UNIT_WEIGHTS
+            return jsonify({
+                'success': True,
+                **list_user_projects_with_limits(user_id),
+                'search_unit_weights': SEARCH_UNIT_WEIGHTS,
+            })
         except Exception as e:
             logger.error(f"Error listando límites de proyectos de usuario {user_id}: {e}")
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
@@ -2518,6 +2523,40 @@ def setup_auth_routes(app):
             return jsonify(result), 400
         except Exception as e:
             logger.error(f"Error fijando límites de proyecto {module}#{project_id}: {e}")
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+    @app.route('/admin/projects/llm_monitoring/<int:project_id>/search-mode', methods=['POST'])
+    @admin_required
+    def admin_set_llm_search_mode(project_id):
+        """Activa (`auto`) o desactiva (`off`) la búsqueda web de un proyecto de LLM
+        Monitoring. Solo admin: cambia metodología, coste y unidades por prompt
+        (services/llm_monitoring/search_settings.py)."""
+        try:
+            from services.llm_monitoring.search_settings import set_project_search_mode
+            from admin_billing_panel import log_admin_action
+
+            data = request.get_json(silent=True) or {}
+            try:
+                result = set_project_search_mode(project_id, data.get('search_mode'))
+            except ValueError as ve:
+                return jsonify({'success': False, 'error': str(ve)}), 400
+
+            if not result.get('success'):
+                status = 404 if result.get('error') == 'Project not found' else 500
+                return jsonify(result), status
+
+            if result.get('changed'):
+                try:
+                    log_admin_action(get_current_user()['id'], 'set_llm_search_mode', result.get('user_id'), {
+                        'project_id': project_id,
+                        'from': result.get('previous_search_mode'),
+                        'to': result.get('search_mode'),
+                    })
+                except Exception as _audit_exc:
+                    logger.warning(f"Audit log set_llm_search_mode falló: {_audit_exc}")
+            return jsonify(result)
+        except Exception as e:
+            logger.error(f"Error cambiando search_mode del proyecto LLM #{project_id}: {e}")
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/invitations')

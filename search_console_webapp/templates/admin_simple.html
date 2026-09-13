@@ -1359,6 +1359,7 @@
                         <p style="margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--color-text-secondary, #666);">
                             Límite vacío = sin tope propio (solo aplica la cuota del usuario). Frecuencia 1 = cada pasada del cron, 3 = cada 3 días.
                             Al agotar su límite, solo se pausa ese proyecto hasta el próximo ciclo; subir el límite lo reanuda.
+                            Búsqueda web (solo LLM Monitoring): desactivada por defecto; activarla sube el coste y las unidades por prompt.
                         </p>
                         <div id="detailProjectLimits" style="overflow-x: auto;">
                             <em style="font-size: 0.85rem;">Cargando proyectos...</em>
@@ -2444,6 +2445,57 @@
             }[c]));
         }
 
+        // Búsqueda web por proyecto LLM (services/llm_monitoring/search_settings.py)
+        let llmSearchUnitWeights = {};
+        const LLM_PROVIDER_LABELS = { openai: 'OpenAI', anthropic: 'Claude', google: 'Gemini', perplexity: 'Perplexity' };
+
+        function searchWeightsText() {
+            return Object.entries(llmSearchUnitWeights)
+                .map(([provider, weight]) => `${LLM_PROVIDER_LABELS[provider] || provider} ×${weight}`)
+                .join(', ');
+        }
+
+        function llmSearchCell(p, userId) {
+            const on = p.search_mode === 'auto';
+            const since = on && p.search_enabled_at ? ` desde ${new Date(p.search_enabled_at).toLocaleDateString('es-ES')}` : '';
+            const badge = on
+                ? `<span class="badge" style="background:#e67e22;color:#fff;" title="Unidades por prompt: ${escapeHtmlAdmin(searchWeightsText())}">Activa${since}</span>`
+                : '<span class="badge" style="background:#999;color:#fff;">Off</span>';
+            const next = on ? 'off' : 'auto';
+            const label = on ? 'Desactivar' : 'Activar';
+            // El nombre lo escribe el cliente: va escapado en un data-attribute, nunca dentro del JS del onclick
+            return `${badge} <button class="btn ${on ? 'btn-secondary' : 'btn-primary'}" style="padding:0.2rem 0.5rem; font-size:0.75rem;"
+                data-project-name="${escapeHtmlAdmin(p.name)}"
+                onclick="setLlmSearchMode(${Number(p.id)}, '${next}', ${Number(userId)}, this.dataset.projectName)">${label}</button>`;
+        }
+
+        async function setLlmSearchMode(projectId, searchMode, userId, projectName) {
+            const message = searchMode === 'auto'
+                ? `¿Activar la búsqueda web en «${projectName}» (#${projectId})?\n\n`
+                  + `- Los modelos podrán buscar en la web: cambia la metodología y las series desde hoy.\n`
+                  + `- El coste por análisis sube (~×6 medido en pruebas).\n`
+                  + `- Cada prompt consume más unidades: ${searchWeightsText()}.\n\n`
+                  + `Solo para clientes que pagan la búsqueda.`
+                : `¿Desactivar la búsqueda web en «${projectName}» (#${projectId})?\n\nDesde el próximo análisis se vuelve a medir sin búsqueda y 1 unidad por prompt.`;
+            if (!confirm(message)) return;
+            try {
+                const response = await fetch(`/admin/projects/llm_monitoring/${projectId}/search-mode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ search_mode: searchMode })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    alert('❌ Error: ' + (result.error || 'No se pudo cambiar la búsqueda web'));
+                    return;
+                }
+                await loadUserProjectLimits(userId);
+            } catch (error) {
+                console.error('Error cambiando la búsqueda web:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
         function projectStateBadge(p) {
             if (!p.is_active) return '<span class="badge" style="background:#999;color:#fff;">Pausado (manual)</span>';
             if (p.is_paused_by_quota) {
@@ -2463,6 +2515,7 @@
                 const response = await fetch(`/admin/users/${userId}/project-limits`);
                 const data = await response.json();
                 if (!data.success) throw new Error(data.error || 'Error');
+                llmSearchUnitWeights = data.search_unit_weights || {};
 
                 if (windowEl && data.window) {
                     const ws = new Date(data.window.start).toLocaleDateString('es-ES');
@@ -2489,6 +2542,7 @@
                             <th style="${td}" title="Límite propio por ventana (vacío = sin tope)">Límite</th>
                             <th style="${td}" title="Frecuencia de análisis en días (1 = cada pasada del cron)">Días</th>
                             <th style="${td}"></th>
+                            ${moduleKey === 'llm_monitoring' ? `<th style="${td}" title="Búsqueda web de los modelos (solo admin)">Búsqueda web</th>` : ''}
                         </tr></thead><tbody>`;
                     mod.projects.forEach((p) => {
                         const limitText = p.monthly_limit === null || p.monthly_limit === undefined ? '∞' : p.monthly_limit;
@@ -2501,6 +2555,7 @@
                             <td style="${td}"><input type="number" min="1" step="1" style="width:4.5rem; padding:0.2rem;" id="pl-limit-${moduleKey}-${p.id}" value="${p.monthly_limit ?? ''}" placeholder="∞"></td>
                             <td style="${td}"><input type="number" min="1" max="90" step="1" style="width:3.2rem; padding:0.2rem;" id="pl-freq-${moduleKey}-${p.id}" value="${p.analysis_frequency_days ?? 1}"></td>
                             <td style="${td}"><button class="btn btn-primary" style="padding:0.2rem 0.5rem; font-size:0.75rem;" title="Guardar límite y frecuencia" onclick="saveProjectLimits('${moduleKey}', ${p.id}, ${userId})">Guardar</button></td>
+                            ${moduleKey === 'llm_monitoring' ? `<td style="${td} white-space:nowrap;">${llmSearchCell(p, userId)}</td>` : ''}
                         </tr>`;
                     });
                     html += '</tbody></table>';

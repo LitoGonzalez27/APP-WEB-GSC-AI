@@ -5,10 +5,16 @@ LLM Monitoring - Límites y políticas por plan
 Centraliza límites de proyectos, prompts y consumo mensual.
 """
 
+import json
+import logging
 import os
 from datetime import date, timedelta
 from typing import Dict, Optional
 from database import get_db_connection
+from services.llm_monitoring.schema_check import SchemaFeature, column_exists_sql
+from services.llm_providers.web_search import is_search_enabled
+
+logger = logging.getLogger(__name__)
 
 
 LLM_ALLOWED_PLANS = ['basic', 'premium', 'business', 'enterprise']
@@ -57,6 +63,73 @@ def can_access_llm_monitoring(user: dict) -> bool:
     return plan in LLM_ALLOWED_PLANS and status in LLM_ALLOWED_STATUSES
 
 
+# ---------------------------------------------------------------------------
+# Unidades de consumo
+# ---------------------------------------------------------------------------
+# 1 unidad = 1 prompt × 1 LLM sin búsqueda web. En proyectos con search_mode='auto'
+# cada respuesta consume el peso de su proveedor (decisión de Carlos 2026-09-13: por
+# modo del proyecto, no por si el modelo buscó, para que el consumo sea previsible).
+# Pesos iniciales = coste con búsqueda / sin búsqueda medido en P1, redondeado arriba
+# (CLAUDE-query-fanout.md §1b). Se pueden ajustar sin deploy con la variable
+# LLM_SEARCH_UNIT_WEIGHTS='{"openai": 7, ...}'. Las filas con error cuentan 1.
+DEFAULT_SEARCH_UNIT_WEIGHTS: Dict[str, int] = {
+    'openai': 7,
+    'anthropic': 10,
+    'google': 3,
+    'perplexity': 3,
+}
+
+UNITS_SCHEMA = SchemaFeature(
+    name='unidades ponderadas',
+    sql=column_exists_sql('llm_monitoring_results', 'units_consumed'),
+    migration='migrate_llm_search_p3.py',
+)
+
+
+def _load_search_unit_weights() -> Dict[str, int]:
+    weights = dict(DEFAULT_SEARCH_UNIT_WEIGHTS)
+    raw = os.getenv('LLM_SEARCH_UNIT_WEIGHTS')
+    if not raw:
+        return weights
+    try:
+        overrides = json.loads(raw)
+        for provider, weight in overrides.items():
+            if provider not in LLM_PROVIDERS or int(weight) < 1:
+                raise ValueError(f'{provider}={weight}')
+            weights[provider] = int(weight)
+    except (ValueError, TypeError, AttributeError) as exc:
+        logger.error(f"LLM_SEARCH_UNIT_WEIGHTS inválida ({exc}); se usan los pesos por defecto")
+        return dict(DEFAULT_SEARCH_UNIT_WEIGHTS)
+    return weights
+
+
+SEARCH_UNIT_WEIGHTS: Dict[str, int] = _load_search_unit_weights()
+
+
+def units_per_task(llm_provider: str, search_mode: Optional[str]) -> int:
+    """Unidades que consume una respuesta correcta de `llm_provider` en un proyecto con ese modo."""
+    if not is_search_enabled(search_mode):
+        return 1
+    return SEARCH_UNIT_WEIGHTS.get(llm_provider, 1)
+
+
+def units_by_provider(provider_names, search_mode: Optional[str]) -> Dict[str, int]:
+    return {name: units_per_task(name, search_mode) for name in provider_names}
+
+
+def llm_units_sql(alias: str = '') -> str:
+    """
+    Agregado SQL de unidades consumidas sobre llm_monitoring_results.
+
+    Con la columna `units_consumed` migrada suma los pesos; sin ella (entorno sin
+    migrar) cuenta filas, que es exactamente lo mismo que antes de la ponderación.
+    Admite FILTER detrás: f"COALESCE({llm_units_sql()} FILTER (WHERE ...), 0)".
+    """
+    if UNITS_SCHEMA.available(get_db_connection):
+        return f"SUM({alias + '.' if alias else ''}units_consumed)"
+    return "COUNT(*)"
+
+
 def get_upgrade_options(plan: str) -> list:
     order = ['basic', 'premium', 'business', 'enterprise']
     if plan not in order:
@@ -103,7 +176,8 @@ def count_project_active_queries(project_id: int) -> int:
 
 def get_user_monthly_llm_usage(user_id: int, month_date: Optional[date] = None) -> int:
     """
-    Devuelve unidades consumidas en el período de quota (1 prompt x 1 LLM = 1 unidad).
+    Devuelve unidades consumidas en el período de quota (1 prompt x 1 LLM = 1 unidad;
+    con búsqueda web, el peso del proveedor: ver units_per_task).
     Se calcula desde llm_monitoring_results.
     """
     conn = get_db_connection()
@@ -123,8 +197,8 @@ def get_user_monthly_llm_usage(user_id: int, month_date: Optional[date] = None) 
         from project_quota import compute_quota_window
         window_start, window_end = compute_quota_window(user, today=month_date)
 
-        cur.execute("""
-            SELECT COUNT(*) AS count
+        cur.execute(f"""
+            SELECT COALESCE({llm_units_sql('r')}, 0) AS count
             FROM llm_monitoring_results r
             JOIN llm_monitoring_projects p ON p.id = r.project_id
             WHERE p.user_id = %s

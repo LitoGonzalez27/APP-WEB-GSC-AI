@@ -67,20 +67,26 @@ def task_allowed(restrict_pairs: Optional[Dict[str, Sequence[int]]],
 
 def count_planned_tasks(queries: Sequence[Dict],
                         active_provider_names: Sequence[str],
-                        restrict_pairs: Optional[Dict[str, Sequence[int]]] = None) -> int:
+                        restrict_pairs: Optional[Dict[str, Sequence[int]]] = None,
+                        units_by_provider: Optional[Dict[str, int]] = None) -> int:
     """
-    Número de tareas que realmente se van a ejecutar (para el chequeo de cuota
-    mensual). En modo restringido cuenta solo los pares válidos: ids que
-    existen en las queries activas × providers activos.
+    Unidades que van a consumir las tareas que realmente se ejecutan (para el
+    chequeo de cuota mensual). En modo restringido cuenta solo los pares válidos:
+    ids que existen en las queries activas × providers activos.
+
+    `units_by_provider` pondera cada tarea (búsqueda web); sin él, 1 por tarea.
     """
+    def weight(llm_name: str) -> int:
+        return (units_by_provider or {}).get(llm_name, 1)
+
     if restrict_pairs is None:
-        return len(queries) * len(active_provider_names)
+        return sum(len(queries) * weight(llm_name) for llm_name in active_provider_names)
 
     active_ids = {q['id'] for q in queries}
     total = 0
     for llm_name in active_provider_names:
         ids = restrict_pairs.get(llm_name) or []
-        total += sum(1 for qid in ids if qid in active_ids)
+        total += sum(1 for qid in ids if qid in active_ids) * weight(llm_name)
     return total
 
 

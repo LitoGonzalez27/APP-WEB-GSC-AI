@@ -1,0 +1,928 @@
+{
+ "id": "resp_03a7de4e97b6bdc9006aa684e7932887d1ab050e82a1762b72",
+ "object": "response",
+ "created_at": 1789297895,
+ "status": "completed",
+ "background": false,
+ "billing": {
+  "payer": "developer"
+ },
+ "completed_at": 1789297947,
+ "error": null,
+ "frequency_penalty": 0.0,
+ "incomplete_details": null,
+ "instructions": null,
+ "max_output_tokens": null,
+ "max_tool_calls": null,
+ "model": "gpt-5-mini-2025-08-07",
+ "moderation": null,
+ "output": [
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa684e87a6c87d1ba528425491356e0",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUcgb4TZx2-c_0UtAkeOn6MteFkiaKeSYEt-IIriss0-115mihWmW321p4uQvEtiHvemzb-qCAfBXZ4ikRx-ijUEfr6SHVi8zwMR3Co5wevDqtPCXnCu20w8kGvdSQNwrT4STNz2I8cA9UJ1DOSk2B6Qw__BQlyKahWe73113CTXekDq0Kzd9sWAZOyya3FnQeUm_97g9a3M46U7YIPvjZBxxv_NmdCy1a-SV-Rd-dybh7TJJcRZeqhZIpO7ths7R85te5RQmbvunk69LoaLBbU0EOh-_wGWSRfjo4AN9CDxSSyAnZ-c1vaU7XJwgF5-afhX_ytDhmM5wP1rsJecJcDQVG2_ElTqwGG46R9oFc7-_2hrAGZ0h_NF980XgiKKwLfyVfJun4MkOgK3X4Zr49yeImEKjGMTpuKohT4iErohZKNSEYMTHnHv_KWTpXZdhMZAP2DQ5CUpzfskw8bHx4h8xPYG8l-Zz0hPw4uI5KkeoIflwSLG4-JTTA4zrDChPw4kSj4u8X8SPTs7vsdOq6VDO-MSDQ--_bEp0HB0qHUT-3kCbPykbDLDqA2j6KujXDBdM72KDuuuR0IbBnIV7cFQYITOav60qtoC3CYNrfAzm8k7DMbGCGbIaHKS-YdYdatQI3Ar8kgZUUQC9s0gD9CArWcA934ALlY6trBAhl8r0By4mN3izhIPTxwUrZfw0hTWc5yvYUFP_kC3F0tit9TYmUEOLec0wYphCJ0kuhwL4_Vpuup39WQlkKAcrDVfQZ056ISRv_4JCBiNzv--0TxKBfT35CbrNgfMGcWTj_yIDAl7S0qPh4LMK0J2PULgyqtVeaeTQxKw-2qWJqHnyMi4e-vWbN0Ur1BHI7-QovOb8nTpAwlX2LZi6pdAD-s5BY4zbeyESyRA6M7kKDcCubQ17kHfdpN9NH3w0CQ1N1Ddk6-igkEEAMJgA9zo_0FnLLtGE9Q_L0VRiq49m61CLFadc-8YkTFqIQf8WUBEHUB9DP8Z5GekH-cUN96hcrxQkzWLOknatbZBqdjbP_i3MQ6gUGTX096LFfSVZax8mpr11Uu-ssw2X9r_0OXytNCFwmclFMaSsd9LIwJevKLzu78IzDqQ52AqY8tMMmBbWH5Q4aCYuha99qfrDLbE7gUaTnjdT2sffAqO67vKkiLjZqwX-oXlaakNiGHUJ9uOQ7KMHl9RmkRXqJy7hcOlo21QEZ8QAITZuG3GPhZ-klSNNYRBpBSInN0sFpXNGE5c_Q5Rh5T_9qWxyykipAlqizBWTSWlLsPcSFBm-GkV_vtN0DPvuA4oOVviDbMKmhwLuWp6sHkzs_tDnhpNvdCOec8Jr3UQvDGxyHAeck6YhOgBuXLzd2sNu_21omjNAU4YNpCI-dzmXMSeJjojmbPz--WHqupT_miRrhO4tkirb7VKgcq_Yz2wUgYUR9sD_vSqjd87PGehK1FeWRCZYjJtHwCCGPKIwJy17GVK1ZuOJyKv8aXbry_SE8zaj_Qy_YB2iRcGxsWZHWJR_81dgdyMx2PRU6ZvGKPsOM3wA_pI2gvDoF4Yz12r8E37LPp8o1f3IUHcj5OTnLJAaHbfhpDEwgSRco2Ilb_iqu4ilyRA3rZACfmKED6slx_1MFZyuYhoGn8Yosu220sSZZueAUQ9n8Ba_F8B1nsNsSRFENUG2JEbr5WH7Hr3uHmD_CUbicOqygChbYg1q-LxppmG_U11-8SFtEw_XUgpu5xTxABHGAOFLPZXhJwufMcih_9r_wFnGL97UzKM29MEw2JY_jmA3WET1pKnH5Lgv0yk2-HQy-fE92_HWZMajQCebFcKqRWBi-GGzGAifBCwZRP4ZHAFV_TfUYLVdgVYUAOAwCaKObp4-ZmEAc72mODVjcJgzr-nyDfjhrfOSIXPJKVbocWSA1NY_mUpjskv8YedHPbcqy0QkzWjVxwzArtRR-CwCEUcWLHE-7logbQ14wzO7CoUR40yV29AyG6whK016AZEe16_p33XfGtM8et0pAOHmZH93eUyjVcYA62tiMFp3_jXwu2qso7PrFMtAHu00-V2MQCZwXGrR5KyG8TKMYcfMn91GeE26AoNWEWQruvkRAZOf1gdKqCdMBU5XoC4bfV7w3r5d-c0r84GSAO125tTgaeOIosHfiAwadSQofqOAVF32SXiZJz522dS9AqAMA4fhoyTP_RRlgUXY5ZHrL942_aboY4WxYPo3SndoDObMZQ1Ho8VWXWxrLUas0jYCr57syrX6ZH-Qg6SJr71VFGshgzTzeSdrmotFv3H6ucOi-4-MBXetKI0gN4R7IXVtdsWgiisPNMSChJajphY2dYEyI2gBgrdoo06LAP-KtnaUIyGGSzp7i1SA1GWhHZDuBTmxne5sbZ5ey0YDmixPiAJt0VYU7GhKNjGw6r6pbbEy81cpVEm_pJTAmxfcODmz254MYV-0z6G6IFMyzvWxsCJTFWoYHcEbZYghOfSzoEm3nym0Ax8yKHGbuo2rsqwlArfSyfBE9ehrx5vTgJBaj2_6ppD5BseG4-N5RwKUyP6gv64Jh3Nb9T91phqj9IOhwCtRFNsLyZ3eog4oQ6NsseBksy9HgUOnxx5UjSsXUQ4RSq6C4FFL_Er_jaSr1f3NL0VpTRufcYosihuJBxtexLpIoIm4xDOVGqMKUoOFg5I93n7-jBe_LS3m-B9UMwPUobZGjkwIKXLfuDyFmqj0v7y2LA9QKol9c5lw_Y5hT1ZbVuOli3niZx1Of3X4-HCWtWMtkaGP1txeIa4WjZSDyu-q142edwjNwO8EMzNODSnep_b9rtq9M-5VHUg6UJvAp3EhRQQqiaWpbwj2WvhgC8B1sx_gXTCZpyQebw0-5SESMBedGiQvmvsWOArDb1fvIwIafBOubp7bRATuq5K6xwAiuTrAxP_mlCTLl48XEGycZE5KcuMrDx_6amnd-WcTlQZBdhx9QbTTo4D4PRPUVyp4HfRZxE_ElaJJRblJBcMNFqDdMWLtN48MqRyIQaW3bXhm762Ye86bdT5Xh7fiwCMFc-dyoa57HUmCp1DxExNenqf72XI1aXPInPRSxEthGa6_jvKFnjO0CBXItb4OdygbRff6Ft5btmL7VgA9vxKa8WtmCrZ1EgRWPPm24zsA3q9n3dADss7B4p9W-TdW3DmfoumF0txIfacYwiR3SSIyBMt-rXluqY5pIwOqUlNp_lP_2-VMCJrsAje9iTJ2AFYPK3PjgxKu9DySpQh5C89cCuj4QHtuT3TC-kvb26Z4p4ivEJx6sHGaKQUpdjfRdNsUsD8u-H2k2GvtQLeX7bRtAvPOx-5y_dsCkufvcWJIIrlgcBnCST6dxlzzl7VV-ue0znnbP30UWbAvk-x98tHjELDFeL7lNonenW3Twd79wrOGXXqKKOduvveOnFpzRmz-_qKshwO7kUsKKqZcoJRTyxgdG0DWpD9ST20odHYf3m3ZtwXtyinSlHA7T1yeBcW_innZoHDvn8dWYs90a_fFi83BHmvJPXaJLQNXlrvqEv70mdrvNLTT1pTpRusVkfGlnUKRG5uXhx1ZGlqHsRDEB9a4JZcE5raRMVcvVwjhLWYGz8hqIsz2sNHqzTDviPClho2-ZLYDXX5kBwkgqB1IyBa4upO3JiSPmQIGyjpVMK0V9SMYUCz0PakI_RU9zeN6m6KNgHDsSbfVGjLN03K34zroEuIeNHXtLCaMB4jPhkMVTJrcEWYmzoR1Ylg_n__peR_CkpJpWvGvRbARHuacNuKTgFRcdOQEN6vyxfaXi3etHbJSC9zy4mo4GnCd1opA4sARkwYGbsnVgeq79jsGZT0k2iBGtWnsqypRZqdeVJxQKj40rid3kEDymI5hmckPrA7dAn-F5WhWbLQ7OWmz8dPDI2RiVoUNM39V4zDp62bgbyurGH4YywmUcb4j92daWzYN05hmuEVnW5gOnjHokCux5Ia_-p4YBzDQMHmkbdmGR7aFTn_PTDF4pSdVE09DzkHj8DH5xwrTSAS_jiWNdfk1CY_KwB",
+   "summary": []
+  },
+  {
+   "id": "ws_03a7de4e97b6bdc9006aa684ee0c6c87d1a3d6b976b1dc7430",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "mejor software facturación autónomos España 2026 comparativa",
+     "Holded facturación autónomos Spain facturación electrónica Facturae SII 2026",
+     "Billin facturación autónomos España 2026 opiniones",
+     "Nomo facturación autónomos España 2026 características"
+    ],
+    "query": "mejor software facturación autónomos España 2026 comparativa",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://factuchat.es/software-facturacion-autonomos-espana-2026/"
+     },
+     {
+      "type": "url",
+      "url": "https://negociosypymes.es/mejor-software-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://declaralia.com/mejor-software-facturacion/"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/mejor-software-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://negociopilot.es/facturacion/mejores-programas-facturacion-autonomos.html"
+     },
+     {
+      "type": "url",
+      "url": "https://mejorsoftware.org/software-de-facturacion/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.whatthefactura.com/blog/mejor-software-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://facturandozen.com/guias/mejores-programas-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.cronomia.com/software/billin"
+     },
+     {
+      "type": "url",
+      "url": "https://criteriopyme.es/software/facturacion/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.herramientas-autonomos.es/blog/mejores-programas-facturacion-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://heynoa.es/blog/mejores-apps-facturacion-autonomos-espana-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/finanzaspersonalesESP/comments/1ss8pjn/billin_opiniones_alguien_lo_usa_para_facturaci%C3%B3n/"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Actualidad/Novedades/2026/Nota_informativa_RD_Facturacion.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/land/wp-content/themes/billin-landing/downloads/Perfil_del_Trabajador_Auto%CC%81nomo_Digitalizado_Espan%CC%83ol.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/G417/FicherosSuministros/V_1_1/FaqGral/FAQs_SII_30_12_2025.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.mites.gob.es/estadisticas/AUT/AUT_01_2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://static.apuntmedia.es/apunt/public/content/file/original/2026/0112/12/np-barometro-cierre-25-y-perspectivas-2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.ey.com/content/dam/ey-unified-site/ey-com/es-es/technical/alertas-fiscal-legal/documents/ey-25-03-26-alerta-informativa-el-futuro-sistema-espanol.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=E-N8YJ9GjY8"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t72bpp/removed/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=dUVvW9V_-TA"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa684f04a1087d197c2e938290e5dcd",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUc__hzqHlM-bwD4QDZ9-AgAtevS3B37fz-519VOFlgjfoON_lHdBrEDKwMUyyx_LFq85Gew38FDvs_kZMheYvVaHDE7lu6uLSsHhSBNXHQl6koLllDrfyx1JqXzZuuRRuYHIOnI9IJYDtSf_PLNHSIL5_Di7hdE6Vit-YNx6Q1vJcISr67oe7qCsk-aNa9PNJnm7kE4Y7q90av5y7sOpUZ_e719kYG_6xu_f254ckn7OLTLkeXNjYhcQBGYUxjXTepicjyDnlCbOilHZk1-CGTUaFX7hpI3f3ZoJUDT-JCGUDtblul6PmrFapU5joyoqcPkO7rfr5BNgDcYmPs9F1e7TPXHUTj4ZI_xSC6AsuUiBnfUKBX-D96Tj8-SxjEUnQA5RH2V0d82GSK348jJ9RxIapjVTvbTOu7KecSnvdMBpDXvlvoXwA6X8zJOwf2N3ipgpg8hwFZnaOcByUOERbusEAe7Cq7GuHUoDfCav3DUn8TfGUVteaRXy9Vg5MRF4v3ryTaoFd7AcIfPiLh1pQj9bhKfY4iMWoBsWcXrvz1-Hl5H_oKtcalZgjTmu82bkEFT_Hmmt_GJDsCa908lVeSbkW6sfR4kdnVHNCyiZPxjs8WTNkBlNx8ylC6wUjPlynIav3Xc04QJH339XHPbgijpNQ8YhLz3rROaW5w6T-FCKChNUYUN8dOktw2AWDfcEDullxMhJ9eHz70bbRyVY2cvbfERgK3dYF3ekvygvgqY87AUi6n7ksBqsoPlnfsfuMDFCeP94lnsyvNICsrQmxh27PHYjGPAf7JocqHi069_YLCA-mLiPZYEB527bosR0rm5PyCUV8NyEk4yQXZ8FkBefR6mF-hrf6UzA3SIEyIrmlOiiRTb4E-cJk6HV4yAH_CvFexAlk-isAyOfo5GlosmVMIa-qtExeqJ3ek3qYFSi4_eHBqx-69Ldw4Kd0AOwWD6Hl6MFCmcB_Rs-EXa1WdaMKjjSud-r7CbKo5na16IigkiWAnAQ-RjrWDIIydmtw-ikhzxn1X6AURKFrfdslu8aoDCDFDsOHwwpSZPDlrLjD3xzaGQihcy3It9dRNLPXWtENbGUXpcv9tDinHps5qz10Kp5zNga1-YyoZt6tHriPUtvBRHD-Mm5-d2FqC2HKv5FCDwC9eh5Wz15Qt5w0STX8j79unoIGZdHP6k6WUtwJTLcvQU7B3KlrTUEtI5Th-PYMq4WuigwxMW-e8bXRSeYBTS8z9M4kvJeMgalMpy9gt0D6jeku842OoqrOEJ1FRqoHoeaWs1gGrDFmI90L7PoRuvAKB5urM_6f6vJzfPCQtkg9eJFJYJX2PaIgMmEcQCEC9S4PS73rgIRS1S2iLyBNIDBDazLl_u1onZgs8-scrT9IKXT8nk1RJN-DJhUpRthooOMi43J9XCVLMotdi3F4cHwiWEm_jjYTxq8aUuHN_5HM6cn0HzpquV7QenCDJZsXqT693UfR7Cz5xHftgeiYlmkOHoQNb73lvsZsaE2DTEv_fVkMLwypPL9TQXL5x9YaHt95Lm-RkqZylRd9m5ZJpDZda6M2ijltq_7TjE6OftpL4KJ8uJCpp-qop20vR_yu4K_F-ZE9eEJHgAxbfkivoDwIclpkovPV_1tp6IhpkC4eJzjt15ArwCwnE5qUEVzpf-wr0OwNhy0JYVgEBm2gpd68p7CrGg3_QAx39-rHCA7gtOMd-unrlkMD-r34LOu88v4wBXf1-ogP9NIOzsAMiQZZ0H5l_spG1ccUVlY5os_0Pd4VBjs3geit3a55zDhpXjwKnFE5omWIuk4KzIaff_YVezuxgzaBC6CrqK-Drl-SDaOoT_uTbkr_eGhomcyzbqyGsPx9E-AKKSnBpsfnyXb3-LQe-hYQMbiGKx2SScKzpY4bRZSDt-5B6PFUItb2PBQYRP0g07hyVYRBlnaub9TpSn9i0_QIn1-dGTF82ECeV-zGae5nT_VzLqrPvt2rCeEtZaSYcOuVdkTJuf1yurPFeIdTNCKx3MjyUzZ4=",
+   "summary": []
+  },
+  {
+   "id": "ws_03a7de4e97b6bdc9006aa684f1968c87d198c650d39389f002",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Holded facturación autónomos funcionalidades Verifactu 2026",
+     "Quipu facturación autónomos España 2026 características precios",
+     "Billin facturación autónomos España 2026 opiniones Verifactu"
+    ],
+    "query": "Holded facturación autónomos funcionalidades Verifactu 2026",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/blog/elegir-software-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11406283-como-funciona-verifactu-en-holded"
+     },
+     {
+      "type": "url",
+      "url": "https://verifactus.com/noticias/mejores-programas-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11813827-verifactu-como-funciona-segun-el-origen-de-las-facturas-de-venta-en-holded"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/mejor-software-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/comparativa-facturacion-autonomos-2026/"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11406991-verifactu-crear-y-tramitar-una-factura-de-venta"
+     },
+     {
+      "type": "url",
+      "url": "https://autonomiapro.com/blog/mejor-software-fiscal-autonomo"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/programa-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://securecore.es/blog/es/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://nopapeleo.com/guias/software-facturacion-verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.verifactu.com/wp-content/uploads/2026/05/Verifactu-para-autonomos-%E2%80%94-Guia-practica-2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.hacienda.gob.es/es-es/prensa/noticias/noticiaspdf/377.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1o687ea/qu%C3%A9_software_elegir_que_tenga_verifactu_para_una/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/EmprendedorES/comments/1wahndj/seguro_que_tu_software_ya_cumple_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/askspain/comments/1rg6sjx/alguien_m%C3%A1s_est%C3%A1_perdido_con_verifactu_c%C3%B3mo_lo/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1tpadtx/verifactu_para_aut%C3%B3nomos_que_cobran_por_sesi%C3%B3n_lo/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1sv7j10/herramienta_para_aut%C3%B3nomos_que_muestre_la/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1ol54jk/c%C3%B3mo_prepararse_para_verifactu/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa684f3fce087d1adfd7b7abb3c5bbe",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUcke77ROBe5gWmPfnUdkxcBpZf_6JI1knUcrzIraCefd9t-6qm5hHNygJNntdRF1JEWEKKaNh-5uNew7SpjsVkpPrZMM4cnCp6tw6b8ZkfqFD7HfiZEzI5hWCjNIltiCE3h9Q_3GErQnb_Ouvrgkm9nR8quMyzzbwXYnvTDNlJd6D7NmqEgZVtrMK8ncNQZg4g7CrsIKISLVUSq1oa8HKW_ifBjcFzYAA6s93OANm1cpfRlm-dFXuEbOcQ4-cPeS6s4Q-poWRSkLn67UTnfF8cz5SWQ7GCkjD3Vlsg3RIXgSHQ-fisxRNE4OWlp45M2n_ZrRQP_LES_m-mA7juI8v9uGzYsArG-EsPbJR63_zkePbEP7orWZnJ0Lr2RXtmenxFu1M0NpiWRraX-U4Zx2QUFC9xvgJv6p_oWRfVDZi8FtVxxDq4qqTCoEyHvWvuNd8WtB92pb-iFMOK0MK4ZslIswvZahBvKaC6qXdWO7CbVVhpvto38V_7jE3fqdkMWScMjkEGYukOqdnOdGmSEPD_FC56Sm1VkxWKfGHGUQFaUmiTXp7RtuWaBt5MGbfo8q94QEJLNPr11ImwAYJitdksfM7qS2kVcAteARPAExLqlfxk1tChlVPf_mSxCDUJ5_CnIXFqCGp5e9Ha9VRvlNvq0E-vun8WtMR1bPzqmERIKxOrd98PRPT-Marpf202Zkk40TCXYb69JV8nANCbXAhO6QvI-fA_ZoGJ4V9uE2SOxyqq0PFUjl4YW6W3uDVC6ko2lduUhPdSDNga3m_z4JNPy98e68dqMebP8s7TMx6IXvjPLuwTPlF-tHp_f68ip9QsyE_Y1g4vbjCXid3htT0iothIXHcGl6cAG_idOhQ1SrlY7xbo_zSzDw69Mo_4H2ER6TmZX9x8lIF1aeSaB7nHpttFFtYhBqzMffxnV1PUT0xXEwhp97aH4y52dh9I9XJr3XcsnddOXzo_tgmcmyPK0CzyNR6QyhEUkZN1EPtBB8yBuRtedZVOryUFDdlfmdrMtvmq_uQ_W5vkg5e9QudxR24h_68i89yE8wvvnDQHfIqg3mnp9g9K79n1f2OouBRTrBNCbMP_rYb9Nr0IADrRSVVO3lYwfVv0aoCArR0XWeMmPPrXmGs8D-JBHXX1nVV9KQGJ4zEgggj72Df8fkw1E66kXPz-rcxz1IeVlVpYiWVu3pT9VPuidRTqQ03d5ZDg9viPbS1tPUDTTOxMoffwuW4nLGhOdAKWqcGGJ7Swsm_TM_1j4t7DneIMf-_OI2QR6bPQY0NCOZc5Lkn-Azqbf_z54KHk97e2U4-hOB_52T4v3xI4QQZZewXjqm7ybsSLuAkD3Ju-EdcUa57tEngFv1z_XUwiV_pJRSQBjRFdWL-JyOHliVRzzQJ41su86xTyA2mRiHyh17LwWnUpm1CB42GSAJbyzYO0nl3xLe9D1I8YfiZcBdrjpSTim20e5tywDkixqQu83GLzU618tAu6xdYN6VwrFi6quyD99yFuoFPpRLO-DtLSa7pqGQI5L1x56wrIhig1EvxaPoh6DNQTf6lFNDrtltsyBtUbEhtUzYmaRS2oQU9ZyTfwWIIO9qQMhgRpirW0nh3VqiDhVwF4Sos5G1gcYkf-bBlUDQoqP7nnUei0vbyaRzJ--Hna2cz239XKLGTZhDGuQNq1-pE5vY_l5oRIwCLS3rJn1BbCdwPURp0Gj4809ZHAoxe3q2TerDJdQgwGhE3GfYpA1ez4fnDYUtOjzkOAh0bRCzG7Il4tqlxSeqXljz8mv_Px0hjyUc2Ecz1u0-V1AjKgoX3FwJmDwuQV1dZ1Q6-Q4EDV_HGP5GR2iHIWZ7ac_5kcKbRbxNx508V4VXDAJpK5YNoEIs7r88PKEp4r1epa4Kqjy54QysAxL7AqkUdI5ODowl8c21v37NOg5quDLAKTbIdHaA==",
+   "summary": []
+  },
+  {
+   "id": "ws_03a7de4e97b6bdc9006aa684f4a78c87d181a99d60a1420e57",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Quipu software facturacion autonomos España Quipu 2026 funcionalidades precios",
+     "ContaSimple facturacion autonomos España 2026 gratis funcionalidades",
+     "Nomo autonomos facturacion 2026 funciones gestoría"
+    ],
+    "query": "Quipu software facturacion autonomos España Quipu 2026 funcionalidades precios",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://getquipu.com/es/autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/comparativa-facturacion-autonomos-2026/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.contasimple.com/"
+     },
+     {
+      "type": "url",
+      "url": "https://soloconia.com/negocio/quipu-para-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/es/servicios-profesionales"
+     },
+     {
+      "type": "url",
+      "url": "https://negociosypymes.es/mejor-software-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://comparasoft.es/software/quipu"
+     },
+     {
+      "type": "url",
+      "url": "https://factupro.es/blog/mejor-software-facturacion-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://automatizayescala.com/blog/mejores-programas-facturacion-contabilidad-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://app.contasimple.com/Default.aspx"
+     },
+     {
+      "type": "url",
+      "url": "https://cuota-autonomo.pages.dev/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://facturaclara.es/comparativas/mejor-programa-facturacion-autonomos-espana/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.contasimple.com/wp-content/uploads/2025/11/Contasimple_Declaracion-responsable-VeriFactu-1.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/documents/Condiciones-de-uso-NOVIEMBRE-2025.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.camaravalencia.com/wp-content/uploads/2025/11/Guia_PICS_Cuaderno_comercio_Facturacion_electronica.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://anceco.com/wp-content/uploads/2025/06/revista_central_8.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://taipricebook.es/wp-content/uploads/2026/03/Revista-Digital-Especial-TPV%C2%B4s-Tai-Pricebook-Marzo-2026-1.pdf%20"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/Presentacion%20Quipu%20Gestorias.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://arxiv.org/abs/2608.16813"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1r5me8x/hice_una_app_para_los_modelos_130_y_390_le_he/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1tytfe9/problema_al_reunir_facturas/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t2la89/app_de_stripe_que_cumpla_con_verifactu/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa684f7503487d1ad4b4145d743a0d6",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUcZ0faKhye_UdX0O8GDKiGWUI3Wjzt_LsZFRWMJt19wOnjtYHnVXYvza3USyxi_0G45GfqqCrFT3Mpl0Hi_t9QUq9jc-PVlFXyzlZJ2tEjYllh_M2vYhN2o-6Dpa-UcTzrDMVkjBkjMEtSnRrlhufqgdzDeHyFudxD5bvzo1FJLuCtl62_pg7mPNV8oeDYUwGetxRD1-m2mjkiUzefaH_fPBNgJOP_xSM0OY01O6oLEBGu8PYSjUJmcTZvNHb5jZbHhH3zmdb44VFHGBacYD0YnAQMPJK1HCd_a8c13rnn63mkqkfxLgrlCQYhlfo9KqJO7Kt5CzFtTIwv3thfoz91VAnBVycp-JHrlOO-bSsAIciavSBL_AQ5PszErg807XR9FCaLX1aO5YXm92r2I0b9beBAvdYq241z6iO4lXLtYObY7YqJAjxOQIDzYWtJjRfhUXNOtf4zry__5Aq6RfUsRTntTpIhNIakY5OE32PMDqKDlsD2R24Oz-4GRiGLClm4ozvsN1S68E7xivLbQuYFt8E0zmDk8riKF3fhRCeqY3Kb0MvCqzOKsSMjs4Acq_pTe8z4Pb3guBq7azmNyUB2Pp0Z0O7HRZFVrooP2nfDbMZj1ZvGrvgYk1hLZhs6b-DnWu4-kH7I9b9e5di9viM_jtD1o4L44DEI72G-uSAFmic_LjcvKQwBMI4IawR_yBi1NEzvZP_S4Dz2ZVgVPzN3nUDLRIKRJv1U8Pg2pET17vDhNXFUTdcWtH5Rsj-qOxoDamvOGjnTHBuDPGSYeB-g9kTE0ASkfo18MLK-X1yGQMDG9ICqeiYR-I_0PwDFNdMHqlftkwHkz6o1aAavL_BQHrY6XE-6yYhkEfmHFLnPYfqjALpOjMzBOfGx-77T51rjINAT4mwcPIQCslbgl4lTnpDhuezyfLh6Gkcd2i3eBLXfgh4SDXjQfzGH5cZ5aaEGYk1U9PU3NJfvmNYz4X-_HuffjoFjwzAnT2_5WryDYnH9Cb6Ov6vuqt3qHEwi8YuZxqAOwxdItCc4S0mVa-TBPVFGtYxVrToNE05tqxcEXsoVUjwTmw4IrhgG0lF4qsxdy31v0RyuUf3y-Sk1wpONZTX7mjlSqAcNw7Uqk_CXZmA64UgWfKgPjgYpu3nI85UQJSRelXTvS_D3qerdLmYndr7Zf12XWESSK0W81He9-AdQovNF9HjR0kqcbBOqDUXRXzDwXeuU2CX_SPLw6M77X7P66Rs_XijESpCkVhWYsWUfEi5HYRwGS1P7Zk9OSIFP",
+   "summary": []
+  },
+  {
+   "id": "ws_03a7de4e97b6bdc9006aa684f7937887d19b56e3043daeb3ab",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Billin facturación España Verifactu TeamSystem 2026 Billin opiniones precios",
+     "Quaderno IVA facturación digital ventas EU 2026 Quaderno España"
+    ],
+    "query": "Billin facturación España Verifactu TeamSystem 2026 Billin opiniones precios",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://www.billin.net/precios/"
+     },
+     {
+      "type": "url",
+      "url": "https://guiafacturacion.es/software/billin/"
+     },
+     {
+      "type": "url",
+      "url": "https://facturaz.es/es/blog/billin-opiniones"
+     },
+     {
+      "type": "url",
+      "url": "https://verifactus.com/noticias/comparativa-quipu-teamsystem-facturas-billin-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://evaluaria.es/herramientas/billin/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.cronomia.com/software/billin"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/mejor-software-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://nopapeleo.com/guias/software-facturacion-verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://cumplirverifactu.com/software-verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://beel.es/blog/mejores-programas-facturacion-verifactu-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://guiaverifactu.es/comparativas/mejor-programa-verifactu-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://faktoo.es/comparativas/faktoo-vs-billin/"
+     },
+     {
+      "type": "url",
+      "url": "https://teamsystem.es/rs/paginas/verifactu/declaracion-responsable/sqltpv/20250729/dr_sqltpv.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://cnc.es/wp-content/uploads/2025/12/CNC_N13_Diciembre-2025.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1o687ea/qu%C3%A9_software_elegir_que_tenga_verifactu_para_una/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/askspain/comments/1rg6sjx/alguien_m%C3%A1s_est%C3%A1_perdido_con_verifactu_c%C3%B3mo_lo/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/finanzaspersonalesESP/comments/1ss8pjn/billin_opiniones_alguien_lo_usa_para_facturaci%C3%B3n/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1nq2t0a/plataforma_todoenuno_compatible_con_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t72bpp/removed/"
+     },
+     {
+      "type": "url",
+      "url": "https://es.wikipedia.org/wiki/Verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1tpadtx/verifactu_para_aut%C3%B3nomos_que_cobran_por_sesi%C3%B3n_lo/"
+     },
+     {
+      "type": "url",
+      "url": "https://tuprograma.digital/pdf/guia-costes-verifactu-2026.pdf"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa684fa8d8087d1878bf41ef202001e",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUcIIaxKR6gMXq1JpqlAFR-DDyHWnIXg7BA9tf6o0lF7C-kmwR-ep8gSazPaRgA0zu5V9COD78GEmCw7CIYZKXAUOT_2gRR-i5TKqv8ujvcBeet8iP529imlem4a5vXwqEFeZeKb2kTyRakyMKm5RI-UGiNnu8GTRBzGkChslABg4Vp57n2xzRs8liDRGeW0jv4-tpuCQ-137op40l2Eqxscv8htusEvR75bYGDpm5FUCQr2TgDCZdlP0KJA3WNAVRd-1PXhG5DoU-Tq9rVBjLT3wPz_xT5zXuWtxGJdi2IZgE0Y-zlcNp3RAvaLDMozw7V5UdxT2nfrnHQ1NERaJ3xgA6PSMiJfbS_yCsJrXBJeqqtD-z3BbncvTt-0VkQQHpDtqZd1dPu79Ix3AaWzaeT9bMy7LRujz40YhE1ZASXzK16RSEV09KhQ9eWUPlbBaODXKO9r1HduBxT5heiXdn2upfx6dQwENUzf3wq9pHWLJn_EKsyUDGbydZNpRa9eIxB0NVzjwf1TudhW97LMKDj9gU9QgmR-4HwNasIFs6ipZzxy8jx24tDvFqaoA6NptsMatlurcQXugesP01xJkbtOonNeXV-Rp9T68otEdyEJL5yYYoOVOe7zsdx7Zg_aITw4gMlwucP6-LWsKJ0PUMcoYYsbDMU9qsy9WUn1MWz3KXbYFjN5xD4QK5USnCLbbkqJp2qnnyFZgC_yxSJhFHPYOTCJmjP3mMy-n0IGlAKDTLpx6YVco0nO5eIF00649XNrhLkA-ZFiXluv4nAemhaamyT5T3RCDeSm8wtXYC40guEZ1xybnOzC1SRux_TKfd61M5qI0O-l73KQYyZHAAUsrplLJ-BMnEcaalfFfMy15an5G3xS-p01N96GZN_GV7CygZrjwaKEJ1thBomdzYqJqJKz0Z_4Km5St_kymavY9rFUE-9RZza9YdJtgBItfzx3xAXoDUMAEmTr0nesaD6M2T210i62bfe3QC8xLyVrp9nP9cqTHnscrqSupoHSCldPn93fPRyD-JSI_GqhI9pQojnV8cbk1wG2Qrr8OsEjY10TzI1g2IYY5mO0TwpsBJsmEsj3XgfXi_SVExu8fg-b32GMBAnRUcV4oGq7dvaTlFB6yk4CIgsIU9hE0Nyw0v369xmikDABvHYLVOF7alk2VSowqyen7k791cNdzUnXpA57nMV54Sts5txVLfAAvSPZQ6OJgPNppRTCH0-FS7C5g==",
+   "summary": []
+  },
+  {
+   "id": "ws_03a7de4e97b6bdc9006aa684faaf8487d1bf98c08b40a30b4b",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Nomo autonomos facturacion 2026 funciones gestoría facturae Verifactu",
+     "Quaderno facturacion IVA marketplaces 2026 Quaderno España VAT digital services"
+    ],
+    "query": "Nomo autonomos facturacion 2026 funciones gestoría facturae Verifactu",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://faconia.com/blog/mejores-herramientas-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://securecore.es/blog/es/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.herramientas-autonomos.es/blog/mejores-programas-facturacion-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://soporte.quaderno.io/article/870-conectar-amazon-fba-fulfillment-by-amazon"
+     },
+     {
+      "type": "url",
+      "url": "https://autonomofactura.com/verifactu/mejores-programas-verifactu-espana-2026/"
+     },
+     {
+      "type": "url",
+      "url": "https://quaderno.io/es/"
+     },
+     {
+      "type": "url",
+      "url": "https://soporte.quaderno.io/article/790-enviar-los-datos-de-tus-ventas-a-quaderno"
+     },
+     {
+      "type": "url",
+      "url": "https://soporte.quaderno.io/article/1078-recibir-datos-de-tu-plataforma-de-ventas"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/iva/facturacion-registro.html"
+     },
+     {
+      "type": "url",
+      "url": "https://fiscario.es/facturacion-internacional/quaderno/"
+     },
+     {
+      "type": "url",
+      "url": "https://soporte.quaderno.io/article/1206-por-que-no-se-aplica-ningun-impuesto-en-mis-facturas-de-quaderno"
+     },
+     {
+      "type": "url",
+      "url": "https://verifactu.work/guias/verifactu-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.verifactu.com/wp-content/uploads/2026/05/Verifactu-para-autonomos-%E2%80%94-Guia-practica-2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1o687ea/qu%C3%A9_software_elegir_que_tenga_verifactu_para_una/"
+     },
+     {
+      "type": "url",
+      "url": "https://es.wikipedia.org/wiki/Verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1nq8604/verifactu_u_otro_que_sea_de_facturaci%C3%B3n_para/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1nq2t0a/plataforma_todoenuno_compatible_con_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1wa4oh5/experiencias_trabajando_sin_gestor%C3%ADa/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.supercontable.com/boletin/H/BOLETIN_SUPERCONTABLE_13_2026_PDF.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.laverconsultores.com/wp-content/uploads/2025/05/verifactu-y-factura-electronica.pdf?_hsmi=2"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1ol54jk/c%C3%B3mo_prepararse_para_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1nq2pha/plataforma_todoenuno_compatible_con_verifactu/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa684fd6da087d1bd77826d9e78f930",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUc1KIfOQXGQUjjHmrK54vybkhmZUdGBCuE3TyBRWVm9Q0Dc3RB5A2fWloOS7VE7svrk1ZuBugHV15xfKqkEalzt9mfDaZmw3SJ0moxF6xBN8t38afXUlfMsrgBHnJkOlDlQQMIW43TnwZ85MRGfQPiVT1-JL0AorlnDjWIAOdakKBhyEyJ3_8QGz8iBnlklhHQViyoDLpPor6g68qGvJV6bZhqeIR-U5t1MQuanZsFdMmuoV_5vYL34oq6B4unb_ZHuaFqlzGMMjaPGbAYnDxt1E7U4pWsipHjNLWZdkRxfjtKPXM630g0VWdL7GWm9hKeLajp0CgZeUv0aelScVNabV2KlTKzttan5BV8SLqONfu4dDmCmKLgvs4aqIIXOIvP2Uub5Ts5C6owv6BIPV8IFXi8d38rXkq1IHjv1y0c6EjPLVpCEkapSUNzzCYzcZ4hWTZanCnJ5WSw4JMctaUKmh21oGdgdMjViZ4mW6ODdxHwPSYcJU0kQ8T6kuoMvuPhOkSz_vq3ss4fOz14zng-npXHCu4ZsMN6RwI1MlVBpc0u86H1m0rqY4nfp7yed87ljLtUUwPEnT5GTxFCZnTz4zXR_l7fXdwitqctcRSE2J10TxDg9d0eTMkVLFiPPeES_1ufL6WILqo_1NpqJD-mzFRWMPoFge3Dki8qkJBMfYaGQEweeUR3fH43NQQGzpJB-oJtMukEaOmiO_BYvzLhf1gHMDlsp7kHF3JN9ilhkm5glf6khNn2Uaae7N_nfzXxWv0e1VyyNopFeSmlNaYcHTcPcobrpFsATvDLWJ7Rwc6RXMCTaoArMkVWl8-xRBR6mGJeDfuqFsk1lnq3JyHdiP_xkOfhjIsKCgNUlkyydrjCoXKEAyyIYPAKWcKKcbY1GmXeKS34WDfhUH0je3gOiXKJyM6-N3u4xODRjwc5j6vSHDph_1k12RETbn3t2GNghbtS8dE-12aryN-aF7Yy-R2x4I826m5etrzagWuBPXSDw96NHcJb6qHHQQelk0GHlL21PHdIt6kendvRP1Nq2CC4YlkrkiMXcmGVuafwxmjlezvY5LYNclpPyLdZ3OUi0GmE_K0JUyUbBNRLLiydFlczbCgh1WG_jy2Kezf_EmZNp1Qk8JZIoqE0FIZT5O85mIus0hKfrwTXEa2-R13jXAEgTB1Mi0H7g24cKnjeRG8gyaKhrmUckFVQKlE_PxsE_8qDa9fFw7c19UHf59u8x-Vpm97f8BTd2ziNrBzWt5bCKKMZowbmSLKJtGUdYOP4",
+   "summary": []
+  },
+  {
+   "id": "ws_03a7de4e97b6bdc9006aa684fda97087d1b2a4175b4d48db21",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Nomo autónomos facturación 2026 tarifas funciones gestoría 'Nomo' España 2026",
+     "Anfix facturación autónomos 2026 'Anfix' Verifactu"
+    ],
+    "query": "Nomo autónomos facturación 2026 tarifas funciones gestoría 'Nomo' España 2026",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://ayuda.anfix.com/info/veri-factu"
+     },
+     {
+      "type": "url",
+      "url": "https://www.anfix.com/verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://verifactus.com/noticias/mejores-alternativas-anfix-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://securecore.es/blog/es/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.fube.es/noticias/anfix-vs-fube-comparativa-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://www.anfix.com/autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://cuota-autonomo.pages.dev/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://comparafacturacion.com/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://autonomofactura.com/verifactu/mejores-programas-verifactu-espana-2026/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billeo.es/blog/mejor-software-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://declaralia.com/mejor-software-facturacion/"
+     },
+     {
+      "type": "url",
+      "url": "https://obrania.es/software/anfix-verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.camaravalencia.com/wp-content/uploads/2025/11/Guia_PICS_Cuaderno_comercio_Facturacion_electronica.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.andaluciainformacion.es/media/andaluciainformacion/kiosko/2025/09/04/2025090416405267873.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html"
+     },
+     {
+      "type": "url",
+      "url": "https://www.boe.es/eli/es/res/1993/12/17/%283%29/dof/spa/pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.ddgi.cat/accelerapime/wp-content/uploads/2023/09/Presentacio-factura-electronica.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.bocm.es/boletin/CM_Orden_BOCM/2026/04/13/BOCM-20260413-18.PDF"
+     },
+     {
+      "type": "url",
+      "url": "https://www.eoi.es/sites/default/files/savia/documents/EOI_DigitalizacionPyme_2015.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/SpainEconomics/comments/1mq7wyl/aut%C3%B3nomospymes_realmente_odi%C3%A1is_clasificar/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa68500e9e487d18833940c710e1599",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUcOg4YGvPOcSqad4OSkrabZWLJyF5qAP4zRFMIWB40ziaYCcp1ff-eC9aybJUUvX9W5X4OTvtwqfB4So5z5L53SwHvkishNFhSZh5BjFTZCKyPhPtsdtGI-PZVtriC8XeWzGWTtGrj951Edyjw1mPleUFrBKuRK63pnMoAO6o6Dx5r2V7wHYyTCsDRWbKVtbB0XBOoIB2V60nxVF2CrMuCwUakVZZgrDwlI7YXishHgOZbEb2liugwxbJvhb5TLJ6Uz98ERprR_zuxKBTmTd4DlIdn-9HRoeSRclTACx4m77VU1GvyiucdoJ1W3mqlEeL1-qjk47dpMtP1Ma5bRVZEZqEtKKWx3yVy50h0dNvhW6F1z8oOlYLQ6RNzW9Zh4Rnb_jsu0k7FWRsmMezcoDlnSkzLWKIUFRSfTs8b3X1s23he7yegBW9rBWkw6fU83_OyS3l4zlkyGoaTe5k7MIg4_hELRHrEmOX2WTS0bmZd4t2grqHZhEK7fLAznygx0s9lOzBvcu2t5E9cgcDkLwyzKH39wdK7QgxDsBTK8Tfc-r0JBG4r1YLSAlfcr0SsAGXpJ-iL6WjB_hpVPn9ndxMC4EtgfFWQDKGexNTDm_muuW6EeILaP7-UNhxlEc7Sg-G-IqxDYcDAb2-bZuzL0jFFOxPSg7YcpMDSCp2miHUZbgk1r4NqjdYzkMxS3_YCu0m5gzy4PJU_JqNGBzEh4QbZz3iajlLCc_HTO1-Xx4TuWq3Q1hFHAKCoOFHtXD3yACa5rf2fnOl8rNHCo-6CtERTFCBmC_9RHhdRBRUaqinc-9BahXwPXtFXMEiStlQBxqwjE1lE5jZTZt6KdXIhebqigbYBuTHyZqapRB94p6M4x_4n8-UuDJJrnrTEYb_Dm5xvzXafU73qvNMw38L2y0b1h8oC-DhWIjEIHdQntXqz7zBaGQ9pVmZyuLH_SB7pvPYPLNsNV0UtTG_YwueIVOuCCZEga3IS5O0xGQ_z3oye6E8Yhsl_hBzjtRI5sb1sQ-GPhwqfnOTFskvQbn1jH2uxNSoiV5C2cFx431PBFTMaBRriTx47iOQIR5XPDGzloaer_X4ySJtaCkbyMuXnV2Cf2HkVL7x_t16AsAVslukjmmtY1ic5MJkNx8MZ61cUbvlarlDwTGEHtbW-I8VUqLaO16x3BaQtvZcHVqjDOOaYAaLonw4KE7-U5dxD9UfhydU6Uj3riKhgm6Rw-RvtNq37QFkwwFbSVOwosh0YW1iw85gvgcX5fI7SBx3DaIMjZs0iu47KpSAFD0sGhuhaiusZIWLKTgmATdkfxoFG75ErzLID2lczTvVUnXcsMaVL3q20B7xb58BMXuUttwfUqGObA3rDFfaH30NUD0pM3X1eRdJoMDS6wssg7vKxvQtQx37b8VHtYSMJ2shbl37Ldxtk1X4FG1zpeS6yPBVKfhqr1yJ9URoMuw4XIWVVAek0srrbAaiFJnHxexdxaLnYrPuy4f7l1EBuClDLFVe3-YwvPLyeiXZTJUKbvNKTiCNrT9P1",
+   "summary": []
+  },
+  {
+   "id": "ws_03a7de4e97b6bdc9006aa685018a3c87d1a1e52e7ce1bc4983",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Nomo facturación 'Nomo' autonomos 2026 España 'nomo.es' 'nomo app' 'nomo autónomos'",
+     "Nomo gestoría para autónomos facturación 2026 'Nomo' 'gestoría online'"
+    ],
+    "query": "Nomo facturación 'Nomo' autonomos 2026 España 'nomo.es' 'nomo app' 'nomo autónomos'",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://www.billeo.es/gestorias"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billeo.es/gestorias/nomo"
+     },
+     {
+      "type": "url",
+      "url": "https://blog.xolo.io/es/c%C3%B3mo-escoger-la-mejor-gestor%C3%ADa-online-para-aut%C3%B3nomos-xolo-v.s.-nomo"
+     },
+     {
+      "type": "url",
+      "url": "https://deslumbraia.com/empresa-invisible-recomendaciones-ia/"
+     },
+     {
+      "type": "url",
+      "url": "https://deslumbraia.com/abaq-gestoria-invisible-ia/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.boe.es/diario_borme/txt.php?id=BORME-A-2026-25-99"
+     },
+     {
+      "type": "url",
+      "url": "https://www.softwaredoit.es/nomo/nomo.html"
+     },
+     {
+      "type": "url",
+      "url": "https://www.xtudeo.com/recursos/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.trabajostecnologicoseuropa.com/blog/gestoria-online-autonomos-espana-xolo-nomo-taxfix-latinos"
+     },
+     {
+      "type": "url",
+      "url": "https://finanzasybolsa.es/gestorias-online-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://qonto.com/es/comparators/expense-management/qonto-vs-nomo"
+     },
+     {
+      "type": "url",
+      "url": "https://www.xtudeo.com/blog/mejor-gestoria-online-para-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.elpublicista.es/template/download-file.php?idf=25811.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/EmprendedorES/comments/1rnf3ln/gestor%C3%ADa_barata_online_para_emprendedores/"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf?utm_source=openai"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/autonomos?utm_source=openai"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/es/autonomos?utm_source=openai"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/precios/?utm_source=openai"
+     },
+     {
+      "type": "url",
+      "url": "https://www.contasimple.com/?utm_source=openai"
+     },
+     {
+      "type": "url",
+      "url": "https://www.anfix.com/autonomos?utm_source=openai"
+     },
+     {
+      "type": "url",
+      "url": "https://quaderno.io/es/?utm_source=openai"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_03a7de4e97b6bdc9006aa685053a4c87d1b7cc1e36a6f470e9",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpoUcJcHkvHgEhnwUt9o8ngbAKiXe9W3cM-lHyWE3q2GrnFzkZT5L5HybKOrAi34pQOIF8T-cg1aMNOrMIJH3nZfTtJVIHsn7Pv5egqvftz_IeI0mxSk_cgo0LwpMigR8n15HZyk1kaExxi8lOfw4V2u2B6cXeS3EY04VL_bkYscZp_vYevaGhGDyGxRWpyySALJ1C5klRNBVCNwG6vlcN6Ffaa7IPqb-77Ymw_0b4GXRyaKCwm9AHcjQ4EGryrzDH3DybFjGpMTmTjZ58LwvDHkpzhHPnlfy7kdgtNXi8-TU9J2XilkX7SYWG9NFy1i5g1GFTEaNjCleXO6UNhBuBfC_FxOCb__PKSA7pWUnKrg2dZONw6Ds89_enMieuUXt8482vjzWFXAfqRYANvuU21FEL9pEdUfIvfCyAmqyiWN2zFeX-LqJ6At7L3sBvaPu6psiyQEvQ7XeYznWnPlDpKPZHTUVgYi1ORhBiAVJfGvVtG7b7WFko_k1wqiDg65JrDYY15nKnph9z_bNki0Kt3VEgkXuOSpEdLpIHnMa9GN_P-dyBEtHgtxbfNasyc4lTYJPTHWVi3938F5aI5yYHiD6GBBsFto7IhdapAfOpPX7ZvEFoZkSpFzTFDKAcZLfaVzERS3R_BE5LyIN8w5Mz5hYQcMtP_dWMfU_Wr76rEfV-s3o9chnEtQaUnh73Qnoz6EVm4KO_hXTCN1_CizXGW0PXwm3TG9GL4FH7a-FyGN_1JutLiY7dyUU3Asl56-_nfnuB6Il1iCBsAK3W_BBa49M9I09BIoV8i6v0Sv7ziARPCU1sjQbBqlijsvjh3IdduQ_v_JcMW0j6_UptOEcps9pCCYHXVKmDw0UYJYhjaveCuKMvNR10cXx4kDIu5rwuijtF2nU3bZ0VA2cXXZo8eeYpaPY87o56VU2OJpcDM0vAaBtLkKeCHd7Dxuaa4TPVQ6Gux2d-L241Q0iH2c56mG31HQXLoYBwquc4us87Q374MI9G950xYbox_ZYkPu5oFjNGMF3vv2FETJc8WGGG5q6q2umrfbobDXX2_Dtn7_rOsnroHke5-4FjOshntdpFR8CX8k6ZhIgmCYJJ301hOCnw-g8oVGmo1fCXq8ndcTGs_sss40xnuYszxu6MSs3kk6MJX7LibQ93-IaosfwSbPz9XPJv2yL7QtP0oL3jSDi1psXYons8xsYgH8ZS__M0_-dyncdQbPVzwPi1RNZjs_1ZTrvuRcMSLFhytd16IwyAgwE7R-tNLSQNlpu8pRZTQQq3LqsGwtl6fczdB_PZqD7aktygbgq2ej96fdyCDU_mdzeKaOLbJBWUbvyAn3FzGhDUbVkbsdxcKMVZfpJTAOo_AfgeIIGRemCszm2HsxDnrSiSJs96NHDHoPz1okmMfvTko0PMCkpMZEg-KB4dZaGK1JFJgGj4G6Dr-BsghyzKTTo43toL31Eet2qZRN8dccZEa64dfGLKt9fJgNhL06XiMkMmoHoLttJvZxT-_tkYnN8CwdRhuwSbkFNxhkwZNLge7hZLA8Uwhojm8GAjkRi2FH0_kNbJ_HuynzrwcQ5Yas7IxNHHCzuW2BkM1b136r5yVtCYUrbx3ddMpjb4wNS8UdnPxEzBUzL2eUsdbpkyQbzNLRihDJY3O3SoTygb5kHWkFal2ZUPMMMXVqQWBE4mjr4h3EF61eOcn_kPgyZOXVVHQcPQl4uW4nuX7ZY45Yan-V2urdpP-8hm7tR4MoxxhD2pPOyYTSfjWjwvVgajOX7JIvI7vLgZvtXW2Pt2IehNNVfXHiBTjaL3-PK0krjr9EVD4aB1zIsfzmjJNT3rBENNT3ItGVJU7Ua93T8lFw6Ve0IumZAxx7KOEgqHaJhmzi_o7iV51TDUxOHDa4TyaM4mgCzcREtBjGomuRbTI3Wnb4rFu8g_NNnxgNIqwGgd51C6vHwHf5-uI3QyS79DVTPyDgNJyak1fS5B1bkK8sWogRNCnuXzA4LXtWw7vEaGYUfvgXKDW3rKlA_ipMnM7R8KT8DmG-BlrWpnQXEnP5h3qhrVk-UTNejUaWg1PlByUQw1swmbkBneTA3SFBb8j-pjCPqxYaox2B0CxNaIYIa4GQl_459wHJx4HjrLxeQrrHY12nWJgV2OAW6PV25fjJHII8Kp_Iy8-URxLr69gVfa8ffhuDOK1-UOAiHze3rR4z61P62onScqSlNSt4Dpl-TLlHvXBuP5uwqx-mn2QF7H5O4cfIjEnuFnZgT0nialJ9yV6_lWs22BGtz2LzEhfB4HURHN_K0KuX34N30zowRldeDBKgxRnvLshd2wiZ3316B79Gb8S9qCxM0OvQanSDr1udU90rLEdKy7z9mgDxOuNHT71FlHlZbynrs94jgWCJTdTqNNl9tG-M6EHLPYgYlsV-7vn3vW5YIBP1GF-RVh88dohhHUAe-nVUgl9J5ugBSrgbK7_4pIpuGV9nYVdxORhhuu-MxaqGp32dNefAAARumsUrhEdvFwaol6y-Qe2uZzpt_Kerhb3M5NTLUPXIkIMsV0a1WxHzUyeoQmgvO4edbiiFDAwsbkyU7KSmW0qjI1_kZJRJx5lf0pqi3LdIx5aF7mFIG-ktBdz073awVjkcLIvP1FsQMhkCs06naHVKX_ABTnNxN6jCOzwpQxgnoywfarCfiquLw8f2heg0RbSSr4v_HvRh82KAnpIXrbVlv80UKRIpABdP2P-reUC5-jqY5z6610zc9kvXITAelFwbcZ7IrXwlQOf1gXlR2BDT-pker3lw9P0PJiX7MWitxkU7tqS0rBV7X4tpS4btRfbuuzNgN7ZxWdwdB5c4vd8W9jkHT2VLLLL8BzENNbpd5Hacn6yGT85jb94SeLqb9p9wTovKw1_rlmZCHZ9qmgxHrhJTg-R9sbs_YuPsxhfGXvIlhRWlgmYNImo7hs_tAKQxOkKrsU06vnrlS7V5D2Wef-nOm2KldhXkdHBTZmkAUbRQE4Nsh4tChLv_oymHiGbVvgRnm8Z9lesK5fgL0RRHcyuw3vq3qKxuwHj-F6JMjxWUlutqrbKbc0CmDe1e-1Bh4FeoRh6GIdD32dH5OWuY-rSwT62886cXokWLLHPm4eca4BfmJ2g7X4rdIf8GoXeLgNvIMyN7g9XfXo1_hJ6Vw3AlXtK3_DS3wya5I0b92tFUbxrCRwUko_CkScBAVzTxPrVQV8eJN8XPHBvbc2s24W6KkuZMH5075aDA_wj9Gi06WQvFO58Yj3qherFuzzm29g0ebPVwfQdCHmZryUMdViWl_qr0T0VxGTLPDBWNciZR_T7cJGDuNxud1Mm71m2nvi6lLlqQFZnJuKQuvyRJX6sKGkQUy5XVrbJtJcJrNWQcF9ckuP6i4EEBRKv9ffG7zOsKmgB7wvHja_d3jjruwYUDX34mbZ6w14CRzoWnGUGXSeVIj_lLA-oZIedclUkAlFHW0yiOsD7pxjOZ_WlJX6kwfwl3TmBTwUUn7wiHBQXUz0Ev_aeY1nfaEHx7-Zlipy0uX56-G7HU15JGUvypwjfNty7hthpgTIyQfiKGtCRcWrMB1L5X3Mceqa5kOytbI-Ri_lQyC_TWGQq1Rh7onc0hRFJEFshhbjDbh-nvG6iRD-T6W71UAJmwUFp4i1ugfJcuXg7HGHusGqfRyH48KlnVuXxjomMu9ofyt4cSnTIyN6vPiv1hQBqLfO-CjdS0Z2mEO-ehWBHGb6Mt834lFOCkLBOPYCE5h_vGaoe7pIZRUIiuPySsNnIGLYg5AeKHsx7P-_F2ZZ5Tbu5S1y5pqbDQZ8oyJjwbPzA5M4FLqdLyaqO3DkZMvGiLFsEteQwJQly15tf5Am4YOxX9s-m-JiOB4rgDZSE_KGZNbWh9kaE9fGr5VHqH-74t7Zauwydtr8F1Omwk7G-gpvQq8Z08LHdu5QElHQ2kdC_lgV2BkgM097uw2OQbP8RHHjk0iDhwZIAomcxkPhVrX-_XbuR31Bj99dzFWt1jBEK2kL5mM0fEw26PAk5vsF5bkXWAYsfOVYSxK6RXZGLTBp63k-DAHj7dUEgMqS6y0EdOV4lzSZRzInQYAFROqqLMf7F_sVYRpipZlymEQMwpdnQfFqO5MLPJBRwLuq1DKmfci_5W3AQ9mT_J3bO5oakqhzAvahg6wwv0f1O38ofJEzwIRRGAy168VDi2TZRftIEmXF5V2x357HpEZMUQ_xR_LainfpcwmXWOFgyZKoNfNw7KDTL5UvDluIodFC-NjYfXOWREaI9a5v-kbleJR7Yptsll1y1DPH4O3CISQ_MC8kIoBwY8babN_qA9DNrP7_1dg8HsK4krOy6zcmaJH_QEKpeKF7giRTFOG_0C93DDgwvXl0zRDzIk8_WA35bskC1Mu2Q1jk1YWKh3kQGRgNjt4lCZHzoV6NAyVlj9oQVEB98PTENLXgvSV93WZ5qJy7RToMiqh1NuNxmgqV2N3CXWk2FG-SPqgRqBUSNblBpR0aQBJf_pH9cHmM08MV1gl6PDwztAfP4FBujFGM5JrAkiDt-Ev0GGu8DGwy_naOASfpVJEO_2bsBP0FmKfdJ3QNNYH1dCk_k393BBlP9al2uEaR9s-uvt72b_Kyt3nm2Vw_7bZAtcmHX-bTfuHVjBlo6Mkwf_g_uCOMZFrsODAlO3L_kOSZqeK4zILVZfXYjZWhRRtNba1iixG5W6Dsrf4CVqN90jpFxwX_H6hHue91j8iPnBUxouia7ZMnyHweYiCDxnbFl1caRKH8eqb5RjuFDNxKXr3XwEzi6X1JumpcO7V8hdnNelbCebLdKPeQOsgyEdmXRaRULFNtM9H89fC9WaleI8A67WRjEqRChsv-ZN9TEtgVRAxZX6EJntihV-23NlJjWjXdRLUjjhR0daWOlwcxenz3T-4ICj6F1S5vzuhvwqYVtYu0FiB3CfXys1k4p5fHxZLnFIdl8i9VzA3cruSISci6Hd3vMCVzYJHW0fNJr7IJJCIaEdn_0CHgUf1kkkJOPeJTzv34Rq2070R6Snc72_DIEz6gFji6TfZrXY9iULwti9CJiCj-OQ5iYg2pmFPi1KeoM4xLqItKdIPYw-Pe-zrCwTyz7RNQBiXDVUtS1p4OLIefNTv_UE_dSytH91FfioPE7GSpoOrIAv2MD-vBugiBRENZa8bo05Nf1usUhg5uecy5eTxEIK-Ms__NlyVi8OPHWeagGzqVpstTntoW__0Esj2A2EUTeFIASmH4HVPuRajSV4H-84YMuA_gETOxV8awNpCP6kxJ926tCYeqtRDeS_Lq3r8V4Gf__guhJBw_ERWcnfjeREC8lJ-W84PxzCbDkXYj5d5VWp0xYtwsYCGJDZCiFiFiDZtUoVQtoIlw5KbOnsZcH_4bga3ZO2vL7NXEx9w3K_OI1Nph_YDr91nux9MpiQN0pb0ALENktEXdDT07YBQj3urmBwtbbWUpYIJQfmXmq2_svZmw7PTJHJtRUJqpstXGttRvkYIKNZGLiFTyqKX9fgBWIiOs5BSDkouZn2klZQ0_0MKqAk3NpK4oLrx2jlgiUS2msXaf-kNORc7_GRvE_PbXu9pCRslw5f25Z-PkAL-L3uNRk3ABKaPqn_G3u155JoC86xm3Kn7l9RGu-d-IAM9Ga1xWDYBrNAWXflJlY-SHAI7iv1bjsvFtYJ93wDhwv0TMqTZJyFSusIqJaVr0TltOFoTDBoQK0NyBw1Co2HYhPm33fRsBiB8ZvpFoWYX4pOq-e0QO0na6WyFJe6CaYE06HhUDPZwl4e_EqcPKIRdjXXUuk1fyOHkEjtSLekxgfy-A5T84i1a9OsnjOZrc2FwDIsNp8EXmmU1ADXutMvMW2mtZdJi9rim7yMoDO7xq_JHQwGJumjiB6c46ffKVgdmir4Jw6qNN4AB1kHBMWwxnC-cCIpYNTdNVDz_gWJdDCXM4s98HiEAgCRxp4ifketsmttW5ulvZKJY8IOL2u8_lAe99M6dswd2M6e0ObKZ9ceMXGNI_GtK2H4f4hrxXy0raPp-LzWu5dg-p_d1jxgtf6IgVRE1lNSXwaBg42DE-2ssFzQ9IEPaj5H8j3jRxzaK2n51gSeU59XMEQbsqVsvMZFXhP0aWxRbH51fPGmIh_gkswjL7UPCYv5RyQcqeL4T9PyUHQbAiY47T-vK7UkHw9_twg_9ySZKPzQKidWTRoDwUiVU6zMn-OfXAuGDWQCaH-hPaJoKh3Ahqq7mjiySf-b-15jFYFotPj2YzoYd0zJ__eX09DMvtjA89hMDSnsOvtzk2gz50aLvPWXvUu6695kTQMCZNESEqeifWpsSh5lIQx-Bjwy_obWokuyoUIgEhFN-GVF4-9op6TLAT4wh67yM_BJ33L9wNDf_sNrek7MqVYzFKGOMsT-vW_iTmPwK-fljGyE6n8lvix_ZzbS-1kZ70syc-nKbsVY1nDlK6p2DfB84ApkBJ6HVrrMiqGJRyZTOKlHGq6scsvvd1WUchVD2n9eSKuXXF5PNrdhANeHj7JxcsZQXb1X77sZ4IkX59KxA_NKh7fliHi5IbPpoKxbEMfFMSKxT1l3JLOkDC5y-cVxDGCctZDfQG7Wvi7noF0PNnliKS9qsmuUD5MFCX8GfumbHLEraVboGreELWU_db7ainT9WwTyrwcmQTu_bF4cMMAiC-w7WLuFC9MJILNL18-8dTRM4sb8rm3Xw71ufT0c-1Lp5cLn1zHH5ml5L-kvO6dQ_NqFqtnn-wpFyxrJWvbwt-Pw=",
+   "summary": []
+  },
+  {
+   "id": "msg_03a7de4e97b6bdc9006aa68511b4cc87d195d0b2ccee2ad298",
+   "type": "message",
+   "status": "completed",
+   "content": [
+    {
+     "type": "output_text",
+     "annotations": [
+      {
+       "type": "url_citation",
+       "end_index": 538,
+       "start_index": 373,
+       "title": "Folleto VERIFACTU",
+       "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf?utm_source=openai"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 1035,
+       "start_index": 966,
+       "title": "Software de Gestión para Autónomos | Holded",
+       "url": "https://www.holded.com/es/autonomos?utm_source=openai"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 1320,
+       "start_index": 1251,
+       "title": "Software de facturación para autónomos | Quipu",
+       "url": "https://getquipu.com/es/autonomos?utm_source=openai"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 1569,
+       "start_index": 1504,
+       "title": "Precios desde 6,6€/mes | TS Facturas Billin",
+       "url": "https://www.billin.net/precios/?utm_source=openai"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 1849,
+       "start_index": 1782,
+       "title": "Software de Gestión para Pymes - Programa de Gestión para Autónomos",
+       "url": "https://www.contasimple.com/?utm_source=openai"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 2074,
+       "start_index": 2010,
+       "title": "Programa Contabilidad y Facturación para Autónomos | Anfix",
+       "url": "https://www.anfix.com/autonomos?utm_source=openai"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 2294,
+       "start_index": 2236,
+       "title": "Software de cálculo de IVA para negocios online",
+       "url": "https://quaderno.io/es/?utm_source=openai"
+      }
+     ],
+     "logprobs": [],
+     "text": "Buena pregunta. En 2026 la elección ya no es solo “más bonita y barata”: lo esencial es que el software cumpla con la nueva normativa de facturación (VeriFactu / factura electrónica) y encaje con tu volumen y necesidades (integración bancaria, gestoría, ventas internacionales, etc.). La Agencia Tributaria explica los requisitos de VeriFactu y los plazos de implantación. ([sede.agenciatributaria.gob.es](https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf?utm_source=openai))\n\nAquí tienes una lista práctica con las opciones que más recomiendan las comparativas y las razones por las que suelen elegirse:\n\n- Holded — mejor opción “todo en uno” para muchos autónomos: facturación, contabilidad, conciliación bancaria, modelos fiscales automáticos y soporte de VeriFactu (puedes activar su envío a la AEAT y usar su certificado si lo prefieres). Va bien si quieres un sistema que crezca con tu actividad. ([holded.com](https://www.holded.com/es/autonomos?utm_source=openai))\n\n- Quipu — orientado a autónomos y pequeñas empresas que quieren foco fiscal (previsión de impuestos, integración con gestoría y lector automático de gastos). Buena opción si te interesa control fiscal y reporting. ([getquipu.com](https://getquipu.com/es/autonomos?utm_source=openai))\n\n- Billin (TeamSystem Facturas Billin) — opción más económica y simple que ya incluye Verifactu / Facturae; indicada si emites pocas facturas y buscas una herramienta barata y fácil. ([billin.net](https://www.billin.net/precios/?utm_source=openai))\n\n- Contasimple — opción gratuita / muy económica para empezar (incluye funciones básicas de facturación y exportación a formatos oficiales); útil si tu volumen es bajo y quieres evitar costes fijos al principio. ([contasimple.com](https://www.contasimple.com/?utm_source=openai))\n\n- Anfix — buena alternativa si trabajas con gestoría o necesitas un enfoque más contable y profesional; también presenta funcionalidades VeriFactu integradas. ([anfix.com](https://www.anfix.com/autonomos?utm_source=openai))\n\n- Quaderno — recomendado si vendes digital o internacional (marketplaces, suscripciones, OSS/IOSS): automatiza el cálculo del IVA en ventas a distintos países. ([quaderno.io](https://quaderno.io/es/?utm_source=openai))\n\nCómo elegir rápido (pasos prácticos)\n1) Confirma si necesitas: facturación electrónica (VeriFactu), integración bancaria, conectores (Stripe/Shopify), gestoría incluida o solo software.  \n2) Prueba gratuita: abre cuenta y emite una factura de prueba; comprueba que genera QR/Registro VeriFactu y que puedes verificarla en AEAT o ver el hash.  \n3) Comprueba integraciones (banco, TPV, e‑commerce) y posibilidad de exportar datos para tu gestor.  \n4) Coste real: mira precio anual con IVA y posibles límites (facturas/usuarios).  \n5) Soporte y migración: pregunta cuánto cuesta la importación de clientes/facturas antiguas.\n\nSi quieres, dime: 1) cuánto facturas al año (aprox.), 2) si cobras en euros solamente o tienes clientes fuera, y 3) si ya trabajas con una gestoría o quieres que el software incluya la gestión. Con esos datos te indico la mejor opción concreta y te preparo una comparativa corta (precio funcionalidad) para elegir."
+    }
+   ],
+   "role": "assistant"
+  }
+ ],
+ "parallel_tool_calls": true,
+ "presence_penalty": 0.0,
+ "previous_response_id": null,
+ "prompt_cache_key": null,
+ "prompt_cache_retention": "in_memory",
+ "reasoning": {
+  "context": "current_turn",
+  "effort": "medium",
+  "mode": "standard",
+  "summary": null
+ },
+ "safety_identifier": null,
+ "service_tier": "default",
+ "store": true,
+ "temperature": 1.0,
+ "text": {
+  "format": {
+   "type": "text"
+  },
+  "verbosity": "medium"
+ },
+ "tool_choice": "auto",
+ "tool_usage": {
+  "image_gen": {
+   "input_tokens": 0,
+   "input_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "output_tokens": 0,
+   "output_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "total_tokens": 0
+  },
+  "web_search": {
+   "num_requests": 7
+  }
+ },
+ "tools": [
+  {
+   "type": "web_search",
+   "return_token_budget": "default",
+   "search_content_types": [
+    "text"
+   ],
+   "search_context_size": "medium",
+   "user_location": {
+    "type": "approximate",
+    "city": null,
+    "country": "US",
+    "region": null,
+    "timezone": null
+   }
+  }
+ ],
+ "top_logprobs": 0,
+ "top_p": 1.0,
+ "truncation": "disabled",
+ "usage": {
+  "input_tokens": 34447,
+  "input_tokens_details": {
+   "cache_write_tokens": 0,
+   "cached_tokens": 0
+  },
+  "output_tokens": 3012,
+  "output_tokens_details": {
+   "reasoning_tokens": 2048
+  },
+  "total_tokens": 37459
+ },
+ "user": null,
+ "metadata": {}
+}

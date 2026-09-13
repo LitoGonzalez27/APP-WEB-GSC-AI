@@ -1,0 +1,508 @@
+[
+  {
+    "model": "gemini-2.5-flash",
+    "force": false,
+    "prompt": "¿Cuál es el mejor software de facturación para aut",
+    "secs": 11.5,
+    "queries": [
+      "mejor software facturación autónomos España",
+      "comparativa software facturación autónomos España",
+      "software facturación online autónomos España",
+      "software facturación gratuito autónomos España",
+      "software facturación para pequeños autónomos España"
+    ],
+    "sources": [
+      "rankiabusiness.com",
+      "billin.net",
+      "facturadirecta.com",
+      "wolterskluwer.com",
+      "deiteco.com"
+    ],
+    "n_supports": 5
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "force": true,
+    "prompt": "¿Cuál es el mejor software de facturación para aut",
+    "secs": 13.2,
+    "queries": [
+      "mejor software facturación autónomos España",
+      "comparativa software facturación autónomos España",
+      "mejor software facturación autónomos España",
+      "comparativa software facturación autónomos España",
+      "mejor software facturación autónomos España",
+      "comparativa software facturación autónomos España",
+      "mejor software facturación autónomos España",
+      "comparativa software facturación autónomos España",
+      "reviews software facturación autónomos España",
+      "comparación software facturación autónomos España 2023",
+      "software contabilidad autónomos España",
+      "software facturación para autónomos España recomendaciones",
+      "mejores programas de facturación online para autónomos España",
+      "software de contabilidad y facturación para freelance España",
+      "software de facturación para autónomos España más valorados",
+      "comparativa software facturación autónomos España 2024",
+      "software contabilidad autónomos España TicketBAI",
+      "opiniones programas facturación freelance España"
+    ],
+    "sources": [
+      "toolnova.es",
+      "infoautonomos.com",
+      "okdiario.com",
+      "contasimple.com",
+      "rankiabusiness.com",
+      "alegra.com",
+      "wolterskluwer.com",
+      "holded.com",
+      "trabajoeficiente.com"
+    ],
+    "n_supports": 17
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "force": false,
+    "prompt": "¿Qué clínica de depilación láser me recomiendas en",
+    "secs": 11.3,
+    "queries": [
+      "mejores clínicas depilación láser Madrid",
+      "clínicas depilación láser Madrid opiniones",
+      "depilación láser precios Madrid",
+      "factores a considerar clínica depilación láser"
+    ],
+    "sources": [
+      "laserum.com",
+      "drelenaberezo.com",
+      "drelenaberezo.com",
+      "mdhcentros.es",
+      "iml.es",
+      "germainegoyamadrid.com",
+      "germainegoyamadrid.com",
+      "lasernatura.com",
+      "lasernatura.com",
+      "manyamadrid.es",
+      "topclinica.com",
+      "topdoctors.es",
+      "depilacionlasermedica.com",
+      "drpares.com",
+      "petiva.mx",
+      "artstetik.com",
+      "elhadepilacionlaser.com"
+    ],
+    "n_supports": 16
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "force": true,
+    "prompt": "¿Qué clínica de depilación láser me recomiendas en",
+    "secs": 7.1,
+    "queries": [
+      "mejores clínicas depilación láser Madrid",
+      "clínicas depilación láser Madrid opiniones",
+      "comparativa clínicas depilación láser Madrid"
+    ],
+    "sources": [
+      "topclinica.com",
+      "laseralcala.com",
+      "laserum.com",
+      "drelenaberezo.com",
+      "losmejoresdemadrid.com",
+      "lasernatura.com",
+      "iml.es",
+      "treatwell.es",
+      "stylelovely.com",
+      "topdoctors.es",
+      "doctoralia.es"
+    ],
+    "n_supports": 22
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "force": false,
+    "prompt": "Compara Quipu, Holded y Billin para un autónomo en",
+    "secs": 13.0,
+    "queries": [
+      "Quipu precios autónomos",
+      "Holded precios autónomos",
+      "Billin precios autónomos",
+      "Quipu Verifactu",
+      "Holded Verifactu",
+      "Billin Verifactu",
+      "Quipu facturación electrónica",
+      "Holded facturación electrónica",
+      "Billin facturación electrónica",
+      "comparativa Quipu Holded Billin autónomos"
+    ],
+    "sources": [
+      "getquipu.com",
+      "guiafacturacion.es",
+      "getquipu.com",
+      "altaenautonomos.com",
+      "capterra.es",
+      "revolucionatupyme.com",
+      "holded.com",
+      "holded.com",
+      "ideaweb.es",
+      "holded.com",
+      "revolucionatupyme.com",
+      "comparasoft.es",
+      "factulista.com",
+      "movistar.es",
+      "vodafone.es",
+      "groupmee.com",
+      "billin.net",
+      "holded.com",
+      "billin.net",
+      "verifactufacil.com",
+      "frontdeskmaster.com",
+      "factulista.com",
+      "micontabilidad.online",
+      "holded.com",
+      "holded.com",
+      "holded.com",
+      "billin.net",
+      "apple.com",
+      "google.com",
+      "google.com",
+      "getquipu.com",
+      "teamsystem.es",
+      "cronomia.com",
+      "holded.com",
+      "holded.com",
+      "eddingtonasociados.com",
+      "billin.net",
+      "billin.net",
+      "billin.net"
+    ],
+    "n_supports": 36
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "force": true,
+    "prompt": "Compara Quipu, Holded y Billin para un autónomo en",
+    "secs": 28.7,
+    "queries": [
+      "comparativa Quipu Holded Billin autónomos España precios",
+      "Quipu Verifactu facturación electrónica",
+      "Holded Verifactu facturación electrónica",
+      "Billin Verifactu facturación electrónica",
+      "precios Quipu autónomos",
+      "precios Holded autónomos",
+      "precios Billin autónomos"
+    ],
+    "sources": [
+      "holded.com",
+      "billin.net",
+      "youtube.com",
+      "asesoriasants.com",
+      "quiputest.net",
+      "verifactufacil.com",
+      "getquipu.com",
+      "youtube.com",
+      "getquipu.com",
+      "frontdeskmaster.com",
+      "youtube.com",
+      "ideaweb.es",
+      "altaenautonomos.com",
+      "revolucionatupyme.com",
+      "holded.com",
+      "holded.com",
+      "holded.com",
+      "holded.com",
+      "revolucionatupyme.com",
+      "asesoressm.com",
+      "cronomia.com",
+      "billin.net",
+      "movistar.es",
+      "youtube.com",
+      "vodafone.es",
+      "youtube.com",
+      "billin.net",
+      "revolucionatupyme.com"
+    ],
+    "n_supports": 36
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "force": false,
+    "prompt": "¿Cuál es el mejor software de facturación para aut",
+    "secs": 8.6,
+    "queries": null,
+    "sources": [],
+    "n_supports": 0
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "force": true,
+    "prompt": "¿Cuál es el mejor software de facturación para aut",
+    "secs": 9.6,
+    "queries": [
+      "programas facturacion autonomos espana comparativa verifactu",
+      "mejor software facturacion autonomos espana"
+    ],
+    "sources": [
+      "facturascloud.com",
+      "holded.com",
+      "beel.es",
+      "youtube.com",
+      "youtube.com",
+      "youtube.com",
+      "youtube.com",
+      "holded.com",
+      "ftfactu.com",
+      "getquipu.com"
+    ],
+    "n_supports": 28
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "force": false,
+    "prompt": "¿Qué clínica de depilación láser me recomiendas en",
+    "secs": 8.0,
+    "queries": null,
+    "sources": [],
+    "n_supports": 0
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "force": true,
+    "prompt": "¿Qué clínica de depilación láser me recomiendas en",
+    "secs": 6.9,
+    "queries": [
+      "mejores clinicas depilacion laser madrid",
+      "clinicas depilacion laser medica recomendadas madrid"
+    ],
+    "sources": [
+      "iml.es",
+      "topclinica.com",
+      "grupopedrojaen.com",
+      "topdoctors.es",
+      "clinicamenorca.com",
+      "losmejoresdemadrid.com",
+      "lasernaturabarriosalamanca.com",
+      "germainegoyamadrid.com",
+      "laserum.com",
+      "laserum.com",
+      "sinvelloporlaser.es"
+    ],
+    "n_supports": 12
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "force": false,
+    "prompt": "Compara Quipu, Holded y Billin para un autónomo en",
+    "secs": 16.7,
+    "queries": [
+      "Holded precios autonomos facturacion",
+      "Billin precios planes autonomos",
+      "Quipu Holded Billin Verifactu facturacion electronica autonomos",
+      "Quipu precios autonomos facturacion"
+    ],
+    "sources": [
+      "comparasoft.es",
+      "getquipu.com",
+      "holded.com",
+      "billin.net",
+      "billin.net",
+      "invoo.es",
+      "youtube.com",
+      "invoo.es",
+      "movistar.es",
+      "cronomia.com",
+      "frontdeskmaster.com",
+      "getrenn.com",
+      "holded.com",
+      "billin.net",
+      "revolucionatupyme.com",
+      "billeo.es",
+      "billin.net",
+      "getapp.es",
+      "finom.co",
+      "verifactufacil.com",
+      "holded.com",
+      "infoautonomos.com",
+      "getapp.es"
+    ],
+    "n_supports": 35
+  },
+  {
+    "model": "gemini-3.8-flash",
+    "force": true,
+    "prompt": "Compara Quipu, Holded y Billin para un autónomo en",
+    "secs": 14.8,
+    "queries": [
+      "Holded precios autonomos verifactu factura electronica",
+      "Quipu precios autonomos verifactu factura electronica",
+      "Billin precios autonomos verifactu factura electronica"
+    ],
+    "sources": [
+      "factulista.com",
+      "holded.com",
+      "cronomia.com",
+      "holded.com",
+      "billin.net",
+      "getquipu.com",
+      "verifactufacil.com",
+      "getquipu.com",
+      "invoo.es",
+      "holded.com",
+      "movistar.es",
+      "getquipu.com",
+      "holded.com",
+      "holded.com",
+      "billin.net",
+      "billin.net",
+      "frontdeskmaster.com",
+      "holded.com"
+    ],
+    "n_supports": 33
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "force": false,
+    "prompt": "¿Cuál es el mejor software de facturación para aut",
+    "secs": 53.6,
+    "queries": [
+      "\"mejor software de facturación para autónomos en España\" 2025 OR 2026",
+      "mejores programas de facturación autónomos España"
+    ],
+    "sources": [
+      "toolnova.es",
+      "microfactu.com",
+      "holded.com",
+      "contablefacil.es",
+      "ahora.es",
+      "factorial.es",
+      "youtube.com",
+      "youtube.com",
+      "youtube.com",
+      "youtube.com"
+    ],
+    "n_supports": 29
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "force": true,
+    "prompt": "¿Cuál es el mejor software de facturación para aut",
+    "secs": 34.0,
+    "queries": [
+      "\"mejor software de facturación para autónomos\" España OR \"mejores programas de facturación\" autónomos España",
+      "\"mejor programa de facturación\" autónomos España 2025 OR 2026"
+    ],
+    "sources": [
+      "toolnova.es",
+      "okdiario.com",
+      "youtube.com",
+      "holded.com",
+      "innovaesfera.com",
+      "planfactura.com"
+    ],
+    "n_supports": 25
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "force": false,
+    "prompt": "¿Qué clínica de depilación láser me recomiendas en",
+    "secs": 23.0,
+    "queries": [
+      "top clinicas depilacion laser Madrid"
+    ],
+    "sources": [
+      "sinvelloporlaser.es",
+      "topclinica.com",
+      "germainegoyamadrid.com",
+      "laserum.com",
+      "iml.es",
+      "topdoctors.es",
+      "lasernaturabarriosalamanca.com",
+      "rankingnegocios.es"
+    ],
+    "n_supports": 18
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "force": true,
+    "prompt": "¿Qué clínica de depilación láser me recomiendas en",
+    "secs": 25.4,
+    "queries": [
+      "opiniones clínicas depilación láser Madrid"
+    ],
+    "sources": [
+      "losmejoresdemadrid.com",
+      "topclinica.com",
+      "laserum.com",
+      "reddit.com",
+      "trustpilot.com"
+    ],
+    "n_supports": 15
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "force": false,
+    "prompt": "Compara Quipu, Holded y Billin para un autónomo en",
+    "secs": 36.0,
+    "queries": [
+      "Quipu vs Holded vs Billin autonomos",
+      "Holded precios autonomos verifactu facturacion electronica",
+      "Quipu precios autonomos verifactu facturacion electronica",
+      "Billin precios autonomos verifactu facturacion electronica"
+    ],
+    "sources": [
+      "getquipu.com",
+      "holded.com",
+      "billin.net",
+      "getquipu.com",
+      "finom.co",
+      "movistar.es",
+      "billin.net",
+      "factupro.es",
+      "getquipu.com",
+      "getquipu.com",
+      "frontdeskmaster.com",
+      "youtube.com",
+      "holded.com",
+      "holded.com",
+      "billin.net",
+      "infoautonomos.com",
+      "getrenn.com",
+      "cronomia.com",
+      "verifactufacil.com",
+      "holded.com",
+      "rankiabusiness.com"
+    ],
+    "n_supports": 20
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "force": true,
+    "prompt": "Compara Quipu, Holded y Billin para un autónomo en",
+    "secs": 41.8,
+    "queries": [
+      "Quipu VeriFactu facturacion electronica España",
+      "\"Billin\" precios autonomos OR planes",
+      "\"Quipu\" precios autonomos OR planes",
+      "\"Holded\" precios autonomos OR planes"
+    ],
+    "sources": [
+      "billin.net",
+      "cronomia.com",
+      "youtube.com",
+      "youtube.com",
+      "billin.net",
+      "getquipu.com",
+      "invoo.es",
+      "invoo.es",
+      "billin.net",
+      "comparasoft.es",
+      "billin.net",
+      "quiputest.net",
+      "revolucionatupyme.com",
+      "rankiabusiness.com",
+      "holded.com",
+      "aikount.com",
+      "ceroone.com",
+      "getquipu.com",
+      "getquipu.com"
+    ],
+    "n_supports": 21
+  }
+]

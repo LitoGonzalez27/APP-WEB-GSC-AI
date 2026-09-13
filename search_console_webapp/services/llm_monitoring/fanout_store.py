@@ -13,12 +13,11 @@ guardando resultados como siempre, sin fan-out.
 
 import json
 import logging
-import threading
-import time
 from typing import Dict, Iterable, List, Optional
 
 from psycopg2.extras import execute_values
 
+from services.llm_monitoring.schema_check import SchemaFeature
 from services.llm_providers.fanout_utils import (
     host_matches_domain,
     normalize_domain,
@@ -29,50 +28,23 @@ logger = logging.getLogger(__name__)
 
 PAGE_ACTIONS = ('open_page', 'find_in_page', 'fetch_url')
 
-SCHEMA_RECHECK_SECONDS = 300
-
-_schema_lock = threading.Lock()
-_schema_available = False
-_schema_checked_at = 0.0
+FANOUT_SCHEMA = SchemaFeature(
+    name='fan-out',
+    sql="""
+        SELECT
+            to_regclass('public.llm_monitoring_fanout_queries') IS NOT NULL
+            AND EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'llm_monitoring_results' AND column_name = 'search_queries'
+            ) AS available
+    """,
+    migration='migrate_llm_fanout_schema.py',
+)
 
 
 def fanout_schema_available(get_connection) -> bool:
-    """
-    ¿Existen ya las columnas/tabla del fan-out? El True se cachea para siempre; el
-    False se vuelve a comprobar cada SCHEMA_RECHECK_SECONDS (tras migrar empieza a
-    escribir sin reiniciar y, mientras falte, no se consulta el catálogo por tarea).
-    """
-    global _schema_available, _schema_checked_at
-    if _schema_available:
-        return True
-    with _schema_lock:
-        if _schema_available or time.monotonic() - _schema_checked_at < SCHEMA_RECHECK_SECONDS:
-            return _schema_available
-        _schema_checked_at = time.monotonic()
-        conn = get_connection()
-        if not conn:
-            return False
-        try:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT
-                    to_regclass('public.llm_monitoring_fanout_queries') IS NOT NULL AS has_table,
-                    EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'llm_monitoring_results' AND column_name = 'search_queries'
-                    ) AS has_column
-            """)
-            row = cur.fetchone()
-            available = bool(row['has_table'] and row['has_column'])
-        except Exception as e:
-            logger.warning(f"No se pudo comprobar el esquema de fan-out: {e}")
-            available = False
-        finally:
-            conn.close()
-        _schema_available = available
-        if not available:
-            logger.warning("Esquema de fan-out ausente: ejecutar migrate_llm_fanout_schema.py")
-        return available
+    """¿Existen ya las columnas/tabla del fan-out? (cacheado, ver schema_check.py)"""
+    return FANOUT_SCHEMA.available(get_connection)
 
 
 def _matching_competitors(hosts: Iterable[str], competitor_domains: List[str]) -> List[str]:
