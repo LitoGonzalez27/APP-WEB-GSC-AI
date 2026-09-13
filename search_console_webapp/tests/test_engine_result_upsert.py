@@ -83,3 +83,39 @@ def test_upsert_with_and_without_fanout_schema(db, schema_ready):
     else:
         save_fanout.assert_not_called()
     conn.commit.assert_called_once()
+
+
+class TestNoSilentTaskLoss:
+    """Una tarea nunca debe desaparecer sin dejar fila (resultado o error) en BD."""
+
+    def test_empty_content_is_saved_as_error(self, db):
+        result = _llm_result()
+        result['content'] = None
+        engine = _Engine()
+        with patch.object(engine, '_save_error_result') as save_error:
+            out = engine._execute_single_query_task(_task(result))
+
+        assert out['success'] is False
+        save_error.assert_called_once()
+        assert 'Empty content from perplexity' in save_error.call_args.args[1]
+
+    def test_unexpected_exception_before_saving_leaves_error_row(self, db):
+        engine = _Engine()
+        with patch.object(engine, 'analyze_brand_mention', side_effect=RuntimeError('boom')), \
+             patch.object(engine, '_save_error_result') as save_error:
+            out = engine._execute_single_query_task(_task(_llm_result()))
+
+        assert out['success'] is False
+        save_error.assert_called_once()
+        assert 'boom' in save_error.call_args.args[1]
+
+    def test_exception_after_commit_does_not_overwrite_good_row(self, db):
+        conn, cur = db
+        conn.close.side_effect = RuntimeError('close failed')   # tras el commit
+        engine = _Engine()
+        with patch('services.llm_monitoring.engine.fanout_schema_available', return_value=False), \
+             patch.object(engine, '_save_error_result') as save_error:
+            engine._execute_single_query_task(_task(_llm_result()))
+
+        conn.commit.assert_called_once()
+        save_error.assert_not_called()
