@@ -9,7 +9,8 @@ Proveedor Google (Gemini)
 import os
 import logging
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
+from urllib.parse import quote
 import google.generativeai as genai
 from .base_provider import (
     BaseLLMProvider,
@@ -17,10 +18,108 @@ from .base_provider import (
     resolve_model_id,
     extract_urls_from_text
 )
+from .fanout_utils import (
+    GROUNDING_REDIRECT_HOST,
+    dedupe_preserving_order,
+    normalize_domain,
+    normalize_url,
+    resolve_redirects,
+)
 from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry, note_health_check_failure
+from .web_search import (
+    build_search_result,
+    is_search_enabled,
+    post_json,
+    search_tool_cost,
+    token_cost,
+)
 
 logger = logging.getLogger(__name__)
+
+GENERATE_CONTENT_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+# Misma configuración que el camino sin búsqueda: cambiar el muestreo entre modos
+# añadiría una diferencia que no es la búsqueda.
+GENERATION_CONFIG = {
+    'max_output_tokens': 65536,
+    'temperature': 0.7,
+}
+
+
+def parse_generate_content(data: Dict) -> Dict:
+    """
+    Convierte una respuesta de generateContent con `google_search` al formato común.
+
+    Función pura (tests con respuestas reales en tests/fixtures/fanout/).
+
+    - Texto: partes del primer candidato que no son razonamiento (`thought`).
+    - `webSearchQueries` es una lista plana sin atribución de fuentes: todas las
+      sub-consultas van en la ronda 1 con `sources=[]` (el fan-out guarda NULL en
+      `brand_in_sources`). Las fuentes son los `groundingChunks` que usa el texto
+      (`groundingSupports`): como en OpenAI y Anthropic, solo las citadas. Sus URIs son
+      redirecciones que caducan: el provider las resuelve (`resolve_grounding_sources`).
+    - Gemini 3.x factura cada consulta de búsqueda y el razonamiento como salida.
+    """
+    candidate = (data.get('candidates') or [{}])[0]
+    parts = (candidate.get('content') or {}).get('parts') or []
+    grounding = candidate.get('groundingMetadata') or {}
+
+    raw_queries = [q for q in (grounding.get('webSearchQueries') or []) if q]
+    queries = dedupe_preserving_order(raw_queries)
+    cited_chunks = {
+        index
+        for support in (grounding.get('groundingSupports') or [])
+        for index in (support.get('groundingChunkIndices') or [])
+    }
+    sources = []
+    for index, chunk in enumerate(grounding.get('groundingChunks') or []):
+        web = chunk.get('web') or {}
+        if web.get('uri') and index in cited_chunks:
+            sources.append({'url': web['uri'], 'provider': 'google', 'title': web.get('title'),
+                            'query_round': 1 if queries else None, 'cited': True})
+
+    usage = data.get('usageMetadata') or {}
+    input_tokens = int(usage.get('promptTokenCount') or 0) + int(usage.get('toolUsePromptTokenCount') or 0)
+    total_tokens = int(usage.get('totalTokenCount') or 0)
+    output_tokens = max(
+        int(usage.get('candidatesTokenCount') or 0) + int(usage.get('thoughtsTokenCount') or 0),
+        total_tokens - input_tokens,
+    )
+    return {
+        'content': ''.join(p.get('text') or '' for p in parts if not p.get('thought')),
+        'sources': sources,
+        'search_queries': [{'round': 1, 'action': 'search', 'query': q, 'url': None, 'sources': []}
+                           for q in queries],
+        'search_used': bool(queries),
+        'search_calls': len(queries),
+        'page_opens': 0,
+        'billable_search_calls': len(raw_queries),
+        'input_tokens': input_tokens,
+        'output_tokens': output_tokens,
+        'tokens': total_tokens or input_tokens + output_tokens,
+        'api_model_reported': data.get('modelVersion'),
+        'finish_reason': candidate.get('finishReason'),
+        'block_reason': (data.get('promptFeedback') or {}).get('blockReason'),
+    }
+
+
+def resolve_grounding_sources(sources: List[Dict], resolver=resolve_redirects) -> List[Dict]:
+    """
+    Sustituye las URIs de redirección de grounding por la URL final y une las fuentes
+    que resultan ser la misma página. Si una no se resuelve se conserva la redirección.
+    """
+    redirects = [s['url'] for s in sources if normalize_domain(s['url']) == GROUNDING_REDIRECT_HOST]
+    resolved = resolver(redirects) if redirects else {}
+    merged: List[Dict] = []
+    by_url: Dict[str, Dict] = {}
+    for source in sources:
+        url = resolved.get(source['url']) or normalize_url(source['url'])
+        if url in by_url:
+            by_url[url]['cited'] = by_url[url]['cited'] or source['cited']
+            continue
+        by_url[url] = {**source, 'url': url}
+        merged.append(by_url[url])
+    return merged
 
 
 class GoogleProvider(BaseLLMProvider):
@@ -34,18 +133,14 @@ class GoogleProvider(BaseLLMProvider):
             api_key: API key de Google (obtener en aistudio.google.com)
             model: Modelo específico a usar (opcional)
         """
+        self.api_key = api_key
         genai.configure(api_key=api_key)
 
         self.model_name = resolve_model_id('google', model)
         
-        generation_config = {
-            'max_output_tokens': 65536,
-            'temperature': 0.7,
-        }
-        
         self.model = genai.GenerativeModel(
             self.model_name,
-            generation_config=generation_config
+            generation_config=GENERATION_CONFIG
         )
         
         self.pricing = get_model_pricing_from_db('google', self.model_name)
@@ -56,9 +151,13 @@ class GoogleProvider(BaseLLMProvider):
     
     @with_retry
     def execute_query(self, query: str, *,
-                      locale: Optional[LocaleContext] = None) -> Dict:
+                      locale: Optional[LocaleContext] = None,
+                      search_mode: str = 'off') -> Dict:
         """
         Ejecuta una query contra Gemini.
+
+        Con search_mode='auto' va por REST con la herramienta `google_search`
+        (el SDK legacy no la soporta; ver web_search.py). Con 'off', el SDK de siempre.
 
         Args:
             query: Pregunta a enviar a Gemini.
@@ -74,6 +173,9 @@ class GoogleProvider(BaseLLMProvider):
         Returns:
             Dict con respuesta estandarizada (incluye 'prompt_strategy').
         """
+        if is_search_enabled(search_mode):
+            return self._execute_with_search(query, locale)
+
         start_time = time.time()
 
         # ─── Construir final_prompt con bloque SYSTEM si hay locale ───
@@ -156,6 +258,54 @@ class GoogleProvider(BaseLLMProvider):
                 'error': f"Google API Error: {error_msg}"
             }
     
+    def _execute_with_search(self, query: str, locale: Optional[LocaleContext]) -> Dict:
+        """generateContent por REST con `google_search` disponible (el modelo decide si busca)."""
+        start_time = time.time()
+        body: Dict = {
+            'contents': [{'role': 'user', 'parts': [{'text': query}]}],
+            'tools': [{'google_search': {}}],
+            'generationConfig': {
+                'maxOutputTokens': GENERATION_CONFIG['max_output_tokens'],
+                'temperature': GENERATION_CONFIG['temperature'],
+            },
+        }
+        if locale is not None:
+            # Por REST sí hay systemInstruction por llamada (el SDK legacy obligaba a anteponerlo)
+            body['systemInstruction'] = {'parts': [{'text': build_system_instruction(locale)}]}
+        prompt_strategy = 'system_user' if locale is not None else 'legacy_user_only'
+
+        data, error = post_json(
+            GENERATE_CONTENT_URL.format(model=quote(self.model_name, safe='')),
+            headers={'x-goog-api-key': self.api_key, 'Content-Type': 'application/json'},
+            body=body,
+            provider_label='Google',
+        )
+        if error:
+            logger.error(f"❌ {error}")
+            return {'success': False, 'error': error}
+
+        parsed = parse_generate_content(data)
+        if not parsed['content'].strip():
+            reason = parsed['block_reason'] or parsed['finish_reason']
+            detail = 'Content blocked by safety filters' if reason and 'SAFETY' in str(reason) else 'Empty content'
+            return {'success': False, 'error': f"Google API Error: {detail} (reason={reason})"}
+        parsed['sources'] = resolve_grounding_sources(parsed['sources'])
+
+        search_cost = search_tool_cost(parsed['billable_search_calls'], self.pricing,
+                                       provider='google', model=self.model_name)
+        return build_search_result(
+            parsed,
+            provider='google',
+            cost_usd=token_cost(parsed['input_tokens'], parsed['output_tokens'], self.pricing) + search_cost,
+            search_cost_usd=search_cost,
+            model_used=self.model_name,
+            prompt_strategy=prompt_strategy,
+            search_tool='gemini_google_search',
+            # google_search no acepta país: el locale solo llega por systemInstruction
+            search_country=None,
+            started_at=start_time,
+        )
+
     def get_provider_name(self) -> str:
         return 'google'
     

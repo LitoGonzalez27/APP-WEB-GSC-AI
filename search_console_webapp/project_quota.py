@@ -25,9 +25,9 @@ Reglas:
   consumo por proyecto vuelve a cero de forma natural.
 - **Consumo Manual AI / AI Mode**: suma de `quota_usage_events.ru_consumed`
   con `metadata->>'project_id'` del proyecto dentro de la ventana (incluye
-  re-análisis manuales). **Consumo LLM**: filas de `llm_monitoring_results`
-  del proyecto dentro de la ventana (1 prompt x 1 LLM = 1 unit), igual que
-  el contador por usuario.
+  re-análisis manuales). **Consumo LLM**: unidades de `llm_monitoring_results`
+  del proyecto dentro de la ventana (1 prompt x 1 LLM = 1 unit; con búsqueda web,
+  el peso del proveedor), igual que el contador por usuario.
 - Al agotar el tope, se pausa **solo ese proyecto** (`is_paused_by_quota`,
   `paused_until = reset_date`, `paused_reason = 'project_quota_exceeded'`).
   La auto-reanudación existente por `paused_until` y el
@@ -77,6 +77,8 @@ MODULES: Dict[str, Dict] = {
         'source': None,  # se mide en llm_monitoring_results
         'limit_col': 'monthly_units_limit',
         'unit': 'units',
+        # Interruptor de búsqueda web (lo muestra y cambia el panel admin)
+        'extra_columns': ('search_mode', 'search_enabled_at'),
     },
 }
 
@@ -161,8 +163,9 @@ def _project_usage_with_cursor(cur, module: str, project_id: int, user_id: int,
               AND timestamp < %s
         """, (user_id, cfg['source'], str(project_id), start, end))
     else:
-        cur.execute("""
-            SELECT COUNT(*) AS used
+        from llm_monitoring_limits import llm_units_sql
+        cur.execute(f"""
+            SELECT COALESCE({llm_units_sql()}, 0) AS used
             FROM llm_monitoring_results
             WHERE project_id = %s
               AND analysis_date >= %s
@@ -409,9 +412,10 @@ def list_user_projects_with_limits(user_id: int) -> Dict:
         out['window'] = {'start': window[0].isoformat(), 'end': window[1].isoformat()}
         for module, cfg in MODULES.items():
             rows: List[Dict] = []
+            extra_select = ''.join(f", p.{col}" for col in cfg.get('extra_columns', ()))
             try:
                 cur.execute(f"""
-                    SELECT p.id, p.name, p.is_active,
+                    SELECT p.id, p.name, p.is_active{extra_select},
                            COALESCE(p.is_paused_by_quota, FALSE) AS is_paused_by_quota,
                            p.paused_until, p.paused_reason,
                            COALESCE(p.analysis_frequency_days, 1) AS analysis_frequency_days,
@@ -429,8 +433,9 @@ def list_user_projects_with_limits(user_id: int) -> Dict:
                     r['used'] = used
                     r['remaining'] = None if limit is None else max(0, int(limit) - used)
                     r['unit'] = cfg['unit']
-                    if r.get('paused_until') is not None and hasattr(r['paused_until'], 'isoformat'):
-                        r['paused_until'] = r['paused_until'].isoformat()
+                    for date_col in ('paused_until', 'search_enabled_at'):
+                        if hasattr(r.get(date_col), 'isoformat'):
+                            r[date_col] = r[date_col].isoformat()
                     rows.append(r)
             except Exception as exc:
                 # Tabla o columna ausente (migración pendiente): no rompe el panel

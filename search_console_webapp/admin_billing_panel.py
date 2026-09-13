@@ -140,10 +140,11 @@ def _get_llm_usage_by_user(cur):
     except Exception:
         return {}
 
-    cur.execute('''
+    from llm_monitoring_limits import llm_units_sql
+    cur.execute(f'''
         SELECT 
             p.user_id,
-            COUNT(*) AS llm_units_month,
+            COALESCE({llm_units_sql('r')}, 0) AS llm_units_month,
             COALESCE(SUM(r.cost_usd), 0) AS llm_cost_month
         FROM llm_monitoring_results r
         JOIN llm_monitoring_projects p ON p.id = r.project_id
@@ -440,13 +441,15 @@ def get_admin_dashboard_stats():
                 m_start = month_start.date()
                 m_next = next_month.date()
 
-                cur.execute('''
+                from llm_monitoring_limits import llm_units_sql
+                units = llm_units_sql()
+                cur.execute(f'''
                     SELECT
-                        COUNT(*) FILTER (WHERE analysis_date >= %s AND analysis_date < %s) AS u_today,
+                        COALESCE({units} FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS u_today,
                         COALESCE(SUM(cost_usd) FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS c_today,
-                        COUNT(*) FILTER (WHERE analysis_date >= %s AND analysis_date < %s) AS u_week,
+                        COALESCE({units} FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS u_week,
                         COALESCE(SUM(cost_usd) FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS c_week,
-                        COUNT(*) FILTER (WHERE analysis_date >= %s AND analysis_date < %s) AS u_month,
+                        COALESCE({units} FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS u_month,
                         COALESCE(SUM(cost_usd) FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS c_month
                     FROM llm_monitoring_results
                     WHERE analysis_date >= %s
@@ -1436,13 +1439,15 @@ def get_time_segmented_stats():
             has_llm = False
 
         if has_llm:
+            from llm_monitoring_limits import llm_units_sql
+            units = llm_units_sql()
             for key, start, end in periods:
                 try:
                     # analysis_date es DATE, convertir a date
                     start_date = start.date() if hasattr(start, 'date') else start
                     end_date = end.date() if hasattr(end, 'date') else end
-                    cur.execute('''
-                        SELECT COUNT(*) AS units,
+                    cur.execute(f'''
+                        SELECT COALESCE({units}, 0) AS units,
                                COALESCE(SUM(cost_usd), 0) AS cost
                         FROM llm_monitoring_results
                         WHERE analysis_date >= %s AND analysis_date < %s

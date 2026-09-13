@@ -11,6 +11,9 @@ https://docs.perplexity.ai/docs/agent-api/migrate-from-sonar/how-to
   recalcula con precios por token salvo que falte.
 - Expone el query fan-out: cada paso `search_results` trae las sub-consultas
   (`queries`) y sus resultados.
+- Busca siempre. El `search_mode` del proyecto solo elige la profundidad: `off` usa
+  el preset del registry (`fast`, 1 sola búsqueda con el prompt literal) y `auto`
+  sube como mínimo a `low` (5 sub-consultas en 2 rondas), que es lo que da fan-out.
 """
 
 import logging
@@ -24,6 +27,7 @@ from .base_provider import BaseLLMProvider, get_model_pricing_from_db, resolve_m
 from .fanout_utils import normalize_url
 from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry, RetryConfig, note_health_check_failure
+from .web_search import http_error_message, is_search_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +44,10 @@ PRESET_BY_MODEL = {
     'llama-3.1-sonar-large-128k-online': 'fast',
     'llama-3.1-sonar-small-128k-online': 'fast',
 }
-VALID_PRESETS = {'fast', 'low', 'medium', 'high'}
+PRESET_ORDER = ('fast', 'low', 'medium', 'high')
+VALID_PRESETS = set(PRESET_ORDER)
+# Preset mínimo con búsqueda activada: `fast` lanza una sola query (sin fan-out)
+SEARCH_MIN_PRESET = 'low'
 
 MAX_OUTPUT_TOKENS = 16000
 _CITATION_MARKER = re.compile(r'\[(\d+)\]')
@@ -51,6 +58,13 @@ def resolve_preset(model_id: Optional[str]) -> str:
     if model_id in VALID_PRESETS:
         return model_id
     return PRESET_BY_MODEL.get(model_id or '', 'fast')
+
+
+def preset_for_search_mode(base_preset: str, search_mode: Optional[str]) -> str:
+    """`auto` garantiza al menos SEARCH_MIN_PRESET sin rebajar un preset más profundo del registry."""
+    if not is_search_enabled(search_mode):
+        return base_preset
+    return max(base_preset, SEARCH_MIN_PRESET, key=PRESET_ORDER.index)
 
 
 def parse_agent_response(data: Dict) -> Dict:
@@ -146,19 +160,6 @@ def parse_agent_response(data: Dict) -> Dict:
     }
 
 
-def _http_error_message(response: requests.Response) -> str:
-    """Mensaje de error que conserva el código HTTP para classify_error()."""
-    detail = response.text[:500]
-    try:
-        err = (response.json() or {}).get('error') or {}
-        detail = err.get('message') or detail
-        if err.get('type'):
-            detail = f"{err['type']}: {detail}"
-    except ValueError:
-        pass
-    return f"Perplexity API Error: HTTP {response.status_code} - {detail}"
-
-
 class PerplexityProvider(BaseLLMProvider):
     """Proveedor Perplexity sobre el Agent API (búsqueda web en cada consulta)."""
 
@@ -186,9 +187,9 @@ class PerplexityProvider(BaseLLMProvider):
             timeout=timeout or self.timeout,
         )
 
-    def build_payload(self, query: str, locale: Optional[LocaleContext]) -> Dict:
+    def build_payload(self, query: str, locale: Optional[LocaleContext], preset: Optional[str] = None) -> Dict:
         payload: Dict = {
-            'preset': self.preset,
+            'preset': preset or self.preset,
             'input': query,
             'max_output_tokens': MAX_OUTPUT_TOKENS,
         }
@@ -209,25 +210,28 @@ class PerplexityProvider(BaseLLMProvider):
 
     @with_retry
     def execute_query(self, query: str, *,
-                      locale: Optional[LocaleContext] = None) -> Dict:
+                      locale: Optional[LocaleContext] = None,
+                      search_mode: str = 'off') -> Dict:
         """
         Ejecuta una query contra el Agent API.
 
         Con `locale`, el idioma va como mensaje `system` en `input` y el país en
         `tools[web_search].user_location` (geo-enruta la búsqueda real).
+        `search_mode` elige el preset (ver preset_for_search_mode).
         """
         start_time = time.time()
         prompt_strategy = 'system_user_geo' if locale is not None else 'legacy_user_only'
+        preset = preset_for_search_mode(self.preset, search_mode)
 
         try:
-            response = self._post(self.build_payload(query, locale))
+            response = self._post(self.build_payload(query, locale, preset))
         except requests.Timeout:
             return {'success': False, 'error': f"Perplexity request timed out after {self.timeout:.0f}s"}
         except requests.RequestException as e:
             return {'success': False, 'error': f"Perplexity connection error: {e}"}
 
         if response.status_code != 200:
-            error = _http_error_message(response)
+            error = http_error_message('Perplexity', response)
             logger.error(f"❌ {error}")
             return {'success': False, 'error': error}
 
@@ -263,8 +267,7 @@ class PerplexityProvider(BaseLLMProvider):
             'model_used': self.model,
             'prompt_strategy': prompt_strategy,
             'api_model_reported': parsed['api_model_reported'],
-            'search_mode': 'auto',
-            'search_tool': f'perplexity_agent_{self.preset}',
+            'search_tool': f'perplexity_agent_{preset}',
             'search_country': locale.country_code if locale is not None else None,
             'search_used': parsed['search_used'],
             'search_calls': parsed['search_calls'],
@@ -290,7 +293,7 @@ class PerplexityProvider(BaseLLMProvider):
             if response.status_code == 200:
                 logger.info("✅ Perplexity connection test successful")
                 return True
-            raise RuntimeError(_http_error_message(response))
+            raise RuntimeError(http_error_message('Perplexity', response))
         except Exception as e:
             note_health_check_failure(self.get_provider_name(), e)
             logger.error(f"❌ Perplexity connection test failed: {e}")

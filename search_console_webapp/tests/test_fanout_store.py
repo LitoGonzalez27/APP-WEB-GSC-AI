@@ -12,6 +12,7 @@ os.environ.setdefault("DATABASE_URL", "postgresql://dummy:dummy@localhost:5432/d
 
 from services.llm_monitoring import fanout_store  # noqa: E402
 from services.llm_monitoring.fanout_store import build_fanout_rows, save_fanout  # noqa: E402
+from services.llm_monitoring.schema_check import SCHEMA_RECHECK_SECONDS  # noqa: E402
 from services.llm_providers.perplexity_provider import parse_agent_response  # noqa: E402
 
 FIXTURES = Path(__file__).parent / 'fixtures' / 'fanout'
@@ -96,31 +97,35 @@ class TestSaveFanout:
 class TestSchemaCheck:
     @pytest.fixture(autouse=True)
     def _reset_cache(self):
-        fanout_store._schema_available = False
-        fanout_store._schema_checked_at = 0.0
+        fanout_store.FANOUT_SCHEMA.reset()
         yield
-        fanout_store._schema_available = False
-        fanout_store._schema_checked_at = 0.0
+        fanout_store.FANOUT_SCHEMA.reset()
 
     @staticmethod
-    def _conn(has_table, has_column):
+    def _conn(available):
         conn = MagicMock()
-        conn.cursor.return_value.fetchone.return_value = {'has_table': has_table, 'has_column': has_column}
+        conn.cursor.return_value.fetchone.return_value = {'available': available}
         return conn
 
     def test_available_is_cached_forever(self):
-        get_conn = MagicMock(return_value=self._conn(True, True))
+        get_conn = MagicMock(return_value=self._conn(True))
         assert fanout_store.fanout_schema_available(get_conn)
         assert fanout_store.fanout_schema_available(get_conn)
         assert get_conn.call_count == 1
 
     def test_missing_schema_is_rechecked_only_after_ttl(self):
-        get_conn = MagicMock(return_value=self._conn(False, True))
+        get_conn = MagicMock(return_value=self._conn(False))
         assert not fanout_store.fanout_schema_available(get_conn)
         assert not fanout_store.fanout_schema_available(get_conn)
         assert get_conn.call_count == 1
 
-        fanout_store._schema_checked_at -= fanout_store.SCHEMA_RECHECK_SECONDS + 1
-        get_conn.return_value = self._conn(True, True)
+        fanout_store.FANOUT_SCHEMA._checked_at -= SCHEMA_RECHECK_SECONDS + 1
+        get_conn.return_value = self._conn(True)
         assert fanout_store.fanout_schema_available(get_conn)
         assert get_conn.call_count == 2
+
+    def test_query_error_counts_as_missing(self):
+        conn = MagicMock()
+        conn.cursor.return_value.execute.side_effect = RuntimeError('boom')
+        assert not fanout_store.fanout_schema_available(MagicMock(return_value=conn))
+        conn.close.assert_called_once()

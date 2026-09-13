@@ -8,7 +8,7 @@ Proveedor OpenAI (GPT)
 
 import logging
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 import os
 import openai
 from .base_provider import (
@@ -17,10 +17,101 @@ from .base_provider import (
     resolve_model_id,
     extract_urls_from_text
 )
+from .fanout_utils import dedupe_preserving_order, normalize_url
 from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry, note_health_check_failure
+from .web_search import (
+    SourceCollector,
+    build_search_result,
+    is_search_enabled,
+    post_json,
+    search_tool_cost,
+    token_cost,
+)
 
 logger = logging.getLogger(__name__)
+
+RESPONSES_API_URL = "https://api.openai.com/v1/responses"
+MAX_OUTPUT_TOKENS = 16000
+PAGE_ACTIONS = ('open_page', 'find_in_page')
+
+
+def parse_responses_output(data: Dict) -> Dict:
+    """
+    Convierte una respuesta de la Responses API con `web_search` al formato común.
+
+    Función pura (tests con respuestas reales en tests/fixtures/fanout/).
+
+    - Cada `web_search_call` de tipo `search` es una ronda: con gpt-5.5 trae varias
+      sub-consultas en `action.queries` y las fuentes (`action.sources`) son de la
+      llamada entera, así que todas sus sub-consultas comparten esas URLs.
+    - `open_page` / `find_in_page` son páginas leídas (`find_in_page` guarda el patrón
+      buscado en `query`).
+    - `sources` son solo las URLs citadas en el texto final (`url_citation`), con la
+      ronda de búsqueda que las trajo (ver SourceCollector).
+    - `billable_search_calls` cuenta todas las llamadas a la herramienta (criterio
+      conservador: OpenAI factura por llamada).
+    """
+    output = data.get('output') or []
+    search_queries: List[Dict] = []
+    sources = SourceCollector('openai')
+    search_round = 0
+    tool_calls = 0
+
+    for item in output:
+        if item.get('type') != 'web_search_call':
+            continue
+        tool_calls += 1
+        action = item.get('action') or {}
+        action_type = action.get('type')
+
+        if action_type == 'search':
+            search_round += 1
+            round_urls = dedupe_preserving_order(
+                url for url in (sources.add(s.get('url'), query_round=search_round)
+                                for s in (action.get('sources') or [])) if url
+            )
+            queries = dedupe_preserving_order(q for q in (action.get('queries') or [action.get('query')]) if q)
+            for query in queries or [None]:
+                search_queries.append({'round': search_round, 'action': 'search', 'query': query,
+                                       'url': None, 'sources': round_urls})
+        elif action_type in PAGE_ACTIONS:
+            search_queries.append({'round': search_round, 'action': action_type, 'query': action.get('pattern'),
+                                   'url': normalize_url(action.get('url')), 'sources': []})
+
+    content_parts = []
+    for item in output:
+        if item.get('type') != 'message':
+            continue
+        for part in item.get('content') or []:
+            if part.get('type') != 'output_text':
+                continue
+            content_parts.append(part.get('text') or '')
+            for annotation in part.get('annotations') or []:
+                if annotation.get('type') == 'url_citation':
+                    sources.add(annotation.get('url'), title=annotation.get('title'), cited=True)
+
+    usage = data.get('usage') or {}
+    input_tokens = int(usage.get('input_tokens') or 0)
+    output_tokens = int(usage.get('output_tokens') or 0)  # incluye razonamiento
+    return {
+        'content': ''.join(content_parts),
+        'sources': sources.cited(),
+        'search_queries': search_queries,
+        'search_used': search_round > 0,
+        'search_calls': search_round,
+        'page_opens': sum(1 for q in search_queries if q['action'] in PAGE_ACTIONS),
+        'billable_search_calls': tool_calls,
+        'input_tokens': input_tokens,
+        'output_tokens': output_tokens,
+        'tokens': int(usage.get('total_tokens') or input_tokens + output_tokens),
+        'api_model_reported': data.get('model'),
+    }
+
+
+def _is_model_unavailable(error: str) -> bool:
+    err = error.lower()
+    return 'model' in err and any(m in err for m in ('not found', 'does not exist', 'not have access', 'unsupported'))
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -42,6 +133,7 @@ class OpenAIProvider(BaseLLMProvider):
             >>> provider = OpenAIProvider(api_key='sk-proj-...', model='gpt-5.4')
             >>> # Usará específicamente gpt-5.4
         """
+        self.api_key = api_key
         self.client = openai.OpenAI(api_key=api_key)
         
         # ✅ CORRECCIÓN: Priorizar variable de entorno, luego parámetro, luego BD
@@ -61,7 +153,8 @@ class OpenAIProvider(BaseLLMProvider):
     
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str, *,
-                      locale: Optional[LocaleContext] = None) -> Dict:
+                      locale: Optional[LocaleContext] = None,
+                      search_mode: str = 'off') -> Dict:
         """
         Ejecuta una query contra el modelo OpenAI configurado.
 
@@ -73,10 +166,15 @@ class OpenAIProvider(BaseLLMProvider):
                     construida por build_system_instruction(locale).
                     Si es None, comportamiento idéntico al anterior
                     (solo user message).
+            search_mode: 'off' (Chat Completions sin herramientas, como siempre)
+                    o 'auto' (Responses API con `web_search`, ver web_search.py).
 
         Returns:
             Dict con respuesta estandarizada (incluye 'prompt_strategy').
         """
+        if is_search_enabled(search_mode):
+            return self._execute_with_search(query, locale)
+
         start_time = time.time()
 
         # ─── Construir `messages` UNA sola vez ───────────────────────
@@ -236,6 +334,64 @@ class OpenAIProvider(BaseLLMProvider):
                 'error': str(e)
             }
     
+    def _execute_with_search(self, query: str, locale: Optional[LocaleContext]) -> Dict:
+        """Responses API con la herramienta `web_search` en modo auto (el modelo decide si busca)."""
+        start_time = time.time()
+        tool: Dict = {'type': 'web_search'}
+        body: Dict = {
+            'input': query,
+            'tools': [tool],
+            'tool_choice': 'auto',
+            'include': ['web_search_call.action.sources'],
+            'max_output_tokens': MAX_OUTPUT_TOKENS,
+        }
+        if locale is not None:
+            body['instructions'] = build_system_instruction(locale)
+            tool['user_location'] = {'type': 'approximate', 'country': locale.country_code}
+        prompt_strategy = 'system_user_geo' if locale is not None else 'legacy_user_only'
+
+        fallback_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
+        model = self.model
+        data, error = self._post_responses({**body, 'model': model})
+        if error and _is_model_unavailable(error) and fallback_model != model:
+            logger.warning(f"⚠️ OpenAI (búsqueda): '{model}' no disponible, usando fallback {fallback_model}: {error}")
+            model = fallback_model
+            data, error = self._post_responses({**body, 'model': model})
+        if error:
+            logger.error(f"❌ {error}")
+            return {'success': False, 'error': error}
+
+        if data.get('error'):
+            return {'success': False, 'error': f"OpenAI API Error: {data['error']}"}
+        parsed = parse_responses_output(data)
+        if not parsed['content'].strip():
+            return {
+                'success': False,
+                'error': f"Empty content from OpenAI response (status={data.get('status')})",
+            }
+
+        pricing = self.pricing if model == self.model else get_model_pricing_from_db('openai', model)
+        search_cost = search_tool_cost(parsed['billable_search_calls'], pricing, provider='openai', model=model)
+        return build_search_result(
+            parsed,
+            provider='openai',
+            cost_usd=token_cost(parsed['input_tokens'], parsed['output_tokens'], pricing) + search_cost,
+            search_cost_usd=search_cost,
+            model_used=model,
+            prompt_strategy=prompt_strategy,
+            search_tool='openai_web_search',
+            search_country=locale.country_code if locale is not None else None,
+            started_at=start_time,
+        )
+
+    def _post_responses(self, body: Dict):
+        return post_json(
+            RESPONSES_API_URL,
+            headers={'Authorization': f'Bearer {self.api_key}', 'Content-Type': 'application/json'},
+            body=body,
+            provider_label='OpenAI',
+        )
+
     def get_provider_name(self) -> str:
         return 'openai'
     

@@ -95,67 +95,69 @@ def resolve_model_id(llm_provider: str, requested: Optional[str] = None) -> str:
 
 def get_model_pricing_from_db(llm_provider: str, model_id: str) -> Dict:
     """
-    Obtiene el pricing de un modelo desde la base de datos
-    
+    Obtiene el pricing de un modelo desde la base de datos.
+
     IMPORTANTE: Esta es la ÚNICA fuente de verdad para precios.
     No hardcodees precios en los proveedores.
-    
+
     Args:
         llm_provider: Nombre del proveedor ('openai', 'anthropic', 'google', 'perplexity')
-        model_id: ID del modelo ('gpt-5', 'claude-sonnet-4-5-20250929', etc.)
-        
+        model_id: ID del modelo ('gpt-5.5', 'claude-sonnet-5', etc.)
+
     Returns:
-        Dict con pricing por token:
+        Dict con pricing por unidad:
         {
             'input': float,   # Coste por 1 token de entrada
-            'output': float   # Coste por 1 token de salida
+            'output': float,  # Coste por 1 token de salida
+            'search': float,  # Coste por 1 búsqueda web (0.0 si el registry no lo tiene)
         }
-        
+
     Example:
-        >>> pricing = get_model_pricing_from_db('openai', 'gpt-5')
-        >>> print(pricing)
-        {'input': 0.000015, 'output': 0.000045}
+        >>> get_model_pricing_from_db('openai', 'gpt-5.5')
+        {'input': 5e-06, 'output': 3e-05, 'search': 0.01}
     """
     from database import get_db_connection
-    
+
+    empty = {'input': 0.0, 'output': 0.0, 'search': 0.0}
     conn = get_db_connection()
     if not conn:
         logger.warning("⚠️ No hay conexión a BD, usando pricing por defecto (0.0)")
-        return {'input': 0.0, 'output': 0.0}
-    
+        return dict(empty)
+
+    cur = None
     try:
         cur = conn.cursor()
+        # cost_per_1k_search_calls se lee vía to_jsonb para no fallar en un entorno
+        # donde aún no se ha ejecutado migrate_llm_search_p3.py (ahí vale NULL).
         cur.execute("""
-            SELECT 
-                cost_per_1m_input_tokens,
-                cost_per_1m_output_tokens
-            FROM llm_model_registry
-            WHERE llm_provider = %s AND model_id = %s
+            SELECT
+                r.cost_per_1m_input_tokens,
+                r.cost_per_1m_output_tokens,
+                to_jsonb(r)->>'cost_per_1k_search_calls' AS cost_per_1k_search_calls
+            FROM llm_model_registry r
+            WHERE r.llm_provider = %s AND r.model_id = %s
         """, (llm_provider, model_id))
-        
+
         result = cur.fetchone()
-        
-        if result:
-            # Convertir de "por 1M tokens" a "por 1 token"
-            input_cost = float(result['cost_per_1m_input_tokens']) / 1_000_000
-            output_cost = float(result['cost_per_1m_output_tokens']) / 1_000_000
-            
-            logger.debug(f"✅ Pricing obtenido de BD para {llm_provider}/{model_id}")
-            logger.debug(f"   Input: ${input_cost * 1_000_000:.2f}/1M | Output: ${output_cost * 1_000_000:.2f}/1M")
-            
-            return {
-                'input': input_cost,
-                'output': output_cost
-            }
-        else:
+        if not result:
             logger.warning(f"⚠️ No se encontró pricing para {llm_provider}/{model_id} en BD")
-            return {'input': 0.0, 'output': 0.0}
-            
+            return dict(empty)
+
+        # De "por 1M tokens" / "por 1.000 búsquedas" a "por unidad"
+        pricing = {
+            'input': float(result['cost_per_1m_input_tokens']) / 1_000_000,
+            'output': float(result['cost_per_1m_output_tokens']) / 1_000_000,
+            'search': float(result.get('cost_per_1k_search_calls') or 0) / 1_000,
+        }
+        logger.debug(f"✅ Pricing obtenido de BD para {llm_provider}/{model_id}: {pricing}")
+        return pricing
+
     except Exception as e:
         logger.error(f"❌ Error obteniendo pricing de BD: {e}")
-        return {'input': 0.0, 'output': 0.0}
+        return dict(empty)
     finally:
-        cur.close()
+        if cur:
+            cur.close()
         conn.close()
 
 
@@ -229,9 +231,17 @@ class BaseLLMProvider(ABC):
     
     @abstractmethod
     def execute_query(self, query: str, *,
-                      locale: Optional['LocaleContext'] = None) -> Dict:
+                      locale: Optional['LocaleContext'] = None,
+                      search_mode: str = 'off') -> Dict:
         """
         Ejecuta una query contra el LLM y retorna respuesta estandarizada.
+
+        `search_mode` ('off' por defecto | 'auto') viene del proyecto y solo lo
+        activa el admin (ver web_search.py). Con 'off' la llamada es la de siempre;
+        con 'auto' el provider ofrece su herramienta de búsqueda web y además
+        devuelve los campos de búsqueda del contrato (search_queries, search_used,
+        search_calls, page_opens, search_cost_usd, search_tool, search_country,
+        api_model_reported).
 
         Args:
             query: La pregunta/prompt a enviar al LLM (sin contexto de locale

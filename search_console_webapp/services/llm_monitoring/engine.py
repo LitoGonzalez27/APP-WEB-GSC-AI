@@ -11,6 +11,7 @@ import logging
 import re
 import json
 import time
+from contextlib import nullcontext
 from datetime import date, datetime, timedelta
 import os
 from urllib.parse import urlparse
@@ -26,12 +27,16 @@ from database import get_db_connection
 from services.llm_monitoring import prompt_sets as prompt_sets_lib
 from services.llm_monitoring.completion import task_allowed, count_planned_tasks
 from llm_monitoring_limits import (
+    UNITS_SCHEMA,
     can_access_llm_monitoring,
     get_llm_plan_limits,
     get_user_monthly_llm_usage,
+    units_by_provider,
+    units_per_task,
 )
 from services.llm_providers import LLMProviderFactory, BaseLLMProvider
 from services.llm_providers.retry_handler import circuit_breaker
+from services.llm_providers.web_search import normalize_search_mode
 from services.llm_monitoring.fanout_store import fanout_schema_available, save_fanout
 from services.llm_providers.locale_helpers import (
     LocaleContext,
@@ -47,9 +52,10 @@ from services.ai_analysis import extract_brand_variations, remove_accents
 
 logger = logging.getLogger(__name__)
 
-# Campos de búsqueda web del contrato del provider que se guardan en execution_metadata
+# Campos de búsqueda web del contrato del provider que se guardan en execution_metadata.
+# `search_mode` no viene del provider: es el del proyecto (lo añade el engine).
 SEARCH_METADATA_KEYS = (
-    'search_mode', 'search_tool', 'search_country', 'search_used',
+    'search_tool', 'search_country', 'search_used',
     'search_calls', 'page_opens', 'search_cost_usd',
 )
 
@@ -145,7 +151,7 @@ class _EngineMixin:
                     selected_competitors,
                     language, country_code, queries_per_llm,
                     is_paused_by_quota, paused_until, paused_at, paused_reason,
-                    prompt_sets, monthly_units_limit
+                    prompt_sets, monthly_units_limit, search_mode
                 FROM llm_monitoring_projects
                 WHERE id = %s AND is_active = TRUE
             """, (project_id,))
@@ -232,6 +238,10 @@ class _EngineMixin:
             logger.info(f"   Industria: {project['industry']}")
             logger.info(f"   Idioma/País: {project.get('language', 'en')} / {project.get('country_code', 'US')}")
             logger.info(f"   LLMs habilitados: {project['enabled_llms']}")
+            # Interruptor de búsqueda web (solo lo activa el admin; cualquier valor que no
+            # sea 'auto' es 'off'). Se pasa a cada tarea y pondera las unidades.
+            search_mode = normalize_search_mode(project.get('search_mode'))
+            logger.info(f"   Búsqueda web: {search_mode}")
 
             # ✨ NUEVO (2026-04-08): construir LocaleContext una vez por
             # proyecto. Se reutiliza para TODAS las queries × providers de
@@ -326,11 +336,16 @@ class _EngineMixin:
             logger.info(f"   🤖 {len(active_providers)} proveedores habilitados")
             logger.info("")
 
+            # Unidades que consumirá este análisis (con búsqueda web, ponderadas por proveedor)
+            expected_units = count_planned_tasks(
+                queries, expected_provider_names, restrict_pairs,
+                units_by_provider(expected_provider_names, search_mode),
+            )
+
             # Validar consumo mensual antes de ejecutar
             max_units = plan_limits.get('max_monthly_units')
             if max_units is not None:
                 used_units = get_user_monthly_llm_usage(user_row['id'], analysis_date)
-                expected_units = count_planned_tasks(queries, list(active_providers.keys()), restrict_pairs)
                 if used_units >= max_units or used_units + expected_units > max_units:
                     paused_until = None
                     try:
@@ -369,7 +384,6 @@ class _EngineMixin:
             if project_units_limit is not None:
                 from project_quota import get_project_usage, pause_project_for_quota
                 project_used = get_project_usage('llm_monitoring', project_id, user_row['id'])
-                expected_units = count_planned_tasks(queries, list(active_providers.keys()), restrict_pairs)
                 if project_used + expected_units > int(project_units_limit):
                     paused_until = None
                     try:
@@ -594,6 +608,7 @@ class _EngineMixin:
                     'country_code': project.get('country_code'),
                     'analysis_date': analysis_date,
                     'prompt_version': 'v2_system',            # ← ✨ NUEVO (metadata)
+                    'search_mode': search_mode,
                 })
         
         total_tasks = len(tasks)
@@ -960,16 +975,13 @@ class _EngineMixin:
             # comportamiento anterior (backward compat 100%).
             task_locale = task.get('locale')  # LocaleContext o None
 
+            search_mode = normalize_search_mode(task.get('search_mode'))
+
             # Ejecutar query en el LLM con control de concurrencia por proveedor
             semaphore = self.provider_semaphores.get(task['llm_name'])
-            if semaphore is not None:
-                with semaphore:
-                    llm_result = task['provider'].execute_query(
-                        execution_query, locale=task_locale
-                    )
-            else:
+            with semaphore if semaphore is not None else nullcontext():
                 llm_result = task['provider'].execute_query(
-                    execution_query, locale=task_locale
+                    execution_query, locale=task_locale, search_mode=search_mode
                 )
 
             # ✨ NUEVO: log de observabilidad para auditar que la
@@ -982,7 +994,11 @@ class _EngineMixin:
                 f"provider={task['llm_name']} "
                 f"locale={task_locale.fingerprint() if task_locale else 'none'} "
                 f"strategy={llm_result.get('prompt_strategy', 'n/a') if isinstance(llm_result, dict) else 'n/a'} "
-                f"model={llm_result.get('model_used', 'n/a') if isinstance(llm_result, dict) else 'n/a'}"
+                f"model={llm_result.get('model_used', 'n/a') if isinstance(llm_result, dict) else 'n/a'} "
+                f"search_mode={search_mode} "
+                f"search_used={llm_result.get('search_used', 'n/a') if isinstance(llm_result, dict) else 'n/a'} "
+                f"search_calls={llm_result.get('search_calls', 'n/a') if isinstance(llm_result, dict) else 'n/a'} "
+                f"page_opens={llm_result.get('page_opens', 'n/a') if isinstance(llm_result, dict) else 'n/a'}"
             )
             
             if llm_result['success'] and not (llm_result.get('content') or '').strip():
@@ -1022,8 +1038,9 @@ class _EngineMixin:
                     language=task.get('language', 'en')
                 )
             
-            # Antes de tomar la conexión del resultado: la comprobación usa la suya
+            # Antes de tomar la conexión del resultado: las comprobaciones usan la suya
             store_fanout = fanout_schema_available(get_db_connection)
+            store_units = UNITS_SCHEMA.available(get_db_connection)
 
             # Guardar resultado en BD (conexión thread-local)
             # Refactor 2026-05-25: null-check + cursor inside try.
@@ -1055,8 +1072,19 @@ class _EngineMixin:
                 _execution_metadata.update({
                     key: llm_result[key] for key in SEARCH_METADATA_KEYS if key in llm_result
                 })
+                _execution_metadata['search_mode'] = search_mode
                 _prompt_version = task.get('prompt_version', 'v2_system')
                 search_queries = llm_result.get('search_queries') or []
+
+                # Columnas que solo existen tras su migración (el engine no las escribe antes)
+                optional_columns = {}
+                if store_fanout:
+                    optional_columns['search_queries'] = json.dumps(search_queries)
+                if store_units:
+                    optional_columns['units_consumed'] = units_per_task(task['llm_name'], search_mode)
+                optional_names = ''.join(f", {col}" for col in optional_columns)
+                optional_placeholders = ", %s" * len(optional_columns)
+                optional_updates = ''.join(f", {col} = EXCLUDED.{col}" for col in optional_columns)
 
                 cur.execute("""
                     INSERT INTO llm_monitoring_results (
@@ -1070,7 +1098,7 @@ class _EngineMixin:
                         full_response, response_length,
                         sources,
                         tokens_used, input_tokens, output_tokens, cost_usd, response_time_ms,
-                        execution_metadata, prompt_version""" + (", search_queries" if store_fanout else "") + """
+                        execution_metadata, prompt_version""" + optional_names + """
                     ) VALUES (
                         %s, %s, %s,
                         %s, %s,
@@ -1082,7 +1110,7 @@ class _EngineMixin:
                         %s, %s,
                         %s,
                         %s, %s, %s, %s, %s,
-                        %s, %s""" + (", %s" if store_fanout else "") + """
+                        %s, %s""" + optional_placeholders + """
                     )
                     ON CONFLICT (project_id, query_id, llm_provider, analysis_date)
                     DO UPDATE SET
@@ -1112,7 +1140,7 @@ class _EngineMixin:
                         response_time_ms = EXCLUDED.response_time_ms,
                         execution_metadata = EXCLUDED.execution_metadata,
                         prompt_version = EXCLUDED.prompt_version,
-                        updated_at = NOW()""" + (", search_queries = EXCLUDED.search_queries" if store_fanout else "") + """
+                        updated_at = NOW()""" + optional_updates + """
                     RETURNING id
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
@@ -1138,7 +1166,7 @@ class _EngineMixin:
                     llm_result['response_time_ms'],
                     json.dumps(_execution_metadata),
                     _prompt_version,
-                ) + ((json.dumps(search_queries),) if store_fanout else ()))
+                ) + tuple(optional_columns.values()))
                 result_id = cur.fetchone()['id']
 
                 if store_fanout:
@@ -1195,6 +1223,7 @@ class _EngineMixin:
         """
         # Refactor 2026-05-25: explicit conn=None + try/finally.
         conn = None
+        store_units = UNITS_SCHEMA.available(get_db_connection)
         try:
             conn = get_db_connection()
             if not conn:
@@ -1229,7 +1258,10 @@ class _EngineMixin:
                         response_length = EXCLUDED.response_length,
                         tokens_used = EXCLUDED.tokens_used,
                         cost_usd = EXCLUDED.cost_usd,
-                        updated_at = NOW()
+                        updated_at = NOW()""" + (
+                        # las filas con error cuentan 1 unidad (DEFAULT de la columna al insertar)
+                        ", units_consumed = 1" if store_units else ""
+                    ) + """
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
                     task['llm_name'], None,  # model_used es NULL en caso de error
