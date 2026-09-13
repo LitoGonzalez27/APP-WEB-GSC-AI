@@ -1,0 +1,1089 @@
+{
+ "id": "resp_089ee6f8c71b4929006aa6c3fc164487d19b665392d35278a0",
+ "object": "response",
+ "created_at": 1789314044,
+ "status": "completed",
+ "background": false,
+ "billing": {
+  "payer": "developer"
+ },
+ "completed_at": 1789314103,
+ "error": null,
+ "frequency_penalty": 0.0,
+ "incomplete_details": null,
+ "instructions": "Responde en español de España (castellano europeo). El usuario se encuentra en España. Prioriza proveedores, precios (en €), regulaciones, ejemplos y fuentes de España. Evita referencias a países hispanoamericanos salvo que se soliciten explícitamente. Cita fuentes locales (dominios .es, prensa española, entidades oficiales españolas) siempre que sea posible.",
+ "max_output_tokens": 16000,
+ "max_tool_calls": null,
+ "model": "gpt-5.5-2026-04-23",
+ "moderation": null,
+ "output": [
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c3fd105c87d199503e4d8104607d",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3aCQJA2Ium6c57z3JyMkw3M9sDNAKJFK__rxcyg-LEbbPmdHnDHPqDxvejAAXCp-q4VLGqGum4Eh03yZVXlFgohD8bTelFEg78b7ZcAmL8snn1rTyAU-M9IO0tE96oTN5bxDQqunsZ8bbaodg4KoWTc0k931MKgVB0lcSFS9jCfzj0QnpsCVwunFkcEnlTQ9qZMoBvR_9Uy2PL1GqewDX42Fdnypr4i9g5155xkO5PRRplsYD1X5PV90P5PJWyRueQHhqK5whQ9CMVhP8_nXZ3zAha2cyYdsOWlYAPmH2tlkNDUXkIbKSI8fLtRgDvY8evywzbeQ2GGKjcDggACWO-eMY0eki0gzrl-aK-XHBv1TvXAyX8FbZaq7JDoLFIo6ekybco1mlFg1ULvj1XfJbfT6AY_fIelSBtOmOUHHuOY3VkP694_Wc66pnR04yIyDhzRiMGF_8cXeUP1iLR3NVx5Yqeh3bPAXjo8VZUx7ZzrjF2qr3CiWWXMGELOcNg75FoFYU-Jk6IAryHIJCmfBjmRMY9DH_RGgFeeqrhnD2OAK6ZOJVSkhz-007PDQQhaXWHzu7tQ_HdlAYjL9CAWUA-d0gFhFGPJ3PD1psAr0AUyDpEBHFL5p_bqpGlTkxGj_qFc9vbSH4mfIcIfI5kkeW2PMQ9-5WT4tYSgPC2eM5JgkqOvwwhJiQ1ZSgwCQnnhlpvnFpX5A2SLxMtgeKJc1oX6cPpDQhV0ftAwYGsY_is0CCql484oE595ewOR5sez8w0Ll-XYCoNCDSKDE6aIvPJ3ZEpTTRZ9aOcHB2a_8XwMdsN8TAmC7tTFdzro-iMN4wabM9-u01y_XoyIGcbQfmZuvDaNzOmG2HrGIMZRNiv5oJz__RtBz4cAN2p7A9EcPZS5IBMfnczy4NU7F1hpxWW78_-IrNEF0CYm5fP49yoqZa-foREGn5mIELo_aGvws5DdAUPNay7NwcopXgJJ_LV5xORaxJvG1a3PCwxOJMs4Mx6ilcmmCEmdvm-6B33CshFoEWBXUQBdH-a_FondUtKtGrKbIWbilDKHxK6F0momnahJA430u5plvlbAYvdIrlcjnz_TtmvPLHA9s6WyDs9AnuqCh2ewZUabI3pwDZXvNx4-KToHN0h77yDz_2ujx131o57hHEMrroVxyq_DmrE0SzfaY-iwVDTefF-ckSpP_DDzQ78oRIfPwBG08YXoEakuQ4-AWHYS6dEIUHmOuaNYUK01QGTguaaMqNxmIDTikSp84OpNOl64oBvW4SQ-RIweGQZvpjNiI-ONiRh6zJ_w==",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c3fd5b5887d1b8fde099868843ff",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "mejor software facturación autónomos España 2026 comparativa Holded Quipu FacturaDirecta Declarando Billin",
+     "software facturación autónomos España Verifactu 2026 AEAT requisitos facturación electrónica",
+     "AEAT Verifactu sistemas informáticos facturación autónomos fechas 2026 2027",
+     "factura electrónica B2B España autónomos Ley Crea y Crece estado 2026"
+    ],
+    "query": "mejor software facturación autónomos España 2026 comparativa Holded Quipu FacturaDirecta Declarando Billin",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://negociosypymes.es/mejor-software-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/mejor-software-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://cuota-autonomo.pages.dev/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://herramientasnegocio.com/mejor-software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://negociopilot.es/facturacion/mejores-programas-facturacion-autonomos.html"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/comparar/"
+     },
+     {
+      "type": "url",
+      "url": "https://faktoo.es/comparativas/"
+     },
+     {
+      "type": "url",
+      "url": "https://automatizayescala.com/blog/mejores-programas-facturacion-contabilidad-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://easyinvoice.es/comparativa/easy-invoice-vs-quipu-billin-contasimple-holded"
+     },
+     {
+      "type": "url",
+      "url": "https://autonomoperezoso.net/comparativa"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/software-facturacion-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes.html?faqId=95604b6cc0eea910VgnVCM100000dc381e0aRCRD"
+     },
+     {
+      "type": "url",
+      "url": "https://www.hacienda.gob.es/es-es/prensa/noticias/noticiaspdf/377.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/AEAT_Desarrolladores/EEDD/IVA/VERI-FACTU/FAQs-Desarrolladores.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=mrQnaKkzi8U"
+     },
+     {
+      "type": "url",
+      "url": "https://www.verifactu.com/wp-content/uploads/2026/05/Verifactu-para-autonomos-%E2%80%94-Guia-practica-2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.lamoncloa.gob.es/consejodeministros/ruedas/Documents/2025/20251202TranscripcionRdPConsejoMinistros.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=M-6DmgRvaTs"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reicaz.es/wp-content/uploads/2025/11/Manual_Usuario_Verifactu_Accesible.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://es.wikipedia.org/wiki/Verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t72bpp/removed/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/lapelaeslapela/comments/1pcj149/hisenda_ajorna_al_2027_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1nq8604/verifactu_u_otro_que_sea_de_facturaci%C3%B3n_para/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html"
+     },
+     {
+      "type": "url",
+      "url": "https://cincodias.elpais.com/opinion/2026-01-03/verifactu-2027-mas-tiempo-para-afianzar-una-facturacion-digital-eficiente-y-competitiva.html"
+     },
+     {
+      "type": "url",
+      "url": "https://cincodias.elpais.com/legal/2026-06-19/la-factura-electronica-obligatoria-llega-con-dudas-juridicas-aun-por-resolver.html"
+     },
+     {
+      "type": "url",
+      "url": "https://as.com/actualidad/economia/javier-fernandez-asesor-fiscal-verifactu-sera-una-oportunidad-para-aquellas-empresas-que-no-han-empezado-a-digitalizarse-f202512-n/"
+     },
+     {
+      "type": "url",
+      "url": "https://cadenaser.com/nacional/2025/12/02/el-gobierno-retrasa-un-ano-la-obligacion-de-facturar-con-verifactu-cadena-ser/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c400bd5487d1b52f514b952e51db",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3OZn9wbnSCbBrYbtycfbO_NrZaj9-cGL6fi_RCYSfvIaLvivXthDKFrB-r93aS8y6EtCPrMHXpjfRh9nI3_D4QBp51Sw6Dl5KmIuW5cHSxWQInyl8NieXXQg2e0jtqjqH7oxf7epDUA9Zxel1A1aSOxoqSsnbPCvIMfKfL2L66di1_PV7g7v2iNeXCLawOVb7YlSxd3ivQWOzDEXzQCiMJVO7qO_Z8uNH6flroAvmPYPoR0dImKe_QnPuO8sYbHRxoE9AP77y3WQUHMAFafz5tB8Rp8JGa4aVzyFcb1yXzkFuihlkw7CNGrcMHawMdNWLJlquWjTGef8N5FxtRqeTDy3Pc8KzNBa_S_Kx4t-dVktwfrL-NCbJWsAwUY_2YCh4nM1UFVKOIj6qq3gSjQ_uKL3G4IuWwlxSfK0nyrtJV-Yf-lhjr8BC-7kTNqeIipMtnE3Sphb8_Uej6d6etJcr2FKxu-_KunOdLZxu_2dWpWdZ6CXxP2r__RyTN58Keo4diMrC8Kh-pin8RV88wcHECzfE8biVN0iOF6extLoNrkuPPXf8QaGgyaeKtoAuxjpjDt6Sg4HGlAVw1VSGbE5LessxELBwxMvTzSoIKrGOk9_c-45NzOKGPJ3mc09xJxzN1libc9OxiJnwTq5YC1Of5br-qrnl1GyHVjzF6UhK0aeZbM__OMugvbxmg662Q83Ukpnc_4mRSEZV5qZwiJmn8-KR9vk5hlSwWnTLXGz2XLPwwIqZL3EApudHqd0n6Ula0xtbR0LsK-nARA5HYIwsFrwCJZxzRhWDXswqkkxtnNu4gp-gz5bI8wqdg_DAw1aZiwglr09RkFl3jNKeLaFQ5la-beZYFRbxggvZfnv0hBVinvbZ6mxHK1HaX8OaE3-oAb9lf9Yr00imlBHGz36HFj7duM868BsdkX850KlJi4WoDuJYKIQK85kNvIsaHo-STPYTWj6oWpzr3QlrMGAkA4Md4V_wLUDovlsPN-AJuL3SrnSMySNJM6zPdsUR6ayQwmU9S4PmpyiyAVXw96lCzgIoAZPTbZkcZhos3xI4dS_a5F_1cgGI-HLgShszJRcVvi5w7JcSn2V799U_bDaGdi78usEAma31F1Z2XMhEcu3zIDFUOva6KfzMI96oZ3BoE4f_TGXOArDeLdNgoNbt5wrn9aLkuZ6_7TQ5tWZqir7_rvNz8yXDIx8zq9qacZB7-IM9eEaxmuOHE9MaGC6wYXOQE7nXdTpqi9hTEpOm47eh3Zn4yOvL07HQBPeCB1B4gUpnEV-d2Ce8B3yNQVdFZ8A0DHaoU3gRs2MnrOLXGJzOlqxXXJcroQWtTkI4XJC5",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c401cd0487d18defd10ad634a58a",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "site:holded.com/es precios Holded facturación España autónomos 2026",
+     "site:quipuapp.com precios Quipu facturación autónomos 2026 España",
+     "site:billin.net tarifas Billin facturación autónomos 2026",
+     "site:facturadirecta.com precios FacturaDirecta 2026"
+    ],
+    "query": "site:holded.com/es precios Holded facturación España autónomos 2026",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/blog/los-mejores-programas-de-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/precios"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/blog/que-es-erp-y-para-que-sirve"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/programa-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/blog/mejores-apps-de-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/informes"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/precios/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/erp"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/blog/programa-facturacion-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/asesorias"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/land/wp-content/themes/billin-landing/downloads/Perfil_del_Trabajador_Auto%CC%81nomo_Digitalizado_Espan%CC%83ol.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.facturadirecta.com/legal/declaracion_responsable_verifactu_20260226.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/wp-content/uploads/2019/02/Facturacio%CC%81n-para-auto%CC%81nomos-Billin.pdf"
+     }
+    ]
+   }
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c403c46c87d1b55f8d0f50564a98",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Quipu precios oficial facturación autónomos 2026",
+     "FacturaDirecta precios oficial autónomos 2026",
+     "Contasimple precios oficial autónomos 2026",
+     "Declarando precios oficial autónomos 2026"
+    ],
+    "query": "Quipu precios oficial facturación autónomos 2026",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://www.contasimple.com/precios/"
+     },
+     {
+      "type": "url",
+      "url": "https://declarando.es/precios"
+     },
+     {
+      "type": "url",
+      "url": "https://help.facturadirecta.com/es/articles/15138909-planes-disponibles-y-que-incluye-cada-uno"
+     },
+     {
+      "type": "url",
+      "url": "https://app.contasimple.com/Default.aspx"
+     },
+     {
+      "type": "url",
+      "url": "https://www.facturadirecta.com/pequenos-negocios/precios/"
+     },
+     {
+      "type": "url",
+      "url": "https://declarando.es/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.cronomia.com/software/contasimple"
+     },
+     {
+      "type": "url",
+      "url": "https://app.contasimple.com/software-online-de-facturacion-contabilidad-impuestos-para-autonomos-pymes"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/mejor-software-facturacion-autonomos-2026"
+     },
+     {
+      "type": "url",
+      "url": "https://facturaz.es/es/blog/contasimple-opiniones"
+     },
+     {
+      "type": "url",
+      "url": "https://arun-dev.quiputest.net/es/autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://device1784843-14ebcad2-local.contasimple.com/FAQ-Preguntas-frecuentes.aspx"
+     },
+     {
+      "type": "url",
+      "url": "https://www.congreso.es/l14p/e25/e_0251287_n_000.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=8YRS9KQG9Ps"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=tJF1_wgyd14"
+     },
+     {
+      "type": "url",
+      "url": "https://www.asesor-digital.com/wp-content/uploads/sites/456/2024/09/tarifas_autonomo_2024.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.ces.es/documents/10180/5231360/Portadas_periodicos_20251022.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.verifactu.com/wp-content/uploads/2026/05/Verifactu-para-autonomos-%E2%80%94-Guia-practica-2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.hacienda.gob.es/sgfal/financiacionterritorial/autonomica/capitulo-iv-tributacion-autonomica-2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1ssehh5/alternativas_declarando/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c406ba0487d1b60406e615c4def7",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3CNCH5e6JHwIW6Q2c941nsLtFCVbTbmqexOZEb_IybIj9MXIO0sjbZhCajH33kCoe9AXrkG0UCsjH_0sJAVFgFmQmyD2ofKdq4zY0EDqIkodWOXp7YCs7rLFVVRW25Do0GOugqeDiXDc53eBKtu8jmWSRyozk0qfrgktbinWUF_tQtGin0xGf9rn3pJriwIFddYxNDwzRMbBQcqODGUAmP9s7zOE1EnKis2vo1h1A4DGDS4iUsYYx0SUtdefYuUrjLTDZF7Yx5Hrr3d75_XLBdmDcHwQfTj4VpiawXaFMvdLnzzcSipeJh-CcytJCHhtXdY3SrAz8z_pLrwgkZjrhoxR5RymuUmSv3oLFoPA5vjm3xR4w20htfnAnWJC4bVCu7yLjJClSblKsqbRBa-kpEoVXn4Dy-1qUVhbknXprqH5VVKTOHVmM4lf1SkzgG1G6oc4_xgtkX8vPdM--7bfO_PMgP7qziVxgbCZlFwM0SPDEcj0Wjvo7h01CJYSdy5D7e4jo6tvujWLEvebAobbdocPRFVIb23mWAYotu6NDPdee2QR-9tQw4fZAjpGJcs2VWowvqid9iqO4cG9OsLfOxyKgWZdrd1rWneeVdfLJd5TScFUPGKUbovRLv0bUe3IMV6Pg-08lngsEC30RewQMTEWUSvDUA3mnz2qPSP382j6o1fsYOQre_Sir3OJDUM5XnPIQ9DOxX3qPuiidieIXPBUT-d8ShJuuguqGetvs2oAdz3919ITaAvkPBxkY87Y8PvKUt6bTy2rFbbQmdi6jbXd59Po0OPYOrm2gZtbW3cCIj7RCYJmew3biR0B0PQ1AWlYBwcXU6FPjVWP14Afgkw9aBkWPLEngPPdNEkbJOpQfKvIcE72Y5lOxqEygd6832X0le221wKhwWVN4fUi9eu4mDh1XEPQyU0KgqtXprqa7cZqvheEAVdAnXh-OQQdW-WvIDUhZtWmoTABI0JQRuuCLCaQtNazQWvGGV3DQ57tHOKPTP5brRnnFmJWEjnEPXAOBYKxgi--JaljhuNZ4roZa0hA4_RcGjSvdsKYG-HIOkEcOjeX_GkMXmIPuzINLdBqNPQZJqZUmOsubZ_1F2QFX69WQ8PCQOO0UHTVrEeuXSCJj-XRqVH3hRmEy7cCHyWH1uxbAG4960gSuicxO9kaMod--muKZwoOw2gZG-k8mI7yfircBC33kengfShfEsqXtKXW-qo-cufrfNC_kyQ==",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c406ca3087d1aeb5ff45e76f80fe",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "site:getquipu.com precios Quipu planes precios facturación",
+     "site:quipuapp.com precios Quipu planes precios facturación",
+     "Quipu software facturación precios autónomos 2026 oficial quipuapp",
+     "Quipu precios autónomos Starter Solution Business 2026"
+    ],
+    "query": "site:getquipu.com precios Quipu planes precios facturación",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://getquipu.com/es/plan-de-precios"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/es/negocios-digitales"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/elegir-software-facturacion-autonomo/"
+     },
+     {
+      "type": "url",
+      "url": "https://comparasoft.es/software/quipu"
+     },
+     {
+      "type": "url",
+      "url": "https://comparafacturacion.com/programa/quipu/"
+     },
+     {
+      "type": "url",
+      "url": "https://autonomiapro.com/blog/mejor-software-fiscal-autonomo"
+     },
+     {
+      "type": "url",
+      "url": "https://guiafacturacion.es/software/quipu/"
+     },
+     {
+      "type": "url",
+      "url": "https://herramientasnegocio.com/software-contabilidad-autonomos/"
+     },
+     {
+      "type": "url",
+      "url": "https://elige.software/software/quipu/"
+     },
+     {
+      "type": "url",
+      "url": "https://facturaz.es/es/blog/quipu-opiniones"
+     },
+     {
+      "type": "url",
+      "url": "https://factupro.es/blog/mejor-software-facturacion-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/alternativas-a-quipu-autonomos-2026.html"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/documents/Condiciones-de-uso-NOVIEMBRE-2025.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/Presentacion%20Quipu%20Gestorias.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.camaravalencia.com/wp-content/uploads/2025/11/Guia_PICS_Cuaderno_comercio_Facturacion_electronica.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/wp-content/uploads/2021/11/11135736/plantilla-pdf-presupuesto-1.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/Manual-de-usuario-de-Quipu-2-0.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/blog/wp-content/uploads/2018/05/21-herramientas.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1ssehh5/alternativas_declarando/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1w08ee6/busco_consejo_sobre_gestor%C3%ADa/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t2la89/app_de_stripe_que_cumpla_con_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1r5me8x/hice_una_app_para_los_modelos_130_y_390_le_he/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1tytfe9/problema_al_reunir_facturas/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1o687ea/qu%C3%A9_software_elegir_que_tenga_verifactu_para_una/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t72bpp/removed/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1pc6ll3/definitivo_verifactu_se_aplaza_para_el_2027_para/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c40b08cc87d1ab6a6681f26e71d1",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3DO7LZIlCOOODXXJjzfMByq79VvxrI7YNcQyrfbIR4drvRSgtZPNkprNkpsC0Ilk_57eK1vlUWc3x2iD6dc4GD8oK9-GeFmprcuCAn9FqKFKPy8mN4tO5iJ8ozO2Tikq91BWu9IfNG5XTbOcTdkVEubmHxRI9pj9AnbsjjviUdaDSZJZ5UWzj_EFw5mIixTCYywg-Qn-MJLl7ib09l_nZAvv7EjdS5-Tpav4CoeNdfYCe4VAB59G8I4CWna2si7NUoh0I0WZjgKvuyLaDP7NYFx9Bof7Mrne8RbJvm5e81SbUhDARA5-vNDmZrQXVQi5HKypK4pj3qB80IScgALPkrzQtvt7tQLvQZtbI65mJzSZqUaU7OF7Hu3niFtXLDQQkqrE3eISnnB_mSgzLxXBcbIsnxKnQ3W_jLoAydgkIIXiVczXenP0-GbK097IujM7wW-8ENk2QiB87RdUSL5IJabkTSxbGivzlTZmjkRlYXO1sStFn2lVK5DGpGAYoiS3KBcVTb6Q5VFxfXtQ09Ad-SeQ_D2NM9N1cghQs9pILCy40yCRz6irfBjnpNplHR_gbV4B67t2dWjgn4K_DF4LWibIo08ldffAPbpBpqAOU_J1_RtTNDmfRp6uJof8tGX7OCcLVV2r2EYJ610Jv6K1PHiy3pBt2Zz03Bj1J1XAPiwOuutyrKG2UAwRczVm59B_Dlkq2Y9HxGGStptNWK_SSneTYkIqIFffvqJhxsNvyATdmhVo1Rb-ZZHyldU4sazOXvgSP4aCFHGRUaj0ham8brY8UYys3BqxqTrxr5J2gwLCmT3_G2tX4q6j0frPiEEKjPFlAMe8qOgIDE_cqqIOVthEDSy2-VYJwEvhOG-8vKFaWWFX5CRDskObTg_W6pUrPfNoPuSQCm8LGE-BituJDxOIJamspEKF5N_JRmidvg5lUq2BkaAORSs6L-pihVCftTH_gUFsKEfgyspYimaTUFbYXUNrd1cY6LS-JKHEjUtDhykTwUNqWvuMRGpA4KpFQf5bGV_H09cDElOZcGLTZ__EsXw_fQH6r-IjGYu3g9MomBJMcX8p1IXnbhjEqvdD4vHU7l4Z0ryDc-TMsackRy3ot0GXJTc0GhM8cUeUJGPr2DBQdBAZeMIR_tA1ftdA4occuES4b_R9xLGGlYTX9vr6PREn9kn1k0L_Blv3RIv7PpCT_OIOZiBFLpWICHKD-g_iFwQVYfZxoawevIiTu4yUi4lcMEgrES7qFScU6cHPrAm5rxL5XHIP85z9Vg9ultqzY-I9gHq26AXBZ7nflDoXcR53_kiGnKR9Z-tDumc1_yNC-ySK1f9tFV9CfrD9f6s9a_Urz0BtliuL_mejz4V7S2PPOQrzysldjLEb2TjeDuTKCSW7tTXoYQRZJVzrXJ6no0kBomCOgOTt8_6Cy-ANVSo5d_JHrNtD6eUU94DbacFVMXVAqP76SS4aJ1Yxh",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c40b7c6487d1a0e7820c5f9cf50f",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Agencia Tributaria aplicación gratuita facturación VERIFACTU autónomos 2027",
+     "AEAT aplicación de facturación gratuita VERI FACTU sede electrónica autónomos",
+     "BOE Real Decreto 1007/2023 sistemas informáticos facturación Verifactu artículo 29.2.j ley 58 2003 sanciones",
+     "Ministerio Hacienda aplaza Verifactu 2027 autónomos"
+    ],
+    "query": "Agencia Tributaria aplicación gratuita facturación VERIFACTU autónomos 2027",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://factuchat.es/blog/12-mejores-programas-facturacion-autonomos-2027.html"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/todas-noticias/2025/octubre/13/aplicacion-gratuita-facturacion-verifactu.html"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/eu_es/ayuda/consultas-informaticas/presentacion-declaraciones-ayuda-tecnica/aplicacion-gratuita-verifactu-aeat.html"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/presentacion-declaraciones-ayuda-tecnica/aplicacion-gratuita-verifactu-aeat/emision-facturas.html"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Manual/Practicos/Manual_facturacion/Manual_Usuario_Verifactu_Accesible.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://autonomofactura.com/verifactu/mejores-programas-verifactu-espana-2026/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840&lang=es&p=&tn=1"
+     },
+     {
+      "type": "url",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes.html?faqId=95604b6cc0eea910VgnVCM100000dc381e0aRCRD"
+     },
+     {
+      "type": "url",
+      "url": "https://nedaxe.com/comparativas/programa-verifactu-gratis"
+     },
+     {
+      "type": "url",
+      "url": "https://www.verifactu.com/wp-content/uploads/2026/05/Verifactu-para-autonomos-%E2%80%94-Guia-practica-2026.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://entenderverifactu.es/verifactu-autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://www.novafactura.es/"
+     },
+     {
+      "type": "url",
+      "url": "https://veri-factura.es/"
+     },
+     {
+      "type": "url",
+      "url": "https://facturaok.es/comparativas/app-aeat"
+     },
+     {
+      "type": "url",
+      "url": "https://www.lamoncloa.gob.es/consejodeministros/ruedas/Documents/2025/20251202TranscripcionRdPConsejoMinistros.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.apiem.org/wp-content/uploads/2025/10/Infografia-Sistema-VERIFACTU_APIEM.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.hacienda.gob.es/es-es/prensa/noticias/noticiaspdf/377.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=D7oqUmrDHpk"
+     },
+     {
+      "type": "url",
+      "url": "https://www.youtube.com/watch?v=M-6DmgRvaTs"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1pc6ll3/definitivo_verifactu_se_aplaza_para_el_2027_para/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html"
+     },
+     {
+      "type": "url",
+      "url": "https://elpais.com/economia/2026-03-24/el-gobierno-aprueba-la-factura-electronica-obligatoria-en-los-pagos-de-empresas-y-profesionales.html"
+     },
+     {
+      "type": "url",
+      "url": "https://cincodias.elpais.com/opinion/2026-01-03/verifactu-2027-mas-tiempo-para-afianzar-una-facturacion-digital-eficiente-y-competitiva.html"
+     },
+     {
+      "type": "url",
+      "url": "https://cadenaser.com/aragon/2026/04/10/la-plataforma-tecnologica-de-volveremos-evoluciona-para-consolidar-el-cambio-de-modelo-impulsado-en-el-comercio-aragones-radio-huesca/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.huffingtonpost.es/economia/facturacion-obligatoria-verifactu-cambios-empresas-autonomos.html"
+     },
+     {
+      "type": "url",
+      "url": "https://as.com/actualidad/economia/tecnicos-de-hacienda-lanzan-un-mensaje-a-millones-de-empresas-y-autonomos-por-el-retraso-de-verifactu-hasta-2027-es-una-herramienta-clave-f202512-n/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c410018c87d1a936ae4ed2bdb17d",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3LxC-1T95OrFA4R-x9NbfapuGYIVYg4KgwZfVXvLebc-VsOEHfLhB7wZncWyM6ATgMSa59QzAkactsEGkgE3fx9fAwRPbpHhXdm8xzDlMo8l3c2WowaWbDbZE9vrj3ze2ve5pFqxHSbZ62WTN-mAS5GQKF-R3KOWi4WdXNMVutFZpwrbJJNo9KL_NPGPstX3HanyCFUe7j7Sb0OiqqIPK-xxUUhj7_fn3gELlCiYYzHqZAVGCejXNBEGdzOGIrlDefB74LNAesHjILix6ooSycBJNVRQ7Ecz2fV0_ZJxiOBffx6exbKUSgScCiN5PlXxWWeh27FXQVe8Lklk5o5_iwYCdOi6g6p3mREGFhzybu-FnJQqkVxvBgJGlFd5JZ81NMzbEx3J5x8VAuDwCcnE9uHD7HAfguHSioBEtSIkbUyInjMFP7ZCjA81TLv__k5QWQl6Gse8is2qBJF3HDKyXgAgzE76HSiItfamNlciS2XvcdKQEwDNHYdMMzefwNYbgQOVSNyo3YWoJHKn0yoV6qDaUOURy20UYdMsLDyD4QPbU1qG7mo9VYvwFUi0Ohijdqal7IFNYAEXFKOJE3FXBG92wn6Nqvp6nqDcMgKOuI4NwzNxpkKj6qCuP8FaWGFfbnItf2fST7POxdaKan2UiICmjKOpReNfQAvN1jjaHKvIbZ3WHAt01NV9HEKlxIGcRFD-gfxBpUDqAHIZr7TSsXf250HTzcLXkEbnhuhFX66acBnA5h1-TDSvptIQjlSb2fPZWRIwxPBp-V3Odv1HYcWQbxlBhWvyUKRZ1ygRex0jXT6kvN5zssyIolwIRHFPW-jrrad_dkRw7ZZYLl486FeNKyLqt12yqBZ5JNeXGggPcIWtDYOi1aio2ciQQKg8xy6NrbAlholp1iLEjRzOjAAM3-pFhcQCHeD4BPDJ7QKvY7mUpLSRO_6KaHs7OZy3OVUIy8htwro0gosN_1zUi_IW3HB3zxUe_AT8aU0VyNIArWQeKXa-aoBBw7dALguic_w0sJEehymABWISa86gOmdrEU8U4dSJfA27h3_wlNHW5yDKn2N82SGWQ7XGC2OzaGkU-pY2HVcgxn4prJZms6FN00jrvrXwEdieL8nmuvD0FLQv8YiF0J19tBcsNj81w5t2oQD3SKcD1mi_l_3vLtwXLeH11Z9gxt3QzCLPqZGll_mLTSBQA_B3a0DHfR4TfgYX4tBBWNVmMo_tm8iBX3oiAVCI7AKUzaYu3-l5-LrhSbeU37dikIlVg_odt9yJkfvQpeabOHH1lc20rWBzCPMpus5g0OoMBeV7bwJ55hkbLwY5nTZtZ5X02EFYXzmjCTD-IABOYkBXOZ7L637Ya9LlvFrjDco-E4Pp2VdTyf2UrsDxo8FPvLoNcn0pRybwrPZRtWywF95wNKxztWjVCp6R8s1OYODbRZ77AOW-U1S7o7_cKQYG5SDiYu7XQAsTmSMKocGUYTFP6y0YKMXgdw0vWMz693pfZs5INZcEJEWC57QCkxjfxAwCWjSZWwin1KuC0g-SxXrHNOAhp6B4Vynq7qOspqnijUPsvzyApyRHh0ovNj1ZA3WyH4W-yxpxashjLl2r0z-aFZcrkfIq46HNFnmS0VXm0oiuRiRyPUA3tpOU5ag6UQfphmeNqqS-5Rocy2pTOLzKx-dlqU4srC7sYMMf_904TU49xWK1ft_G4dcVwkAA4wAHMPdDPt3YL2MogChVTYPkyoDfkjmkoSg==",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c4108e9087d196c0ee9af8db5ec4",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "site:holded.com/es Verifactu declaración responsable Holded",
+     "site:getquipu.com Verifactu declaración responsable Quipu",
+     "site:billin.net Verifactu declaración responsable Billin",
+     "site:contasimple.com Verifactu declaración responsable Contasimple"
+    ],
+    "query": "site:holded.com/es Verifactu declaración responsable Holded",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11406283-como-funciona-verifactu-en-holded"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11406443-paso-a-paso-para-configurar-la-ley-antifraude-y-verifactu-en-holded"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/programa-facturacion"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/autonomos"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/programa-facturacion-verifactu-contabilidad-colaborativa"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/blog/mejores-programas-facturacion-verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11406991-verifactu-crear-y-tramitar-una-factura-de-venta"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es/programa-facturacion/cumplimiento-fiscal"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11508249-verifactu-preguntas-frecuentes"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/11813827-verifactu-como-funciona-segun-el-origen-de-las-facturas-de-venta-en-holded"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/es"
+     },
+     {
+      "type": "url",
+      "url": "https://help.holded.com/es/articles/12528766-verifactu-configuracion-para-tpv"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/es/verifactu-declaracion-responsable.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/ca/verifactu-declaracio-responsable.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/en/verifactu-statement-of-compliance.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.holded.com/wp-content/uploads/2017/04/Formacion.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://getquipu.com/fr/declaration-de-conformite-verifactu.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/wp-content/uploads/2019/02/Facturacio%CC%81n-para-auto%CC%81nomos-Billin.pdf"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c4142cb887d19949eb36595ac238",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ39coJuwEvz6kA6Nhwy4re3OXug18CUMh5NjBgJ9r2b1w2qfcjLgO6A3S8izxs9mTqxY5YpLjjLTa2SbJMN7w_i-EIG6q7-kcYdw0i_E5b517HkZzIoJZxPhjtR8VX5lrkJMJXG9nvrPCXYwUoQh_LyFyoAjSEEF2OxcX_US9gjPM0MldT2LRQySXn0A2VwLI-pjHqodEbDAh3iXLRATr9O3k6mUUzUqgTn4H4ym5te-UcbxCpYl0t9DdleYU4YbA4HTwgcFMoSmEAlTVZIiAPVOEVZ1tRswxjjbjnF3eDqyu9-n3uC-6BSPmusl1MkeX8T8ppKeCfvAdFXrejI3B1ZVErQ31d-fM_m9Oh8sSsacvf2P7PAh3u07tt0tcSsiReCLBzLuutOgdqXbLmRIkjF005C_LFVYRCg0BxAHZ1qPoxUAalPSyYZJW9YxmJh7BXjWsKuLJmcKV4tE4Z52Dqx5jy2SwSQ0PpIk0FX-dZCxxPZzSwL9DdbhtAenDc1z1BgldI73arcmVmI3VIXymU4zcBFiA93gePOWuwIGJ1zy9Pbj-7sNdwumLigqYpqlWbVmgMjVVqZ47j_vQ99gWWrm23gCofiy7MRdxGfUNBtPD4-YwNfVepMeEeKOmq5wz8qsns6akuXmWO5eODazywWNYfbsmVzuS1wGyqZgfpZ-qI9wq9MMpmlb9OGfWPI7osVj26cFgpmrHD--Jgy25thwgc1uvld0hKadKwgwMfanmNrMGAlwJ6GRaI0SgWQheEmcRdgY73kHvJVHP6iaT3k4X2YYGduUFfSolFa4pe5vjN-YVe2zwPVhkV5uE-7V93vtStv5ZNaQDuhboiw67ToWK2Sq6nTbnaJLk1Rcl9KFubpnPonYzKl3UI5psqZ9X0gYrkIOAalQZ6hBqCsQ1bKYcZffRwHgh0Gf_fC5iJExNfBEZmZ8rFF3IVSBXnjszdmG_KVOJdDp7cAKkhUHYqFfiaNiHaZj3d_biXyyesVC3-dR9t1kI0pKHTz5n-H_xwfgfA3oMUr_jIkC3EesJAxlAizBKo71CSLxLrR7-vxBJoQ6mSE9cgUtEJX7quSYwNZTDTUnc_lfWaPAtKiIEe1opzC0P0ls676aQ5CD-6ZeSi2W9HdosQlJqWC0UVFx9ip7-vwTZr64nSNSTVV8OoE785AcMQB4_AdSXCrRccn449HsgXZ-6wzbaMb3LmM4zQCHR9QtVJ1FscyWb8JiYqng==",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c414455487d1bbb0a893e3a66c8a",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "queries": [
+     "Billin Verifactu cumple declaración responsable",
+     "site:billin.net/verifactu Billin Verifactu declaración responsable",
+     "FacturaDirecta Verifactu declaración responsable oficial",
+     "Contasimple Verifactu cumple declaración responsable oficial"
+    ],
+    "query": "Billin Verifactu cumple declaración responsable",
+    "sources": [
+     {
+      "type": "url",
+      "url": "https://help.facturadirecta.com/es/articles/12646527-donde-descargar-la-declaracion-responsable-verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://cumplirverifactu.com/software-verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/sistema-verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://help.facturadirecta.com/es/articles/15084489-verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://elige.software/facturacion/verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://verifactu.co/declaracion-responsable/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.facturadirecta.com/verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://obrania.es/software/contasimple-verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.facturadirecta.com/legal/declaracion_responsable_verifactu_20260226.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/wp-content/uploads/pdf-billin/declaracion-responsable-billin.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://obrania.es/software/verifactu/programas/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.guiafiscal.es.tuticketera.es/comparativas/software-verifactu-homologado/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/blog/como-hacer-una-factura-verifactu-paso-a-paso/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.billin.net/funcionalidades/"
+     },
+     {
+      "type": "url",
+      "url": "https://sadeclaraciones.blob.core.windows.net/gextor/GEXTOR%20Declaraci%C3%B3n%20Responsable%20-%20LAST%20VERSION.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.seintosoft.com/Declaracion-Responsable-SEINTOSOFT.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://cdn.janto.es/pro/web5/vivaticket/Declaraci%C3%B3n%20responsable%20del%20sistema%20inform%C3%A1tico%20de%20facturaci%C3%B3n%20para%20Verifactu.pdf"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1t2l9ui/app_de_stripe_que_cumpla_con_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://es.wikipedia.org/wiki/Verifactu"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1r5me8x/hice_una_app_para_los_modelos_130_y_390_le_he/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/u_Mabemola/comments/1veae4t/tpv_modular_compatible_con_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t2la89/app_de_stripe_que_cumpla_con_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1t72bpp/removed/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1wa4oh5/experiencias_trabajando_sin_gestor%C3%ADa/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/EmprendedorES/comments/1wahndj/seguro_que_tu_software_ya_cumple_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1o687ea/qu%C3%A9_software_elegir_que_tenga_verifactu_para_una/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1nq8604/verifactu_u_otro_que_sea_de_facturaci%C3%B3n_para/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1tpadtx/verifactu_para_aut%C3%B3nomos_que_cobran_por_sesi%C3%B3n_lo/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/autonomos/comments/1n1bj5l/recomendaciones_para_software_contable/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.reddit.com/r/AutonomosES/comments/1nq2t0a/plataforma_todoenuno_compatible_con_verifactu/"
+     },
+     {
+      "type": "url",
+      "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html"
+     },
+     {
+      "type": "url",
+      "url": "https://cincodias.elpais.com/legal/2025-11-25/la-adaptacion-de-los-sistemas-de-facturacion-de-la-empresa-familiar-a-la-normativa-verifactu.html"
+     },
+     {
+      "type": "url",
+      "url": "https://cincodias.elpais.com/extras/pymes/2025-11-13/cuenta-atras-para-que-pymes-y-autonomos-se-adapten-a-verifactu-no-es-lo-mas-practico-pero-evita-sustos.html"
+     },
+     {
+      "type": "url",
+      "url": "https://elpais.com/economia/2025-11-24/una-solucion-gratuita-para-adaptarse-al-nuevo-sistema-de-facturacion-de-hacienda.html"
+     },
+     {
+      "type": "url",
+      "url": "https://as.com/actualidad/economia/buenas-noticias-para-millones-de-autonomos-con-hacienda-estos-son-los-empresarios-que-no-tendran-que-usar-verifactu-en-2026-f202511-n/"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c41b8cc487d1a8f94087a2a9e85f",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3dzhpcI_Il9R2ZvL6AGobT2l7ii-2Yzm_2I0_DZexybmFd7LSoR7YKP2o0Z2tRPmqwUylShd7jztS2a3brAlc2R_zCz_2jpKoQnv8n1Q_cYAKSEbfrpXITrjIGfhGG0Nn6BFSJ1KAPj4HA1rb-ClTZE63qeE0AKafsm1UjPIkMB6pkAsetVgSkR6U79zSc2ajLZ5szKzLl04WpAMQKB7Vi7ryAYLbdwiWecNj7o4c0LN4rgPZG3jCjdOq0ZWNCNYDVY2CaJ1X6UQ5Z76pHMgeud5LHCz-qG7BytT_7ZsUdvpaiEPIsYkqim9heP8sYGVATuBvNKjlwshK7Pg2tLdwG297LwlG51h2Vg6xiUXqQWMdIoWoab8W1eHgONbDdw2OfRHrFsY7pHsKg8jBNRlMszqkuuO_fcFsbgcyjdjmG9PjVw_ijRpOxC80XEsTKlzjl1R9W_AfMzVfjYEklrcP3q-YwiufHTrs6SAXEEhGGqAaWV8jdyHpHegZ6WvrMly8AkHsU8IOgkPyuGxPvaDMjaczG24PvQ5JR9XOu87hZX1WK-ikHx6pL58x1N1LwRM9VlcaMFgCqN-53bEzzgO484EgxcX0g0YMWPSbsFpLzMVynKbsUt23-X12C_azGnzT9ax6W6-vBk4Rwv3cRBrxz231yhT9jGT0GlZT2CuiLfZtNuEPjyZyIeU2jeWr4h_Bvcd2sEIYSlCDWMly4ngCwMcXH2fQYa9ZQR3vwJsxEAA7L0nT69PlKC9lpSZe9UmDI1Q-1VS_gLusRVFE0BfzSX_wtO1EEkDC2NNlosrrK8UMA68Dym6rT8ZDBDWqqKbW5WOlZnjIJoJIwae9CBSSZG4_ZbNaFZRIGgZ-jtnkoKGMUfmiYuV60YC3KKEKAF18axMOpThZN-KwEO00awCRvOCPhQVUsEc2jK0n_2akcnt9CkMAHPF-V8brOb0DzHDHq0eypZPlRms2XgM-xT19bdGcU9c0uKtUqekfB0IfArW6PAx62cRFyRHbrylUqP-P0sWChnl2e5k7Tiw6iMFL1Ul8-8PyvtYpUoRG0Y4z7fR4lT_9BcoGlE_FDPSNHqBjHngRJWK2e9XA2lmBtJ38HYFyvIXro7ERJZMfzZZkYsWeyPphiMjlbAd9Ll2VqXv1NXMvvAYxl4DCpN-taK_uPTxwy4fmssZ8Uy_zLGm-AtDkcDsl2pGWnGo2u30QO0kgHRxQ5Z2fidus1N_pAGx7Xz70kpjQrAxyOfHD3i2MrA_B_YYeNLtIkCcVPinV14fQMD5Bp08CpdaNnZhB7p8YoFElMLdnhQIelrFt0Mnxqnl0WkOF5rZPyg7eXXOAdkFGpdRMz0DLC9PwdtVp0A5pg5aQOfTkk65-PzIbF_obNMt5EdmudpaPlX62Nz9Ik-7BomjJ5sSIDaCL-uwZysf-SFSIHeZhHMBee-G7s_TkzQMVWtakDl8RCTR1tgDlhLCZYYpNBEIv3wrhg0MrPeSTKOOaB1TD_n_2PBpryXJc5wkA9ntPiAVkWwcnUf-27CU-aL0MO4a5Vd13d1XdKYiQN_FhmOUFzTmh2Ub-qkXk2zyz8hSbqITtR6PGnWaz_XyZeCEmdGfcEuAtS5_R4FxJ6vQy_rHaNwWM0rVZoRmLR0z4Q_PRqwcFIZjBJQnzm5EmjWugt_f-GXY8yKGXawHSl0qA68uEuoAUOsUIY3NAph51Qmp3VZoBs9IT_4p19aiIOOWbWwTktGYa0K5es7s8-kKUnRocdr5raD41uh7dFnGnSU-v_oHuoTAJVWvCJvBBS6mV4VtFIET_eVe-KbjdNHScFjxkdaaoaj64eTESfR1kHRfu4_BuPULUp3G_chOVc12Q1aQJYKu467kwJN-GjtMgjOXIRbRt9m2tHsBxHRPo4A7JuZRKrR5tZLALPub47B3ERWbuNyN1LQf5FHGJaSdp9608w_8hUc_Dc6QD-P2qnOI6C-DRytS9BViVn7nswyeaYDleDPligUCqOQruHQA3-TmwBCTM8lrd1H4eMtxtUsQXssCHUOOtAPmKuhhBST_pDoNxmveIvbYuKGTmqvgk9RyPSu_sWWqBNOAyzBgMMnRuDdqrAhuxb2oVxgUkZc14C1r-_jU6ugxxt4_G5FL_47yWO0Psfva446ozm1boAYzCLH-m6f3F0P8c1FrZnUbzWKgUNx4ypHmJ1WFyjfCqdn0Ii0Ta8A_1JtW8O03JK6Vo_WVpvulgkftgaosToNoX1Gr9znmKO5_maR2Jyd5mopOeIVyzgzWMEoWATfBipFHNT-bMcq4VV-c7LfB9kEqFg2w0I9bUTmsd2Sj8A3eVCrecnhNsJGi09v4pMIgzjLj16egXTMdPd4hbRsRSCnvNbcEOTCY3hoVtFM7PngB9Al8-ZkvWmNIPhQ8CgKX7ehwlGi-F8ai3CA6Kw-4fqiteMVVLOzW5NcE-4Aumik3POnEnUYJJSu3sqLe_hUcMeBXPLd3E9ZuoGPYVB0gIxeI2QLQWJ1_67lsePA16xvDJWnZ4eURvxBD4TMcUeqhsb2TWN-Hkhz_Gd8AIdAKF_SsZ-93WRNIqJZaZQIi78HWp2YDGHipoEjlAB__Vrrr4yCbhMgrO8WxSjbLQ_mnlZTYN9w8_dLmn-iZvjF0I5ao8KGdo6pNaf_WbNFzfJx2dV0mRZT80eRJMkK7QD4TvwCgNHLH8hNj7W26wq-0_5H9kJuqy5YNIxgCfKhOnp6dSorT842nG6xiXavHhLJIjymWlvDBkxbbiZtX9H52DrBRR9CLrqK3F34_SQ0OyL2HKSURPtAcjPbKZRp_7TvqcpvrP4drjRzMWy8p8TQdHqp8Ah_d7Ula0HUMd3bQIbG1DBC5ez9IhWFmKuQQ8MmaPx8tq0C1t7jzb_Yv2P8MuuSkMZInalt5A0AnI8p4bwCEiQUH9_cD0n-iYxeTDvTms",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c41d050c87d18712258fa6cc7e19",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "open_page",
+    "url": "https://getquipu.com/es/plan-de-precios"
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c41f4f8487d19d03295beac47998",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3A2_7cLjUOSE1H12iVvnrq5jHohBSK5O-Qre_PJss1dQyy_KdQDm5_MlF1h-tCV11KoKUQLC0XZ4lHgxhoTSx3dqNCyb_iGLES_r3GC9tZVxpJbY0OLlt9ec5sP2AcK9O3PS004JDCtCPwLGfNeNhTPd2c4UhihPoAoh4YwuIaYIAZ0KcztLXmNal76mpdXZvIc9H4s-TOd2Cr41CtKVItOBSOqtlD60DsK3ex1cNu9Eg_ELiO3DxsSnF72ntQKtiAy9WHcNvl5QJUsmsEttacJIOTnDotZ4JBZrO9iaJqFrn86jHSA7gmZ1uIHWSJEwwRHc0caHFsssUaEsO3XDPi0FS1QrBT0UIaJUlhp09NnMbtPFxqUepkDzYxiVBC48n7C4ts4redmuGZ2-4bJXgDjtDknJv79Bth9UrfGQ27z1tyMZSYrvXc3N7AkGjVNBY757lbtda75Nom-a_7Bgi2GbNJ7ThfNcG4tLazWhWOru3GmT68lvbi-B2CtJiboPhIUiHDc6tRLB0ZacJkM7B_FekqFHbFRgfaERwiheTLT8SCEG8JvE8VZPVRgouz2PuLK7h6_T_SsLB_wTX4RTuDtk7atQdpZRr4igwUfABcKh3oe-Ja9svfaw9Y4fnjhzPawuqPS_TxnjmaNl67IBUwOaK3_9uoid5f7vPT2O3_ICQqMgXsXh0mNar1XiRYQ6PHRmpLJV0ZiqAEPMUTLdcMF1hFqnUbImZUFtRtlzmsXpsUbVfWCBKIfs3c5dIWezFcJJujx2ynp_GmhrgCRUBU5nYJJDkA0wVGn6o_fup16DHJpZMU-dIgAqsgQymgmd5-lp4-x6aQSxf39kbLA5sKk1OhQdE15ZkEwH2eYQJpHuQOCaCmZa1dp-RaeQZPbNiJx2uQTFIuj7PD4sqgOsUArJ4Phq2g6vDOwcq3tNTIRwpwCmX8abKOMRjy6FhZswLwoIS3DFFYlaNuuLV5Gok8lpwC909W2JQbCIbix4gRiftdTZrPJZGsqJTOBKQCU4G2hmoPs1uakg1wc2ELVMo7spriDiuUGIaTDnoTLM8uoI4c9dYipDtrNNcWnVYXq2MQYKgITK2wvLvrra9ATqvGZR8-PWUMMNsS4-44vseAjr0sNS6fIvn0PZ7Nq1zJhFFxGgxh_UsUwTtPOCFOHcrP5vKMDMQMow1LaER27qvqRaVdA8TVBKIE8WG86OwFbfDbFIvaONB_DYhqwpzDK0CsVDCnYX7WpGEpPwjrZG38Ww=",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c41f8dd887d1a3140bd559b7da93",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "open_page",
+    "url": "https://getquipu.com/es/plan-de-precios"
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c42255b887d1a134a17330eb875f",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3-6eMRDbFPwy6wlTCJL0_FJmQ6JFbXVIyeetW4eAArgMdy04Vt2GzBaQk2BGtjdzmi8L6ES2qD1IllU5sQ-5KoGm8ZC-L_RccnvTdSRRK2gnkYEX-B3j4h11zSRW5OXgUd7VwhPCAS2uInwQ149XKQ28AZfReTMH9Q4Y-vVCVhFSt_MTekqw3PCMWVxbI7nN_zXgdnJ9mBc3m6jcWmUmMjZonhoOOj-0tquguNj1qz7M5riLrMPRoHMVll1HQCJ6-jjwriIX5JU-X4QOVaNpQdzflWLgcKvmZEzOh76hxr27PVG2zuyjRp7Y4AVimZ4VS26UykoehVXyR9iFg6D6s3e7wgReWtmWQe_9BA5Bf_1xWzPwd74BC2FvB5royPbrPV-ujg-5VX3irk2B3EvxolXjhNqULbmcZ6YsfCEsRZnZTpsTMjtmR_rFeLVS2_Zz8uJZheV_3y81o0UnJ20-c8esn77itXNfjifB6GnKWh1ntElrx0NGb5pAw5FNnjvxqWaYsh3w022prJik9OtF_tGeYzugcTYa6eDUxW34d_ERkpCVVwZBwLImG1LFFMBZ1_OFfMJlYsuWkNlsAIIN5LbctC3hXil7Isl1xYahCWdAq9DjC7CcDZUGbceHy238V43zeYgB8Y9VLIuri4vF63eZdnj7r90Gz3qP2SCvDhF-6MOxmZKvYXoBeTiyM-yV_2n2ilHasQv7L4pHCVJhcl3bX7pmff-uJ0GM1c1FDdbmrdflAbzFK0xu054j_UKhrqEsq5wzNxskjvTDTvBhLSli-5qjUk8pxTlBrAH5h4vK9iqIUjq3FF-n-KwdeNOhdHwWcWLBoElCexhMVRU_SICgvC8Cu8IYYowyQYvRphG2ctCW2z4dOMIwoUAAJCwjK0mgizHnkvUcKZveSAxc88MCGvmoVqJ0CQsGpPAY2Eb2lkR9r1oD_3VdYuig0LFY6y6mOGRCVpJDY9L-L1XSR3DUUXtUlb19aP85rwzdEiPzpMfwa-CfotfxqpvLG8XWTTWspCm_u_8wmVLyBVPJCxUbc6a51-rEgxhKVqTJAs4aOSwYCC_F8ZbzUdC6EOcpbwWyp53N-QYug9469JSgUigIgzkzyEJP_0ucg5U_zcP9uZYx71ybpRfhjEkV0a-BcR_IA1TnF6BMTp43Op3B8AbEnNC8AGqmMEI32Fz7FBocSNEM2ljSxJkiA5FqEjm-qVB4v2powOJigDZD-LlLqQg==",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c4228fc887d1ab8aef15c840dabf",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "find_in_page",
+    "pattern": "declaración responsable",
+    "url": "https://www.billin.net/sistema-verifactu/"
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c42450d487d19ba0269a316f7e7c",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3tzNY-qjz5Mgok8VWkUkcZ_CpH9-xu1Oen1hGgXoI8jYi19bBHa0uRUV9EeQP5L8M6uU98GMbGvYymVBEGtWfo1ta2M39AefuOlUYz4BMdtn2mwVN6GJoRQNtcoNZX00y-MouRvDfaXfY81X_AeUkdIWNENqG1t0tDItOidkF-IGnuamfX7ZLrG_uNl3UKcczhNKM46e8emrO-kzWKfU2--Af7K6wKbsLcPUpLxfurJpsvq0HhIulaOXYs_nXaDpe7fGVHlEygMcdKXl8v4-qorEql4gNBR8rgmSfx241VEYTloGYLc3ei8YLNFQ5WR8PYaVeqCuevdYnucVEKmA1zeurmm4Qwr_Wf-7Hocf0SWAZAxKowNsTOXTeLPqqGOJK6w_r-E8Xn9V2fS-BAbSKmPFZVf0ebm-dyG8aFOltgHwDWEgVvpt9gOc2lgYHLmAUCmV-9MWpARHrfQQHoLdhObcU91qniOjoW5UoDJk50g3VHLIqVo0PgYRWdeaznBZxTdwm55zbuCtGsJZpNEiBl_8eQtsVnIAID8s0OJN7F6IzFy5cxRrvdVDDI5ks5ZRW9jZ2nz0k12P3Q-4JvCqRegEwMWu7yGJoeWHLZd4CsuXWd5O4I2lmp6y-nsr8Pj-sHMgZ9t6jpWfvrUxSyxDZUKTC1Km2kSxlY3IdQwVqCF6Av3P2tths8k7hrfzF95apSdz9WsrYwK-56eRXuJtMwjLwQWwBT7semUQS8kCoRqcuLvytwghVg8zDRibHyFOVIBkcKHQpuDzVcyEoMWvtO4poLW9aW8WrFBOBUPYPXpjix9Rc-dVad3Fb6_osi7DbadUL_XcPjJBT3LKE7fdaSYyLravsDwyXh-WU8vrVmMSV3H4o3P1sWx7F_h1c020tn0tLLWa0OdyGaKHg_Q677MeD5RC5-Zl3npbKj7oRGeLgdnAEq2LChVmLTGsGebpxaQq5tbJyooZzikX7YbCqNyujd-q6Th5em0xD0TemHgh_R67cFTuFeULKcaWguQ0qwX2whUkNBKmuqHpzJDdakD8g0ArFxqhPt4dI6FCsOHT1oUcv90YIGP7GiSxqRRI7jQzjm8mpBmw46u2mcR1xFmCrTIluKVv_7e1a2ILU4olyI2paNVTQggruuOTZrMHD_BOGD9qFN9zdllavzOrkt9vbUUPK8Vng6PyhFY3wa1Nhl9jCVZdrs4qN-_hTV3vdSkatQy-2d41d1aEd4DVoDQ==",
+   "summary": []
+  },
+  {
+   "id": "ws_089ee6f8c71b4929006aa6c4247fec87d1b8c49b27ad6d7a2c",
+   "type": "web_search_call",
+   "status": "completed",
+   "action": {
+    "type": "find_in_page",
+    "pattern": "Gratis de por vida",
+    "url": "https://www.contasimple.com/precios/"
+   }
+  },
+  {
+   "id": "rs_089ee6f8c71b4929006aa6c425faf887d1807ac903b311d2e8",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqpsQ3i5bufjioss1suegWri6A0ZBTXin0VLpX1y0tusgoOihimvXGdb_h6aVtFq5vZcZwUj8ba8M25ffw2E7Yif5Qzza-XiPmqGMEY0-bVq-r6tVIEeFdHSec_eBJ8ydZ3q9RCwS3fvajOpOB4Hm5lyHgMbpEvZ2yLVXFQ5jLNF3i-VVN0zuFUgGQcTkSDlehorpsu3aXMB2tfxi3dZHSBMRaDaSawO57W4wlgZ9bIrFY_F3xbkb9Rii9A6fmemxBtadOsVS8_RKLncKqFgPVWJbz9HPKaLko7ZjRLjmSl4P4IQIo2g1jjizkxQ18a13ju4-0IAZ8ys3uIrl4ClZIwdnmIvDm8WeRkythNSXgoQ6HHfripTq-Ql4RRi29UajmJ5CSnao_o0fe0XAwmqhrCfV-J5AM4iXqyOcDPowk5FWY3tCrjwizOmtSvaJ2KdgRaPKlmDwvNQtLdIyhfoKf-Jv0y1Lou471958ZHZSJ8K0P5Ihi_PA_Kp4VO2lbn220ezlnhdZdlrE4jkWvl-05QdUGbnvgVqasjvlE4GSYDx3oOgg4y6dYLlnAjRkRgUX3w6pD85Z-3rjZ3wjpVtKApTKq_-ufVHl2OQvgxN8dnp5TysuuzpeRPSa0jt-UibmYfI3zh1E76gP53XxaiIBlB2M4P47j1ng9ZtVaDkyqGPWGtmRgutiTDY_O4ps0ywlBZ-xsza1tK2vPJhLRZ_Mz2pT-kiwI4UOweRnnJfr1ca54d96lSnjjRs1LyDFw_Z4Qd6cgwH4UBetSeVRbJiyuUuXxnkYV87wZi1epYThFzuE3xYJySzz_9VBvZiiBqsPvWAtCJ4Y4fTgtVqov3F8YWBUNSGwtD2c_nilazh8dvb0MqSTYx7-3F3-1vIYxZ6PdY2apd_t5BuVf0iviKN3Wcni-SuB-VN3qEdjn3xLXDY10YV0BP24_mVbOjm5aWZYxyHo3RMsn-Iw-PeW-Az_0GVR-8CmOjlHdgBL9jqPnNAIvP3zBvZRB_xDJ15v3bC3gK66jhFNuXz6hFMO1f1iiFz1WxD1_wdPVQaHV4pn_GfSOoqKBu9VJ6mV4dg1skxT7-W4LsnpFn6GSnd_PnH28TBvqMgx1BxWo3tuFSiWjQx041UG4bwq2V8BAEoEpQ8N5e3W70aMjVLyy8Spc306Wj4OPGngKsLBCgyhuDDt_i6bJGaTggUjhI78bGWU19iqwx8Q78wjmIqNlu9hW2Z0LFEZqHcaYWcBykLp7C1CmZuGXqx1TPAxDBS69YlC-Cura4yYDw7q6clBWZ4ylyasAy6qrhoJuZbNI0gvvJr1fqnLoRTSPgiGwYUIu9oxPA_T7uTb0epheNctm1s9SydY38gVavhOY_09NZbCfz_AyIIcgyJfQTRJ97eyqi4d-g3ui6BkGVEJ_werXdT70JOVQwPn9nWDaGqzCIbrVmTCXel15YFoWlqsL-BZvaZ1LPKM81GC1qYJZOjXi6zOOK7x2yItyMASR55gBEi2CjJMIdxE6IXifiauyxEDJMhe1Ux4CH_ayfHz6nbp7IyFCHUbo3qkbaGVuVnNKCYGcVqYuOw5vDTYH6ASOXxEyn520djIsfOSaZHWEhEOw4JrDQ093Wh3Z0Q1q9pWeksZlTBtvdgNNM1z-rlZZ7d6V5cvwCRmE8685wa2T4D8aJvpvXvA7hDGwrHFYBoiz7xQxJjIWYiDbalQcJw01ZFtZKxOJ6Ya7Ob0m95BvZ4Mum1M-4SpMr50QSgaRRhPVQ3Z2zGqgvN2P2KUZnx8hNWPvE3G_8GdLN4VCtf5e6MD44KtYZmLVvjsUgEHxqzmWHfflcgIxeY8lPEtNaOrQQn_jjp16CBob9Q1W5pb0N5ugW9P1I3DiMN2dMrxmeOmePr8Fzsz9KKgksL9Wxc9xiufg_STF4EBlTIvplpZCy32XSt-GXBHHKFTlaPmhxrO91veZ4g_w1SkhkmBSfhB6kcFlYzdTRrNyUJo5t4j_SWru801fneo_HgNXq3RZROH_217CYzm_anqXfGUu__vNK4CAlqfwdXw_CZM8zLP-Z7fvNpVRMP12bQ3oOeh6q881ciH3PaL3jzagMiV-Ip7LrZE-ChZRwYVmru_mHRY5Od0FSd1R8ybwuigEq3Bc1vUPpgmj_A9DaOuZo-G32arc_iFjvrl_RNGV2mb5oDk5Cu2T9F-xJ8_UYzCCbN4hoY2Nf6-jsUAzAaA-CJle6Y64NyFbtMBJoCspZj6dHNA8qbwtiWP_LLYKBLSMDrftD53EcF07Nb19DSJmyfV5dE7bIa-Ic35d_GMqGMsZYMjvavsE5Z6OC-hs2QCw-mK7hFuMdC4GwLBw4KFp_lkEaCEVR3mictXibW2EJTnkP_M4oA24xfLnO7VloUxQ-WMngRmYeQIB0s--5OYVLIrKEVREjx3xJ3TDNmDWm4sW97n_NZDjtvLrfmf8lCwmxnIMx6F19u5eI-eoYuDRjJyJn7E54LZ7C34k4yV8e5eLrf9FgOsgXdXdAMA2zmzukslCMNDSeJrsbJtB03aRes4e_A5n_pEZLdyW21eYbec2wwb26Oo043QF3W6AEQgjyjB1hpYH2IqzSmfAuPTVK_Njh4i6cckyi2_f3LPM_152ES937YO2wR358oqFkxXdrN9cdSpLr2MBZBXUkgUgFR-8dZNzWJnH-oG4CL5L7M9CwgZ9h_a12X9Kv1mX66Qp_Ls6GvO6rdzbMy8pP1SDkpZQpiOCzDh_tcp3SsvZQlcqnlMx9aJI7HN7l1mriwBSJRw4nPq3qBUgvsW1Y-x72wP_vSrV04Xs2H_d4Rim88HKYLiVFwZDdcjR4Xvc8HpLtcKQq4KS3r6WLFzbAJFzHa9Di7qczvlO7crDuKfG5gC_k30PbgrOHGAk16Lq9T6d42pYTLS82UJghYcUAFy-i86h87qQ0b0T-iyEcyLzZXrn0Jmn33BTtSFd0wsAHE43p5BZ3hKpE5v5COSuWqGKZBN_O5PJbtf4TBrChOMw6TtLBsbl9wRnjIOu6kUPd0tlPaBLi5xxOxKfUbFQCuB7n3lNx5-9n2RiB9n5rl_qMaGK0IMuBt_OnZvlIc1fulzXAg8hX-Y64cIdS6EVNnzbGtZ_qVxG5hix2Ysza7_MgqOo1wNcrRSzlH1mNVIUR4YWCYuFAcxOHbrxukGXpA-9hegDTbKEH4-FRKsKHRHijuMYJ8dfmYpABOjoCweGb5Nn3Cx1SehpixlBKY1noHS2cgpQRQSx42jIlyvHo9_Bl88f1svSZ7McAItpeiLyroXr6jxlroBwZ27a7A829dAJzXc4MfSh25ILjn8GgVsdpYuq563XhAqDbqf_Dt-nkonF17NX8vpXTtl09wjFmNjDSwywvbJ3_52DuQKMy7DXhGcnK0TaBdGcD7rqLoou1dyhsE_DbaRhgIcZD2fG0yZzC0BLaGsFIa02768zBQ92xhMP5vz1GOX16dysOwEskZoqdh4MM5XqzlFYwQX-5bUv0t3qqzTt5o3VyfV3TKljB6P3T86mqJ4qn_jq87bzdl78w6SZy4A2mHQ0ALg4dBFlyoR8KvJmvYQ8m1MuV6hidZ5eqdTsHOK4K2k5-iDkVF-CTN9hCt6MjKew9nfdQXZ8_Lu4BBTFYqd5y6HhBZeg0il-m-Fmh_E1ATG9jXM16c3vbfzmMkXIUbONLQcA7fm30u-OgNng7uBK5V6IIWV9oqF5",
+   "summary": []
+  },
+  {
+   "id": "msg_089ee6f8c71b4929006aa6c42b12b887d1b67d7a5683ea0598",
+   "type": "message",
+   "status": "completed",
+   "content": [
+    {
+     "type": "output_text",
+     "annotations": [
+      {
+       "type": "url_citation",
+       "end_index": 992,
+       "start_index": 935,
+       "title": "Plan de precios | Quipu",
+       "url": "https://getquipu.com/es/plan-de-precios"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 1335,
+       "start_index": 1286,
+       "title": "Precios a tu medida | Holded",
+       "url": "https://www.holded.com/es/precios"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 1634,
+       "start_index": 1587,
+       "title": "Precios desde 6,6€/mes | TS Facturas Billin",
+       "url": "https://www.billin.net/precios/"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 2101,
+       "start_index": 2020,
+       "title": "Precios",
+       "url": "https://www.facturadirecta.com/pequenos-negocios/precios/"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 2448,
+       "start_index": 2400,
+       "title": "Planes y precios para autónomos del software de Declarando",
+       "url": "https://declarando.es/precios"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 2888,
+       "start_index": 2733,
+       "title": "Agencia Tributaria: Aplicación gratuita de facturación VERI*FACTU",
+       "url": "https://sede.agenciatributaria.gob.es/Sede/todas-noticias/2025/octubre/13/aplicacion-gratuita-facturacion-verifactu.html"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 4001,
+       "start_index": 3803,
+       "title": "Agencia Tributaria: Preguntas frecuentes (FAQ) - Cuestiones generales: objeto",
+       "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes.html?faqId=95604b6cc0eea910VgnVCM100000dc381e0aRCRD"
+      },
+      {
+       "type": "url_citation",
+       "end_index": 4390,
+       "start_index": 4309,
+       "title": "BOE-A-2023-24840 Real Decreto 1007/2023, de 5 de diciembre, por el que se aprueba el Reglamento que establece los requisitos que deben adoptar los sistemas y programas informáticos o electrónicos que soporten los procesos de facturación de empresarios y profesionales, y la estandarización de formatos de los registros de facturación.",
+       "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840&lang=es&p=&tn=1"
+      }
+     ],
+     "logprobs": [],
+     "text": "**Respuesta corta:** si eres un autónomo “normal” en España —servicios, pocos empleados, gestoría externa, facturas y gastos recurrentes— mi recomendación por defecto sería **Quipu**, por equilibrio entre facturación, gastos, previsión de impuestos, app móvil, escaneo de justificantes y adaptación a VeriFactu. Si buscas algo más completo tipo mini-ERP, elegiría **Holded**. Si solo quieres emitir facturas de forma barata y sencilla, miraría **Billin / TS Facturas** o **FacturaDirecta**.\n\n## Mi recomendación según tu caso\n\n| Perfil de autónomo | Mejor opción | Por qué |\n|---|---|---|\n| Autónomo de servicios, freelance, consultor, diseñador, técnico, etc. | **Quipu** | Buen equilibrio entre facturas, gastos, impuestos, app móvil y VeriFactu. Sus planes incluyen facturas y presupuestos ilimitados; el plan Starter aparece desde 17 €/mes —o 168 €/año— y el Solution añade conciliación bancaria, 250 escaneos/mes e integraciones. ([getquipu.com](https://getquipu.com/es/plan-de-precios)) |\n| Autónomo que quiere gestionarlo todo en una sola herramienta: facturación, contabilidad, CRM, proyectos, banco, inventario | **Holded** | Es más completo y escalable. Parte de 15 €/mes + IVA —con descuento inicial—, no tiene plan gratuito permanente y todos los planes incluyen VeriFactu. ([holded.com](https://www.holded.com/es/precios)) |\n| Autónomo que solo quiere facturar rápido, controlar cobros y no complicarse | **Billin / TS Facturas** | Es sencillo, orientado a facturación pura y económico: Básico desde 6,6 €/mes + IVA con facturación anual; Pro 14 €/mes e Ilimitado 23 €/mes. ([billin.net](https://www.billin.net/precios/)) |\n| Autónomo con muy poco volumen o que empieza | **FacturaDirecta** o **Contasimple** | FacturaDirecta tiene plan gratis con facturación online VeriFactu, impuestos en un clic y límites de 10 clientes/10 productos; sus planes de pago empiezan en 12 €/mes o 10 €/mes con pago anual. Contasimple tiene plan gratis limitado a 12 documentos/año y planes desde 10,95 €/mes con pago anual. ([facturadirecta.com](https://www.facturadirecta.com/pequenos-negocios/precios/)) |\n| Autónomo que quiere software + ayuda fiscal/gestoría ligera | **Declarando** | Encaja si quieres que la herramienta te ayude con deducciones, previsión fiscal y soporte más fiscal que contable. Tiene Verifactu Plus desde 9,90 €/mes + IVA y planes con más asesoramiento desde 29,90 €/mes + IVA. ([declarando.es](https://declarando.es/precios)) |\n| Autónomo con 2–3 facturas al trimestre y sin apenas gestión | **App gratuita de la AEAT** | Puede bastar si tu volumen es muy bajo: la AEAT indica que su aplicación gratuita permite generar facturas electrónicas y enviar registros directamente a Hacienda para cumplir VERI*FACTU. ([sede.agenciatributaria.gob.es](https://sede.agenciatributaria.gob.es/Sede/todas-noticias/2025/octubre/13/aplicacion-gratuita-facturacion-verifactu.html)) |\n\n## Veredicto\n\n**Para la mayoría de autónomos, elegiría Quipu.**  \nNo es necesariamente el más barato, pero suele ser el punto medio más razonable: suficientemente simple para un autónomo, más completo que un facturador básico y menos “ERP” que Holded.\n\n**Elegiría Holded** si tienes un negocio que empieza a parecer una pequeña empresa: varios canales de venta, inventario, proyectos, empleados, CRM o necesidad de informes más completos.\n\n**Elegiría Billin o FacturaDirecta** si tu prioridad es pagar poco y emitir facturas sin meterte en una herramienta demasiado amplia.\n\n## Ojo con VeriFactu\n\nComo autónomo persona física, la obligación general de usar sistemas de facturación adaptados al RRSIF/VeriFactu empieza el **1 de julio de 2027**; para sociedades sujetas a Impuesto sobre Sociedades empieza el **1 de enero de 2027**. Hasta entonces, para autónomos, el periodo sigue siendo de adaptación/pruebas. ([sede.agenciatributaria.gob.es](https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes.html?faqId=95604b6cc0eea910VgnVCM100000dc381e0aRCRD))\n\nAdemás, el Real Decreto 1007/2023 exige que los sistemas de facturación garanticen **integridad, conservación, accesibilidad, legibilidad, trazabilidad e inalterabilidad** de los registros, así que no escogería hoy una herramienta que no tenga clara su adaptación a VeriFactu o su declaración responsable. ([boe.es](https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840&lang=es&p=&tn=1))\n\n## Recomendación práctica\n\nSi no quieres darle muchas vueltas:\n\n1. **Prueba Quipu 15 días** si eres freelance/autónomo de servicios.\n2. **Prueba Holded 14 días** si necesitas algo más completo.\n3. **Prueba Billin o FacturaDirecta** si solo quieres facturar barato.\n4. Pregunta a tu gestoría cuál prefiere: si ya trabaja con una de ellas, te ahorrarás tiempo y errores.\n\nMi ranking general sería:\n\n1. **Quipu** — mejor equilibrio para autónomos.  \n2. **Holded** — mejor si quieres crecer o centralizar toda la gestión.  \n3. **Billin / TS Facturas** — mejor opción simple y barata.  \n4. **FacturaDirecta** — buena para empezar o bajo volumen.  \n5. **Declarando** — buena si valoras mucho el acompañamiento fiscal."
+    }
+   ],
+   "phase": "final_answer",
+   "role": "assistant"
+  }
+ ],
+ "parallel_tool_calls": true,
+ "presence_penalty": 0.0,
+ "previous_response_id": null,
+ "prompt_cache_key": null,
+ "prompt_cache_retention": "24h",
+ "reasoning": {
+  "context": "current_turn",
+  "effort": "medium",
+  "mode": "standard",
+  "summary": null
+ },
+ "safety_identifier": null,
+ "service_tier": "default",
+ "store": true,
+ "temperature": 1.0,
+ "text": {
+  "format": {
+   "type": "text"
+  },
+  "verbosity": "medium"
+ },
+ "tool_choice": "auto",
+ "tool_usage": {
+  "image_gen": {
+   "input_tokens": 0,
+   "input_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "output_tokens": 0,
+   "output_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "total_tokens": 0
+  },
+  "web_search": {
+   "num_requests": 7
+  }
+ },
+ "tools": [
+  {
+   "type": "web_search",
+   "return_token_budget": "default",
+   "search_content_types": [
+    "text"
+   ],
+   "search_context_size": "medium",
+   "user_location": {
+    "type": "approximate",
+    "city": null,
+    "country": "ES",
+    "region": null,
+    "timezone": null
+   }
+  }
+ ],
+ "top_logprobs": 0,
+ "top_p": 0.98,
+ "truncation": "disabled",
+ "usage": {
+  "input_tokens": 75298,
+  "input_tokens_details": {
+   "cache_write_tokens": 0,
+   "cached_tokens": 0
+  },
+  "output_tokens": 3232,
+  "output_tokens_details": {
+   "reasoning_tokens": 2025
+  },
+  "total_tokens": 78530
+ },
+ "user": null,
+ "metadata": {}
+}

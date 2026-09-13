@@ -39,6 +39,7 @@ from bs4 import BeautifulSoup
 
 from database import get_db_connection
 from services.llm_monitoring_stats import LLMMonitoringStatsService
+from services.llm_providers.fanout_utils import host_matches_domain, normalize_domain
 
 logger = logging.getLogger(__name__)
 
@@ -327,28 +328,9 @@ def fetch_url_via_jina(url: str) -> Dict:
 # Matching de marca / competidores
 # ---------------------------------------------------------------------------
 
-def normalize_domain(value: Optional[str]) -> str:
-    """Normaliza 'https://www.Foo.com/x' → 'foo.com'"""
-    raw = str(value or '').strip().lower()
-    if not raw:
-        return ''
-    if not raw.startswith(('http://', 'https://')):
-        raw = f'https://{raw}'
-    try:
-        parsed = urlparse(raw)
-    except ValueError:
-        return ''
-    host = (parsed.netloc or '').split('@')[-1].split(':')[0].strip()
-    if host.startswith('www.'):
-        host = host[4:]
-    return host
-
-
-def _host_matches_domain(host: str, domain: str) -> bool:
-    """True si host es el dominio o un subdominio suyo"""
-    if not host or not domain:
-        return False
-    return host == domain or host.endswith(f'.{domain}')
+# normalize_domain y la comparación host↔dominio viven en fanout_utils (única
+# implementación compartida con el fan-out); se reexportan aquí por compatibilidad.
+_host_matches_domain = host_matches_domain
 
 
 def _compile_term_patterns(terms: List[str]) -> List[re.Pattern]:
