@@ -8,7 +8,7 @@
 
 ---
 
-## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-13 21:10)
+## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-13 21:50)
 
 > Para retomar en otra sesión: lee esta sección, luego `CLAUDE-query-fanout.md` (§1b coste) y el `HISTORIAL.md` de
 > `~/Desktop/proyectos/propio/clicandseo/`. Lo que viene después (§0 en adelante) es el plan original; donde choque con esta
@@ -37,10 +37,12 @@
 | **Análisis LLM completo manual en prod** (orden de Carlos) de sus 4 proyectos activos (28 Joma PVC, 29 PCO, 36 Fini, 37 Dreyser; 149 prompts × 4 LLMs), replicando el cron (paralelismo 3, timeout 45 min, completitud) | **prod** | OpenAI, Google y Perplexity 149/149 sin errores; Perplexity con 152 sub-consultas guardadas; coste 11,26 USD; datos de otros usuarios e histórico idénticos (md5). Log en `investigacion/.../run-manual-prod-2026-09-13/` |
 | **Bug encontrado por ese análisis y corregido**: Claude Sonnet 5 antepone a veces un bloque `thinking`; el provider leía `content[0].text` y con el SDK de prod (0.39) llega como TextBlock con `text=None` → la tarea desaparecía sin fila de error. Faltaba el 5-10 % de las respuestas de Anthropic en cada cron desde septiembre (p. ej. Dreyser 23/30 el 01/09) | staging + **prod** (`79404d8` / main `bfc007f`) | Reproducido con SDK 0.39; probado dentro del contenedor de staging con 6 prompts reales que fallaban (6/6 OK, bloques `thinking`+`text`); 16 respuestas del día recuperadas en modo completitud; `verificar_cron_llm_prod.py 2026-09-13` → **VEREDICTO OK** |
 | Engine: contenido vacío o excepción inesperada antes de guardar dejan fila de error (ninguna tarea desaparece en silencio) | staging + **prod** | 3 tests |
+| **Alertas por email**: nuevo check `provider_incomplete` (faltan respuestas de algún LLM) y `_run_checks` único para los dos emails (el de fin de run, que es el que se envía, no llevaba el de cuenta sin crédito). Destino `CRON_ALERTS_EMAIL=info@soycarlosgonzalez.com` | staging + **prod** (`e876e2a` / main `50dc9ca`) | Brevo (consultado desde el contenedor de prod): los emails de fin de run llegan y se abren; el del 11/09 llegó como "✅ OK" pese a 28 fallos de OpenAI y 22 respuestas de Claude perdidas. Checks nuevos pasados en solo lectura por los runs 66-69: los 4 habrían salido CRITICAL |
+| Modal "Active LLM Models": fecha de conocimiento oficial (`claude-sonnet-5` Jan 2026, `gpt-5.5` Dec 2025, Gemini "Not published by Google") y fuera el texto fijo "Perplexity Sonar Pro". El modal lee el registry, así que los modelos nuevos ya salían solos | staging + **prod** | `fetch_current_models` contra BD prod devuelve los 4 modelos con su fecha |
 | Proyecto de prueba prod id 39 borrado (con sus 2 prompts, 8 resultados, 4 snapshots, 2 filas fan-out) | **prod** | Copia en `backup-prod-2026-09-13/proyecto_39_test_antes_de_borrar.json` |
 
-Commits: staging `a066b4c` `71b252b` `145d329` `58717f7` `8c2c6fc` `9f9eb92` `79404d8`; main (cherry-pick) `42964e7` `5f79409` `6070329` `ce18723` `5018e88` `1fdfee1` `bfc007f`.
-Tests: 343 OK; los 26 fallos + 5 errores restantes son previos y necesitan BD local (`test_llm_monitoring_service`, `e2e`, `performance`).
+Commits: staging `a066b4c` `71b252b` `145d329` `58717f7` `8c2c6fc` `9f9eb92` `79404d8` `e09df12` `e876e2a`; main (cherry-pick) `42964e7` `5f79409` `6070329` `ce18723` `5018e88` `1fdfee1` `bfc007f` `0774c1c` `50dc9ca`.
+Tests: 350 OK; los 26 fallos + 5 errores restantes son previos y necesitan BD local (`test_llm_monitoring_service`, `e2e`, `performance`).
 Huella de datos prod (users, proyectos, prompts, resultados, snapshots, Manual AI, AI Mode + md5 de resultados, proyectos y
 usuarios) idéntica antes y después; únicos cambios: errores 213→182 (reparación) y changelog +6 (migración).
 Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fanout-2026-09-13/`
@@ -67,9 +69,12 @@ Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fa
    marca de cambio de metodología en gráficos): cuando haya un cliente que lo contrate.
 5. **Opcional**: probar "fan-out estimado" barato (herramienta de búsqueda propia sin ejecutar; solo primera ronda, sin fuentes,
    etiquetado como estimado) con los 5 prompts de P1 (<1 USD) para valorar si sirve de gancho en todos los planes.
-6. **Negocio**: revisar pricing aun sin búsqueda — con precios corregidos, Business a uso máximo cuesta ~179 USD de LLM de
+6. **Alertas fuera del cron LLM** (Carlos quiere email ante cualquier problema): los emails de Manual AI y AI Mode marcan
+   "✅ OK" con proyectos sin analizar (p. ej. "Manual AI Cron OK · 5/8 OK" el 10/09); revisar si son pausas benignas o huecos y
+   aplicar el mismo criterio. Errores 500 de la app web no avisan por email.
+7. **Negocio**: revisar pricing aun sin búsqueda — con precios corregidos, Business a uso máximo cuesta ~179 USD de LLM de
    229,99 € (sin contar SerpAPI).
-7. **Mantenimiento** (bloque K): rotar `CRON_TOKEN` de `function-bun-model-discovery`; pedir acceso a GPT-5.6 (ChatGPT Free);
+8. **Mantenimiento** (bloque K): rotar `CRON_TOKEN` de `function-bun-model-discovery`; pedir acceso a GPT-5.6 (ChatGPT Free);
    Gemini 3.6 Flash sube a 1,50/7,50 el 2027-01-01; limpiar filas no-chat de OpenAI en el registry; knowledge cutoff de
    `gemini-3.6-flash` y `claude-sonnet-5`.
 
