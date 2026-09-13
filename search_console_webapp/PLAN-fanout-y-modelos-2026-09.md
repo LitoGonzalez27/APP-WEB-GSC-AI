@@ -8,7 +8,7 @@
 
 ---
 
-## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-13 19:05)
+## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-13 21:10)
 
 > Para retomar en otra sesión: lee esta sección, luego `CLAUDE-query-fanout.md` (§1b coste) y el `HISTORIAL.md` de
 > `~/Desktop/proyectos/propio/clicandseo/`. Lo que viene después (§0 en adelante) es el plan original; donde choque con esta
@@ -34,10 +34,13 @@
 | P2 · Esquema fan-out (`search_mode`, `search_enabled_at`, `search_queries`, tabla `llm_monitoring_fanout_queries`) + `fanout_store` + `fanout_utils` | staging + **prod** | Perplexity ya guarda sus sub-consultas |
 | P2 · UPSERT limpia `has_error` al reintentar con éxito | staging + **prod** | test + 0 respuestas válidas marcadas como error |
 | Reparación en prod de 31 respuestas válidas marcadas como error (2026-02-26 … 2026-09-11) | **prod** | Solo `has_error=FALSE`, `error_message=NULL`; snapshots ya las incluían (totales = filas válidas). Copia en `backup-prod-2026-09-13/31_filas_has_error_antes.json` |
+| **Análisis LLM completo manual en prod** (orden de Carlos) de sus 4 proyectos activos (28 Joma PVC, 29 PCO, 36 Fini, 37 Dreyser; 149 prompts × 4 LLMs), replicando el cron (paralelismo 3, timeout 45 min, completitud) | **prod** | OpenAI, Google y Perplexity 149/149 sin errores; Perplexity con 152 sub-consultas guardadas; coste 11,26 USD; datos de otros usuarios e histórico idénticos (md5). Log en `investigacion/.../run-manual-prod-2026-09-13/` |
+| **Bug encontrado por ese análisis y corregido**: Claude Sonnet 5 antepone a veces un bloque `thinking`; el provider leía `content[0].text` y con el SDK de prod (0.39) llega como TextBlock con `text=None` → la tarea desaparecía sin fila de error. Faltaba el 5-10 % de las respuestas de Anthropic en cada cron desde septiembre (p. ej. Dreyser 23/30 el 01/09) | staging + **prod** (`79404d8` / main `bfc007f`) | Reproducido con SDK 0.39; probado dentro del contenedor de staging con 6 prompts reales que fallaban (6/6 OK, bloques `thinking`+`text`); 16 respuestas del día recuperadas en modo completitud; `verificar_cron_llm_prod.py 2026-09-13` → **VEREDICTO OK** |
+| Engine: contenido vacío o excepción inesperada antes de guardar dejan fila de error (ninguna tarea desaparece en silencio) | staging + **prod** | 3 tests |
 | Proyecto de prueba prod id 39 borrado (con sus 2 prompts, 8 resultados, 4 snapshots, 2 filas fan-out) | **prod** | Copia en `backup-prod-2026-09-13/proyecto_39_test_antes_de_borrar.json` |
 
-Commits: staging `a066b4c` `71b252b` `145d329` `58717f7` `8c2c6fc`; main (cherry-pick) `42964e7` `5f79409` `6070329` `ce18723` `5018e88`.
-Tests: 336 OK; los 26 fallos + 5 errores restantes son previos y necesitan BD local (`test_llm_monitoring_service`, `e2e`, `performance`).
+Commits: staging `a066b4c` `71b252b` `145d329` `58717f7` `8c2c6fc` `9f9eb92` `79404d8`; main (cherry-pick) `42964e7` `5f79409` `6070329` `ce18723` `5018e88` `1fdfee1` `bfc007f`.
+Tests: 343 OK; los 26 fallos + 5 errores restantes son previos y necesitan BD local (`test_llm_monitoring_service`, `e2e`, `performance`).
 Huella de datos prod (users, proyectos, prompts, resultados, snapshots, Manual AI, AI Mode + md5 de resultados, proyectos y
 usuarios) idéntica antes y después; únicos cambios: errores 213→182 (reparación) y changelog +6 (migración).
 Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fanout-2026-09-13/`
@@ -51,7 +54,9 @@ Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fa
   (sube por la corrección de precios, no por gasto nuevo).
 
 ### Pendiente (en orden)
-1. **Resultado de la verificación del 15/09** (arriba).
+1. **Resultado de la verificación del 15/09** (arriba). Debería salir Anthropic completo por primera vez desde agosto.
+   Perplexity dio 5 respuestas 429 (límite por minuto del Agent API) con `PERPLEXITY_CONCURRENCY=6`; se recuperaron con los
+   reintentos. Si en crons con más proyectos aparecen huecos de Perplexity, bajar esa variable a 4.
 2. **P3 detrás del interruptor**: búsqueda en OpenAI (Responses API + `web_search`), Anthropic (`web_search_20250305`) y Gemini
    (REST `generateContent` + `google_search`, sin `google-genai`) que **solo** se ejecuta si `search_mode='auto'`. Subir
    `anthropic` en `requirements.txt` junto con ese código. Perplexity `low` para proyectos con búsqueda (`fast` da 1 sola query).
