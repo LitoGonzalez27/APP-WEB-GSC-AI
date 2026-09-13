@@ -109,7 +109,13 @@ def apply_changes(cur, changes):
                 f"WHERE llm_provider = %s AND model_id = %s",
                 [new for _, new in change['diff'].values()] + [provider, model_id],
             )
-            change_type = 'deprecated' if change['diff'].get('is_available', (None, True))[1] is False else 'price_fix'
+            diff = change['diff']
+            if diff.get('is_available', (None, True))[1] is False:
+                change_type = 'deprecated'
+            elif any(k.startswith('cost_per_') for k in diff):
+                change_type = 'price_fix'
+            else:
+                change_type = 'metadata_update'
             cur.execute("""
                 INSERT INTO llm_model_changelog
                     (llm_provider, old_model_id, new_model_id, change_type, changed_by, reason, metadata)
