@@ -1,17 +1,9 @@
 """
-Proveedor Google - Gemini 3 Flash Preview
-Versión: gemini-3-flash-preview (Marzo 2026)
+Proveedor Google (Gemini)
 
-IMPORTANTE:
-- Modelo Flash optimizado para alto volumen y bajo coste
-- RPD mucho mayor que Pro (evita quota_exhausted en cron diario)
-- 4x más barato que Pro: $0.50/$3.00 vs $2/$12 per 1M tokens
-
-MODEL IDs disponibles:
-- gemini-3-flash-preview (principal — alto RPD, bajo coste)
-- gemini-3.1-pro-preview (premium — bajo RPD, más razonamiento)
-
-Docs: https://ai.google.dev/gemini-api/docs/models
+- Modelo: el `is_current` de llm_model_registry (fallback en base_provider.DEFAULT_MODELS).
+- Precios: siempre desde BD, nunca hardcodeados. Gemini 3.x factura el
+  razonamiento como salida (ver cálculo de output_tokens).
 """
 
 import os
@@ -22,25 +14,17 @@ import google.generativeai as genai
 from .base_provider import (
     BaseLLMProvider,
     get_model_pricing_from_db,
-    get_current_model_for_provider,
+    resolve_model_id,
     extract_urls_from_text
 )
 from .locale_helpers import LocaleContext, build_system_instruction
-from .retry_handler import with_retry
+from .retry_handler import with_retry, note_health_check_failure
 
 logger = logging.getLogger(__name__)
 
 
 class GoogleProvider(BaseLLMProvider):
-    """
-    Proveedor para Gemini 3 Flash (Google)
-
-    Características:
-    - Modelo Flash optimizado para alto volumen
-    - RPD muy superior al Pro (ideal para cron con muchos proyectos)
-    - Multimodal (texto, imágenes, audio, video)
-    - 4x más barato que Gemini Pro
-    """
+    """Proveedor para Gemini (Google)."""
 
     def __init__(self, api_key: str, model: str = None):
         """
@@ -52,13 +36,7 @@ class GoogleProvider(BaseLLMProvider):
         """
         genai.configure(api_key=api_key)
 
-        if model:
-            self.model_name = model
-        else:
-            self.model_name = get_current_model_for_provider('google')
-            if not self.model_name:
-                self.model_name = 'gemini-3.5-flash'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3.5-flash por defecto")
+        self.model_name = resolve_model_id('google', model)
         
         generation_config = {
             'max_output_tokens': 65536,
@@ -129,8 +107,14 @@ class GoogleProvider(BaseLLMProvider):
 
             if hasattr(response, 'usage_metadata') and response.usage_metadata:
                 input_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
-                output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
                 total_tokens = getattr(response.usage_metadata, 'total_token_count', 0)
+                # Gemini 3.x factura el razonamiento (thoughtsTokenCount) como
+                # salida, pero candidates_token_count no lo incluye y el SDK
+                # legacy no expone el campo: se deriva de total - prompt.
+                output_tokens = max(
+                    getattr(response.usage_metadata, 'candidates_token_count', 0),
+                    total_tokens - input_tokens,
+                )
             else:
                 # Estimación sobre final_prompt (no query) para reflejar coste real
                 input_tokens = int(len(final_prompt.split()) * 1.3)
@@ -175,18 +159,6 @@ class GoogleProvider(BaseLLMProvider):
     def get_provider_name(self) -> str:
         return 'google'
     
-    def get_model_display_name(self) -> str:
-        display_names = {
-            'gemini-3.5-flash': 'Gemini 3.5 Flash',
-            'gemini-3-flash-preview': 'Gemini 3 Flash',
-            'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
-            'gemini-3-pro-preview': 'Gemini 3 Pro',
-            'gemini-3-pro-image-preview': 'Gemini 3 Pro Image',
-            'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
-            'gemini-1.5-flash': 'Gemini 1.5 Flash',
-            'gemini-pro': 'Gemini Pro'
-        }
-        return display_names.get(self.model_name, self.model_name)
     
     def test_connection(self) -> bool:
         """
@@ -209,5 +181,6 @@ class GoogleProvider(BaseLLMProvider):
                 logger.error("❌ Google connection test failed: No response")
                 return False
         except Exception as e:
+            note_health_check_failure(self.get_provider_name(), e)
             logger.error(f"❌ Google connection test failed: {e}")
             return False

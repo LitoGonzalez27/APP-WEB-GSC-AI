@@ -336,6 +336,71 @@ def _check_provider_coverage(run: Dict, get_db_connection_fn) -> Optional[Dict]:
                 pass
 
 
+def _check_provider_billing(run: Dict, get_db_connection_fn) -> Optional[Dict]:
+    """
+    Alert si algún provider se quedó sin crédito durante el run.
+
+    El retry_handler guarda estos fallos con el prefijo estable
+    `provider_billing_exhausted: <provider>: <mensaje API>` (incidente de OpenAI
+    del 2026-09-11: 38/240 errores sin que ninguna alerta lo explicara).
+    """
+    from services.llm_providers.retry_handler import BILLING_EXHAUSTED_ERROR_PREFIX
+
+    started = run.get('started_at')
+    completed = run.get('completed_at')
+    if not started or not completed:
+        return None
+    conn = None
+    try:
+        conn = get_db_connection_fn()
+        if conn is None:
+            return None
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT llm_provider, COUNT(*) AS n, MIN(error_message) AS sample
+            FROM llm_monitoring_results
+            WHERE created_at >= %s AND created_at <= %s
+              AND has_error = TRUE
+              AND error_message LIKE %s
+            GROUP BY llm_provider
+            ORDER BY llm_provider
+        """, (started, completed, f'{BILLING_EXHAUSTED_ERROR_PREFIX}%'))
+        rows = cur.fetchall() or []
+        if not rows:
+            return None
+
+        parts = []
+        for r in rows:
+            prov, n = (r['llm_provider'], r['n']) if isinstance(r, dict) else (r[0], r[1])
+            parts.append(f"{prov} ({n} prompts sin ejecutar)")
+        return {
+            'type': 'provider_billing_exhausted',
+            'severity': 'high',
+            'metric': '; '.join(parts),
+            'threshold': 'sin crédito',
+            'message': (
+                'La API de uno o más proveedores rechazó las peticiones por falta de crédito: '
+                + '; '.join(parts) + '. Recarga el saldo de la cuenta del proveedor; '
+                'el siguiente run lo retomará solo (el breaker se reabre tras '
+                'BILLING_EXHAUSTED_COOLDOWN segundos).'
+            ),
+        }
+    except Exception as e:
+        logger.warning(f"[cron_alerts] provider-billing check skipped: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return None
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 # ---------------------------------------------------------------------------
 # Email rendering and sending
 # ---------------------------------------------------------------------------
@@ -505,6 +570,12 @@ def check_and_send_cron_alerts(run_id: int, get_db_connection_fn=None) -> Dict:
         if a: alerts.append(a)
     except Exception as e:
         logger.warning(f"[cron_alerts] provider-coverage check failed: {e}")
+
+    try:
+        a = _check_provider_billing(run, get_db_connection_fn)
+        if a: alerts.append(a)
+    except Exception as e:
+        logger.warning(f"[cron_alerts] provider-billing check failed: {e}")
 
     if not alerts:
         logger.info(f"[cron_alerts] run {run_id}: no thresholds breached")

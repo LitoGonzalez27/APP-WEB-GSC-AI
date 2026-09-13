@@ -1,18 +1,9 @@
 """
-Proveedor OpenAI - GPT-5.4
-Última actualización: 15 Marzo 2026
+Proveedor OpenAI (GPT)
 
-IMPORTANTE:
-- Modelo: gpt-5.4 (último flagship de OpenAI)
-- NO hardcodees precios aquí (se leen de BD)
-- El modelo actual se obtiene de BD (is_current=TRUE)
-
-MODEL IDs disponibles:
-- gpt-5.4 (último flagship, 128K context, 16K output)
-- gpt-5.3-chat-latest (snapshot anterior de ChatGPT)
-- gpt-5-mini (versión económica y rápida)
-
-Docs: https://platform.openai.com/docs/models/gpt-5
+- Modelo: `OPENAI_PREFERRED_MODEL` o el `is_current` de llm_model_registry
+  (fallback en base_provider.DEFAULT_MODELS).
+- Precios: siempre desde BD, nunca hardcodeados.
 """
 
 import logging
@@ -23,24 +14,17 @@ import openai
 from .base_provider import (
     BaseLLMProvider,
     get_model_pricing_from_db,
-    get_current_model_for_provider,
+    resolve_model_id,
     extract_urls_from_text
 )
 from .locale_helpers import LocaleContext, build_system_instruction
-from .retry_handler import with_retry  # Sistema de retry
+from .retry_handler import with_retry, note_health_check_failure
 
 logger = logging.getLogger(__name__)
 
 
 class OpenAIProvider(BaseLLMProvider):
-    """
-    Proveedor para OpenAI (GPT-5.4)
-
-    Características:
-    - Último flagship de OpenAI (GPT-5.4)
-    - Ventana de contexto de 128K tokens
-    - Max output: 16,384 tokens
-    """
+    """Proveedor para OpenAI (GPT)."""
     
     def __init__(self, api_key: str, model: str = None):
         """
@@ -65,15 +49,8 @@ class OpenAIProvider(BaseLLMProvider):
         if preferred:
             self.model = preferred
             logger.info(f"ℹ️ OPENAI_PREFERRED_MODEL detectado: {self.model}")
-        elif model:
-            self.model = model
         else:
-            # Obtener modelo marcado como 'current' en BD
-            self.model = get_current_model_for_provider('openai')
-            if not self.model:
-                # Fallback a GPT-5.4
-                self.model = 'gpt-5.4'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.4' por defecto")
+            self.model = resolve_model_id('openai', model)
         
         # ✅ CORRECCIÓN: Obtener pricing de BD (SINGLE SOURCE OF TRUTH)
         self.pricing = get_model_pricing_from_db('openai', self.model)
@@ -262,33 +239,26 @@ class OpenAIProvider(BaseLLMProvider):
     def get_provider_name(self) -> str:
         return 'openai'
     
-    def get_model_display_name(self) -> str:
-        # Mapeo de IDs a nombres legibles
-        display_names = {
-            'gpt-5.4': 'GPT-5.4',
-            'gpt-5.4-pro': 'GPT-5.4 Pro',
-            'gpt-5.3-chat-latest': 'GPT-5.3 Chat Latest',
-            'gpt-5.2': 'GPT-5.2',
-            'gpt-5.2-chat-latest': 'GPT-5.2 Chat Latest',
-            'gpt-5.2-pro': 'GPT-5.2 Pro',
-            'gpt-5-mini': 'GPT-5 Mini',
-            'gpt-5': 'GPT-5',
-            'gpt-4o': 'GPT-4o',
-            'gpt-4o-mini': 'GPT-4o Mini',
-            'gpt-4-turbo': 'GPT-4 Turbo',
-            'gpt-4': 'GPT-4'
-        }
-        return display_names.get(self.model, self.model)
     
     def test_connection(self) -> bool:
         """
-        Verifica que la API key funcione
+        Llamada mínima real al modelo configurado.
+
+        `models.list()` respondía OK aunque la cuenta no tuviera crédito
+        (incidente 2026-09-11): el cron no se enteraba y fallaba prompt a prompt.
+        Si el fallo es por falta de crédito se abre ya el circuit breaker.
         """
+        token_param = 'max_completion_tokens' if self.model.startswith('gpt-5') else 'max_tokens'
         try:
-            # Intentar listar modelos (operación ligera)
-            self.client.models.list()
+            self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": "Hi"}],
+                timeout=30,
+                **{token_param: 16},
+            )
             logger.info("✅ OpenAI connection test successful")
             return True
         except Exception as e:
+            note_health_check_failure(self.get_provider_name(), e)
             logger.error(f"❌ OpenAI connection test failed: {e}")
             return False

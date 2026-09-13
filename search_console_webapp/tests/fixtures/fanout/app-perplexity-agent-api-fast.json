@@ -1,0 +1,178 @@
+{
+ "background": false,
+ "completed_at": 1789298376,
+ "created_at": 1789298376,
+ "error": null,
+ "frequency_penalty": 0,
+ "id": "resp_6baaedef-6063-46f0-8d0b-4cf53c491ab9",
+ "incomplete_details": null,
+ "instructions": null,
+ "max_output_tokens": null,
+ "max_tool_calls": null,
+ "metadata": {},
+ "model": "openai/gpt-5.6-luna",
+ "object": "response",
+ "output": [
+  {
+   "queries": [
+    "¿Cuál es el mejor software de facturación para autónomos en España?"
+   ],
+   "results": [
+    {
+     "date": "2025-10-22",
+     "id": 1,
+     "last_updated": "2026-09-11",
+     "snippet": "Los 9 mejores programas de facturación para autónomos · 1. Holded · 2. Declarando · 3. BitFactura · 4. Odoo · 5. ContaSimple · 6. Invoicely · 7.",
+     "source": "web",
+     "title": "Top 9 programas de facturación para autónomos y pymes",
+     "url": "https://www.holded.com/es/blog/programa-facturacion-autonomos"
+    },
+    {
+     "date": "2018-03-19",
+     "id": 2,
+     "last_updated": "2026-03-04",
+     "snippet": "QUIPU: de lo mejor que hay como sistema contable, pero necesitas un volumen importante para que te salga a cuenta. · SAGE ONE: quien tuviera la idea de aliarse ...",
+     "source": "web",
+     "title": "Sistema contable para autónomos: Cuáles son los mejores",
+     "url": "https://www.albadelgado.com/sistema-contable-autonomos-mis-9-favoritos/"
+    },
+    {
+     "date": "2025-10-29",
+     "id": 3,
+     "last_updated": "2026-09-11",
+     "snippet": "**Los mejores programas de facturación en España en 2026 son Holded, Mgest, Factusol, Odoo y Contasol.** Cada uno responde a un perfil distinto:\n- **Mejor para autónomos:** Holded o Mgest, por su facilidad de uso y precio asequible.\n- **Mejor opción gratuita:** Mgest Lite (hasta 200 ventas/año) o Contasol en su versión local.\n...\nPara autónomos, los programas más recomendados son **Holded y Mgest**.\nHolded destaca por integrar facturación, contabilidad y gestión del negocio en una sola plataforma desde 7,50 €/mes, con app móvil y acceso desde la nube.",
+     "source": "web",
+     "title": "¿Cómo elegir el mejor...",
+     "url": "https://www.holded.com/es/blog/los-mejores-programas-de-facturacion"
+    },
+    {
+     "date": "2026-04-27",
+     "id": 4,
+     "last_updated": "2026-08-26",
+     "snippet": "La primera: **¿cuántas facturas emites al mes?** Si son menos de diez y tu actividad es sencilla, opciones como Contasimple o Billin cubren perfectamente la normativa con un coste mínimo.",
+     "source": "web",
+     "title": "Los mejores programas de facturación para autónomos y pymes en ...",
+     "url": "https://okdiario.com/economia/mejores-programas-facturacion-autonomos-pymes-espana-2026-16684764"
+    },
+    {
+     "date": "2025-11-17",
+     "id": 5,
+     "last_updated": "2026-06-17",
+     "snippet": "FacturaDirecta es una opción muy recomendada para autónomos y pequeñas empresas que necesitan emitir facturas de forma rápida sin complicarse con menús o ...",
+     "source": "web",
+     "title": "Los 16 mejores software de facturación en España en 2026",
+     "url": "https://banktrack.com/blog/software-facturacion-espana"
+    },
+    {
+     "date": "2026-05-20",
+     "id": 6,
+     "last_updated": "2026-06-18",
+     "snippet": "|Software|Precio desde|VeriFactu|Canal|Velocidad emisión|Perfil ideal|\n...\n|**FactuChat** 9s|0 EUR (10 fact/mes)|Sí, nativo|Bot Telegram|**9 seg**|Autónomo solo, freelance, profesional|\n...\n|Software|Plan recomendado|Coste mensual|Coste anual|Coste por factura|\n...\nDepende del perfil.\nPara autónomo solo con pocas facturas que quiere cumplir VeriFactu sin curva de aprendizaje, FactuChat (factura por voz/foto en Telegram, 9 segundos) gana en velocidad y simplicidad.",
+     "source": "web",
+     "title": "Software facturación autónomos España 2026: comparativa 10 ...",
+     "url": "https://factuchat.es/software-facturacion-autonomos-espana-2026/"
+    },
+    {
+     "date": "2026-01-15",
+     "id": 7,
+     "last_updated": "2026-09-12",
+     "snippet": "El **mejor programa de facturación** será siempre aquel que se adapte a la realidad del negocio, mantenga datos coherentes, reduzca tareas repetitivas y permita trabajar con estabilidad tanto desde el ordenador como desde el móvil.",
+     "source": "web",
+     "title": "Mejores Software de Facturación - Contasimple",
+     "url": "https://www.contasimple.com/blog/mejores-programas-facturacion-2/"
+    },
+    {
+     "id": 8,
+     "last_updated": "2026-09-10",
+     "snippet": "|Software|Precio desde|Verifactu|SII|Contabilidad|Mejor para|\n|--|--|--|--|--|--|\n|**Holded**|14 €/mes|Sí|Sí|Completa|Pymes (solución integral)|",
+     "source": "web",
+     "title": "Mejor software de facturación autónomos y pymes España 2026",
+     "url": "https://tangramconsulting.es/noticias/software-de-facturacion-para-autonomos-y-pymes-en-espana-el-mejor-de-2026"
+    },
+    {
+     "date": "2026-04-01",
+     "id": 9,
+     "last_updated": "2026-07-14",
+     "snippet": "Si tuviéramos que elegir el programa de facturación más completo del mercado español para una pyme en fase de crecimiento, la respuesta más honesta en 2026 es Holded.",
+     "source": "web",
+     "title": "Los mejores programas de facturación para pymes con equipo en ...",
+     "url": "https://www.infoautonomos.com/blog/top-programa-facturacion/"
+    },
+    {
+     "date": "2025-07-08",
+     "id": 10,
+     "last_updated": "2025-10-08",
+     "snippet": "**Facturate** ofrece justo eso: una solución pensada para que los autónomos trabajen más tranquilos, sin contratos, sin letra pequeña y con la confianza de estar cumpliendo con Hacienda.",
+     "source": "web",
+     "title": "Mejor software de facturación para autónomos en 2025",
+     "url": "https://facturate.es/mejor-software-de-facturacion-autonomos-en-espana/"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "content": [
+    {
+     "annotations": [],
+     "text": "Para la mayoría de autónomos en España, **Holded** es la opción más completa: combina facturación, gastos, gestión y contabilidad en la nube, con aplicación móvil y soporte para requisitos como Veri*Factu según comparativas recientes.[1][3][8] Sin embargo, si solo necesitas emitir pocas facturas, puede resultar más caro o complejo de lo necesario.\n\n| Necesidad | Opción recomendada | Motivo |\n|---|---|---|\n| Solución integral y crecimiento | **Holded** | Facturación, contabilidad y gestión en una sola plataforma; adecuada si tienes muchos clientes o quieres centralizar el negocio.[3][8] |\n| Facturación sencilla y económica | **Contasimple** o **Billin** | Suficientes para actividades simples y menos de diez facturas mensuales.[4] |\n| Alternativa gratuita o de bajo coste | **Mgest Lite** o **ContaSOL** | Mgest Lite ofrece un plan limitado a 200 ventas anuales y ContaSOL tiene una versión local gratuita, según la comparativa consultada.[3] |\n| Gestión fiscal orientada al autónomo | **Declarando** | Interesante si valoras ayuda con impuestos además de emitir facturas; aparece entre las principales opciones para autónomos.[1] |\n| Uso rápido y minimalista | **FacturaDirecta** | Enfocada en crear facturas rápidamente sin menús complejos.[5] |\n| Autónomo que quiere facturar desde Telegram | **FactuChat** | Está orientado a profesionales individuales y ofrece un plan gratuito limitado, con facturación mediante texto, voz o fotografía.[6] |\n\n**Recomendación práctica:**\n\n- Elige **Holded** si prevés crecer, necesitas controlar gastos o quieres conectar facturación y contabilidad.\n- Elige **Contasimple** o **Billin** si eres freelance y solo buscas facturas, presupuestos y control básico.\n- Elige **Declarando** si tu prioridad es combinar facturación con orientación fiscal.\n- Antes de contratar, confirma que el plan concreto incluye **Veri*Factu**, facturas rectificativas, series, exportación de datos y acceso para tu asesor. Las funciones y precios pueden variar según el plan.[3][8]\n\n**Veredicto:** **Holded es el mejor en conjunto; Contasimple o Billin suelen ser mejores por sencillez y coste para un autónomo con poca facturación.**",
+     "type": "output_text"
+    }
+   ],
+   "id": "msg_9b1ad282-ed99-4a69-b965-e0ded8520acd",
+   "role": "assistant",
+   "status": "completed",
+   "type": "message"
+  }
+ ],
+ "parallel_tool_calls": true,
+ "presence_penalty": 0,
+ "previous_response_id": null,
+ "prompt_cache_key": null,
+ "reasoning": null,
+ "safety_identifier": null,
+ "service_tier": "priority",
+ "status": "completed",
+ "store": true,
+ "temperature": 1,
+ "text": {
+  "format": {
+   "type": "text"
+  }
+ },
+ "tool_choice": "auto",
+ "tools": [],
+ "top_logprobs": 0,
+ "top_p": 1,
+ "truncation": "",
+ "usage": {
+  "cost": {
+   "cache_creation_cost": 0.00152,
+   "currency": "USD",
+   "input_cost": 0,
+   "output_cost": 0.00137,
+   "tool_calls_cost": 0.0025,
+   "tool_calls_cost_details": {
+    "search_web": 0.0025
+   },
+   "total_cost": 0.00539
+  },
+  "input_tokens": 3044,
+  "input_tokens_details": {
+   "cache_creation_input_tokens": 3041,
+   "cache_read_input_tokens": 0,
+   "cached_tokens": 0
+  },
+  "output_tokens": 570,
+  "output_tokens_details": {
+   "reasoning_tokens": 58
+  },
+  "tool_calls_details": {
+   "search_web": {
+    "cost_usd": 0.0025,
+    "invocation": 1
+   }
+  },
+  "total_tokens": 3614
+ },
+ "user": null
+}
