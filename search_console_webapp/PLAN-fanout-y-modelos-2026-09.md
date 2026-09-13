@@ -8,7 +8,7 @@
 
 ---
 
-## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-13 21:50)
+## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-13 23:10)
 
 > Para retomar en otra sesión: lee esta sección, luego `CLAUDE-query-fanout.md` (§1b coste) y el `HISTORIAL.md` de
 > `~/Desktop/proyectos/propio/clicandseo/`. Lo que viene después (§0 en adelante) es el plan original; donde choque con esta
@@ -55,16 +55,40 @@ Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fa
   proveedores sin errores, modelos nuevos, Perplexity con `model_reported` `openai/...` y filas de fan-out, coste ~15-20 USD
   (sube por la corrección de precios, no por gasto nuevo).
 
+- **P3 + interruptor en admin + ponderación de unidades** (rama `feature/llm-fanout-p3`, desde `staging` `b8818af`).
+  Aprobado por Carlos el 2026-09-13 (noche) con estas decisiones: pesos **por modo del proyecto** (no por si buscó),
+  iniciales OpenAI ×7, Anthropic ×10, Gemini ×3, Perplexity ×3 (coste medido en P1, a recalcular con staging); las filas
+  con error cuentan 1; coste de Gemini con búsqueda a **precio de lista** (14 USD/1.000 consultas) aunque haya 5.000
+  gratis al mes. Precios oficiales comprobados el 2026-09-13: OpenAI 10 USD/1.000 llamadas + tokens del contenido
+  (modelos de razonamiento), Anthropic 10 USD/1.000 búsquedas, Gemini 3.x 14 USD/1.000 consultas (se cobra cada consulta).
+  Técnica: búsqueda por REST en los tres proveedores (como P1 y Perplexity), sin subir el SDK de Anthropic (0.39 en
+  staging y prod, comprobado en el contenedor) y sin tocar el camino `off`. Seguimiento paso a paso en la tabla de abajo.
+
+  | Paso | Estado | Evidencia |
+  |---|---|---|
+  | Código + tests | hecho (`abd249d`) | 411 OK; los 26 fallos + 5 errores son los previos (BD local). 60 tests nuevos (`test_llm_web_search.py`, `test_llm_search_units.py`) también en verde con los SDK de prod (openai 1.109.1, anthropic 0.39.0, httpx 0.27.2) |
+  | Migración `migrate_llm_search_p3.py` en BD staging | hecho | Simulación sin escribir → `--apply` (esquema + 4 precios) → re-ejecución 0 cambios. Huella de datos idéntica (md5 resultados/proyectos/usuarios); solo changelog 22→26 y columna nueva |
+  | Deploy staging | hecho | `staging` `abd249d`, deployment SUCCESS, arranque sin errores, `/api/llm-monitoring/health` 200; endpoint del interruptor sin login → 401 |
+  | E2E staging modo `off` (proyecto 11) | hecho | Por el endpoint desplegado del cron. 4/4 OK, `units_consumed=1`, OpenAI/Claude/Gemini sin búsqueda (fuentes `extracted`, sin fan-out), Perplexity `fast`. Suma de unidades del usuario = nº de filas (567 = 567) |
+  | E2E staging modo `auto` (proyectos 11 y 12, 3 prompts activos × 4 LLMs; el 113 está en un set de temporada fuera de ventana) | hecho | 12/12 sin errores. OpenAI 3-4 llamadas y 3-6 páginas (11-14 sub-consultas), 0,36 USD/prompt, ×7 unidades; Claude 2-3 búsquedas, 0,095 USD, ×10; Gemini 2 consultas, 0,037 USD, ×3, URLs resueltas (0 redirecciones); Perplexity `low` 2-3 rondas, 0,009 USD, ×3. Fan-out en la tabla normalizada con `brand_in_sources` (NULL en Gemini). Cuota de usuario, cuota por proyecto y listado admin leen unidades ponderadas (93 = 31 + 62). Snapshots con coste de búsqueda. Coste total de las pruebas ~1,6 USD |
+  | Interruptor | hecho | `set_project_search_mode` en ambos sentidos (misma función que el endpoint); al desactivar conserva `search_enabled_at`; mismo modo = no escribe. Proyectos de staging devueltos a `off` (los 3 en `off`). JS del panel con sintaxis válida y nombre malicioso escapado (prueba con node). **Falta** probar el botón en el panel con la sesión de Carlos |
+  | Producción | **pendiente de orden de Carlos** | Orden previsto: huella → `migrate_llm_search_p3.py` (simulación → `--apply` → re-ejecución) → cherry-pick a `main` → deploy → huella y health. Todos los proyectos siguen en `off`. Antes de activar a un cliente real: P4 (capacidad del cron y rate limits con búsqueda) |
+
+  Pesos observados en staging (1 solo prompt con los dos modos, muestra insuficiente para cambiarlos): OpenAI ×5,9,
+  Claude ×18, Gemini ×4,5, Perplexity ×1,7 frente a sin búsqueda. Recalcular con la primera semana del cliente piloto.
+
+  Decisión técnica tomada al programar (para revisar con Carlos): con búsqueda, `sources` guarda **solo las URLs citadas**
+  en la respuesta. La detección de marca cuenta un enlace de `sources` como mención; OpenAI recupera ~145 URLs por prompt
+  y cita ~8, así que guardar todas inflaría la tasa de mención con páginas que el usuario no ve. Todas las recuperadas
+  quedan en el fan-out (`search_queries[].sources` y `llm_monitoring_fanout_queries`, con `brand_in_sources`).
+  Perplexity sigue como estaba.
+
 ### Pendiente (en orden)
 1. **Resultado de la verificación del 15/09** (arriba). Debería salir Anthropic completo por primera vez desde agosto.
    Perplexity dio 5 respuestas 429 (límite por minuto del Agent API) con `PERPLEXITY_CONCURRENCY=6`; se recuperaron con los
    reintentos. Si en crons con más proyectos aparecen huecos de Perplexity, bajar esa variable a 4.
-2. **P3 detrás del interruptor**: búsqueda en OpenAI (Responses API + `web_search`), Anthropic (`web_search_20250305`) y Gemini
-   (REST `generateContent` + `google_search`, sin `google-genai`) que **solo** se ejecuta si `search_mode='auto'`. Subir
-   `anthropic` en `requirements.txt` junto con ese código. Perplexity `low` para proyectos con búsqueda (`fast` da 1 sola query).
-3. **Interruptor en el admin** (activar/desactivar `search_mode` por proyecto y fijar `search_enabled_at`) + **ponderación de
-   unidades**: un prompt con búsqueda consume más unidades (orientativo: OpenAI ×6, Anthropic ×8, Gemini ×3, Perplexity ×2-3,
-   a recalcular con datos reales). Sin esto, activar a un cliente le come el margen.
+2. ~~P3 detrás del interruptor~~ y 3. ~~interruptor en el admin + ponderación de unidades~~: **hechos y verificados en
+   staging** (ver "En curso"). Sin subir el SDK de `anthropic` (REST). Pendiente la orden de Carlos para producción.
 4. **Capacidad del cron con búsqueda** (bloque E) y **UI de fan-out** (bloque H: bloque en la respuesta, pestaña Fan-out,
    marca de cambio de metodología en gráficos): cuando haya un cliente que lo contrate.
 5. **Opcional**: probar "fan-out estimado" barato (herramienta de búsqueda propia sin ejecutar; solo primera ronda, sin fuentes,
