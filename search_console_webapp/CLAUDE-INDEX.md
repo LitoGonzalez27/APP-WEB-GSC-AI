@@ -48,6 +48,9 @@ Patrón: `CLAUDE-<area>.md`, en español, con guiones, todo minúsculas excepto 
 | [`CLAUDE-emails-alertas.md`](./CLAUDE-emails-alertas.md) | ✅ | Brevo SMTP + API REST, `email_service.py` / `brevo_api_service.py` / `cron_alerts.py`, alertas (duración / error rate / cost spike / stuck quota / unmatched customer), aprobación de modelos LLM por email, plantillas hardcoded. |
 | [`CLAUDE-integraciones.md`](./CLAUDE-integraciones.md) | ✅ | Mapa exhaustivo de APIs externas: GSC, SerpAPI, Stripe, OpenAI/Anthropic/Gemini/Perplexity, Brevo, OAuth Google, reCAPTCHA v3, Jina.ai Reader, GTM. Tools MCP del usuario (Ahrefs, GA4, Notion, Figma, Hostinger). Servicios NO integrados. |
 | [`CLAUDE-brand-radar.md`](./CLAUDE-brand-radar.md) | ✅ | **Aclaración**: Brand Radar NO es producto interno. Son las herramientas MCP de Ahrefs disponibles desde sesiones de Claude. El equivalente interno es LLM Monitoring. |
+| [`CLAUDE-query-fanout.md`](./CLAUDE-query-fanout.md) | 🚧 | **Query fan-out**: qué expone cada proveedor por API, validación con modelos current y coste proyectado (§1b: ~×6 con búsqueda). Esquema y persistencia en producción; búsqueda desactivada en todos los proyectos. |
+| [`CLAUDE-modelos-estado.md`](./CLAUDE-modelos-estado.md) | ✅ | **Estado de modelos LLM** (auditoría 2026-09-13, aplicado en staging y prod): current `gpt-5.5` / `claude-sonnet-5` / `gemini-3.6-flash` / Perplexity Agent API con precios oficiales; ChatGPT Free usa GPT-5.6 Luna (sin acceso API). |
+| [`PLAN-fanout-y-modelos-2026-09.md`](./PLAN-fanout-y-modelos-2026-09.md) | 🚧 | **Plan + estado vivo del fan-out y modelos** (leer primero la sección "Estado de ejecución"): P0 y P2 en producción desde 2026-09-13, búsqueda web desactivada por decisión de Carlos (solo para clientes que la paguen), pendientes en orden (verificación cron 15/09, P3 detrás del interruptor, ponderación de unidades, UI, pricing, mantenimiento). |
 
 ---
 
