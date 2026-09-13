@@ -114,11 +114,13 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 
 | Archivo | Qué contiene |
 |---|---|
-| `services/llm_providers/base_provider.py` | Clase abstracta + `get_model_pricing_from_db`, `get_current_model_for_provider`, `extract_urls_from_text`. |
-| `services/llm_providers/openai_provider.py` | OpenAI. Fallback `gpt-5.4`. Soporta `max_completion_tokens` (gpt-5/o1) y `max_tokens` (legacy). Fallback a gpt-4o ante fallos. Respeta `OPENAI_PREFERRED_MODEL`. |
-| `services/llm_providers/anthropic_provider.py` | Anthropic. Fallback `claude-sonnet-4-6`. |
-| `services/llm_providers/google_provider.py` | Gemini. |
-| `services/llm_providers/perplexity_provider.py` | Perplexity. Fallback `sonar-pro`. Normalizador legacy → actual. `web_search_options.user_location`. |
+| `services/llm_providers/base_provider.py` | Clase abstracta + `DEFAULT_MODELS` (fallback único de los 4 providers y del endpoint de modelos), `resolve_model_id`, `get_model_pricing_from_db`, `get_current_model_for_provider`, `extract_urls_from_text`. `get_model_display_name` lee el registry. |
+| `services/llm_providers/openai_provider.py` | OpenAI (Chat Completions). Soporta `max_completion_tokens` (gpt-5/o1) y `max_tokens` (legacy). Fallback a gpt-4o ante fallos. Respeta `OPENAI_PREFERRED_MODEL`. Health-check = llamada mínima real (detecta cuenta sin crédito). |
+| `services/llm_providers/anthropic_provider.py` | Anthropic. |
+| `services/llm_providers/google_provider.py` | Gemini (SDK legacy `google-generativeai`). `output_tokens` = total − prompt: incluye el razonamiento, que Gemini 3.x factura como salida. |
+| `services/llm_providers/perplexity_provider.py` | Perplexity sobre **Agent API** (`POST /v1/agent`, desde 2026-09-13; Sonar por Chat Completions se retira el 2026-09-27). `model_id` del registry → `preset` (`sonar`→`fast`). Idioma como mensaje `system` en `input` (NO `instructions`: sustituye el prompt del preset y se pierden las citas), país en `tools[web_search].user_location`. Coste real de `usage.cost`. Devuelve `search_queries` (fan-out). `parse_agent_response` es pura y tiene tests con respuestas reales. |
+| `services/llm_providers/fanout_utils.py` | Normalización compartida: `normalize_url` (quita `utm_*`), `normalize_domain` + `host_matches_domain` (única implementación; `url_content_analyzer` la reutiliza), `normalize_query` (clave de agrupación de sub-consultas), `resolve_redirects` (URIs de grounding de Gemini vía `Location`). |
+| `services/llm_monitoring/fanout_store.py` | Persistencia del fan-out: `fanout_schema_available` (el engine no escribe fan-out si falta la migración), `build_fanout_rows`, `save_fanout`. |
 | `services/llm_providers/provider_factory.py` | `LLMProviderFactory.create_provider`, `create_all_providers`. |
 | `services/llm_providers/locale_helpers.py` | `LocaleContext`, `LANGUAGE_NAMES`, `COUNTRY_NAMES`, `COUNTRY_NAMES_LOCALIZED`, `create_locale_context`, `build_system_instruction`. |
 | `services/llm_providers/retry_handler.py` | `with_retry` decorator, `CircuitBreaker` (singleton global), `RetryConfig`, `classify_error`, `with_timeout`, `RetryMetrics`. |
@@ -143,7 +145,7 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 
 ### Migraciones / setup
 
-`create_llm_monitoring_tables.py`, `migrate_llm_brand_fields.py`, `migrate_competitors_structure.py`, `migrate_llm_add_country.py`, `migrate_quota_pause_fields.py`, `add_prompt_clusters_to_llm_monitoring.py`, `migrate_add_sources_field.py`, `migrate_add_position_source.py`, `migrate_add_error_fields.py`, `migrate_add_weighted_sov.py`, `migrate_llm_execution_metadata.py`, `migrate_llm_enterprise_support.py`, `migrate_llm_prompt_limits.py`, `migrate_llm_query_min_length.py`, `migrate_llm_queries_unique_constraint.py`, `migrate_llm_model_discovery_v2.py`.
+`create_llm_monitoring_tables.py`, `migrate_llm_brand_fields.py`, `migrate_competitors_structure.py`, `migrate_llm_add_country.py`, `migrate_quota_pause_fields.py`, `add_prompt_clusters_to_llm_monitoring.py`, `migrate_add_sources_field.py`, `migrate_add_position_source.py`, `migrate_add_error_fields.py`, `migrate_add_weighted_sov.py`, `migrate_llm_execution_metadata.py`, `migrate_llm_enterprise_support.py`, `migrate_llm_prompt_limits.py`, `migrate_llm_query_min_length.py`, `migrate_llm_queries_unique_constraint.py`, `migrate_llm_model_discovery_v2.py`, `migrate_models_2026_09.py` (registry con `--apply`), `migrate_llm_fanout_schema.py`.
 
 SQL: `update_llm_models_freetier_may2026.sql`, `update_llm_pricing_2026.sql`, `update_llm_models.sql`, `migrate_to_gemini_flash.sql`.
 
@@ -257,7 +259,8 @@ competitors_mentioned JSONB
 full_response       TEXT
 response_length     INTEGER
 -- sources:
-sources             JSONB        -- [{url, provider}, ...]
+sources             JSONB        -- [{url, provider, title?, query_round?, cited?}, ...]; provider='extracted' si sale de regex
+search_queries      JSONB        -- fan-out tal cual lo devuelve el provider (migrate_llm_fanout_schema.py, 2026-09-13)
 -- performance:
 tokens_used, input_tokens, output_tokens INTEGER
 cost_usd            DECIMAL(10,6)
@@ -265,12 +268,32 @@ response_time_ms    INTEGER
 -- errores:
 has_error           BOOLEAN
 error_message       TEXT
--- locale audit:
+-- locale audit + búsqueda web (search_mode, search_tool, search_country, search_used,
+-- search_calls, page_opens, search_cost_usd, model_reported = modelo que devuelve la API):
 execution_metadata  JSONB
 prompt_version      VARCHAR
 created_at          TIMESTAMP
 UNIQUE(project_id, query_id, llm_provider, analysis_date)
 ```
+
+El UPSERT del engine limpia `has_error`/`error_message` cuando un reintento del mismo día sale bien (hasta el 2026-09-13 la
+respuesta buena se quedaba marcada como error: 31 filas así en producción).
+
+### `llm_monitoring_fanout_queries` (2026-09-13)
+
+Una fila por sub-consulta (`action='search'`) o página abierta (`open_page`, `find_in_page`, `fetch_url`) de cada resultado.
+`result_id` con `ON DELETE CASCADE`; `UNIQUE(result_id, position)`; se reescribe en cada UPSERT (`fanout_store.save_fanout`).
+
+```
+project_id, query_id, llm_provider, analysis_date, round, position, action
+query_text, query_normalized (clave de agrupación), query_cluster_id (futuro)
+url, url_host, sources JSONB (URLs de esa búsqueda)
+brand_in_sources BOOLEAN  -- NULL si el proveedor no atribuye fuentes por búsqueda (Gemini)
+competitor_hosts TEXT[]
+```
+
+`llm_monitoring_projects.search_mode` (`off` | `auto`, por defecto `off`) y `search_enabled_at` preparan la activación de la
+búsqueda web por proyecto (fase 3 del plan). Perplexity busca siempre, así que su fan-out se guarda ya en todos los proyectos.
 
 ### `llm_monitoring_snapshots`
 
@@ -349,31 +372,34 @@ Tiene campos para keys cifradas, presupuesto mensual, etc. **El modelo de negoci
 
 `LLM_PROVIDERS = ['openai', 'anthropic', 'google', 'perplexity']` (en `llm_monitoring_limits.py:16`).
 
-### Modelos activos (post `update_llm_models_freetier_may2026.sql`, 2026-05-05)
+### Modelos activos (`migrate_models_2026_09.py`, 2026-09-13; precios de las páginas oficiales ese día)
 
-Alineados con free tiers de cada LLM-app:
+Regla: el modelo que ve el usuario **gratuito** de cada app de consumo, o el más cercano disponible por API.
 
-| Provider | Modelo | $/1M input | $/1M output |
-|---|---|---:|---:|
-| **OpenAI** | `gpt-5.3-chat-latest` | $1.75 | $14.00 |
-| **Anthropic** | `claude-sonnet-4-6` | $3.00 | $15.00 |
-| **Google** | `gemini-3-flash-preview` | $0.50 | $3.00 |
-| **Perplexity** | `sonar` | $1.00 | $1.00 |
+| Provider | Modelo | $/1M input | $/1M output | Nota |
+|---|---|---:|---:|---|
+| **OpenAI** | `gpt-5.5` | $5.00 | $30.00 | ChatGPT Free usa GPT-5.6 Luna, sin acceso por API para nuestra cuenta. `gpt-5.3-chat-latest` retirado (404). |
+| **Anthropic** | `claude-sonnet-5` | $2.00 | $10.00 | Default de Claude Free/Pro. |
+| **Google** | `gemini-3.6-flash` | $0.75 | $3.75 | Default de la app Gemini. Sube a 1.50/7.50 el 2027-01-01. |
+| **Perplexity** | `sonar` → Agent API preset `fast` | — | — | Coste real por respuesta desde `usage.cost` (~0,004-0,005 USD). Modelo reportado: `openai/gpt-5.6-luna`. |
 
-### Fallbacks hardcoded (cuando BD no devuelve current)
+**Ojo**: hasta el 2026-09-13 `init_database()` forzaba `gemini-3.5-flash` como current en cada arranque y deshacía cualquier
+cambio de Google. Ya no toca el registry: lo gestionan migraciones, discovery y admin.
 
-- OpenAI → `gpt-5.4`.
-- Anthropic → `claude-sonnet-4-6`.
-- Perplexity → `sonar-pro`.
-- OpenAI también respeta `OPENAI_PREFERRED_MODEL` env var.
+### Fallbacks (cuando BD no devuelve current)
+
+`DEFAULT_MODELS` en `base_provider.py` (`gpt-5.5`, `claude-sonnet-5`, `gemini-3.6-flash`, `sonar`), usado por los providers y
+por `MODEL_FALLBACKS` de `llm_monitoring_routes.py`. OpenAI respeta además `OPENAI_PREFERRED_MODEL`.
 
 ### Selección
 
 `BaseLLMProvider.__init__` usa, en orden:
 
+`resolve_model_id(provider, model)`:
+
 1. Parámetro `model` (si se pasa explícito).
 2. `get_current_model_for_provider(provider)` (lee `is_current=TRUE` en `llm_model_registry`).
-3. Fallback hardcoded.
+3. `DEFAULT_MODELS[provider]`.
 
 ### Free tier vs paid
 
@@ -813,6 +839,17 @@ Mensajes con `"per_day"`, `"retry in Xh"`, `"quota exhausted"`:
 - Fuerza apertura del circuit breaker.
 - Return inmediato sin más reintentos (no merece la pena reintentar inmediatamente algo que dice "vuelve mañana").
 
+### Cuenta sin crédito (`billing_exhausted`, 2026-09-13)
+
+Marcadores `insufficient_quota`, `credit_balance_exhausted`, `no credits remaining`, `credit balance is too low`,
+`insufficient credits` (no "billing" a secas: el 429 por minuto de Gemini también lo menciona).
+- `circuit_breaker.trip_billing_exhausted`: breaker abierto `BILLING_EXHAUSTED_COOLDOWN` s (1800 por defecto); después una
+  llamada de prueba comprueba si ya hay saldo.
+- Las tareas siguientes fallan al instante con `provider_billing_exhausted: <provider>: <mensaje API>` y el engine no las
+  reintenta (`split_billing_exhausted`).
+- Si el health-check falla por crédito, abre el breaker antes de lanzar ninguna tarea (`note_health_check_failure`).
+- `cron_alerts._check_provider_billing` envía la alerta `provider_billing_exhausted`.
+
 ### Health check pre-análisis
 
 Excluye providers no saludables del análisis del proyecto entero (no se intenta usarlos). Reduce el pool de tareas y evita fallos masivos.
@@ -827,6 +864,7 @@ Excluye providers no saludables del análisis del proyecto entero (no se intenta
 | network | 2 | 1s / 10s |
 | non_retryable | 0 | — |
 | quota_exhausted | 0 | abre breaker |
+| billing_exhausted | 0 | abre breaker 30 min, sin reintentos en el engine |
 
 ---
 
