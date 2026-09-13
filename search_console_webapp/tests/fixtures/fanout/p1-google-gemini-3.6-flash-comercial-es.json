@@ -1,0 +1,480 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "parts": [
+     {
+      "text": "No existe un único «mejor» software de facturación universal para autónomos en España, ya que la mejor opción depende del tipo de actividad (servicios vs. venta de productos con stock), del volumen de facturas y de si gestionas tú mismo los impuestos o trabajas con una asesoría.\n\nPara la normativa en España, **un requisito indispensable es que el programa esté preparado para VeriFactu** (Reglamento de la Ley Antifraude) **y la Ley Crea y Crece** (facturación electrónica B2B obligatoria).\n\n---\n\n### Top de los mejores programas de facturación según tu perfil\n\n#### 1. **Holded** — *El más completo y moderno (ERP en la nube)*\n* **Ideal para:** Autónomos que buscan gestionar en un solo sitio facturas, contabilidad, CRM, inventario y proyectos.\n* **Puntos fuertes:**\n  * Interfaz muy intuitiva y moderna.\n  * Sincronización bancaria automática.\n  * Control de inventario y stock si vendes productos.\n  * Adaptado al 100 % a VeriFactu y factura electrónica en España.\n* **Precio orientativo:** Desde ~7,50 € - 15 €/mes en planes básicos.\n\n#### 2. **Contasimple (Cegid)** — *El más fácil y enfocado en impuestos*\n* **Ideal para:** Autónomos que quieren emitir facturas en segundos y llevar los modelos fiscales (IVA e IRPF) al día de forma económica.\n* **Puntos fuertes:**\n  * Muy fácil de usar sin conocimientos contables.\n  * Calcula y genera automáticamente los modelos tributarios oficiales de la AEAT (Modelo 303, 130, 115, 347, etc.).\n  * Digitalización y lectura de facturas de gasto.\n* **Precio orientativo:** Plan gratuito limitado y planes de pago desde ~10-12 €/mes.\n\n#### 3. **Quipu** — *El mejor para colaborar con tu asesoría*\n* **Ideal para:** Freelancers y servicios profesionales que quieren automatizar el traspaso de datos con su gestor.\n* **Puntos fuertes:**\n  * Lector OCR de tickets y facturas de gasto mediante la cámara del móvil.\n  * Acceso compartido directo con tu asesoría para evitar enviar papeles a final de trimestre.\n  * Sincronización bancaria y conciliación de cobros/pagos.\n* **Precio orientativo:** Desde ~12-18 €/mes.\n\n#### 4. **Billin (TeamSystem)** — *Para facturar rápido y controlar el cobro*\n* **Ideal para:** Prestadores de servicios y pequeños autónomos que buscan sencillez máxima.\n* **Puntos fuertes:**\n  * Creación y envío de facturas en menos de un minuto.\n  * Notificación en tiempo real cuando tu cliente recibe, lee o descarga la factura.\n  * Cobro de facturas a través de pasarelas integradas (tarjeta, Bizum, etc.).\n* **Precio orientativo:** Desde ~10 €/mes.\n\n#### 5. **Declarando** — *Facturación + Asesoría fiscal virtual integradas*\n* **Ideal para:** Autónomos que quieren gestionar la facturación y la presentación directa de impuestos con el apoyo de un software inteligente de optimización fiscal.\n* **Puntos fuertes:**\n  * Ayuda a deducir el máximo de gastos dentro de la ley en España.\n  * Incluye la plataforma de facturación y el servicio/plataforma de presentación de tributos.\n* **Precio orientativo:** Paquetes combinados desde ~30-40 €/mes (incluye software + asesoría).\n\n#### 6. **STEL Order** — *El mejor para servicios técnicos, reformas y movilidad*\n* **Ideal para:** Autónomos que trabajan en la calle o a domicilio (fontaneros, electricistas, informáticos, SAT, comerciales).\n* **Puntos fuertes:**\n  * Permite hacer partes de trabajo, presupuestos y albaranes firmados en la tablet/móvil al momento.\n  * Gestión de stock en vehículo/almacén y facturación automática al acabar el servicio.\n* **Precio orientativo:** Desde ~28-36 €/mes.\n\n#### 7. **Factusol (Software DELSOL)** — *El clásico escritorio / nube para empresas de distribución*\n* **Ideal para:** Autónomos tradicionales con comercio físico, talleres o almacenes que prefieren un software local muy avanzado.\n* **Puntos fuertes:**\n  * Altísima potencia en gestión de ventas, compras y almacén.\n  * Muy extendido entre gestorías y contables en España.\n\n---\n\n### Claves legales a tener en cuenta al elegir en España\n\n1. **Cumplimiento de VeriFactu (Ley Antifraude):** Garantiza que el software genere facturas inalterables con código QR y estructura según las especificaciones de la Agencia Tributaria (AEAT).\n2. **Factura Electrónica B2B (Ley Crea y Crece):** Obliga a emitir y recibir facturas electrónicas en formatos estructurados entre profesionales y empresas. Todos los programas del listado ya están adaptados a estos estándares.\n3. **Gratuito vs. De Pago:** La AEAT dispone de una aplicación básica/gratuita para VeriFactu, pero solo es recomendable para autónomos que emitan muy pocas facturas al año (1-2 al mes) y no requieran gestión de gastos ni presupuestos.\n\n### Resumen para elegir rápidamente\n* **¿Quieres gestionar todo (ventas, stock, CRM, bancos)?** Elige **Holded**.\n* **¿Buscas lo más sencillo y económico para cumplir con Hacienda?** Elige **Contasimple**.\n* **¿Quieres que tu gestor descargue todo automáticamente?** Elige **Quipu** o **a3factura**.\n* **¿Trabajas sobre el terreno (servicios/reparaciones)?** Elige **STEL Order**.",
+      "thoughtSignature": "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"
+     }
+    ],
+    "role": "model"
+   },
+   "finishReason": "STOP",
+   "index": 0,
+   "groundingMetadata": {
+    "searchEntryPoint": {
+     "renderedContent": "<style>\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n</style>\n<div class=\"container\">\n  <div class=\"headline\">\n    <svg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/>\n    </svg>\n    <svg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\">\n      <circle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/>\n      <path d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/>\n      <path d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/>\n      <path d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/>\n      <path d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/>\n    </svg>\n    <div class=\"gradient-container\"><div class=\"gradient\"></div></div>\n  </div>\n  <div class=\"carousel\">\n<a class=\"chip\" href=\"https://www.google.com/search?q=programas+facturacion+autonomos+Espa%C3%B1a+VeriFactu+Crea+y+Crece&client=app-vertex-grounding&safesearch=active\">programas facturacion autonomos España VeriFactu Crea y Crece</a>\n<a class=\"chip\" href=\"https://www.google.com/search?q=mejor+software+facturacion+autonomos+Espa%C3%B1a&client=app-vertex-grounding&safesearch=active\">mejor software facturacion autonomos España</a>\n  </div>\n</div>"
+    },
+    "groundingChunks": [
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFHh5YgNmuqWxXsY0bj58EiuYZujG534NLicjh7WPBarqCJomGQWguDmUqBo-G4lQEWnsyQ5H_T86an9UR86G4D6Gogil1aRtwcA0ZyWWj7kB_I572-YYrndCe1d90zwfJ5gmbPGkxci17_xdFDImxmoA==",
+       "title": "facturascloud.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGs-sDdDLj2vYn4c1DztK-UaamEFB_tpMJpVnWdl52hNtZzo_T6bRhmEbLS9DTdA6tp54qbfLO_sf-70AkDBp-pAwqECQzI8NIvlzGYco8gJEV2xMQP5h5eKcyKq6l1s3FEcAXGbkATaBAKVvJKAdI4X48y4TlkznWMjda0Ah0z",
+       "title": "fiskaly.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEwGXZMwZZCAGh3ihWy4A8wv-f762Mgq5U8MwtN3szt5wVip8-dr_DAl9C0fejraykVhWtgviLY-m9sK7MyeZcC9NCRnVM4K5UqHDq-_dqRX72DLc3PGqINZPLyDd2soOMNYgT_SHxg0hguUUCrPApL3zum_VY-x2NAzqoS7dO_Ca4dCn27PCfTbmz1pCbIP6gmw8QqNRDdcP6XRuh-gyXwrI3-gnGOVrUxeYQYGxm4TpA2GrK0qEdY9RcpBcjQqwOGaw==",
+       "title": "elindependiente.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEBtw07c8v3TZCEEz1HhtbDsPN_Q_8TiNQFVeeQFsp1EFMobj_rqKLa9pR5F2AAaZJKYZZe3qean73wEpqFCleoctIOAUgyJQdalbfsq9rWhwynjhHxBo7BFOmruz5byNTSGRUiFUp0K-3dD_C5JzPfV6At",
+       "title": "holded.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFXnhNSWNyuyqLLy3cuiMdl_X1wmoczEPy-RFyvxl_pg4jspts_KIS_Civhq1CvQOF0Svi2FKQJCtfV9pj6_TsTUcADusnHdBLRIigIWCWRMJZ2PvkgMao9M-WS6mfSudylVlYVbCQ=",
+       "title": "ahora.es"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFhv5c80Kggo-EL5cPY-FYmLvFzaGA-IRDwfYAFr_1bkHR_73-muUeRn0BzqGZPvTCt5XQ4E-z39sXR8HK9xqJWbFOBtFeoMIyILEtlYQd5twCV52tnpRh380KLKZJn9gA4",
+       "title": "youtube.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH1E6J6SpnkZ1RixdB0mJ9nWttWC98W6rrEh5JVQ2wHvUscNQnyPh6q2yEIaPVvi7jFzFtWm3NNPMR6gFShuEmf1_dn9Fu0cyRp2XEDUHxtWBvrPGLaX6udEtLDWPYojszb",
+       "title": "youtube.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGK0HaiEJQPm4XsM7y5MYNM49PXqZvT_2Hu85bpm5l0FvU-IgN9TD2m0tPTiPzZUVwL-qpYwnATRwTotglfY8TAWh5rfwygDVC2obT9OTneViaTOjb2-8mVjV23UHO4_9TTSG6npSkZHUWI1EHj4Ia7YKU=",
+       "title": "infoautonomos.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFr29d4R-O97jAhlUxWOxwkD1ZZAx2_Fev171SmHVtDLkYdAmYKFB2THGdWsZnKX9dJT_fidF8R1fzA6s5cXQgPwiNDiqFdm33B780wP8INQE9ej-x-6Z23KR6aRi9iOaLU",
+       "title": "youtube.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHkuNsCn0wWJrWR1f5VVuKZTRcMHUDtCxCyFWoXgvK0PSudfL05uR4Vd57gWhZPmHwOHxb2rrwH9gVEQjA4BeZ4_cKIW4QkJpCAp7z4MwBwBxi6t2MursFCNNO2bG1VvyXg",
+       "title": "youtube.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFuRKZyqHxOx3-eaDtoIGXlCiSGd2aXqH5w9nC4Gl_sT66WtVYEC_ZfcJEK26k3kwdkJ8B4Bkw0nE7OPCF0o1BoNwt1NVdAfcihGx2GPTaYufZaWdYMf5ueKJBK6qKZzx_p",
+       "title": "youtube.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHy280mpFJ9_YQubSd-KViy05aPPN8FxiHzEpYPZbVBkMhbN_qtlwXlZMWNjKmKXg8Rp3qugH_frcEuSf9IHM1yNg1bLuS3iGr5I5WNSCfDOA-8W8eiB-RSLmIfDsZ6GRAU1Kgp8uW8DBM-9zLQL9eBYFecXxVSzU9sNMLs0qIvoG3ePUc51VjF71Q_oPPHdyIq92zS59BG9bXP6GDvPlyS4DqVkx52",
+       "title": "agenciatributaria.gob.es"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGn95mNvoaGjQdqdL33KPJ3DjpFcarRJVIBFoeIb3QjyETVGYmgSiGJP98oKTe2v3dg1EewPD9bkC6VgKzoSrSm03sVryAvue5sC6HPlustIe5Gja0kdLSKW_qkN-ldCfijCsvHa4RhhO3zqIN4tZ4QiUON5_Ir9ECZbzIu8MwW5i6KYVk=",
+       "title": "nexmart.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEyCzSO3sfyDMaX6NqCJyop8LDKqbbn43tqjFiEnbcp-TKlFBAbGjStOEsyrh_YUs9bmDXj5Q5HW4BxOH9jjM7zTp7t7cwZ2I9-GvjO5PGKavrkwQZWbNA-je1K8SGS0ILW",
+       "title": "youtube.com"
+      }
+     }
+    ],
+    "groundingSupports": [
+     {
+      "segment": {
+       "startIndex": 162,
+       "endIndex": 287,
+       "text": "venta de productos con stock), del volumen de facturas y de si gestionas tú mismo los impuestos o trabajas con una asesoría"
+      },
+      "groundingChunkIndices": [
+       0
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 290,
+       "endIndex": 504,
+       "text": "Para la normativa en España, **un requisito indispensable es que el programa esté preparado para VeriFactu** (Reglamento de la Ley Antifraude) **y la Ley Crea y Crece** (facturación electrónica B2B obligatoria)"
+      },
+      "groundingChunkIndices": [
+       1,
+       2
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 587,
+       "endIndex": 647,
+       "text": "**Holded** — *El más completo y moderno (ERP en la nube)*"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 587,
+       "endIndex": 766,
+       "text": "**Holded** — *El más completo y moderno (ERP en la nube)*\n* **Ideal para:** Autónomos que buscan gestionar en un solo sitio facturas, contabilidad, CRM, inventario y proyectos"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 768,
+       "endIndex": 826,
+       "text": "* **Puntos fuertes:**\n  * Interfaz muy intuitiva y moderna"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 830,
+       "endIndex": 868,
+       "text": "* Sincronización bancaria automática"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 872,
+       "endIndex": 923,
+       "text": "* Control de inventario y stock si vendes productos"
+      },
+      "groundingChunkIndices": [
+       3,
+       4
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 927,
+       "endIndex": 992,
+       "text": "* Adaptado al 100 % a VeriFactu y factura electrónica en España"
+      },
+      "groundingChunkIndices": [
+       3,
+       5
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 994,
+       "endIndex": 1067,
+       "text": "* **Precio orientativo:** Desde ~7,50 € - 15 €/mes en planes básicos"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1078,
+       "endIndex": 1146,
+       "text": "**Contasimple (Cegid)** — *El más fácil y enfocado en impuestos*"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1078,
+       "endIndex": 1286,
+       "text": "**Contasimple (Cegid)** — *El más fácil y enfocado en impuestos*\n* **Ideal para:** Autónomos que quieren emitir facturas en segundos y llevar los modelos fiscales (IVA e IRPF) al día de forma económica"
+      },
+      "groundingChunkIndices": [
+       3,
+       4
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1288,
+       "endIndex": 1360,
+       "text": "* **Puntos fuertes:**\n  * Muy fácil de usar sin conocimientos contables"
+      },
+      "groundingChunkIndices": [
+       0
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1364,
+       "endIndex": 1478,
+       "text": "* Calcula y genera automáticamente los modelos tributarios oficiales de la AEAT (Modelo 303, 130, 115, 347, etc.)"
+      },
+      "groundingChunkIndices": [
+       4
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1482,
+       "endIndex": 1530,
+       "text": "* Digitalización y lectura de facturas de gasto"
+      },
+      "groundingChunkIndices": [
+       6
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1532,
+       "endIndex": 1618,
+       "text": "* **Precio orientativo:** Plan gratuito limitado y planes de pago desde ~10-12 €/mes"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1629,
+       "endIndex": 1685,
+       "text": "**Quipu** — *El mejor para colaborar con tu asesoría*"
+      },
+      "groundingChunkIndices": [
+       0,
+       7
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1629,
+       "endIndex": 1800,
+       "text": "**Quipu** — *El mejor para colaborar con tu asesoría*\n* **Ideal para:** Freelancers y servicios profesionales que quieren automatizar el traspaso de datos con su gestor"
+      },
+      "groundingChunkIndices": [
+       0,
+       7
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1802,
+       "endIndex": 1900,
+       "text": "* **Puntos fuertes:**\n  * Lector OCR de tickets y facturas de gasto mediante la cámara del móvil"
+      },
+      "groundingChunkIndices": [
+       6
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 1904,
+       "endIndex": 1996,
+       "text": "* Acceso compartido directo con tu asesoría para evitar enviar papeles a final de trimestre"
+      },
+      "groundingChunkIndices": [
+       7
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 2000,
+       "endIndex": 2058,
+       "text": "* Sincronización bancaria y conciliación de cobros/pagos"
+      },
+      "groundingChunkIndices": [
+       6
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 2117,
+       "endIndex": 2189,
+       "text": "**Billin (TeamSystem)** — *Para facturar rápido y controlar el cobro*"
+      },
+      "groundingChunkIndices": [
+       8
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 2586,
+       "endIndex": 2657,
+       "text": "**Declarando** — *Facturación + Asesoría fiscal virtual integradas*"
+      },
+      "groundingChunkIndices": [
+       9
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 3127,
+       "endIndex": 3203,
+       "text": "**STEL Order** — *El mejor para servicios técnicos, reformas y movilidad*"
+      },
+      "groundingChunkIndices": [
+       9,
+       6
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 3127,
+       "endIndex": 3332,
+       "text": "**STEL Order** — *El mejor para servicios técnicos, reformas y movilidad*\n* **Ideal para:** Autónomos que trabajan en la calle o a domicilio (fontaneros, electricistas, informáticos, SAT, comerciales)"
+      },
+      "groundingChunkIndices": [
+       9
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 3610,
+       "endIndex": 3707,
+       "text": "**Factusol (Software DELSOL)** — *El clásico escritorio / nube para empresas de distribución*"
+      },
+      "groundingChunkIndices": [
+       8
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 3930,
+       "endIndex": 3985,
+       "text": "* Muy extendido entre gestorías y contables en España"
+      },
+      "groundingChunkIndices": [
+       8
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 4055,
+       "endIndex": 4245,
+       "text": "**Cumplimiento de VeriFactu (Ley Antifraude):** Garantiza que el software genere facturas inalterables con código QR y estructura según las especificaciones de la Agencia Tributaria (AEAT)"
+      },
+      "groundingChunkIndices": [
+       6,
+       10,
+       11
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 4250,
+       "endIndex": 4404,
+       "text": "**Factura Electrónica B2B (Ley Crea y Crece):** Obliga a emitir y recibir facturas electrónicas en formatos estructurados entre profesionales y empresas"
+      },
+      "groundingChunkIndices": [
+       1,
+       12
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 4406,
+       "endIndex": 4477,
+       "text": "Todos los programas del listado ya están adaptados a estos estándares"
+      },
+      "groundingChunkIndices": [
+       6
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 4497,
+       "endIndex": 4718,
+       "text": "De Pago:** La AEAT dispone de una aplicación básica/gratuita para VeriFactu, pero solo es recomendable para autónomos que emitan muy pocas facturas al año (1-2 al mes) y no requieran gestión de gastos ni presupuestos"
+      },
+      "groundingChunkIndices": [
+       13
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 4816,
+       "endIndex": 4835,
+       "text": "** Elige **Holded**"
+      },
+      "groundingChunkIndices": [
+       3
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 4906,
+       "endIndex": 4930,
+       "text": "** Elige **Contasimple**"
+      },
+      "groundingChunkIndices": [
+       3,
+       0
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 4992,
+       "endIndex": 5010,
+       "text": "** Elige **Quipu**"
+      },
+      "groundingChunkIndices": [
+       7
+      ]
+     },
+     {
+      "segment": {
+       "startIndex": 5085,
+       "endIndex": 5108,
+       "text": "** Elige **STEL Order**"
+      },
+      "groundingChunkIndices": [
+       9
+      ]
+     }
+    ],
+    "webSearchQueries": [
+     "programas facturacion autonomos España VeriFactu Crea y Crece",
+     "mejor software facturacion autonomos España"
+    ]
+   }
+  }
+ ],
+ "usageMetadata": {
+  "promptTokenCount": 544,
+  "candidatesTokenCount": 1615,
+  "totalTokenCount": 3825,
+  "promptTokensDetails": [
+   {
+    "modality": "TEXT",
+    "tokenCount": 544
+   }
+  ],
+  "thoughtsTokenCount": 1666,
+  "serviceTier": "standard"
+ },
+ "modelVersion": "gemini-3.6-flash",
+ "responseId": "-8OmapfnGqyu28oP_cCy-Ao"
+}

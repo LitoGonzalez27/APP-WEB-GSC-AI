@@ -32,6 +32,7 @@ from llm_monitoring_limits import (
 )
 from services.llm_providers import LLMProviderFactory, BaseLLMProvider
 from services.llm_providers.retry_handler import circuit_breaker
+from services.llm_monitoring.fanout_store import fanout_schema_available, save_fanout
 from services.llm_providers.locale_helpers import (
     LocaleContext,
     create_locale_context,
@@ -45,6 +46,12 @@ from services.llm_providers.locale_helpers import (
 from services.ai_analysis import extract_brand_variations, remove_accents
 
 logger = logging.getLogger(__name__)
+
+# Campos de búsqueda web del contrato del provider que se guardan en execution_metadata
+SEARCH_METADATA_KEYS = (
+    'search_mode', 'search_tool', 'search_country', 'search_used',
+    'search_calls', 'page_opens', 'search_cost_usd',
+)
 
 
 def split_billing_exhausted(failed_items: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
@@ -1010,6 +1017,9 @@ class _EngineMixin:
                     language=task.get('language', 'en')
                 )
             
+            # Antes de tomar la conexión del resultado: la comprobación usa la suya
+            store_fanout = fanout_schema_available(get_db_connection)
+
             # Guardar resultado en BD (conexión thread-local)
             # Refactor 2026-05-25: null-check + cursor inside try.
             conn = get_db_connection()
@@ -1036,7 +1046,12 @@ class _EngineMixin:
                     # devuelve el LLM subyacente); si no lo expone, el id pedido.
                     'model_reported': llm_result.get('api_model_reported') or llm_result.get('model_used'),
                 }
+                # Metadatos de búsqueda web (solo si el provider los devuelve)
+                _execution_metadata.update({
+                    key: llm_result[key] for key in SEARCH_METADATA_KEYS if key in llm_result
+                })
                 _prompt_version = task.get('prompt_version', 'v2_system')
+                search_queries = llm_result.get('search_queries') or []
 
                 cur.execute("""
                     INSERT INTO llm_monitoring_results (
@@ -1050,7 +1065,7 @@ class _EngineMixin:
                         full_response, response_length,
                         sources,
                         tokens_used, input_tokens, output_tokens, cost_usd, response_time_ms,
-                        execution_metadata, prompt_version
+                        execution_metadata, prompt_version""" + (", search_queries" if store_fanout else "") + """
                     ) VALUES (
                         %s, %s, %s,
                         %s, %s,
@@ -1062,10 +1077,13 @@ class _EngineMixin:
                         %s, %s,
                         %s,
                         %s, %s, %s, %s, %s,
-                        %s, %s
+                        %s, %s""" + (", %s" if store_fanout else "") + """
                     )
                     ON CONFLICT (project_id, query_id, llm_provider, analysis_date)
                     DO UPDATE SET
+                        -- una tarea que falló y se reintentó con éxito deja de ser error
+                        has_error = FALSE,
+                        error_message = NULL,
                         model_used = EXCLUDED.model_used,
                         query_text = EXCLUDED.query_text,
                         brand_name = EXCLUDED.brand_name,
@@ -1086,8 +1104,11 @@ class _EngineMixin:
                         input_tokens = EXCLUDED.input_tokens,
                         output_tokens = EXCLUDED.output_tokens,
                         cost_usd = EXCLUDED.cost_usd,
+                        response_time_ms = EXCLUDED.response_time_ms,
                         execution_metadata = EXCLUDED.execution_metadata,
-                        prompt_version = EXCLUDED.prompt_version
+                        prompt_version = EXCLUDED.prompt_version,
+                        updated_at = NOW()""" + (", search_queries = EXCLUDED.search_queries" if store_fanout else "") + """
+                    RETURNING id
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
                     task['llm_name'], llm_result.get('model_used'),
@@ -1110,9 +1131,13 @@ class _EngineMixin:
                     llm_result['output_tokens'],
                     llm_result['cost_usd'],
                     llm_result['response_time_ms'],
-                    json.dumps(_execution_metadata),  # ✨ NUEVO
-                    _prompt_version,                   # ✨ NUEVO
-                ))
+                    json.dumps(_execution_metadata),
+                    _prompt_version,
+                ) + ((json.dumps(search_queries),) if store_fanout else ()))
+                result_id = cur.fetchone()['id']
+
+                if store_fanout:
+                    save_fanout(cur, result_id=result_id, task=task, search_queries=search_queries)
 
                 conn.commit()
 
