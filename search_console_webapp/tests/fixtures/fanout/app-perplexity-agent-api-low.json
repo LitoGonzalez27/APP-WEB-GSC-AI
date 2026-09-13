@@ -1,0 +1,395 @@
+{
+ "background": false,
+ "completed_at": 1789298408,
+ "created_at": 1789298408,
+ "error": null,
+ "frequency_penalty": 0,
+ "id": "resp_404bf2d7-c5b2-4600-9cd9-1263166b398a",
+ "incomplete_details": null,
+ "instructions": null,
+ "max_output_tokens": null,
+ "max_tool_calls": null,
+ "metadata": {},
+ "model": "openai/gpt-5.6-luna",
+ "object": "response",
+ "output": [
+  {
+   "queries": [
+    "mejor software facturación autónomos España 2026 comparativa VeriFactu",
+    "software facturación autónomos España precios Holded Quipu Declarando 2026",
+    "Agencia Tributaria VeriFactu autónomos fechas 2026 facturación"
+   ],
+   "results": [
+    {
+     "date": "2026-05-20",
+     "id": 1,
+     "last_updated": "2026-06-18",
+     "snippet": "|Software|Precio desde|VeriFactu|Canal|Velocidad emisión|Perfil ideal|",
+     "source": "web",
+     "title": "Software facturación autónomos España 2026: comparativa 10 ...",
+     "url": "https://factuchat.es/software-facturacion-autonomos-espana-2026/"
+    },
+    {
+     "date": "2026-07-31",
+     "id": 2,
+     "last_updated": "2026-08-18",
+     "snippet": "FacturaDirecta es un programa de gestión en la nube para autónomos y pymes que permite crear facturas profesionales en segundos y está ...",
+     "source": "web",
+     "title": "Mejores programas de facturación en 2026: comparativa y guía ...",
+     "url": "https://rankiabusiness.com/mejores-programas-facturacion/"
+    },
+    {
+     "date": "2026-05-31",
+     "id": 3,
+     "last_updated": "2026-09-10",
+     "snippet": "El 1 de julio de 2026 arranca la obligación de Verifactu para **todos los autónomos y empresas en España que emitan facturas con software de facturación**.\n...\n- **1 de julio de 2026:** entrada en vigor obligatoria.\nDesde ese día, todo software de facturación debe cumplir con Verifactu (generar código QR + hash criptográfico en cada factura).\n- **1 de octubre de 2026:** inicio del régimen sancionador.\nDesde octubre, la AEAT puede multar por facturas sin código QR o con código inválido.\n...\n|Fecha|Evento|\n...\n|1 julio 2026|Entrada en vigor obligatoria.\nSoftware debe cumplir Verifactu.|\n...\n|1 octubre 2026|Inicio del régimen sancionador.\nLa AEAT puede multar incumplimientos.|",
+     "source": "web",
+     "title": "Verifactu julio 2026: qué cambia para autónomos (fechas y sanciones)",
+     "url": "https://esimahora.com/blog/verifactu-q3-2026-autonomos-julio"
+    },
+    {
+     "date": "2025-01-31",
+     "id": 4,
+     "last_updated": "2026-06-25",
+     "snippet": "|Programa|Plan básico|Plan pro|VeriFactu|Velocidad|Autom.|\n|--|--|--|--|--|--|\n|**FactuChat**|**7,99 €/mes**|**12,99 €/mes**|**Completo**|**9 seg**|**Sí (voz, foto, texto)**|\n|Holded|15 €/mes (Plus)|99 €/mes (Avanzado)|Completo|~4 min|No|\n|Quipu|17 €/mes (Starter)|59 €/mes (Premium)|Completo|~3 min|OCR básico|\n|Billin|8 €/mes (sin plan gratis desde 2026)|24 €/mes (Ilimitado)|En proceso|~3 min|No|\n|Declarando|29,90 €/mes +IVA (Esencial, anual)|49,90 €/mes +IVA (Estelar, anual)|Completo|~4 min|Parcial|\n|Contasimple|Gratis (básico)|15,99 €/mes|En proceso|~3 min|No|\n...\n**Conclusión rápida:** Si buscas el programa **más barato con VeriFactu completo**, FactuChat gana por goleada: 7,99 €/mes frente a los 15 € de Holded o los 17 € de Quipu.\n...\n### Precios de Holded\n- **Plus:** 15 €/mes (7,50 anual) — Tope 250 facturas/año\n- **Básico:** 29 €/mes (14,50 anual) — Tope 1.000 facturas/año\n- **Estándar:** 59 €/mes — + CRM + Proyectos\n...\n- **Starter:** 17 €/mes (14 anual) — Facturación ilimitada + gastos + conexión bancaria\n- **Solution:** 30 €/mes (25 anual) — + Contabilidad + Multi-actividad\n- **Premium:** 59 €/mes (49 anual) — + Multi-empresa\n...\n- **Esencial:** 29,90 €/mes +IVA (permanencia anual) — Facturación + asesor fiscal\n- **Avanzado:** 39,90 €/mes +IVA (permanencia anual) — + Asesoría humana\n- **Estelar:** 49,90 €/mes +IVA (permanencia anual) — + Asesoría prioritaria",
+     "source": "web",
+     "title": "Mejores Programas de Facturación Autónomos · 2026 · FactuChat",
+     "url": "https://factuchat.es/blog/mejor-software-facturacion-autonomos-2026.html"
+    },
+    {
+     "date": "2026-03-30",
+     "id": 5,
+     "last_updated": "2026-09-10",
+     "snippet": "Todos los programas de este listado tienen compatibilidad confirmada con Verifactu en sus versiones actualizadas de 2026.",
+     "source": "web",
+     "title": "Los mejores programas de facturación para pymes y autónomos en 2026 según cada negocio",
+     "url": "https://www.atlanticohoy.com/recomendado/mejores-programas-facturacion-pymes-autonomos-2026-segun-negocio-bc-nprs_1559506_102.html"
+    },
+    {
+     "id": 6,
+     "last_updated": "2026-06-06",
+     "snippet": "Comparativa objetiva de los principales programas de facturacion para autonomos en Espana en 2026, con criterios de cumplimiento Verifactu, precio, ...",
+     "source": "web",
+     "title": "Mejor software de facturacion para autonomos en 2026 - CokuApp",
+     "url": "https://www.coku-app.com/es/blog/mejor-software-facturacion-autonomos"
+    },
+    {
+     "date": "2026-07-18",
+     "id": 7,
+     "last_updated": "2026-08-21",
+     "snippet": "**Respuesta rápida (2026):** Verifactu **no es obligatorio en 2026** para los autónomos.\nTras la ampliación de plazos del Real Decreto-ley 15/2025, de 2 de diciembre, las fechas firmes son **1 de enero de 2027** para los contribuyentes del Impuesto sobre Sociedades y **1 de julio de 2027** para el resto (autónomos y personas físicas en IRPF), según la nota informativa de la AEAT actualizada el 26 de marzo de 2026.\n...\n|Resto de obligados: autónomos y personas físicas en IRPF|1 de julio de 2027|\nSi eres autónomo persona física, tu fecha es el **1 de julio de 2027**.\n...\n**No.** Durante 2026 no estás obligado a tener Verifactu si eres autónomo.",
+     "source": "web",
+     "title": "Verifactu para autónomos 2026: ¿obligatorio ya? Fechas reales",
+     "url": "https://www.lanzadoria.com/articulos/verifactu-para-autonomos-2026"
+    },
+    {
+     "id": 8,
+     "last_updated": "2026-08-11",
+     "snippet": "- **Billage:** 0-9,90 €/mes | CRM + facturación | Web | Formularios | Verifactu en proceso",
+     "source": "web",
+     "title": "Las 5 mejores herramientas de facturación para autónomos ...",
+     "url": "https://faconia.com/blog/mejores-herramientas-facturacion-autonomos/"
+    },
+    {
+     "date": "2025-10-29",
+     "id": 9,
+     "last_updated": "2026-09-11",
+     "snippet": "|#|Programa|Instalación|App|Particularidad|Conciliación Bancaria|Lector OCR|Plan más económico|Prueba Gratuita|",
+     "source": "web",
+     "title": "¿Cómo elegir el mejor...",
+     "url": "https://www.holded.com/es/blog/los-mejores-programas-de-facturacion"
+    },
+    {
+     "date": "2025-10-20",
+     "id": 10,
+     "last_updated": "2026-08-25",
+     "snippet": "Las nuevas fechas son el 1 enero del año 2026 para los sujetos pasivos del Impuesto sobre Sociedades y el 1 de julio del año 2026 para el resto de obligados.",
+     "source": "web",
+     "title": "Veri*Factu: Facturación para despachos, empresas y negocios autónomos",
+     "url": "https://elderecho.com/verifactu-2026-asi-cambia-la-facturacion-para-despachos-empresas-y-negocios-autonomos/"
+    },
+    {
+     "date": "2026-08-18",
+     "id": 11,
+     "last_updated": "2026-09-04",
+     "snippet": "|Herramienta|Qué IA tiene realmente|Precio orientativo|Modelos fiscales|Verifactu|\n...\n|**Zerogest**|OCR de tickets + clasificación de gastos con contexto fiscal + chat fiscal + prellenado de 303/130|Desde 5,99 €/mes|Sí (303, 130, 100, 390, 347, 180 según plan)|Huella + QR nativos|\n|**Quipu**|OCR de facturas y extracción de datos|~12-25 €/mes|Presentación asistida|Sí|\n|**Holded**|OCR + automatizaciones + asistente|~15-30 €/mes|Enfoque más ERP que fiscal|Sí|\n|**Declarando**|Detección de gastos deducibles + asesor humano detrás|~25-45 €/mes|Sí, con asesoría|Sí|",
+     "source": "web",
+     "title": "Zerogest - Facturación electrónica e IA fiscal para autónomos en España",
+     "url": "https://zerogest.es/blog/crecer-como-autonomo/software-autonomos-inteligencia-artificial-2026"
+    },
+    {
+     "date": "2026-04-15",
+     "id": 12,
+     "last_updated": "2026-07-23",
+     "snippet": "|Criterio|Quipu|Holded|\n...\n|Precio de entrada|Gana 17 €/mes con todos los modelos AEAT incluidos.\nMás barato que el plan de Holded que los trae (29 €/mes).|Pierde El plan con contabilidad e impuestos (Básico) cuesta 29 €/mes.\nEl Plus de 15 €/mes solo emite facturas.|\n...\nQuipu tiene 3 planes en 2026 (pago mensual sin permanencia): el plan Starter arranca en 17 €/mes e incluye ya todos los modelos fiscales de la AEAT (303, 130, 111, 115, 349, 390) y la facturación ilimitada; el plan Solution sube a 30 €/mes (añade registro de gastos por OCR, nóminas y previsión de tesorería); y el Premium cuesta 59 €/mes (incorpora la conciliación bancaria automática y el soporte telefónico).\n...\nHolded tiene 5 planes en 2026 (precio de pago mensual): Plus 15 €/mes, Básico 29 €/mes, Estándar 59 €/mes, Avanzado 99 €/mes y Premium 199 €/mes; pagando un año por adelantado el precio por mes baja casi a la mitad.",
+     "source": "web",
+     "title": "Holded vs Quipu 2026: comparativa honesta para autónomos y pymes",
+     "url": "https://guiafiscal.es/comparativas/holded-vs-quipu/"
+    },
+    {
+     "date": "2025-10-27",
+     "id": 13,
+     "last_updated": "2026-06-26",
+     "snippet": "|**Programa Verifactu**|**Facturas**|**Reglas fiscales de facturación ** **(para evitar errores)**|**Gastos (deducibles)**|**Garantía antisanciones**|**Precio ** **(mensual)**|",
+     "source": "web",
+     "title": "¿Dudas sobre los mejores...",
+     "url": "https://declarando.es/verifactu/mejores-programas-verifactu"
+    },
+    {
+     "date": "2026-05-04",
+     "id": 14,
+     "last_updated": "2026-05-05",
+     "snippet": "La normativa Verifactu obliga a usar software certificado por la Agencia Tributaria para emitir facturas: a partir del **1 de julio de 2027 para autónomos y el 1 de enero de 2027 para empresas con menos de seis millones de facturación.\n...\nNo hay un programa universalmente mejor.",
+     "source": "web",
+     "title": "Los mejores programas de facturación para autónomos y pymes en ...",
+     "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html?outputType=amp"
+    },
+    {
+     "date": "2025-08-20",
+     "id": 15,
+     "last_updated": "2026-06-25",
+     "snippet": "Elige el mejor programa de facturación electrónica para autónomos con la guía comparativa más actual y prepárate para Verifactu.",
+     "source": "web",
+     "title": "10 programas de facturación electrónica: guía comparativa (2026)",
+     "url": "https://declarando.es/factura-electronica/programas-facturacion-electronica"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "queries": [
+    "site:sede.agenciatributaria.gob.es sistemas informáticos facturación 1 julio 2027 autónomos",
+    "site:boe.es Real Decreto ley 15/2025 sistemas informáticos facturación 1 julio 2027"
+   ],
+   "results": [
+    {
+     "date": "2026-03-26",
+     "id": 16,
+     "last_updated": "2026-08-20",
+     "snippet": "En base a los nuevos plazos aprobados, las entidades que presenten el Impuesto sobre Sociedades deberán tener adaptados sus SIF antes del 1 de ...",
+     "source": "web",
+     "title": "Ampliación del plazo de adaptación de los sistemas informáticos de ...",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/nota-informativa-ampliacion-plazo-adaptacion-facturacion.html"
+    },
+    {
+     "id": 17,
+     "last_updated": "2026-08-13",
+     "snippet": "Antes del 1 de julio de 2027 para las demás empresas y autónomos que utilicen sistemas informáticos de facturación. 1 Cambios en los Sistemas. Informáticos de ...",
+     "source": "web",
+     "title": "[PDF] eri ctuf - Agencia Tributaria",
+     "url": "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Folleto/VERIFACTU/Folleto_VERIFACTU_es_es.pdf"
+    },
+    {
+     "date": "2026-07-22",
+     "id": 18,
+     "last_updated": "2026-07-22",
+     "snippet": "A partir de 2027 cambiaré de programa de facturación para cumplir con los nuevos requisitos , después del 1/1/2027 (o 1/7/2027,",
+     "source": "web",
+     "title": "Preguntas frecuentes (FAQ) - Cuestiones generales: objeto",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes.html"
+    },
+    {
+     "date": "2025-04-02",
+     "id": 19,
+     "last_updated": "2026-07-21",
+     "snippet": "Información general y técnica sobre los Sistemas Informáticos de Facturación y VERI*FACTU. (Actualizadas a 21 de julio de 2026)",
+     "source": "web",
+     "title": "Sistemas Informáticos de Facturación (SIF) y VERI*FACTU",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu.html"
+    },
+    {
+     "id": 20,
+     "last_updated": "2025-10-06",
+     "snippet": "Información general y técnica sobre los Sistemas Informáticos de Facturación y VERI*FACTU",
+     "source": "web",
+     "title": "Obligaciones formales, contables y registrales",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/irpf/empresarios-individuales-profesionales/obligaciones-contables-registrales/sistemas-informaticos-facturacion-verifactu.html"
+    },
+    {
+     "date": "2025-04-02",
+     "id": 21,
+     "last_updated": "2026-05-31",
+     "snippet": "de la Dirección General de la Agencia Estatal de Administración Tributaria, por la que se aprueban los documentos normalizados para acreditar la representación de terceros en el procedimiento para el envío de los ficheros que contienen registros de facturación generados por sistemas de emisión de facturas, a través de la Sede electrónica de la Agencia Tributaria.",
+     "source": "web",
+     "title": "Sistemas informáticos de facturación y VERI*FACTU",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/IZ86.shtml"
+    },
+    {
+     "date": "2025-12-05",
+     "id": 22,
+     "last_updated": "2026-08-12",
+     "snippet": "Se aprueba el Reglamento que establece los requisitos que deben adoptar los sistemas y programas informáticos o electrónicos que soporten los ...",
+     "source": "web",
+     "title": "BOE-A-2023-24840 Real Decreto 1007/2023, de 5 de diciembre ...",
+     "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840"
+    },
+    {
+     "date": "2025-12-02",
+     "id": 23,
+     "last_updated": "2026-08-18",
+     "snippet": "Real Decreto-ley 15/2025, de 2 de diciembre, por el que se adoptan medidas urgentes para favorecer la actividad inversora de las entidades ...",
+     "source": "web",
+     "title": "BOE-A-2025-24446 Real Decreto-ley 15/2025, de 2 de diciembre ...",
+     "url": "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-24446"
+    },
+    {
+     "date": "2026-07-22",
+     "id": 24,
+     "last_updated": "2026-08-11",
+     "snippet": "debo adaptar mi sistema informático de facturación al reglamento que establece los requisitos de los sistemas informáticos de facturación?",
+     "source": "web",
+     "title": "Preguntas frecuentes (FAQ) - Cuestiones generales: ámbitos de ...",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/cuestiones-generales-ambitos-aplicacion.html"
+    },
+    {
+     "date": "2026-04-30",
+     "id": 25,
+     "last_updated": "2026-08-26",
+     "snippet": "5.12 VERI*FACTU · 1 de enero de 2027: contribuyentes sujetos al Impuesto sobre Sociedades. · 1 de julio de 2027: resto de contribuyentes.",
+     "source": "web",
+     "title": "5.12 VERI*FACTU - Agencia Tributaria",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/5-impuesto-sobre-valor-anadido/5_12-veri-factu.html"
+    },
+    {
+     "date": "2026-03-26",
+     "id": 26,
+     "last_updated": "2026-08-19",
+     "snippet": "Descripción del ámbito de aplicación de la normativa, características y requisitos de los Sistemas Informáticos de Facturación. ¿Quienes están ...",
+     "source": "web",
+     "title": "Cuestiones generales - Descripción del ámbito de aplicación de la ...",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/cuestiones-generales.html"
+    },
+    {
+     "id": 27,
+     "last_updated": "2026-09-12",
+     "snippet": "301, de 16 de diciembre de 2025, páginas 165862 a 165862 (1 pág.)",
+     "source": "web",
+     "title": "BOE-A-2025-25695 Resolución de 11 de diciembre de 2025, del ...",
+     "url": "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-25695"
+    },
+    {
+     "date": "2026-07-22",
+     "id": 28,
+     "last_updated": "2026-08-26",
+     "snippet": "Recopilación de preguntas y respuestas en relación a los Sistemas Informáticos de Facturación y VERI*FACTU (Actualizadas a 21 de julio de 2026).",
+     "source": "web",
+     "title": "Características y requisitos de los sistemas informáticos de factura...",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes/caracteristicas-requisitos-sistemas-informaticos-facturacion-multiple.html"
+    },
+    {
+     "date": "2006-12-11",
+     "id": 29,
+     "last_updated": "2026-08-26",
+     "snippet": "Información general y técnica sobre los Sistemas Informáticos de Facturación y VERI*FACTU",
+     "source": "web",
+     "title": "IVA - Agencia Tributaria",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva.html"
+    },
+    {
+     "date": "2025-04-01",
+     "id": 30,
+     "last_updated": "2026-08-24",
+     "snippet": "La principal modificación de este Real Decreto consiste en la ampliación hasta el 1 de enero de 2026, respecto de la fecha inicialmente prevista de 1 julio de 2025, del plazo para cumplir con las obligaciones previstas en el reglamento y en su normativa de desarrollo, para los obligados tributarios a que se refiere el artículo 3.1.a) del mismo (contribuyentes del Impuesto sobre Sociedades).\nPor su parte, cuando se trate del resto de los obligados tributarios el plazo límite para su aplicación se establece en el 1 de julio de 2026 para facilitar su adaptación en la medida que no están sometidos a las mismas obligaciones que los anteriores que pudieran determinan la no utilización habitual de sistemas informáticos.",
+     "source": "web",
+     "title": "Modificación del Reglamento que regula los sistemas informáticos ...",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/todas-noticias/2025/abril/2/modificacion-reglamento-que-regula-sistemas-facturacion.html"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "contents": [
+    {
+     "snippet": "## Quipu — 2026\n\n**Target user:** Autónomos y pymes españolas; especialmente el autónomo español medio sin empleados, sin inventario físico y en régimen común del IVA. También se presenta como adecuado para una SL unipersonal con actividad profesional, sin inventario, empleados ni CRM.\n\n**Plans and prices:**\n\n| Plan | Price | Included features explicitly stated on the page |\n|---|---:|---|\n| Starter | 17 €/mes | All AEAT tax forms: 303, 130, 111, 115, 349 and 390; unlimited invoicing. The comparison also states that Quipu supports 303, 130, 111, 115, 349, 390 and 347 in all plans; OCR for tickets and invoices is described as available from the basic plan. |\n| Solution | 30 €/mes | Adds OCR expense recording, payroll and cash-flow forecasting. |\n| Premium | 59 €/mes | Adds automatic bank reconciliation and telephone support. |\n\n- Three plans in 2026.\n- Monthly payment with no permanence.\n- 15-day free trial without a card.\n- 50% discount during the first three months.\n- Price range shown on the page: **17–59 €/mes**.\n- Quipu’s entry plan includes all AEAT models, according to the page.\n- Additional capabilities described:\n  - Native OCR for tickets and invoices.\n  - Connections with BBVA, Santander, CaixaBank, Sabadell, Bankinter, Kutxabank, ING, Unicaja, Abanca and Cajamar.\n  - Automatic daily reconciliation.\n  - Public REST API and native webhooks.\n  - Spanish-language chat and telephone support.\n  - iOS and Android apps.\n- Limitations relevant to target:\n  - No real inventory module; only basic product counting.\n  - Very limited CRM.\n  - No HR or payroll module; integration with A3 Nom or a similar tool is required.\n  - Multi-company in the same login is only available on a higher plan.\n  - Limited internationalization.\n\n## Holded — 2026\n\n**Target user:** Pymes, particularly businesses with employees, physical inventory, warehouses, sales processes requiring a CRM, or B2C e-commerce using WooCommerce or Shopify. The page describes Holded as an ERP for SMEs combining accounting, CRM, inventory and HR.\n\n**Plans and prices:**\n\n| Plan | Price | Included features explicitly stated on the page |\n|---|---:|---|\n| Plus | 15 €/mes | Invoicing only; limited to 250 invoices per year. Does not include accounting or tax models. |\n| Básico | 29 €/mes | Accounting and tax filing; includes IRPF models, including models 303, 130 and 111. This is the first plan suitable for accounting and presenting tax models. Unlimited invoicing begins here. |\n| Estándar | 59 €/mes | Adds Corporate Income Tax and SII integration. OCR is available from this plan. |\n| Avanzado | 99 €/mes | No additional features are specified on the page. |\n| Premium | 199 €/mes | No additional features are specified on the page. |\n\n- Five plans in 2026.\n- Monthly payment.\n- Paying one year in advance reduces the monthly price by almost half.\n- 14-day free trial without a card.\n- Price range shown on the page: **15–199 €/mes**.\n- Additional capabilities described:\n  - Full ERP stack: accounting, CRM, invoicing, inventory, projects and HR.\n  - Multi-company natively from intermediate plans.\n  - HR module with time tracking, holidays and employee management.\n  - Payroll integration.\n  - CRM with sales pipeline and opportunity management.\n  - Inventory with traceability, multiple warehouses, batches and serial numbers.\n  - Shopify and WooCommerce integrations.\n  - iOS and Android apps.\n  - REST API, but only on higher plans.\n  - Eight Spanish banks plus universal PSD2, with a somewhat more complex setup.\n  - Chat and email support; telephone support only on top plans.\n- Limitations relevant to target:\n  - High learning curve for a solo self-employed person.\n  - The Plus plan only issues invoices; accounting and tax models require the Básico plan at 29 €/month.\n  - Features may be underused by a pure freelancer.\n  - Advanced functionality requires moving to higher plans.\n  - Payroll requires an external integration or a top plan.\n\n## Page’s target-user recommendations\n\n| User profile | Recommended product | Alternative | Reason stated on the page |\n|---|---|---|---|\n| Solo autónomo, common regime | Quipu | Holded | Lower price for a plan including AEAT models: 17 € versus 29 € for Holded Básico; less overwhelming interface; Spanish telephone support from the initial plan; complete tax models without upselling. |\n| Autónomo with 1–2 employees | Holded | Quipu | HR module and time tracking offset the somewhat higher price; Quipu requires a second tool for payroll. |\n| SME with 5+ employees | Holded | Quipu | 360° stack covering accounting, CRM, inventory, HR and projects. |\n| One-person SL with professional invoicing | Quipu | Holded | Covers Corporate Income Tax, including model 200, and company accounting with less visual complexity. |\n| B2C e-commerce with WooCommerce/Shopify | Holded | Quipu | Native connectors, serious inventory and returns management. |\n| Developer/maker requiring an API | Quipu | Holded | Public REST API accessible from the entry plan; Holded reserves its API for higher plans. |\n\n## VERI*FACTU / VERIFACTU\n\nThe page states:\n\n- The applicable regulation is **Verifactu, Royal Decree 1007/2023, modified by Royal Decree 254/2025**.\n- The system requires issuers to generate invoices with a unique traceable hash and digital fingerprint.\n- **Official deadline stated for companies subject to Corporate Income Tax:** **1 July 2025**.\n- **Official deadline stated for autónomos/personas físicas subject to IRPF:** **1 July 2026**.\n- The page says both Quipu and Holded have submitted the responsible declaration to the AEAT and have operated in Verifactu mode since 2025.\n- The comparison table states:\n  - **Quipu:** “Preparado. Adaptación prevista sin coste adicional.”\n  - **Holded:** “Preparado. Ya homologado como emisor certificado.”\n- The FAQ advises asking the provider in writing whether adaptation is included in the current plan or will involve an additional cost.\n- The page’s general conclusion is that both products are prepared for Verifactu; it does not state that the software is optional once the applicable obligation begins.\n\n## Declarando and FacturaDirecta\n\nThe page contains no pricing, included-feature, target-user, or VERI*FACTU information for **Declarando** or **FacturaDirecta**.",
+     "title": "Holded vs Quipu 2026: comparativa honesta para autónomos y pymes",
+     "url": "https://guiafiscal.es/comparativas/holded-vs-quipu/"
+    }
+   ],
+   "type": "fetch_url_results"
+  },
+  {
+   "content": [
+    {
+     "annotations": [],
+     "text": "**Para la mayoría de autónomos en España, elegiría Quipu.** Ofrece un buen equilibrio entre precio, sencillez y funciones fiscales: su plan inicial ronda los **17 €/mes**, incluye facturación ilimitada y modelos habituales de la AEAT como el 303, 130, 111, 115, 349 y 390. También incorpora OCR para tickets y facturas, aplicaciones móviles y prueba gratuita. citeweb:12\n\n| Software | Mejor para | Precio orientativo | Puntos fuertes | Limitaciones |\n|---|---|---:|---|---|\n| **Quipu** | Autónomo profesional sin empleados ni inventario complejo | Desde **17 €/mes** | Modelos fiscales incluidos, facturación ilimitada, OCR, conciliación bancaria en planes superiores | CRM, inventario y nóminas limitados |\n| **Holded** | Autónomo que quiere crecer hacia una pequeña empresa | Desde **15 €/mes**; el plan con contabilidad y modelos fiscales parte de unos **29 €/mes** | ERP completo: contabilidad, CRM, inventario, proyectos y empleados | Más complejo y caro para un freelance; el plan básico de 15 € solo cubre facturación |\n| **Declarando** | Autónomo que busca facturación junto con asesoría fiscal | Aproximadamente **30–50 €/mes + IVA** | Ayuda fiscal, control de gastos y asesoramiento | Más caro si solo necesitas emitir facturas |\n| **FacturaDirecta** | Facturación sencilla y gestión online básica | Variable según plan | Interfaz simple y gestión de clientes/facturas | Menos completo que Quipu o Holded para fiscalidad y gestión empresarial |\n| **Contasimple** | Presupuesto mínimo y necesidades básicas | Tiene opción gratuita; planes superiores de pago | Económico y suficiente para facturas sencillas | Funciones avanzadas y automatizaciones más limitadas |\n\n### Mi recomendación según tu caso\n\n- **Freelance que solo necesita facturar y controlar impuestos:** **Quipu**.\n- **Autónomo con empleados, almacén, proyectos o tienda online:** **Holded**.\n- **Prefieres que una asesoría te ayude con impuestos:** **Declarando**.\n- **Emites muy pocas facturas y buscas gastar lo mínimo:** **Contasimple**, comprobando antes que el plan elegido cubra tus requisitos fiscales.\n\n### Importante sobre Veri*Factu\n\nA fecha de **13 de septiembre de 2026**, la fecha oficial para que los autónomos y demás personas físicas adapten sus sistemas informáticos de facturación es el **1 de julio de 2027**; el **1 de enero de 2027** corresponde a contribuyentes del Impuesto sobre Sociedades. citeweb:16 Por tanto, conviene escoger ya un proveedor que confirme por escrito que su plan estará adaptado y que no cobrará un suplemento inesperado.\n\n**Veredicto:** **Quipu es la mejor opción general para un autónomo individual en España**; **Holded** es mejor si necesitas un ERP completo y prevés gestionar empleados, inventario o una empresa en crecimiento.",
+     "type": "output_text"
+    }
+   ],
+   "id": "msg_9f772ee2-1a74-4dc7-a781-51aca4922a98",
+   "role": "assistant",
+   "status": "completed",
+   "type": "message"
+  }
+ ],
+ "parallel_tool_calls": true,
+ "presence_penalty": 0,
+ "previous_response_id": null,
+ "prompt_cache_key": null,
+ "reasoning": null,
+ "safety_identifier": null,
+ "service_tier": "default",
+ "status": "completed",
+ "store": true,
+ "temperature": 1,
+ "text": {
+  "format": {
+   "type": "text"
+  }
+ },
+ "tool_choice": "auto",
+ "tools": [],
+ "top_logprobs": 0,
+ "top_p": 1,
+ "truncation": "",
+ "usage": {
+  "cost": {
+   "cache_creation_cost": 0.0034,
+   "cache_read_cost": 0.00011,
+   "currency": "USD",
+   "input_cost": 0,
+   "output_cost": 0.00137,
+   "tool_calls_cost": 0.00849,
+   "tool_calls_cost_details": {
+    "fetch_url": 0.00349,
+    "search_web": 0.005
+   },
+   "total_cost": 0.01337
+  },
+  "input_tokens": 19161,
+  "input_tokens_details": {
+   "cache_creation_input_tokens": 13587,
+   "cache_read_input_tokens": 5562,
+   "cached_tokens": 5562
+  },
+  "output_tokens": 1139,
+  "output_tokens_details": {
+   "reasoning_tokens": 180
+  },
+  "tool_calls_details": {
+   "fetch_url": {
+    "cost_usd": 0.00349,
+    "invocation": 1,
+    "token_usage": [
+     {
+      "input_tokens": 4170,
+      "input_tokens_details": {
+       "cache_creation_input_tokens": 4167,
+       "cached_tokens": 0
+      },
+      "model": "openai/gpt-5.6-luna",
+      "output_tokens": 1624,
+      "output_tokens_details": {
+       "reasoning_tokens": 161
+      }
+     }
+    ]
+   },
+   "search_web": {
+    "cost_usd": 0.005,
+    "invocation": 2
+   }
+  },
+  "total_tokens": 20300
+ },
+ "user": null
+}

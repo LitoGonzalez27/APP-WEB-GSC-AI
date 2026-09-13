@@ -15,6 +15,8 @@ from unittest.mock import Mock, patch, MagicMock
 
 # Añadir path del proyecto
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# database exige DATABASE_URL al importarse (los tests mockean la conexión)
+os.environ.setdefault('DATABASE_URL', 'postgresql://dummy:dummy@localhost:5432/dummy')
 
 from services.llm_providers import (
     BaseLLMProvider,
@@ -113,7 +115,7 @@ class TestOpenAIProvider:
     """Tests para OpenAIProvider"""
     
     @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_provider_initialization(self, mock_get_model, mock_get_pricing):
         """Test de inicialización del provider"""
         mock_get_model.return_value = 'gpt-5'
@@ -127,7 +129,7 @@ class TestOpenAIProvider:
     
     @patch('services.llm_providers.openai_provider.openai.OpenAI')
     @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_execute_query_success(self, mock_get_model, mock_get_pricing, mock_openai_class):
         """Test de ejecución exitosa de query"""
         # Setup mocks
@@ -165,7 +167,7 @@ class TestOpenAIProvider:
     
     @patch('services.llm_providers.openai_provider.openai.OpenAI')
     @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_execute_query_error(self, mock_get_model, mock_get_pricing, mock_openai_class):
         """Test de manejo de errores en query"""
         mock_get_model.return_value = 'gpt-5'
@@ -191,7 +193,7 @@ class TestAnthropicProvider:
     """Tests para AnthropicProvider"""
     
     @patch('services.llm_providers.anthropic_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.anthropic_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_provider_initialization(self, mock_get_model, mock_get_pricing):
         """Test de inicialización del provider"""
         mock_get_model.return_value = 'claude-sonnet-4-5-20250929'
@@ -210,7 +212,7 @@ class TestGoogleProvider:
     @patch('services.llm_providers.google_provider.genai.configure')
     @patch('services.llm_providers.google_provider.genai.GenerativeModel')
     @patch('services.llm_providers.google_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.google_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_provider_initialization(self, mock_get_model, mock_get_pricing, mock_gen_model, mock_configure):
         """Test de inicialización del provider"""
         mock_get_model.return_value = 'gemini-3-flash-preview'
@@ -230,32 +232,28 @@ class TestPerplexityProvider:
     """Tests para PerplexityProvider"""
     
     @patch('services.llm_providers.perplexity_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.perplexity_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_provider_initialization(self, mock_get_model, mock_get_pricing):
-        """Test de inicialización del provider"""
-        mock_get_model.return_value = 'llama-3.1-sonar-large-128k-online'
+        """El id del registry se traduce al preset del Agent API"""
+        mock_get_model.return_value = 'sonar'
         mock_get_pricing.return_value = {'input': 0.000001, 'output': 0.000001}
-        
+
         provider = PerplexityProvider(api_key='test-key')
-        
-        assert provider.model == 'llama-3.1-sonar-large-128k-online'
+
+        assert provider.model == 'sonar'
+        assert provider.preset == 'fast'
         assert provider.pricing is not None
         assert provider.get_provider_name() == 'perplexity'
-    
-    @patch('services.llm_providers.perplexity_provider.openai.OpenAI')
+
     @patch('services.llm_providers.perplexity_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.perplexity_provider.get_current_model_for_provider')
-    def test_uses_correct_base_url(self, mock_get_model, mock_get_pricing, mock_openai_class):
-        """Verificar que usa base_url de Perplexity"""
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
+    def test_legacy_model_ids_map_to_fast(self, mock_get_model, mock_get_pricing):
         mock_get_model.return_value = 'llama-3.1-sonar-large-128k-online'
-        mock_get_pricing.return_value = {'input': 0.000001, 'output': 0.000001}
-        
+        mock_get_pricing.return_value = {'input': 0.0, 'output': 0.0}
+
         provider = PerplexityProvider(api_key='test-key')
-        
-        # Verificar que OpenAI se llamó con base_url correcto
-        mock_openai_class.assert_called_once()
-        call_kwargs = mock_openai_class.call_args[1]
-        assert call_kwargs['base_url'] == "https://api.perplexity.ai"
+
+        assert provider.preset == 'fast'
 
 
 class TestLLMProviderFactory:
@@ -263,7 +261,7 @@ class TestLLMProviderFactory:
     
     @patch('services.llm_providers.openai_provider.OpenAIProvider.test_connection')
     @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_create_provider_openai(self, mock_get_model, mock_get_pricing, mock_test_connection):
         """Test de creación de OpenAI provider"""
         mock_get_model.return_value = 'gpt-5'
@@ -278,7 +276,7 @@ class TestLLMProviderFactory:
     
     @patch('services.llm_providers.anthropic_provider.AnthropicProvider.test_connection')
     @patch('services.llm_providers.anthropic_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.anthropic_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_create_provider_anthropic(self, mock_get_model, mock_get_pricing, mock_test_connection):
         """Test de creación de Anthropic provider"""
         mock_get_model.return_value = 'claude-sonnet-4-5-20250929'
@@ -314,7 +312,7 @@ class TestProviderPricing:
     
     @patch('services.llm_providers.openai_provider.openai.OpenAI')
     @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_cost_calculation(self, mock_get_model, mock_get_pricing, mock_openai_class):
         """Verificar que el coste se calcula correctamente"""
         mock_get_model.return_value = 'gpt-5'
@@ -349,7 +347,7 @@ class TestOpenAIParameters:
 
     @patch('services.llm_providers.openai_provider.openai.OpenAI')
     @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_uses_max_tokens_not_max_completion_tokens(self, mock_get_model, mock_get_pricing, mock_openai_class):
         mock_get_model.return_value = 'gpt-4o'
         mock_get_pricing.return_value = {'input': 0.000015, 'output': 0.000045}
@@ -379,7 +377,7 @@ class TestOpenAIParameters:
 
     @patch('services.llm_providers.openai_provider.openai.OpenAI')
     @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
-    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    @patch('services.llm_providers.base_provider.get_current_model_for_provider')
     def test_fallback_on_not_found_model(self, mock_get_model, mock_get_pricing, mock_openai_class):
         """Si el modelo no existe, debe reintentar con gpt-4o"""
         mock_get_model.return_value = 'gpt-5'
@@ -388,11 +386,9 @@ class TestOpenAIParameters:
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
 
-        # Primera llamada lanza NotFoundError (simular)
+        # Primera llamada lanza "model not found" (el provider lo atrapa de forma genérica)
         class NotFoundError(Exception):
             pass
-        # Simular que openai expone NotFoundError, pero el provider lo atrapa de forma genérica
-        mock_client.chat.completions.create.side_effect = [NotFoundError("model not found"), MagicMock()]
 
         # Segunda llamada (fallback) devuelve respuesta válida
         mock_response = MagicMock()
@@ -403,11 +399,8 @@ class TestOpenAIParameters:
         mock_usage.prompt_tokens = 1
         mock_usage.completion_tokens = 1
         mock_usage.total_tokens = 2
-        # Reemplazar la segunda side_effect con la respuesta válida
-        def side_effect(*args, **kwargs):
-            return mock_response
-        mock_client.chat.completions.create.side_effect = [NotFoundError("model not found"), side_effect]
         mock_response.usage = mock_usage
+        mock_client.chat.completions.create.side_effect = [NotFoundError("model not found"), mock_response]
 
         provider = OpenAIProvider(api_key='test-key')
         result = provider.execute_query("hola")

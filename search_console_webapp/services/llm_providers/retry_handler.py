@@ -42,15 +42,25 @@ class CircuitBreaker:
     STATE_OPEN = 'open'
     STATE_HALF_OPEN = 'half_open'
 
-    def __init__(self, failure_threshold: int = 3, cooldown_seconds: int = 120):
+    def __init__(self, failure_threshold: int = 3, cooldown_seconds: int = 120,
+                 billing_cooldown_seconds: int = 1800):
         import os
         self.failure_threshold = int(os.getenv('CIRCUIT_BREAKER_THRESHOLD', str(failure_threshold)))
         self.cooldown_seconds = int(os.getenv('CIRCUIT_BREAKER_COOLDOWN', str(cooldown_seconds)))
+        # Sin crédito no se arregla en 2 minutos: cooldown largo. Tras él, una
+        # llamada de prueba (HALF_OPEN) detecta si ya se recargó.
+        self.billing_cooldown_seconds = int(
+            os.getenv('BILLING_EXHAUSTED_COOLDOWN', str(billing_cooldown_seconds))
+        )
         self._lock = threading.Lock()
         # Per-provider state
         self._failures: Dict[str, int] = {}           # consecutive failures
         self._last_failure_time: Dict[str, float] = {} # timestamp of last failure
         self._state: Dict[str, str] = {}               # current state
+        self._billing_reason: Dict[str, str] = {}      # provider sin crédito → mensaje de la API
+
+    def _cooldown_for(self, provider: str) -> int:
+        return self.billing_cooldown_seconds if provider in self._billing_reason else self.cooldown_seconds
 
     def _get_state(self, provider: str) -> str:
         """Get current state for a provider, checking cooldown expiry."""
@@ -58,11 +68,31 @@ class CircuitBreaker:
 
         if state == self.STATE_OPEN:
             last_fail = self._last_failure_time.get(provider, 0)
-            if time.time() - last_fail >= self.cooldown_seconds:
+            if time.time() - last_fail >= self._cooldown_for(provider):
                 # Cooldown expired → allow one test request
                 return self.STATE_HALF_OPEN
 
         return state
+
+    def trip_billing_exhausted(self, provider: str, reason: str):
+        """Abre el circuito del provider por falta de crédito (cooldown largo)."""
+        with self._lock:
+            if provider not in self._billing_reason:
+                logger.error(
+                    f"💳 Circuit Breaker OPEN para '{provider}' — sin crédito en la API. "
+                    f"Se omite el provider {self.billing_cooldown_seconds}s. Detalle: {reason[:200]}"
+                )
+            self._billing_reason[provider] = reason
+            self._failures[provider] = max(self._failures.get(provider, 0), self.failure_threshold)
+            self._last_failure_time[provider] = time.time()
+            self._state[provider] = self.STATE_OPEN
+
+    def billing_exhausted_reason(self, provider: str) -> Optional[str]:
+        """Mensaje de 'sin crédito' si el circuito del provider está abierto por ese motivo."""
+        with self._lock:
+            if self._get_state(provider) != self.STATE_OPEN:
+                return None
+            return self._billing_reason.get(provider)
 
     def is_open(self, provider: str) -> bool:
         """Check if circuit is open (should skip this provider)."""
@@ -81,6 +111,7 @@ class CircuitBreaker:
         with self._lock:
             self._failures[provider] = 0
             self._state[provider] = self.STATE_CLOSED
+            self._billing_reason.pop(provider, None)
 
     def record_failure(self, provider: str):
         """Record a failed request — increment counter, possibly open circuit."""
@@ -103,7 +134,7 @@ class CircuitBreaker:
             if self._get_state(provider) != self.STATE_OPEN:
                 return 0.0
             last_fail = self._last_failure_time.get(provider, 0)
-            return max(0.0, self.cooldown_seconds - (time.time() - last_fail))
+            return max(0.0, self._cooldown_for(provider) - (time.time() - last_fail))
 
     def get_status(self, provider: str) -> Dict:
         """Get diagnostic info for a provider."""
@@ -113,7 +144,8 @@ class CircuitBreaker:
                 'state': self._get_state(provider),
                 'consecutive_failures': self._failures.get(provider, 0),
                 'failure_threshold': self.failure_threshold,
-                'cooldown_seconds': self.cooldown_seconds
+                'cooldown_seconds': self._cooldown_for(provider),
+                'billing_exhausted': provider in self._billing_reason,
             }
 
 
@@ -161,7 +193,8 @@ class RetryConfig:
         'invalid_request',
         'content_blocked',  # Safety filters
         'model_not_found',
-        'quota_exhausted'   # ✅ NUEVO: cuota diaria agotada, NO reintentar
+        'quota_exhausted',  # cuota diaria agotada, NO reintentar
+        'billing_exhausted',  # cuenta sin crédito, NO reintentar
     ]
     
     # Timeout por defecto para todas las requests
@@ -180,6 +213,33 @@ class RetryConfig:
     }
 
 
+# Mensajes reales de "sin crédito" de cada API (en minúsculas)
+BILLING_EXHAUSTED_MARKERS = (
+    'insufficient_quota',            # OpenAI (type), p.ej. 2026-09-11
+    'credit_balance_exhausted',      # OpenAI (code)
+    'no credits remaining',          # OpenAI (message)
+    'credit balance is too low',     # Anthropic
+    'insufficient credits',          # Perplexity / genérico
+)
+
+# Prefijo estable de los errores guardados en BD: lo usan el engine y cron_alerts
+BILLING_EXHAUSTED_ERROR_PREFIX = 'provider_billing_exhausted'
+
+
+def billing_exhausted_error(provider: str, reason: str) -> Dict:
+    return {
+        'success': False,
+        'error': f"{BILLING_EXHAUSTED_ERROR_PREFIX}: {provider}: {reason}",
+        'billing_exhausted': True,
+    }
+
+
+def note_health_check_failure(provider: str, error: Exception) -> None:
+    """Si el health-check falla por falta de crédito, abre ya el breaker del provider."""
+    if classify_error(error) == 'billing_exhausted':
+        circuit_breaker.trip_billing_exhausted(provider, str(error))
+
+
 def classify_error(error: Exception) -> str:
     """
     Clasifica un error para saber si es retriable
@@ -188,6 +248,12 @@ def classify_error(error: Exception) -> str:
         Tipo de error: 'rate_limit', 'timeout', 'server_error', 'network', 'non_retryable'
     """
     error_str = str(error).lower()
+
+    # 💳 SIN CRÉDITO en la cuenta del proveedor: no se recupera reintentando.
+    # Marcadores específicos (no "billing" a secas: el 429 por minuto de Gemini
+    # también dice "check your plan and billing details").
+    if any(marker in error_str for marker in BILLING_EXHAUSTED_MARKERS):
+        return 'billing_exhausted'
 
     # ✅ QUOTA EXHAUSTED — cuota diaria agotada, NO reintentar
     # Estos errores dicen "retry in Xh" — reintentar es inútil y agrava el problema
@@ -266,6 +332,9 @@ def with_retry(func: Callable) -> Callable:
         provider_name = self.get_provider_name()
 
         # ── Circuit Breaker check ──
+        billing_reason = circuit_breaker.billing_exhausted_reason(provider_name)
+        if billing_reason:
+            return billing_exhausted_error(provider_name, billing_reason)
         if circuit_breaker.is_open(provider_name):
             cb_status = circuit_breaker.get_status(provider_name)
             logger.warning(
@@ -295,6 +364,10 @@ def with_retry(func: Callable) -> Callable:
             last_error = result.get('error', 'Unknown error')
             error_type = classify_error(Exception(last_error))
             
+            if error_type == 'billing_exhausted':
+                circuit_breaker.trip_billing_exhausted(provider_name, last_error)
+                return billing_exhausted_error(provider_name, last_error)
+
             # Si no es retriable, retornar inmediatamente
             if error_type == 'non_retryable':
                 logger.warning(f"⚠️ {provider_name}: Error no retriable, abortando")
@@ -339,6 +412,9 @@ def with_retry(func: Callable) -> Callable:
                     
                     # Si ahora es un error diferente (no retriable), abortar
                     new_error_type = classify_error(Exception(last_error))
+                    if new_error_type == 'billing_exhausted':
+                        circuit_breaker.trip_billing_exhausted(provider_name, last_error)
+                        return billing_exhausted_error(provider_name, last_error)
                     if new_error_type == 'non_retryable':
                         logger.warning(f"⚠️ {self.get_provider_name()}: Cambió a error no retriable, abortando")
                         return result

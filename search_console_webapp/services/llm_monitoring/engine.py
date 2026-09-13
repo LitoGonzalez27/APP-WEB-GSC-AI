@@ -47,6 +47,26 @@ from services.ai_analysis import extract_brand_variations, remove_accents
 logger = logging.getLogger(__name__)
 
 
+def split_billing_exhausted(failed_items: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+    """
+    Separa las tareas fallidas de providers sin crédito (breaker abierto por
+    billing): reintentarlas no sirve y esperar al breaker bloquearía el run.
+
+    Returns: (reintentables, omitidas)
+    """
+    exhausted = {
+        item['task']['llm_name'] for item in failed_items
+        if circuit_breaker.billing_exhausted_reason(item['task']['llm_name'])
+    }
+    if not exhausted:
+        return failed_items, []
+    logger.error(f"   💳 Sin crédito, no se reintentan: {', '.join(sorted(exhausted))}")
+    return (
+        [i for i in failed_items if i['task']['llm_name'] not in exhausted],
+        [i for i in failed_items if i['task']['llm_name'] in exhausted],
+    )
+
+
 class _EngineMixin:
 
     def analyze_project(
@@ -634,8 +654,11 @@ class _EngineMixin:
 
             retry_count = 0
             max_retries = 2  # ✅ Reducido de 4: el @with_retry del provider ya reintenta
+            billing_skipped = []  # tareas de providers sin crédito: reintentar no sirve
 
             for attempt in range(1, max_retries + 1):
+                failed_task_list, skipped = split_billing_exhausted(failed_task_list)
+                billing_skipped += skipped
                 if not failed_task_list:
                     break
 
@@ -690,6 +713,7 @@ class _EngineMixin:
                         logger.error(f"   ❌ Excepción en reintento: {e}")
             
             # Actualizar contador de tareas fallidas
+            failed_task_list += billing_skipped
             failed_tasks = len(failed_task_list)
             
             logger.info("")
@@ -1008,7 +1032,9 @@ class _EngineMixin:
                     'language_name': task_locale.language_name if task_locale else None,
                     'country_name': task_locale.country_name if task_locale else None,
                     'country_name_localized': task_locale.country_name_localized if task_locale else None,
-                    'model_reported': llm_result.get('model_used'),
+                    # Modelo que dice la API haber usado (p.ej. Perplexity
+                    # devuelve el LLM subyacente); si no lo expone, el id pedido.
+                    'model_reported': llm_result.get('api_model_reported') or llm_result.get('model_used'),
                 }
                 _prompt_version = task.get('prompt_version', 'v2_system')
 

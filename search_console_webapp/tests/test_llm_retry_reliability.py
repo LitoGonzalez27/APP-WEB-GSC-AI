@@ -100,7 +100,7 @@ class TestProviderTimeouts(unittest.TestCase):
             from services.llm_providers.perplexity_provider import PerplexityProvider
             provider = PerplexityProvider(api_key='pplx-test-dummy', model='sonar-pro')
             self.assertEqual(
-                float(provider.client.timeout),
+                float(provider.timeout),
                 float(RetryConfig.PROVIDER_TIMEOUTS['perplexity'])
             )
 

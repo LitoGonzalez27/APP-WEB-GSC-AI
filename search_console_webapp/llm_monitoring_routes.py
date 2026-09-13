@@ -65,6 +65,7 @@ from services.project_access_service import (
 from database import get_db_connection, acquire_analysis_lock, release_analysis_lock, get_latest_analysis_run
 from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
 from services.llm_monitoring_stats import LLMMonitoringStatsService
+from services.llm_providers.base_provider import DEFAULT_MODELS
 from services.llm_monitoring import url_content_analyzer
 from services.llm_monitoring import prompt_sets as prompt_sets_lib
 from services.llm_monitoring import pseudo_snapshots as pseudo_snapshots_lib
@@ -584,12 +585,8 @@ _OPPORTUNITY_LABELS = {
 }
 
 
-MODEL_FALLBACKS = {
-    'openai': {'model_id': 'gpt-5.4', 'display_name': 'GPT-5.4'},
-    'anthropic': {'model_id': 'claude-sonnet-4-6', 'display_name': 'Claude Sonnet 4.6'},
-    'google': {'model_id': 'gemini-3-flash-preview', 'display_name': 'Gemini 3 Flash'},
-    'perplexity': {'model_id': 'sonar-pro', 'display_name': 'Perplexity Sonar Pro'}
-}
+# Una sola fuente para los modelos por defecto (la usan también los providers)
+MODEL_FALLBACKS = DEFAULT_MODELS
 
 
 def fetch_current_models(cur):
@@ -6118,10 +6115,10 @@ def get_current_models():
         {
             "success": true,
             "models": {
-                "openai": {"model_id": "gpt-5.4", "display_name": "GPT-5.4"},
-                "anthropic": {"model_id": "claude-sonnet-4-6", "display_name": "Claude Sonnet 4.6"},
-                "google": {"model_id": "gemini-3-flash-preview", "display_name": "Gemini 3 Flash"},
-                "perplexity": {"model_id": "sonar-pro", "display_name": "Perplexity Sonar Pro"}
+                "openai": {"model_id": "gpt-5.5", "display_name": "GPT-5.5"},
+                "anthropic": {"model_id": "claude-sonnet-5", "display_name": "Claude Sonnet 5"},
+                "google": {"model_id": "gemini-3.6-flash", "display_name": "Gemini 3.6 Flash"},
+                "perplexity": {"model_id": "sonar", "display_name": "Perplexity (Agent API)"}
             }
         }
     """

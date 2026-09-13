@@ -1,282 +1,297 @@
 """
-Proveedor Perplexity - Sonar Pro
-Versión: sonar-pro (actualización 23 Febrero 2026)
+Proveedor Perplexity - Agent API (POST /v1/agent)
 
-IMPORTANTE:
-- NO hardcodees precios aquí (se leen de BD)
-- Usa búsqueda en tiempo real (acceso a internet)
-- Compatible con SDK de OpenAI (diferente base_url)
-- Modelos disponibles: sonar, sonar-pro, sonar-reasoning
+Migrado desde /chat/completions (Sonar) el 2026-09-13: Perplexity retira
+Sonar por Chat Completions el 2026-09-27. Guía oficial:
+https://docs.perplexity.ai/docs/agent-api/migrate-from-sonar/how-to
+
+- El `model_id` del registry sigue siendo el id lógico (`sonar`, `sonar-pro`...)
+  y se traduce al `preset` equivalente del Agent API (PRESET_BY_MODEL).
+- El coste real lo devuelve la API en `usage.cost.total_cost` (USD): no se
+  recalcula con precios por token salvo que falte.
+- Expone el query fan-out: cada paso `search_results` trae las sub-consultas
+  (`queries`) y sus resultados.
 """
 
 import logging
+import re
 import time
-from typing import Dict, Optional
-import openai
-from .base_provider import BaseLLMProvider, get_model_pricing_from_db, get_current_model_for_provider
+from typing import Dict, List, Optional
+
+import requests
+
+from .base_provider import BaseLLMProvider, get_model_pricing_from_db, resolve_model_id
+from .fanout_utils import normalize_url
 from .locale_helpers import LocaleContext, build_system_instruction
-from .retry_handler import with_retry, RetryConfig  # ✨ NUEVO: Sistema de retry
+from .retry_handler import with_retry, RetryConfig, note_health_check_failure
 
 logger = logging.getLogger(__name__)
 
+AGENT_API_URL = "https://api.perplexity.ai/v1/agent"
+
+# Equivalencias oficiales Sonar → preset (guía de migración de Perplexity)
+PRESET_BY_MODEL = {
+    'sonar': 'fast',
+    'sonar-pro': 'low',
+    'sonar-reasoning': 'medium',
+    'sonar-reasoning-pro': 'medium',
+    'sonar-deep-research': 'high',
+    # ids legacy que aún pueden quedar en BD
+    'llama-3.1-sonar-large-128k-online': 'fast',
+    'llama-3.1-sonar-small-128k-online': 'fast',
+}
+VALID_PRESETS = {'fast', 'low', 'medium', 'high'}
+
+MAX_OUTPUT_TOKENS = 16000
+_CITATION_MARKER = re.compile(r'\[(\d+)\]')
+
+
+def resolve_preset(model_id: Optional[str]) -> str:
+    """Traduce el id del registry al preset del Agent API (acepta presets directos)."""
+    if model_id in VALID_PRESETS:
+        return model_id
+    return PRESET_BY_MODEL.get(model_id or '', 'fast')
+
+
+def parse_agent_response(data: Dict) -> Dict:
+    """
+    Convierte la respuesta JSON del Agent API al formato estándar del provider.
+
+    Función pura (sin I/O) para poder testearla con respuestas reales guardadas.
+
+    - `content`: texto de los pasos `message`.
+    - `sources`: todas las URLs devueltas por las búsquedas, en orden y sin
+      duplicados, con `cited=True` si el texto final las referencia como `[n]`.
+      Es el equivalente directo de `citations` de Sonar, que también devolvía
+      la lista completa de resultados de búsqueda.
+    - `search_queries`: una entrada por sub-consulta de cada ronda de búsqueda
+      (con las URLs de esa ronda) y una por cada página leída (`fetch_url`).
+    """
+    output = data.get('output') or []
+
+    content = ''.join(
+        part.get('text', '')
+        for step in output if step.get('type') == 'message'
+        for part in (step.get('content') or [])
+        if part.get('type') in (None, 'output_text', 'text')
+    )
+    cited_ids = {int(n) for n in _CITATION_MARKER.findall(content)}
+
+    sources: List[Dict] = []
+    seen_urls = set()
+    search_queries: List[Dict] = []
+    search_round = 0
+
+    for step in output:
+        step_type = step.get('type')
+
+        if step_type == 'search_results':
+            search_round += 1
+            round_urls = []
+            for result in step.get('results') or []:
+                url = normalize_url(result.get('url'))
+                if not url:
+                    continue
+                round_urls.append(url)
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    sources.append({
+                        'url': url,
+                        'provider': 'perplexity',
+                        'title': result.get('title'),
+                        'query_round': search_round,
+                        'cited': result.get('id') in cited_ids,
+                    })
+                elif result.get('id') in cited_ids:
+                    next(s for s in sources if s['url'] == url)['cited'] = True
+            for query in step.get('queries') or [None]:
+                search_queries.append({
+                    'round': search_round,
+                    'action': 'search',
+                    'query': query,
+                    'url': None,
+                    'sources': round_urls,
+                })
+
+        elif step_type == 'fetch_url_results':
+            for page in step.get('contents') or []:
+                search_queries.append({
+                    'round': search_round,
+                    'action': 'fetch_url',
+                    'query': None,
+                    'url': normalize_url(page.get('url')),
+                    'sources': [],
+                })
+
+    usage = data.get('usage') or {}
+    cost = usage.get('cost') or {}
+    tool_details = usage.get('tool_calls_details') or {}
+    search_calls = (tool_details.get('search_web') or {}).get('invocation')
+    if search_calls is None:
+        search_calls = search_round
+
+    return {
+        'content': content,
+        'sources': sources,
+        'search_queries': search_queries,
+        'search_used': search_round > 0,
+        'search_calls': int(search_calls),
+        'page_opens': sum(1 for q in search_queries if q['action'] == 'fetch_url'),
+        'input_tokens': int(usage.get('input_tokens') or 0),
+        'output_tokens': int(usage.get('output_tokens') or 0),
+        'tokens': int(usage.get('total_tokens') or 0),
+        'cost_usd': cost.get('total_cost'),
+        'search_cost_usd': float(cost.get('tool_calls_cost') or 0.0),
+        'api_model_reported': data.get('model'),
+    }
+
+
+def _http_error_message(response: requests.Response) -> str:
+    """Mensaje de error que conserva el código HTTP para classify_error()."""
+    detail = response.text[:500]
+    try:
+        err = (response.json() or {}).get('error') or {}
+        detail = err.get('message') or detail
+        if err.get('type'):
+            detail = f"{err['type']}: {detail}"
+    except ValueError:
+        pass
+    return f"Perplexity API Error: HTTP {response.status_code} - {detail}"
+
 
 class PerplexityProvider(BaseLLMProvider):
-    """
-    Proveedor para Perplexity Sonar Pro
-    
-    Características:
-    - Búsqueda en tiempo real (acceso a internet en cada query)
-    - Modelo normal recomendado (sin variante reasoning)
-    - Excelente para información actualizada
-    - Cita fuentes automáticamente
-    - Precio competitivo
-    """
-    
+    """Proveedor Perplexity sobre el Agent API (búsqueda web en cada consulta)."""
+
     def __init__(self, api_key: str, model: str = None):
-        """
-        Inicializa el proveedor Perplexity
-        
-        Args:
-            api_key: API key de Perplexity (obtener en perplexity.ai/settings)
-            model: Modelo específico a usar (opcional)
-                   
-        Example:
-            >>> provider = PerplexityProvider(api_key='pplx-...')
-            >>> result = provider.execute_query("¿Qué pasó hoy en el mundo?")
-            >>> # Respuesta incluirá información actualizada de hoy
-        """
-        # ✅ DIFERENCIA CLAVE: Base URL de Perplexity
-        # timeout explícito: el default del SDK son 600s y una llamada colgada
-        # retiene un slot de concurrencia todo ese tiempo
-        self.client = openai.OpenAI(
-            api_key=api_key,
-            base_url="https://api.perplexity.ai",
-            timeout=float(RetryConfig.PROVIDER_TIMEOUTS['perplexity'])
-        )
-        
-        # ✅ CORRECCIÓN: Obtener modelo actual de BD
-        if model:
-            self.model = model
-        else:
-            self.model = get_current_model_for_provider('perplexity')
-            if not self.model:
-                # ✅ CORRECCIÓN: Usar 'sonar-pro' como fallback (modelo normal más reciente)
-                self.model = 'sonar-pro'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'sonar-pro' por defecto")
-        
-        # ✅ NORMALIZACIÓN: Mapear IDs legacy a modelos actuales de Perplexity
-        legacy_to_current_map = {
-            'llama-3.1-sonar-large-128k-online': 'sonar',
-            'llama-3.1-sonar-small-128k-online': 'sonar'
-        }
-        if self.model in legacy_to_current_map:
-            logger.info(f"ℹ️ Normalizando modelo legacy '{self.model}' → '{legacy_to_current_map[self.model]}'")
-            self.model = legacy_to_current_map[self.model]
-        
-        # ✅ CORRECCIÓN: Obtener pricing de BD
+        self.api_key = api_key
+        self.timeout = float(RetryConfig.PROVIDER_TIMEOUTS['perplexity'])
+
+        self.model = resolve_model_id('perplexity', model)
+        self.preset = resolve_preset(self.model)
+
+        # Solo como respaldo: el Agent API devuelve el coste real en cada respuesta
         self.pricing = get_model_pricing_from_db('perplexity', self.model)
-        
-        logger.info(f"🤖 Perplexity Provider inicializado")
-        logger.info(f"   Modelo: {self.model}")
-        logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
-        logger.info(f"   ⚡ Búsqueda en tiempo real habilitada")
-    
-    @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
+
+        logger.info(f"🤖 Perplexity Provider inicializado (Agent API)")
+        logger.info(f"   Modelo: {self.model} → preset '{self.preset}'")
+
+    def _post(self, payload: Dict, timeout: Optional[float] = None) -> requests.Response:
+        return requests.post(
+            AGENT_API_URL,
+            headers={
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json',
+            },
+            json=payload,
+            timeout=timeout or self.timeout,
+        )
+
+    def build_payload(self, query: str, locale: Optional[LocaleContext]) -> Dict:
+        payload: Dict = {
+            'preset': self.preset,
+            'input': query,
+            'max_output_tokens': MAX_OUTPUT_TOKENS,
+        }
+        if locale is not None:
+            # El idioma va como mensaje `system` dentro de `input`, NO en
+            # `instructions`: `instructions` sustituye el prompt del preset y el
+            # modelo deja de citar [n] y cambia su patrón de búsqueda
+            # (comprobado con la API el 2026-09-13).
+            payload['input'] = [
+                {'type': 'message', 'role': 'system', 'content': build_system_instruction(locale)},
+                {'type': 'message', 'role': 'user', 'content': query},
+            ]
+            payload['tools'] = [{
+                'type': 'web_search',
+                'user_location': {'country': locale.country_code},
+            }]
+        return payload
+
+    @with_retry
     def execute_query(self, query: str, *,
                       locale: Optional[LocaleContext] = None) -> Dict:
         """
-        Ejecuta una query contra Perplexity Sonar.
+        Ejecuta una query contra el Agent API.
 
-        IMPORTANTE: Esta query incluirá búsqueda en internet en tiempo real.
-        La respuesta puede incluir información muy reciente.
-
-        Args:
-            query: Pregunta a hacer a Perplexity.
-            locale: LocaleContext opcional. Cuando se pasa, se aplican DOS
-                    mecanismos nativos acumulativos:
-                    1. System message con instrucción en lengua destino.
-                    2. extra_body.web_search_options.user_location={country}
-                       para geo-enrutar la búsqueda web real. Este es el
-                       mecanismo más efectivo de fidelidad porque actúa
-                       sobre el motor de búsqueda real de Perplexity,
-                       no solo sobre la generación del texto.
-                    Si la API rechaza extra_body (feature no disponible
-                    en la cuenta), degrada graciosamente a system-only.
-
-        Returns:
-            Dict con respuesta estandarizada (incluye 'prompt_strategy').
+        Con `locale`, el idioma va como mensaje `system` en `input` y el país en
+        `tools[web_search].user_location` (geo-enruta la búsqueda real).
         """
         start_time = time.time()
-
-        # ─── Construir messages y extra_body según locale ─────────────
-        messages = []
-        extra_body: Optional[Dict] = None
-
-        if locale is not None:
-            messages.append({
-                "role": "system",
-                "content": build_system_instruction(locale),
-            })
-            extra_body = {
-                "web_search_options": {
-                    "user_location": {"country": locale.country_code}
-                }
-            }
-            prompt_strategy = 'system_user_geo'
-            logger.info(
-                f"🌍 Perplexity: locale+geo applied [{locale.fingerprint()}] "
-                f"strategy={prompt_strategy}"
-            )
-        else:
-            prompt_strategy = 'legacy_user_only'
-
-        messages.append({"role": "user", "content": query})
-
-        # ─── Llamada con graceful degradation ─────────────────────────
-        call_params: Dict = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 16000,  # Aumentado a 16K para capturar respuestas de cualquier longitud
-        }
-        if extra_body is not None:
-            call_params["extra_body"] = extra_body
+        prompt_strategy = 'system_user_geo' if locale is not None else 'legacy_user_only'
 
         try:
-            try:
-                response = self.client.chat.completions.create(**call_params)
-            except (openai.BadRequestError, openai.APIError) as e_call:
-                # Graceful degradation: si la API rechaza extra_body
-                # (p.ej. feature user_location no disponible en la cuenta),
-                # reintentar sin extra_body, conservando el system message.
-                err_text = str(e_call).lower()
-                is_extra_body_issue = extra_body is not None and any(
-                    k in err_text
-                    for k in ('user_location', 'web_search_options', 'extra_body')
-                )
-                if is_extra_body_issue:
-                    logger.warning(
-                        f"⚠️ Perplexity rejected user_location extra_body, "
-                        f"falling back to system-only. err={e_call}"
-                    )
-                    call_params.pop('extra_body', None)
-                    prompt_strategy = 'system_user'  # downgraded from system_user_geo
-                    response = self.client.chat.completions.create(**call_params)
-                else:
-                    # Otro tipo de error: re-lanzar para que el handler
-                    # de abajo lo convierta en dict estándar de error.
-                    raise
+            response = self._post(self.build_payload(query, locale))
+        except requests.Timeout:
+            return {'success': False, 'error': f"Perplexity request timed out after {self.timeout:.0f}s"}
+        except requests.RequestException as e:
+            return {'success': False, 'error': f"Perplexity connection error: {e}"}
 
-            # Calcular tiempo de respuesta
-            response_time = int((time.time() - start_time) * 1000)
+        if response.status_code != 200:
+            error = _http_error_message(response)
+            logger.error(f"❌ {error}")
+            return {'success': False, 'error': error}
 
-            # Extraer datos (mismo formato que OpenAI)
-            content = response.choices[0].message.content
+        try:
+            data = response.json()
+        except ValueError:
+            return {'success': False, 'error': 'Perplexity API Error: invalid JSON response'}
 
-            # ✨ NUEVO: Capturar citations de Perplexity
-            sources = []
-            if hasattr(response, 'citations') and response.citations:
-                for citation in response.citations:
-                    sources.append({
-                        'url': citation if isinstance(citation, str) else str(citation),
-                        'provider': 'perplexity'
-                    })
-                logger.debug(f"✅ Capturadas {len(sources)} citations de Perplexity")
-
-            # Tokens usados
-            input_tokens = 0
-            output_tokens = 0
-            total_tokens = 0
-
-            if hasattr(response, 'usage') and response.usage:
-                input_tokens = getattr(response.usage, 'prompt_tokens', 0)
-                output_tokens = getattr(response.usage, 'completion_tokens', 0)
-                total_tokens = getattr(response.usage, 'total_tokens', 0)
-            else:
-                # Estimación si no hay usage
-                input_tokens = int(len(query.split()) * 1.3)
-                output_tokens = int(len(content.split()) * 1.3)
-                total_tokens = input_tokens + output_tokens
-                logger.debug(f"ℹ️ Perplexity no expuso usage, usando estimación")
-
-            # Calcular coste usando pricing de BD
-            cost = (input_tokens * self.pricing['input'] +
-                   output_tokens * self.pricing['output'])
-
-            return {
-                'success': True,
-                'content': content,
-                'sources': sources,  # ✨ NUEVO
-                'tokens': total_tokens,
-                'input_tokens': input_tokens,
-                'output_tokens': output_tokens,
-                'cost_usd': round(cost, 6),
-                'response_time_ms': response_time,
-                'model_used': self.model,
-                'prompt_strategy': prompt_strategy,  # ✨ NUEVO
-            }
-            
-        except openai.APIError as e:
-            logger.error(f"❌ Perplexity API Error: {e}")
+        if data.get('status') not in (None, 'completed') or data.get('error'):
             return {
                 'success': False,
-                'error': f"Perplexity API Error: {str(e)}"
+                'error': f"Perplexity API Error: status={data.get('status')} error={data.get('error')}",
             }
-        except openai.RateLimitError as e:
-            logger.error(f"❌ Perplexity Rate Limit: {e}")
-            return {
-                'success': False,
-                'error': "Rate limit exceeded. Please try again later."
-            }
-        except Exception as e:
-            logger.error(f"❌ Perplexity Unexpected Error: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
+
+        parsed = parse_agent_response(data)
+        if not parsed['content'].strip():
+            return {'success': False, 'error': 'Empty content from Perplexity response'}
+
+        cost = parsed['cost_usd']
+        if cost is None:
+            cost = (parsed['input_tokens'] * self.pricing['input']
+                    + parsed['output_tokens'] * self.pricing['output'])
+
+        return {
+            'success': True,
+            'content': parsed['content'],
+            'sources': parsed['sources'],
+            'tokens': parsed['tokens'],
+            'input_tokens': parsed['input_tokens'],
+            'output_tokens': parsed['output_tokens'],
+            'cost_usd': round(float(cost), 6),
+            'response_time_ms': int((time.time() - start_time) * 1000),
+            'model_used': self.model,
+            'prompt_strategy': prompt_strategy,
+            'api_model_reported': parsed['api_model_reported'],
+            'search_mode': 'auto',
+            'search_tool': f'perplexity_agent_{self.preset}',
+            'search_country': locale.country_code if locale is not None else None,
+            'search_used': parsed['search_used'],
+            'search_calls': parsed['search_calls'],
+            'page_opens': parsed['page_opens'],
+            'search_cost_usd': parsed['search_cost_usd'],
+            'search_queries': parsed['search_queries'],
+        }
+
     def get_provider_name(self) -> str:
         return 'perplexity'
-    
-    def get_model_display_name(self) -> str:
-        # Mapeo de IDs a nombres legibles (modelos actualizados Oct 2025)
-        display_names = {
-            'sonar': 'Perplexity Sonar',
-            'sonar-pro': 'Perplexity Sonar Pro',
-            'sonar-reasoning': 'Perplexity Sonar Reasoning',
-            # Legacy (deprecated)
-            'llama-3.1-sonar-large-128k-online': 'Perplexity Sonar Large (Legacy)',
-            'llama-3.1-sonar-small-128k-online': 'Perplexity Sonar Small (Legacy)'
-        }
-        return display_names.get(self.model, self.model)
-    
+
+
     def test_connection(self) -> bool:
         """
-        Verifica que la API key funcione
+        Llamada mínima real: verifica clave, crédito y endpoint.
+        `max_tool_calls=0` evita pagar una búsqueda por el health-check.
         """
         try:
-            # Test simple con query mínima.
-            # NOTA (2026-05-21): Perplexity cambió la API entre 2026-05-16 y
-            # 2026-05-19 y ahora rechaza max_tokens < 16 con HTTP 400
-            # ("max_tokens must be at least 16 for sonar"). El valor anterior
-            # (10) hacía que test_connection fallase SIEMPRE, lo que provocaba
-            # que analyze_project excluyese Perplexity de TODOS los proyectos
-            # en cada run (visto en producción el 2026-05-19: 0 rows de
-            # Perplexity, mientras los otros 3 LLMs generaron 137 cada uno).
-            # 20 da un poco de margen por si Perplexity vuelve a subir el mínimo.
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": "Hi"}],
-                max_tokens=20
+            response = self._post(
+                {'preset': 'fast', 'input': 'Hi', 'max_output_tokens': 20, 'max_tool_calls': 0},
+                timeout=30,
             )
-            
-            if response and response.choices:
+            if response.status_code == 200:
                 logger.info("✅ Perplexity connection test successful")
                 return True
-            else:
-                logger.error("❌ Perplexity connection test failed: No response")
-                return False
-                
+            raise RuntimeError(_http_error_message(response))
         except Exception as e:
+            note_health_check_failure(self.get_provider_name(), e)
             logger.error(f"❌ Perplexity connection test failed: {e}")
             return False

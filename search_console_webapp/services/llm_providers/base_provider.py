@@ -64,6 +64,32 @@ def extract_urls_from_text(text: str) -> List[Dict]:
 
 
 # ============================================
+# MODELOS POR DEFECTO
+# ============================================
+
+# Solo se usan si llm_model_registry no responde (BD caída o sin fila current).
+# Fuente de verdad: registry. Mantener alineado con migrate_models_2026_09.py.
+DEFAULT_MODELS = {
+    'openai': {'model_id': 'gpt-5.5', 'display_name': 'GPT-5.5'},
+    'anthropic': {'model_id': 'claude-sonnet-5', 'display_name': 'Claude Sonnet 5'},
+    'google': {'model_id': 'gemini-3.6-flash', 'display_name': 'Gemini 3.6 Flash'},
+    'perplexity': {'model_id': 'sonar', 'display_name': 'Perplexity (Agent API)'},
+}
+
+
+def resolve_model_id(llm_provider: str, requested: Optional[str] = None) -> str:
+    """Modelo pedido explícitamente → current del registry → DEFAULT_MODELS."""
+    if requested:
+        return requested
+    current = get_current_model_for_provider(llm_provider)
+    if current:
+        return current
+    fallback = DEFAULT_MODELS[llm_provider]['model_id']
+    logger.warning(f"⚠️ No se encontró modelo actual de {llm_provider} en BD, usando '{fallback}'")
+    return fallback
+
+
+# ============================================
 # FUNCIONES HELPER PARA BASE DE DATOS
 # ============================================
 
@@ -275,19 +301,31 @@ class BaseLLMProvider(ABC):
         """
         pass
     
-    @abstractmethod
     def get_model_display_name(self) -> str:
-        """
-        Retorna el nombre del modelo para mostrar en UI
-        
-        Returns:
-            str: Nombre legible para humanos
-            
-        Example:
-            >>> provider.get_model_display_name()
-            'GPT-5'
-        """
-        pass
+        """Nombre legible del modelo: `model_display_name` del registry o el id."""
+        from database import get_db_connection
+
+        model_id = self.get_model_id()
+        conn = get_db_connection()
+        if not conn:
+            return model_id
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT model_display_name FROM llm_model_registry
+                WHERE llm_provider = %s AND model_id = %s
+            """, (self.get_provider_name(), model_id))
+            row = cur.fetchone()
+            return (row and row['model_display_name']) or model_id
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo leer el nombre de {model_id}: {e}")
+            return model_id
+        finally:
+            conn.close()
+
+    def get_model_id(self) -> str:
+        """Id del modelo configurado (Google lo guarda en `model_name`)."""
+        return getattr(self, 'model_name', None) or self.model
     
     @abstractmethod
     def test_connection(self) -> bool:

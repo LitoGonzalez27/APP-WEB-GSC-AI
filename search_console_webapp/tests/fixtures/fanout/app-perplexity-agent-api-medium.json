@@ -1,0 +1,936 @@
+{
+ "background": false,
+ "completed_at": 1789298445,
+ "created_at": 1789298445,
+ "error": null,
+ "frequency_penalty": 0,
+ "id": "resp_ff489533-9efb-4684-87e5-f499ce127e28",
+ "incomplete_details": null,
+ "instructions": null,
+ "max_output_tokens": null,
+ "max_tool_calls": null,
+ "metadata": {},
+ "model": "openai/gpt-5.6-luna",
+ "object": "response",
+ "output": [
+  {
+   "queries": [
+    "mejor software facturación autónomos España 2026 comparativa precios Holded Quaderno Billin Factusol Sage"
+   ],
+   "results": [
+    {
+     "date": "2026-07-31",
+     "id": 16,
+     "last_updated": "2026-08-18",
+     "snippet": "Holded es un software de gestión en la nube (ERP) diseñado específicamente para pymes, autónomos y asesorías. Su objetivo principal es ...",
+     "source": "web",
+     "title": "Mejores programas de facturación en 2026: comparativa y ...",
+     "url": "https://rankiabusiness.com/mejores-programas-facturacion/"
+    },
+    {
+     "date": "2026-08-16",
+     "id": 17,
+     "last_updated": "2026-08-28",
+     "snippet": "|Programa|Plan gratuito|Desde|Mejor para|\n|--|--|--|--|\n|App de la AEAT|Sí, íntegro|0 €|Emitir y cumplir, sin más|\n...\n|Billin|Sí (3 clientes)|~7-9,99 €/mes|Empezar sin complicarse|\n|Quipu|No|~13-17 €/mes|Impuestos automatizados|\n|Holded|No|~7,50-29 €/mes|Crecer hacia ERP|\n...\n|Sage 50 / Factusol|No|Consultar|Instalación local|",
+     "source": "web",
+     "title": "Mejores programas de facturación para autónomos",
+     "url": "https://automatizateconia.com/2026/08/16/mejores-programas-de-facturacion-para-autonomos/"
+    },
+    {
+     "date": "2025-10-29",
+     "id": 18,
+     "last_updated": "2026-09-11",
+     "snippet": "|#|Programa|Instalación|App|Particularidad|Conciliación Bancaria|Lector OCR|Plan más económico|Prueba Gratuita|\n...\n|3|Factusol|En local / Nube|No|Cuenta con Control de Inventario|Sí|Sí|19,50 € / mes|Sí|",
+     "source": "web",
+     "title": "¿Cómo elegir el mejor...",
+     "url": "https://www.holded.com/es/blog/los-mejores-programas-de-facturacion"
+    },
+    {
+     "date": "2026-04-27",
+     "id": 19,
+     "last_updated": "2026-08-26",
+     "snippet": "El plan de pago empieza desde 9 euros al mes, con 30 días de prueba gratuita.",
+     "source": "web",
+     "title": "Los mejores programas de facturación para autónomos y pymes en ...",
+     "url": "https://okdiario.com/economia/mejores-programas-facturacion-autonomos-pymes-espana-2026-16684764"
+    },
+    {
+     "date": "2026-07-05",
+     "id": 20,
+     "last_updated": "2026-07-23",
+     "snippet": "|Programa|Desde (mensual)|Plan gratis|VeriFactu|Valoración|Mejor para|\n...\nPara un autónomo, la horquilla real de pago va de unos **6 €/mes** (Anfix) a **17 €/mes** (Quipu) en las opciones pensadas para facturar, y sube a 29-45 €/mes cuando entras en suites tipo ERP (Holded Básico, Sage).",
+     "source": "web",
+     "title": "Mejor programa de facturación para autónomos 2026",
+     "url": "https://guiafiscal.es/comparativas/mejor-programa-facturacion-autonomos/"
+    },
+    {
+     "date": "2026-05-10",
+     "id": 21,
+     "last_updated": "2026-08-07",
+     "snippet": "|Software|Precio|Mejor para|Crea y Crece|API para n8n|\n...\n|**Holded**|€29-€79/mes|PYMEs B2B españolas, todo en uno|Sí|Excelente|\n|**Billin**|€10-€30/mes|Autónomos y micropymes, simplicidad|Sí|Básica|\n|**Stripe Billing**|€0 + 0.5% transacción|SaaS y negocios con suscripciones online|No (solo cobros)|Excelente|\n|**Quaderno**|€49-€99/mes|SaaS con IVA multinacional, compliance fiscal|Sí|Buena|\n|**Sage 50cloud**|€25-€60/mes|Empresas con contabilidad más compleja|Sí|Media|",
+     "source": "web",
+     "title": "Automatización de Facturación para Empresas: Guía 2026",
+     "url": "https://chronomatic.es/blog/automatizacion-de-facturacion/"
+    },
+    {
+     "date": "2025-10-22",
+     "id": 22,
+     "last_updated": "2026-09-11",
+     "snippet": "Holded permite crear todo tipo de facturas, personalizarlas con tu identidad y programar su envío. Está preparado para la facturación ...",
+     "source": "web",
+     "title": "Top 9 programas de facturación para autónomos y pymes",
+     "url": "https://www.holded.com/es/blog/programa-facturacion-autonomos"
+    },
+    {
+     "date": "2026-04-24",
+     "id": 23,
+     "last_updated": "2026-08-03",
+     "snippet": "Factusol es un software de facturación que permite trabajar tanto en local como en la nube, adaptándose a diferentes necesidades empresariales.",
+     "source": "web",
+     "title": "Los mejores programas de facturación en el 2026",
+     "url": "https://www.cronomia.com/software-facturacion"
+    },
+    {
+     "date": "2024-03-28",
+     "id": 24,
+     "last_updated": "2026-09-10",
+     "snippet": "|**Programa**|**Control stock**|**Shopify**|**Verifactu**|**TicketBAI**|**OCR Escáner**|**Prueba gratis**|**Precio desde**|",
+     "source": "web",
+     "title": "Los 10 mejores programas de facturación de 2026",
+     "url": "https://www.billin.net/blog/mejores-programas-facturacion/"
+    },
+    {
+     "date": "2026-05-20",
+     "id": 25,
+     "last_updated": "2026-06-18",
+     "snippet": "|Software|Precio desde|VeriFactu|Canal|Velocidad emisión|Perfil ideal|\n...\n|Software|Plan recomendado|Coste mensual|Coste anual|Coste por factura|\n...\n|Billin|Básico|8 EUR (máx 5 cl.)|96 EUR|0,32 EUR|\n...\n|Holded|Plus|15 EUR (250 fact/año)|180 EUR|0,60 EUR|\n|Declarando|Esencial|29,90 EUR +IVA (anual)|~431 EUR +IVA|1,43 EUR|\n|Sage 50|Asesor|49 EUR|588 EUR|1,96 EUR|\n|Infoautónomos|Plan completo|65 EUR|780 EUR|2,60 EUR|",
+     "source": "web",
+     "title": "Software facturación autónomos España 2026: comparativa 10 ...",
+     "url": "https://factuchat.es/software-facturacion-autonomos-espana-2026/"
+    },
+    {
+     "date": "2025-12-18",
+     "id": 26,
+     "last_updated": "2026-08-06",
+     "snippet": "|Software|Facilidad de uso|Escalable|Automatización|Integraciones|Coste mínimo|Puntuación de opiniones|\n...\n|Quaderno|Muy alta|Sí|Sí|Muchas|49 € / mes|4,7|\n|Factusol|Normal|Sí|No|Pocas|19,50 €/mes|Insuficientes|\n...\n|Billin|Muy alta|Sí|Sí|Pocas|80 € / año|4,5|\n|Holded|Muy alta|Sí|Sí|Muchas|29 € / mes|4,1|",
+     "source": "web",
+     "title": "Softwares de facturación: Los 17 mejores en 2026 - Quaderno",
+     "url": "https://quaderno.io/es/articulos/facturacion-electronica/programas-facturacion/"
+    },
+    {
+     "date": "2025-10-22",
+     "id": 27,
+     "last_updated": "2026-09-11",
+     "snippet": "Billin pone a tu disposición cuatro planes que van sumando más módulos:\n- **Básico:** 6,60 € + IVA al mes o 80 € + IVA al año.\n- **Pro:** 12,50 € + IVA al mes o 150 € + IVA al año.\n- **Unlimited:** 20 € + IVA al mes o 240 € + IVA al año.\n...\nEn definitiva, el precio más económico sería de 20 € + IVA al mes o 200 € + IVA al año sin aplicar descuentos.",
+     "source": "web",
+     "title": "7 mejores programas para hacer facturas electrónicas - Holded",
+     "url": "https://www.holded.com/es/blog/mejores-programas-para-factura-electronica"
+    },
+    {
+     "date": "2026-03-15",
+     "id": 28,
+     "last_updated": "2026-05-11",
+     "snippet": "|Programa|Plan básico|Plan pro|VeriFactu|Velocidad|Autom.|\n...\n|Holded|29 €/mes|69 €/mes|Completo|~4 min|No|\n|Quipu|13 €/mes|30 €/mes|Completo|~3 min|OCR básico|\n|Billin|Gratis (limitado)|24,99 €/mes|En proceso|~3 min|No|\n...\n**Conclusión rápida:** Si buscas el programa **más barato con VeriFactu completo**, FactuChat gana por goleada: 7,99 €/mes frente a los 29 € de Holded o los 13 € de Quipu.\n...\n- **Gratuito:** 0 €/mes — Facturas ilimitadas (funciones básicas)\n- **Pro:** 24,99 €/mes — + Gastos + Impuestos + Soporte premium",
+     "source": "web",
+     "title": "Los 8 Mejores Programas de Facturación para Autónomos en 2026",
+     "url": "https://factuchat.es/blog/mejor-software-facturacion-autonomos-2026"
+    },
+    {
+     "date": "2025-10-22",
+     "id": 29,
+     "last_updated": "2026-09-12",
+     "snippet": "Los planes parten de 19,50 euros al mes (en la nube, para un único usuario) y desde 25 euros al mes, en local, con usuarios y empresas ilimitadas.\n...\nDispone de una prueba gratuita de siete días y de cuatro planes de pago que van desde los 49 euros al mes con un máximo de 250 transacciones hasta los 149 euros al mes con la posibilidad de hacer hasta 2.500 transacciones mensuales.",
+     "source": "web",
+     "title": "Top 10 de los mejores programas para hacer presupuestos - Holded",
+     "url": "https://www.holded.com/es/blog/programas-para-hacer-presupuestos"
+    },
+    {
+     "date": "2026-01-14",
+     "id": 30,
+     "last_updated": "2026-08-09",
+     "snippet": "Billin es un programa sencillo y muy popular entre autónomos que buscan algo fácil y rápido. Ventajas. Interfaz muy simple; Ideal para emitir ...",
+     "source": "web",
+     "title": "Los mejores programas de facturación en 2026",
+     "url": "https://billtonic.com/mejores-programas-de-facturacion-en-2026/"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "queries": [
+    "Agencia Tributaria VERI FACTU autónomos fechas 2026 software facturación"
+   ],
+   "results": [
+    {
+     "date": "2024-09-20",
+     "id": 31,
+     "last_updated": "2026-07-28",
+     "snippet": "Afecta a autónomos y empresas y será obligatorio durante 2026.\n...\n29 de Julio de 2025\n31 de Octubre de 2025\nDurante 2026\n...\nEsta es la fecha límite, para que los softwares de facturación y contabilidad (SIF) se hayan adaptado a los requisitos técnicos establecidos por Verifactu.\n...\nLa previsión general es que entre en vigor durante 2025–2026, con un periodo transitorio para que autónomos, empresas y proveedores de software adapten sus sistemas de facturación.",
+     "source": "web",
+     "title": "Verifactu: Home",
+     "url": "https://www.verifactu.com/"
+    },
+    {
+     "date": "2026-07-18",
+     "id": 32,
+     "last_updated": "2026-08-21",
+     "snippet": "**Respuesta rápida (2026):** Verifactu **no es obligatorio en 2026** para los autónomos.\nTras la ampliación de plazos del Real Decreto-ley 15/2025, de 2 de diciembre, las fechas firmes son **1 de enero de 2027** para los contribuyentes del Impuesto sobre Sociedades y **1 de julio de 2027** para el resto (autónomos y personas físicas en IRPF), según la nota informativa de la AEAT actualizada el 26 de marzo de 2026.\n...\nQuedan **exentos** quienes ya están en el SII y quienes tributan bajo los sistemas forales (TicketBAI en País Vasco y Navarra).\n...\n|Quién|Fecha límite para usar un sistema adaptado|\n...\n|Contribuyentes del Impuesto sobre Sociedades (sociedades y empresas)|1 de enero de 2027|\n|Resto de obligados: autónomos y personas físicas en IRPF|1 de julio de 2027|\nSi eres autónomo persona física, tu fecha es el **1 de julio de 2027**.\n...\n**No.** Durante 2026 no estás obligado a tener Verifactu si eres autónomo.\n...\nSi no estás en ninguno de estos supuestos y facturas con software, la respuesta corta es que Verifactu te aplicará a partir del 1 de julio de 2027.",
+     "source": "web",
+     "title": "Verifactu para autónomos 2026: ¿obligatorio ya? Fechas reales",
+     "url": "https://www.lanzadoria.com/articulos/verifactu-para-autonomos-2026"
+    },
+    {
+     "date": "2026-09-09",
+     "id": 33,
+     "last_updated": "2026-09-10",
+     "snippet": "Verifactu llega primero, con fechas ya cerradas en 2027, y es la que persigue el fraude a través del software de facturación.\n...\nLa segunda obligación ya tiene reglamento desde marzo de 2026, pero su cuenta atrás todavía no ha arrancado.\n...\n**Hito**\n**Fecha**\n**Norma**\n...\n29 de julio de 2025, ya vigente\n...\n31 de marzo de 2026, ya publicado\n...\nVerifactu para autónomos y resto\n1 de julio de 2027\nRDL 15/2025\n...\nEl resto de empresas y autónomos dispondrá de veinticuatro.",
+     "source": "web",
+     "title": "Verifactu y facturación electrónica: así va a cambiar la facturación de ...",
+     "url": "https://www.elindependiente.com/eli/2026/09/09/verifactu-y-facturacion-electronica-asi-va-a-cambiar-la-facturacion-de-empresas-y-autonomos/"
+    },
+    {
+     "date": "2026-07-22",
+     "id": 34,
+     "last_updated": "2026-07-22",
+     "snippet": "La Disposición final cuarta del RRSIF (Reglamento que establece los requisitos de los sistemas informáticos de facturación), modificada por el Real Decreto-ley 15/2025, de 2 de diciembre, establece que entrará en vigor de forma obligatoria el 1 de enero de 2027\npara contribuyentes del Impuesto sobre Sociedades y el 1 de julio de 2027 para el resto de obligados tributarios mencionados en el artículo 3.1 del RRSIF, entre ellos, los contribuyentes del Impuesto sobre la Renta de las Personas Físicas que desarrollen actividades económicas.\n**El periodo anterior a la entrada en vigor del RRSIF es un periodo de pruebas.**\nSe podrá dejar de expedir facturas y remitir registros en prueba con un SIF modalidad VERI*FACTU y utilizar para facturar otros SIF (sistema informático de facturación), que podrían ser adaptados y funcionar en modo NO VERI*FACTU (si así lo permiten) o incluso sistemas antiguos no adaptados, mientras no tengan obligación: hasta el 31/12/2026 o 30/06/2027, según aplique.\nUna vez se tenga obligación de adaptación al RRSIF, es decir, a partir del 1/1/2027 o 1/7/2027, según aplique, si los obligados optan por comenzar a expedir facturas y remitir registros de facturación (RF) con un SIF VERI*FACTU, debe permanecer, al menos, hasta la finalización del año natural en el que se haya producido, de forma efectiva, el primer envío de los registros de facturación.",
+     "source": "web",
+     "title": "Preguntas frecuentes (FAQ) - Cuestiones generales: objeto",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes.html"
+    },
+    {
+     "date": "2026-07-10",
+     "id": 35,
+     "last_updated": "2026-08-26",
+     "snippet": "A partir del **1 de enero de 2027**, todas las empresas y autónomos que emitan facturas tendrán que contar con un software adaptado al sistema Verifactu.​\n...\n##### Empresas: 1 de enero de 2027 Autónomos: 1 de julio de 2027\nConoce todos los detalles\n...\nA partir de** 2026, todos los obligados a expedir facturas deberán tener operativos sus SIF** (softwares de facturación).\n- Empresas (Impuesto de Sociedades) : 1 de enero 2027.\n- Autónomos: 1 de julio de 2027.\nLos** fabricantes de softwares de facturación deben tener** sus programas adaptados a Verifactu desde el **29 de julio de 2027**.\n**Desde julio de 2025** solo se comercializa software Verifactu y que **en julio de 2027 todas las empresas y autónomos que emitan facturas deberán contar con un software que cumpla con los requisitos del Reglamento Verifactu**.\n...\nTendrán que usar un software adaptado a Verifactu todas las empresas o autónomos, es decir todos los **obligados al Impuesto sobre Sociedades (IS) o del IRPF** que desarrollen actividades económicas y emitan facturas con un SIF.",
+     "source": "web",
+     "title": "Verifactu: qué es y cuando entra en vigor",
+     "url": "https://www.cegid.com/ib/es/sistema-verifactu/"
+    },
+    {
+     "date": "2025-10-20",
+     "id": 36,
+     "last_updated": "2026-08-25",
+     "snippet": "Todas las fechas sustituyen a la obligación genérica “antes del 1 de julio de 2025” que aparecía en el RD DEL 2023.\nEl RD 254/2025 aplazó estas fechas y las precisó por colectivos introduciendo un cambio fundamental para prorrogar la entrada en vigor de esta obligación.\nLas nuevas fechas son el 1 enero del año 2026 para los sujetos pasivos del Impuesto sobre Sociedades y el 1 de julio del año 2026 para el resto de obligados.\n...\n### Cambios específicos para empresas y autónomos\n- **Obligación de usar SIF conforme al RRSIF** a partir de las fechas señaladas (ver plazos).\nPuede optarse por: - **VERI*FACTU**(remisión automática de registros + QR + leyenda “Factura verificable…”).\n- **No verificable**(sin remisión por defecto, pero con**firma electrónica**,**registro de eventos**, exportaciones y conservación reforzada).\n- **Excluidos**: quienes ya están en**SII**(libros del IVA por suministro inmediato)**no** están obligados al RRSIF; también las Haciendas Forales del País Vasco aplican sus sistemas (Ticket Bai) fuera del ámbito común.\n- La AEAT ofrecerá un **SIF gratuito** tipo VERI*FACTU desde su Sede Electrónica, especialmente útil para**autónomos y microempresas**.",
+     "source": "web",
+     "title": "Veri*Factu: Facturación para despachos, empresas y negocios autónomos",
+     "url": "https://elderecho.com/verifactu-2026-asi-cambia-la-facturacion-para-despachos-empresas-y-negocios-autonomos/"
+    },
+    {
+     "date": "2026-06-24",
+     "id": 37,
+     "last_updated": "2026-07-06",
+     "snippet": "Así, la entrada en vigor, prevista inicialmente para el 1 de enero de 2026 para las empresas sujetas al Impuesto sobre Sociedades, se retrasa al 1 de enero de 2027.\nEste aplazamiento se extiende también al resto de empresas y autónomos, que deberán incorporar el sistema antes del 1 de julio de 2027.\n...\n- **Antes del 1 de enero de 2027.** Para las entidades sujetas al Impuesto sobre Sociedades.\n...\n- **Antes del 1 de julio de 2027.** El resto de obligados tributarios (básicamente, autónomos).\n- **Los productores y comercializadores de ‘software’** deben ofrecer soluciones adaptadas desde el 29 de julio de 2025.\n...\nNo es obligatorio enviar las facturas en tiempo real, pero sí es obligatorio utilizar un software de facturación que cumpla con los requisitos del Real Decreto 1007/2023.\nVERI*FACTU es una modalidad voluntaria dentro de ese sistema.\n...\nLa adaptación será obligatoria a partir del 1 de enero de 2027 para empresas sujetas al Impuesto sobre Sociedades y del 1 de julio de 2027 para el resto de obligados tributarios.",
+     "source": "web",
+     "title": "Cómo funciona el sistema VERI*FACTU y cómo va a ...",
+     "url": "https://www.bbva.com/es/es/empresas/como-funciona-el-sistema-verifactu-y-como-va-a-afectar-a-empresas-y-autonomos/"
+    },
+    {
+     "date": "2026-09-10",
+     "id": 38,
+     "last_updated": "2026-09-11",
+     "snippet": "Desde el 13 de octubre de 2025 la Agencia Tributaria ofrece una aplicación gratuita VERI*FACTU en su Sede electrónica, pensada para autónomos y negocios con pocas facturas, a la que se accede con Cl@ve Móvil, certificado digital o DNIe.\n...\nLa alternativa son los programas de facturación con plan gratuito o de pago, obligatorios en cualquier caso desde el 1 de enero de 2027 para sociedades y desde el 1 de julio de 2027 para autónomos.\n...\nVerifactu ya tiene fecha: 1 de enero de 2027 para las sociedades y 1 de julio de 2027 para autónomos y el resto de empresarios y profesionales.\nA partir de ahí, cualquier programa con el que emitas facturas tendrá que cumplir el reglamento de sistemas de facturación.\n...\nLas sociedades deben tener el programa adaptado el 1 de enero de 2027 y el resto de obligados, incluidos los autónomos, el 1 de julio de 2027, según el calendario aprobado por el Real Decreto-ley de 2 de diciembre de 2025.",
+     "source": "web",
+     "title": "¿El sistema Verifactu es gratuito? (2026) - Quipu",
+     "url": "https://getquipu.com/blog/sistema-verifactu-gratis/"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "queries": [
+    "site:holded.com/es precios facturación autónomos España",
+    "site:quaderno.io/es precios facturación España autónomos",
+    "site:billin.net precios facturación autónomos"
+   ],
+   "results": [
+    {
+     "id": 1,
+     "last_updated": "2026-09-09",
+     "snippet": "29,00 €14,50 €/mes\n...\n|Funcionalidades|Plus 15,00 €7,50 €/mes|Básico 29,00 €14,50 €/mes|Estándar 59,00 €29,50 €/mes|Avanzado 99,00 €49,50 €/mes|Premium 199,00 €99,50 €/mes|\n...\nHolded cuesta desde 15 € al mes con el plan Plus.\nEl resto de planes son Básico (29 €), Estándar (59 €), Avanzado (99 €) y Premium (199 €), IVA no incluido.",
+     "source": "web",
+     "title": "Precios",
+     "url": "https://www.holded.com/es/precios"
+    },
+    {
+     "date": "2025-10-22",
+     "id": 2,
+     "last_updated": "2026-09-11",
+     "snippet": "ContaSimple, Keyandcloud o Invoicely. Si tu prioridad es el precio de entrada más bajo: BitFactura, desde 4,99 €/mes. e, Peppol): B2Brouter, ...",
+     "source": "web",
+     "title": "Top 9 programas de facturación para autónomos y pymes - Holded",
+     "url": "https://www.holded.com/es/blog/programa-facturacion-autonomos"
+    },
+    {
+     "date": "2026-07-08",
+     "id": 3,
+     "last_updated": "2026-09-12",
+     "snippet": "Empieza gratisPide una demo4,6/5 en CapterraMás de 900.000 usuariosAdaptado a VerifactuDesde 15 €/mes\n...\nPuedes probar Holded gratis durante 14 días, sin tarjeta.\nDespués, los planes empiezan en 15 € al mes y puedes cancelar cuando quieras.",
+     "source": "web",
+     "title": "Holded: El software de gestión para pymes y emprendedores",
+     "url": "https://www.holded.com/es"
+    },
+    {
+     "date": "2026-09-10",
+     "id": 4,
+     "last_updated": "2026-09-10",
+     "snippet": "Planes de facturación desde 6,6€/mes. TS Facturas, antes Billin. Sin permanencia ni tarjeta de crédito. Accede gratis 30 días.",
+     "source": "web",
+     "title": "Precios desde 6,6€/mes | TS Facturas Billin",
+     "url": "https://www.billin.net/precios/"
+    },
+    {
+     "date": "2025-10-29",
+     "id": 5,
+     "last_updated": "2026-09-11",
+     "snippet": "En España hay más de 3,5 millones de autónomos y más de 1,5 millones de pymes que deben emitir facturas. SUBTOTAL2.830 € IVA (21%)558 € TOTAL3. ...",
+     "source": "web",
+     "title": "12 mejores programas de facturación 2026: gratis y de pago - Holded",
+     "url": "https://www.holded.com/es/blog/los-mejores-programas-de-facturacion"
+    },
+    {
+     "id": 6,
+     "last_updated": "2026-09-10",
+     "snippet": "Empieza ahora y obtén un 50 % de descuento durante los 3 primeros meses.\nSin tarjeta para probarlo, cancela cuando quieras.\n...\nEstrena Holded a mitad de precio en los 3 primeros meses y disfruta de todas las funciones sin restricciones.\n...\nHolded tiene planes desde pocos euros al mes, sin costes ocultos.\nTodos los planes incluyen 14 días de prueba gratuita sin tarjeta.\nEl precio se adapta a tu volumen de actividad, así que los autónomos solo pagan por lo que realmente necesitan.",
+     "source": "web",
+     "title": "Software de Gestión para Autónomos | Holded",
+     "url": "https://www.holded.com/es/autonomos"
+    },
+    {
+     "date": "2025-10-22",
+     "id": 7,
+     "last_updated": "2026-09-10",
+     "snippet": "FacturaDirecta es un programa de facturación online para autónomos y pymes orientado a la fiscalidad española, con escaneo de gastos mediante IA ...",
+     "source": "web",
+     "title": "Los 10 mejores software para cumplir con Verifactu - Holded",
+     "url": "https://www.holded.com/es/blog/mejores-programas-facturacion-verifactu"
+    },
+    {
+     "date": "2025-10-22",
+     "id": 8,
+     "last_updated": "2026-09-11",
+     "snippet": "En este análisis comparamos 10 programas de contabilidad y facturación pensados para autónomos y pequeños negocios en España. Para cada uno ...",
+     "source": "web",
+     "title": "Top 10 mejores programas de contabilidad para autónomos - Holded",
+     "url": "https://www.holded.com/es/blog/mejores-programas-de-contabilidad-autonomos"
+    },
+    {
+     "id": 9,
+     "last_updated": "2026-07-24",
+     "snippet": "** 49 **\n...\n** 29 **\n/ mes\n...\nEl precio de Quaderno es una tarifa plana mensual que incluye un cierto volumen de transacciones y llamadas API.",
+     "source": "web",
+     "title": "Precios - Quaderno",
+     "url": "https://quaderno.io/es/precios/"
+    },
+    {
+     "date": "2025-10-22",
+     "id": 10,
+     "last_updated": "2026-09-11",
+     "snippet": "Características\nPlan más económico\n...\n7,50 € al mes\nSí",
+     "source": "web",
+     "title": "7 mejores programas para hacer facturas electrónicas - Holded",
+     "url": "https://www.holded.com/es/blog/mejores-programas-para-factura-electronica"
+    },
+    {
+     "date": "2026-07-08",
+     "id": 11,
+     "last_updated": "2026-09-10",
+     "snippet": "Crea, personaliza y envía facturas profesionales en segundos. Automatiza la facturación recurrente, controla los pagos y gestiona todos tus documentos en un ...",
+     "source": "web",
+     "title": "Programa de Facturación Online - Pymes y Autónomos | Holded",
+     "url": "https://www.holded.com/es/programa-facturacion"
+    },
+    {
+     "date": "2026-03-05",
+     "id": 12,
+     "last_updated": "2026-09-11",
+     "snippet": "Todos los planes incluyen facturación, contabilidad, gestión de cobros y conciliación bancaria.\nSe facturan anualmente con un **50% de descuento los primeros 3 meses**:\n|Plan|Precio (anual)|Incluye|\n...\n|Plus|15 €/mes|1 usuario, 1 banco, facturación básica|\n|Básico|29 €/mes|Hasta 1.000 facturas / año, 5 bancos, 2 usuarios + asesor|\n|Estándar ⭐|59 €/mes|Facturas ilimitadas, bancos ilimitados, 4 usuarios + asesor.\nEl más popular|\n|Avanzado|99 €/mes|800 escaneos, 7 usuarios + asesor, informes avanzados|\n|Premium|199 €/mes|15 usuarios, Account Manager dedicado, 1.500 escaneos, IVA por país|\n...\n|Pasarela|Cuota mensual|Comisión/transacción|Prueba gratuita|Plataformas clave|\n...\n|Holded|Desde 15 €/mes (+50% descuento)|Sin comisión propia|✓ 14 días|Shopify, WooCommerce, PrestaShop|",
+     "source": "web",
+     "title": "Las 8 mejores pasarelas de pago para ecommerce - Holded",
+     "url": "https://www.holded.com/es/blog/mejores-pasarelas-pago"
+    },
+    {
+     "date": "2026-03-17",
+     "id": 13,
+     "last_updated": "2026-09-11",
+     "snippet": "Holded ofrece un sistema de precios escalables según las necesidades concretas de tu negocio:\n|Plan|Precio mensual|Usuarios|Funcionalidades destacadas|\n...\n|Básico|29 €/mes|Hasta 2|Facturación, contabilidad básica, CRM|\n|Profesional|59 €/mes|Hasta 10|Gestión de proyectos, almacén, informes avanzados|\n|Enterprise|Personalizado|Ilimitados|Soporte prioritario, funcionalidades específicas|\n...\n|Programa|Precio inicial|Plan gratuito|Compatibilidad Mac|Características destacadas|",
+     "source": "web",
+     "title": "Programas de facturación compatibles con Mac - 2026 - Holded",
+     "url": "https://www.holded.com/es/blog/programas-facturacion-mac"
+    },
+    {
+     "date": "2026-06-25",
+     "id": 14,
+     "last_updated": "2026-09-12",
+     "snippet": "4,6/5 en CapterraMás de 900.000 usuariosAdaptado a VerifactuDesde 15 €/mes",
+     "source": "web",
+     "title": "ERP Online para Autónomos y Pymes | Holded",
+     "url": "https://www.holded.com/es/erp"
+    },
+    {
+     "id": 15,
+     "last_updated": "2026-09-10",
+     "snippet": "Arranca tu startup con acceso a mitad de precio a todas las funciones de Holded.",
+     "source": "web",
+     "title": "Software de facturación y más para start-ups",
+     "url": "https://www.holded.com/es/startups"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "queries": [
+    "Quipu precios autónomos facturación 2026 oficial",
+    "Anfix precios autónomos facturación 2026 oficial",
+    "FacturaDirecta precios autónomos 2026 oficial"
+   ],
+   "results": [
+    {
+     "date": "2026-05-11",
+     "id": 69,
+     "last_updated": "2026-05-15",
+     "snippet": "|**Quipu**|Prueba 15 días|~17 €/mes (Autónomo)|~36-49 €/mes|\n...\n|Quipu Autónomo|17 €/mes|~204 €|",
+     "source": "web",
+     "title": "Cuánto Cuesta un Software de Facturación para Autónomos en 2026 · Blog FactuChat",
+     "url": "https://factuchat.es/blog/cuanto-cuesta-software-facturacion-autonomo-2026.html"
+    },
+    {
+     "date": "2024-05-20",
+     "id": 70,
+     "last_updated": "2026-08-12",
+     "snippet": "**/ mes**\n...\n### 15€\n**/ mes**\n...\n### 29,5€\n**/ mes**",
+     "source": "web",
+     "title": "Software de facturación para autónomos - Quipu",
+     "url": "https://getquipu.com/es/autonomos"
+    },
+    {
+     "id": 71,
+     "last_updated": "2026-09-11",
+     "snippet": "Básico. Comienza con una facturación sencilla para tu negocio. · 4,99 ; Avanzado. Todo lo que te hace falta para crecer y respirar tranquilo. · 12,49 ; Profesional.",
+     "source": "web",
+     "title": "Precios Software Contable y Facturación",
+     "url": "https://www.anfix.com/precios"
+    },
+    {
+     "date": "2026-07-05",
+     "id": 72,
+     "last_updated": "2026-07-14",
+     "snippet": "Quipu tiene tres planes.\nEstos son los **precios regulares mensuales, sin IVA** (recuerda que el número «desde 8,50 €» que a veces aparece es una promoción temporal del 50 % los primeros meses, no el precio normal):\n### Starter\n17 €/mes · 14 €/mes (pago anual)\n...\n### Solution\n30 €/mes · 25 €/mes (pago anual)\n...\n### Premium\n59 €/mes · 49 €/mes (pago anual)",
+     "source": "web",
+     "title": "Quipu opiniones 2026: precios, pros y contras (reseña honesta)",
+     "url": "https://guiafiscal.es/comparativas/quipu-opiniones/"
+    },
+    {
+     "date": "2026-06-24",
+     "id": 73,
+     "last_updated": "2026-08-02",
+     "snippet": "Cuesta entre €17 y €59/mes (sin IVA), con el plan Solution (€30/mes) como el más vendido.\n...\nEstos son los precios oficiales sin IVA verificados en getquipu.com en junio de 2026:\n|Plan|Precio mensual (€/mes, sin IVA)|Precio anual (€/mes, sin IVA)|Ideal para|\n|--|--|--|--|\n|Starter|€17|desde €17|Negocios que empiezan|\n|Solution (el más vendido)|€30|€25|Gestión completa de autónomo|\n|Premium|€59|desde €59|Control total de tesorería|",
+     "source": "web",
+     "title": "Quipu Opiniones 2026: precios reales, pros, contras y ...",
+     "url": "https://facturaz.es/es/blog/quipu-opiniones"
+    },
+    {
+     "date": "2026-09-01",
+     "id": 74,
+     "last_updated": "2026-09-10",
+     "snippet": "| |Precio base|Verifactu|Impuestos|Banco|Asesoría humana|\n...\n|Quipu|Desde 17 €/mes (14 €/mes en anual)|Sí, en todos los planes|Autorrellena 303 y 130; los presentas tú (gestoría opcional desde 80 €)|Desde el plan Solution (3 cuentas)|No incluida (red de asesorías aparte)|",
+     "source": "web",
+     "title": "Mejores programas de facturación para autónomos (2027)",
+     "url": "https://www.finlai.es/comparativas/mejores-programas-de-facturacion-para-autonomos"
+    },
+    {
+     "date": "2026-06-08",
+     "id": 75,
+     "last_updated": "2026-06-30",
+     "snippet": "Anfix has five plans (excl. VAT, annual billing): Básico €3.99, Avanzado €9.99 (most popular), Profesional €19.99, Empresarial €46.66 and ...",
+     "source": "web",
+     "title": "Anfix pricing 2026: all 5 plans, real cost with VAT and ...",
+     "url": "https://facturaz.es/en/blog/anfix-precios"
+    },
+    {
+     "id": 76,
+     "last_updated": "2026-07-10",
+     "snippet": "|Precio desde|15 €/mes sin IVA (plan Plus); con la promoción vigente, 7,50 €/mes los 3 primeros meses|14 €/mes en pago anual o 17 €/mes en pago mensual (plan Starter)|\n...\n|Plan|Precio|Incluye|\n...\n|Avanzado|15 €/mes|Facturación, clientes y escaneos ilimitados, FacturaE, enlace bancario y conciliación|\n|Empresa|30 €/mes|Inventario completo, contabilidad online, API de integración, soporte VIP|\n...\nA julio de 2026, Quipu parte de 14 €/mes (plan Starter en pago anual; 17 €/mes en mensual) y Holded de 15 €/mes sin IVA (plan Plus), aunque Holded suele tener promociones de entrada (50% de descuento los 3 primeros meses).\nEn los tramos superiores, Holded Estándar cuesta 59 €/mes y Quipu Premium 49 €/mes (pago anual).",
+     "source": "web",
+     "title": "Holded vs Quipu: diferencias, precios y VeriFactu (2026)",
+     "url": "https://nedaxe.com/comparativas/holded-vs-quipu"
+    },
+    {
+     "id": 77,
+     "last_updated": "2026-09-02",
+     "snippet": "- **Basico:** 4,99 €/mes\n- **Avanzado:** 12,49 €/mes\n- **Profesional:** 24,99 €/mes\n...\nTiene tres planes según los precios oficiales: Básico por 4,99 €/mes, Avanzado por 12,49 €/mes y Profesional por 24,99 €/mes.",
+     "source": "web",
+     "title": "Anfix: opiniones, análisis y precios para Verifactu (2026)",
+     "url": "https://eligefactura.es/analisis/anfix/"
+    },
+    {
+     "date": "2026-09-09",
+     "id": 78,
+     "last_updated": "2026-09-08",
+     "snippet": "Plan Starter 17 €/mes + IVA (precio regular).\nPago anual equivale a 14 €/mes.\n...\n|Software|Ideal para (ficha)|Precio|VERI*FACTU|Gestoría|CTA|\n...\n|**Quipu**|Autónomo con gastos e impuestos|Plan Starter 17 €/mes + IVA (precio regular).\nPago anual equivale a 14 €/mes.",
+     "source": "web",
+     "title": "Quipu para autónomos y pymes | Revisión orientativa",
+     "url": "https://facturaclara.es/quipu/"
+    },
+    {
+     "date": "2026-04-15",
+     "id": 79,
+     "last_updated": "2026-07-23",
+     "snippet": "|Facturación (emisión)|Empate Ilimitada en todos los planes, plantillas personalizables.|Empate El plan Plus (15 €) limita a 250 facturas/año; ilimitada desde el Básico.|\n...\nQuipu tiene 3 planes en 2026 (pago mensual sin permanencia): el plan Starter arranca en 17 €/mes e incluye ya todos los modelos fiscales de la AEAT (303, 130, 111, 115, 349, 390) y la facturación ilimitada; el plan Solution sube a 30 €/mes (añade registro de gastos por OCR, nóminas y previsión de tesorería); y el Premium cuesta 59 €/mes (incorpora la conciliación bancaria automática y el soporte telefónico).",
+     "source": "web",
+     "title": "Holded vs Quipu 2026: comparativa honesta para autónomos y pymes",
+     "url": "https://guiafiscal.es/comparativas/holded-vs-quipu/"
+    },
+    {
+     "date": "2026-05-03",
+     "id": 80,
+     "last_updated": "2026-06-08",
+     "snippet": "Quipu tiene tres planes desde €14/mes (anual) hasta €49/mes (anual), con sincronización bancaria PSD2, Plan General Contable integrado y auto-relleno de hasta 10 modelos AEAT.\n...\n|Plan|Mensual|Anual (eq./mes)|Usuarios|OCR/mes|Bancos|Conciliación|\n...\n|Starter|€17|€14|1|30|3|Manual|\n|Solution|€30|€25|1|250|hasta 10|Manual|\n|Premium|€59|€49|3|350|hasta 10|Automática|",
+     "source": "web",
+     "title": "Invoo vs Quipu: Comparativa Honesta para Autónomos 2026",
+     "url": "https://invoo.es/es/blog/comparaciones/invoo-vs-quipu-comparativa-2026/"
+    },
+    {
+     "date": "2026-07-05",
+     "id": 81,
+     "last_updated": "2026-07-23",
+     "snippet": "|Programa|Desde (mensual)|Plan gratis|VeriFactu|Valoración|Mejor para|\n...\n|Quipu|17 €/mes|No (15 días de prueba sin tarjeta)|Sí, todos los planes|4,5/5|Autónomo que busca equilibrio simplicidad-funciones|\n...\nPara un autónomo, la horquilla real de pago va de unos **6 €/mes** (Anfix) a **17 €/mes** (Quipu) en las opciones pensadas para facturar, y sube a 29-45 €/mes cuando entras en suites tipo ERP (Holded Básico, Sage).",
+     "source": "web",
+     "title": "Mejor programa de facturación para autónomos 2026",
+     "url": "https://guiafiscal.es/comparativas/mejor-programa-facturacion-autonomos/"
+    },
+    {
+     "id": 82,
+     "last_updated": "2026-08-24",
+     "snippet": "FacturaDirecta tiene un plan Gratis para siempre y tres planes de pago: el Plan Básico cuesta 12 € al mes (o 10 € al mes con pago anual), el Plan Avanzado 24 € al mes (o 20 € al mes con pago anual) y el Plan Total 48 € al mes (o 40 € al mes con pago anual).",
+     "source": "web",
+     "title": "Precios - FacturaDirecta",
+     "url": "https://www.facturadirecta.com/pequenos-negocios/precios/"
+    },
+    {
+     "date": "2026-04-17",
+     "id": 83,
+     "last_updated": "2026-05-18",
+     "snippet": "|Software|Precio/mes|Free tier|Facturas|Presup.\n...\n|**Quipu**|17€ + IVA|15 días prueba|Ilimitadas|✓|✗|Parcial|\n...\nHolded parte de 29€/mes (35,09€ con IVA), Quipu de 17€/mes + IVA (20,57€) y Anfix de 15-25€/mes + IVA.",
+     "source": "web",
+     "title": "Precios software de facturación España 2026: comparativa real",
+     "url": "https://verifacturamos.com/precios-software-facturacion"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "queries": [
+    "site:getquipu.com Verifactu precios autónomos",
+    "site:anfix.com Verifactu autónomos precios",
+    "site:facturadirecta.com Verifactu precios"
+   ],
+   "results": [
+    {
+     "id": 39,
+     "last_updated": "2026-07-28",
+     "snippet": "### 8,5€\n**/ mes**\n...\n### 15€\n**/ mes**\n...\n### 29,5€\n**/ mes**\n59,0 € Ahorra 88,5€ en 3 meses\n...\n### 168€\n**/ año**\n...\n### 300€\n**/ año**\n...\n### 588€\n**/ año**\n708,0 € Ahorra 120,0€\n...\n## 8,5€\n/ mes\nEmpezar",
+     "source": "web",
+     "title": "Plan de precios - Quipu",
+     "url": "https://getquipu.com/es/plan-de-precios"
+    },
+    {
+     "date": "2024-05-20",
+     "id": 40,
+     "last_updated": "2026-08-12",
+     "snippet": "Crea facturas homologadas en menos de 1 minuto. Emite facturas profesionales y acorde a la normativa Verifactu en pocos clics, personalizadas y listas para ...",
+     "source": "web",
+     "title": "Software de facturación para autónomos - Quipu",
+     "url": "https://getquipu.com/es/autonomos"
+    },
+    {
+     "id": 41,
+     "last_updated": "2026-08-24",
+     "snippet": "Básico 10 12 € / mes +. Total 40 48 € / mes + … 12 € al mes (o 10 €. Plan Total 48 € al mes (o 40 € al mes con pago anual). Los precios no incluyen IVA. El ...",
+     "source": "web",
+     "title": "Precios - FacturaDirecta",
+     "url": "https://www.facturadirecta.com/pequenos-negocios/precios/"
+    },
+    {
+     "date": "2026-07-08",
+     "id": 42,
+     "last_updated": "2026-09-11",
+     "snippet": "Desde octubre de 2025 la Agencia Tributaria ofrece una aplicación gratuita de facturación VERI*FACTU para autónomos y empresas con volumen ...",
+     "source": "web",
+     "title": "¿El sistema Verifactu es gratuito? (2026) - Quipu",
+     "url": "https://getquipu.com/blog/sistema-verifactu-gratis/"
+    },
+    {
+     "date": "2024-10-28",
+     "id": 43,
+     "last_updated": "2026-09-11",
+     "snippet": "Es una medida opcional a la que podrán acogerse todos los autónomos o empresarios. · Los sistemas enviarán los registros de facturación a Hacienda para que pueda ...",
+     "source": "web",
+     "title": "VERIFACTU: qué es y cuándo entra en vigor este sistema - Quipu",
+     "url": "https://getquipu.com/es/sistema-verifactu"
+    },
+    {
+     "id": 44,
+     "last_updated": "2026-06-23",
+     "snippet": "Obligatorio para autónomos\n...\n### 8,5€\n**/ mes**\n17,0 € Ahorra 25,5€ en 3 meses\nIncluye:\nAdaptado a Verifactu\nNew\n...\n###### Solution\nAutomatiza la gestión de tu facturación\n### 15€\n**/ mes**\n30,0 € Ahorra 45,0€ en 3 meses\nIncluye:\nTodo lo del plan **Starter**\nAdaptado a Verifactu\nNew\n...\nControl total de la tesorería de tu negocio\n### 29,5€\n**/ mes**\n59,0 € Ahorra 88,5€ en 3 meses\nIncluye:",
+     "source": "web",
+     "title": "Program Facturación y Tesorería - Quipu",
+     "url": "https://getquipu.com/es/software"
+    },
+    {
+     "id": 45,
+     "last_updated": "2026-08-26",
+     "snippet": "### 8,5€\n**/ mes**\n17,0 € Estalvia 25,5€ en 3 mesos\n...\n### 15€\n**/ mes**\n30,0 € Estalvia 45,0€ en 3 mesos\n...\n### 29,5€\n**/ mes**\n59,0 € Estalvia 88,5€ en 3 mesos\n...\n### 168€\n**/ any**\n204,0 € Estalvia 36,0€\nInclou:\n...\n### 300€\n**/ any**\n360,0 € Estalvia 60,0€\n...\n### 588€\n**/ any**\n708,0 € Estalvia 120,0€",
+     "source": "web",
+     "title": "Pla de preus",
+     "url": "https://getquipu.com/ca/pla-de-preus"
+    },
+    {
+     "id": 46,
+     "last_updated": "2026-08-21",
+     "snippet": "### 8,5€\n**/ mes**\n17,0 € Ahorra 25,5€ en 3 meses\nIncluye:\n...\nAutomatiza la gestión de tu facturación\n### 15€\n**/ mes**\n30,0 € Ahorra 45,0€ en 3 meses\nIncluye:\n...\n### 29,5€\n**/ mes**\n59,0 € Ahorra 88,5€ en 3 meses\nIncluye:\nTodo lo del plan **Solution**",
+     "source": "web",
+     "title": "TeamSystem Quipu - Software de Facturación",
+     "url": "https://getquipu.com/"
+    },
+    {
+     "date": "2024-05-20",
+     "id": 47,
+     "last_updated": "2026-08-22",
+     "snippet": "Adáptate a la nueva normativa de facturación que afectará a autónomos y empresas en España con Quipu.\n### Enero 2027\nObligatorio para empresas\n### Julio 2027\nObligatorio para autónomos\n...\n### 8,5€\n**/ mes**\n17,0 € Ahorra 25,5€ en 3 meses\nIncluye:\nAdaptado a Verifactu\nNew\n...\nAutomatiza la gestión de tu facturación\n### 15€\n**/ mes**\n30,0 € Ahorra 45,0€ en 3 meses\nIncluye:\n...\nControl total de la tesorería de tu negocio\n### 29,5€\n**/ mes**\n59,0 € Ahorra 88,5€ en 3 meses\nIncluye:",
+     "source": "web",
+     "title": "Programa de facturación | Quipu",
+     "url": "https://getquipu.com/es/programa-facturacion"
+    },
+    {
+     "id": 48,
+     "last_updated": "2026-08-25",
+     "snippet": "Facturació per a negocis que comencen\n### 8,5€\n**/ mes**\n17,0 € Estalvia 25,5€ en 3 mesos\nInclou:\n...\n### 15€\n**/ mes**\n30,0 € Estalvia 45,0€ en 3 mesos\nInclou:\n...\n### 29,5€\n**/ mes**\n59,0 € Estalvia 88,5€ en 3 mesos\nInclou:",
+     "source": "web",
+     "title": "Demo per a autònoms i pimes | Quipu",
+     "url": "https://getquipu.com/ca/demo-autonoms-pimes"
+    },
+    {
+     "id": 49,
+     "last_updated": "2026-08-25",
+     "snippet": "### 8,5€\n**/ mes**\n17,0 € Estalvia 25,5€ en 3 mesos\n...\n### 15€\n**/ mes**\n30,0 € Estalvia 45,0€ en 3 mesos\n...\n### 29,5€\n**/ mes**\n59,0 € Estalvia 88,5€ en 3 mesos\nInclou:",
+     "source": "web",
+     "title": "Casos d'èxit - Quipu",
+     "url": "https://getquipu.com/ca/casos-exit"
+    },
+    {
+     "id": 50,
+     "last_updated": "2026-05-31",
+     "snippet": "### Enero 2027\nObligatorio para empresas\n### Julio 2027\nObligatorio para autónomos\n...\n### 8,5€\n**/ mes**\n...\nAdaptado a Verifactu\n...\n### 15€\n**/ mes**\n30,0 € Ahorra 45,0€ en 3 meses\nIncluye:\n...\n### 29,5€\n**/ mes**\n59,0 € Ahorra 88,5€ en 3 meses\nIncluye:",
+     "source": "web",
+     "title": "Quipu Tools - Herramientas gratis para gestionar tu negocio",
+     "url": "https://getquipu.com/es/tools"
+    },
+    {
+     "date": "2026-02-11",
+     "id": 51,
+     "last_updated": "2026-03-29",
+     "snippet": "|**Concepto**|**Plan Gratis**|**Plan Básico**|**Plan Avanzado**|**Plan Total**|\n...\n|**Precio pago mensual**|0€|12€/mes|24€/mes|48€/mes|\n|**Precio pago anual**|0€|10€/mes|20€/mes|40€/mes|\n|**Precio anual total**|0€|120€/año|240€/año|480€/año|",
+     "source": "web",
+     "title": "Planes y precios de FacturaDirecta",
+     "url": "https://help.facturadirecta.com/es/articles/12841288-planes-y-precios-de-facturadirecta-comparativa-completa"
+    },
+    {
+     "date": "2025-11-05",
+     "id": 52,
+     "last_updated": "2026-09-10",
+     "snippet": "VeriFactu es el nuevo reglamento de Hacienda que obliga a los autónomos y empresas en España a utilizar sistemas informáticos de facturación (SIF) que ...",
+     "source": "web",
+     "title": "VeriFactu para autónomos: Guía definitiva para adaptarte sin estrés",
+     "url": "https://getquipu.com/blog/verifactu-para-autonomos/"
+    },
+    {
+     "id": 53,
+     "last_updated": "2026-08-02",
+     "snippet": "VERI*FACTU es el nuevo sistema de control fiscal impulsado por la Agencia Tributaria que exige el envío de las facturas de manera inmediata para garantizar ...",
+     "source": "web",
+     "title": "Anfix cumple con Verifactu: Todo lo que debes saber",
+     "url": "https://www.anfix.com/verifactu"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "queries": [
+    "mejor software facturación autónomos España Quipu Holded Anfix opiniones 2026"
+   ],
+   "results": [
+    {
+     "date": "2026-07-27",
+     "id": 54,
+     "last_updated": "2026-08-24",
+     "snippet": "## Tabla comparativa completa\n|Proveedor|Valoración (plataforma principal)|Precio de entrada orientativo|Punto fuerte|Punto débil recurrente|\n|--|--|--|--|--|\n|Quipu|4/5 (Trustpilot)|~17-20 €/mes|Conciliación bancaria automática|Informes limitados, soporte inconsistente|\n|Holded|3,6-4,2/5 (según plataforma)|~7,50-15 €/mes|ERP más completo (CRM, inventario, RRHH)|Soporte lento en picos, precio creciente|\n|Billin|4,4/5 (Trustindex)|~6,60-12,50 €/mes|Compatibilidad TicketBAI|Quejas por promociones vía Vodafone|\n|Contasimple|3,4/5 (Trustpilot), más alto en Capterra|~10,95-12,95 €/mes|Simplicidad extrema, precio accesible|Estabilidad del servicio, soporte|\n|Anfix|Moderada (60 reseñas en Trustpilot)|~12-19 €/mes|Homologación en 5 agencias tributarias|Interfaz menos moderna, informes rígidos|\n|FacturaDirecta|3,3-3,5/5 (muestra pequeña)|Gratis - ~19,90 €/mes|Integraciones nativas de ecommerce|Sin soporte telefónico|",
+     "source": "web",
+     "title": "Mejor software de contabilidad para autónomos en 2026",
+     "url": "https://porlibre.es/blog/mejor-software-contabilidad-autonomos-2026/"
+    },
+    {
+     "date": "2026-05-11",
+     "id": 55,
+     "last_updated": "2026-07-24",
+     "snippet": "🏆 Mejor relación precio / funcionalidad\n...\nEl único que junta TPV + contabilidad doble entrada + CRM + Verifactu + IA real por 5,90 €/mes (o gratis).",
+     "source": "web",
+     "title": "Comparativa ERP autónomos 2026 — Holded, Anfix, Quipu ...",
+     "url": "https://erpia.es/comparativa-erp-autonomos"
+    },
+    {
+     "date": "2026-07-05",
+     "id": 56,
+     "last_updated": "2026-07-23",
+     "snippet": "|Programa|Desde (mensual)|Plan gratis|VeriFactu|Valoración|Mejor para|\n|--|--|--|--|--|--|\n|Quipu|17 €/mes|No (15 días de prueba sin tarjeta)|Sí, todos los planes|4,5/5|Autónomo que busca equilibrio simplicidad-funciones|\n|Holded|15-29 €/mes|No (14 días de prueba)|Sí, planes de pago|4,6/5|Autónomo que va a crecer o quiere un ERP todo-en-uno|\n|Anfix|5,99 €/mes|No (15 días de prueba)|Sí, todos los planes|3,6/5|Autónomo que colabora con su asesoría|\n...\nValoraciones de\n**Capterra España** (número de opiniones indicado en cada análisis); (*) FacturaDirecta con muestra reducida, valor orientativo.\n...\n5,99 €/mes · 3,6/5 (11 op.)\n...\nPara un autónomo, la horquilla real de pago va de unos **6 €/mes** (Anfix) a **17 €/mes** (Quipu) en las opciones pensadas para facturar, y sube a 29-45 €/mes cuando entras en suites tipo ERP (Holded Básico, Sage).",
+     "source": "web",
+     "title": "Mejor programa de facturación para autónomos 2026",
+     "url": "https://guiafiscal.es/comparativas/mejor-programa-facturacion-autonomos/"
+    },
+    {
+     "date": "2026-05-04",
+     "id": 57,
+     "last_updated": "2026-07-14",
+     "snippet": "Si tienes asesor, Anfix facilita enormemente el trabajo compartido porque ambas partes ven los mismos datos en tiempo real y no hay que exportar ...",
+     "source": "web",
+     "title": "Los mejores programas de facturación para autónomos y ...",
+     "url": "https://www.huffingtonpost.es/economia/los-mejores-programas-facturacion-autonomos-pymes-espana-2026-f202605.html"
+    },
+    {
+     "id": 58,
+     "last_updated": "2026-08-16",
+     "snippet": "Comparativa de los mejores programas de facturación para autónomos en 2026 (Quipu, Holded, Anfix, FacturaDirecta, Contasimple, Sage): precios reales sin IVA, valoraciones de usuarios, VeriFactu y la app gratuita de la AEAT.\n...\nReseña honesta de Quipu (TeamSystem): precios reales (17/30/59 €/mes sin IVA), valoración de usuarios (Capterra 4,5/5), VeriFactu, pros y contras y alternativas (Holded, Billin, app gratuita de la AEAT).",
+     "source": "web",
+     "title": "Comparativas de gestorías y software contable 2026 — Guía Fiscal",
+     "url": "https://guiafiscal.es/comparativas/"
+    },
+    {
+     "date": "2026-01-15",
+     "id": 59,
+     "last_updated": "2026-09-12",
+     "snippet": "Analizamos los mejores softwares de 2026 para autónomos y pymes. Revisamos Holded, Quipu, Anfix, Declarando, Billin y. Holded suele ubicarse. ...",
+     "source": "web",
+     "title": "Mejores Software de Facturación",
+     "url": "https://www.contasimple.com/blog/mejores-programas-facturacion-2/"
+    },
+    {
+     "date": "2026-07-05",
+     "id": 60,
+     "last_updated": "2026-07-14",
+     "snippet": "En valoraciones de usuarios reales obtiene una nota buena: **4,5 sobre 5 en Capterra España** (con una muestra de una veintena de opiniones) y en torno a **4 sobre 5 en Trustpilot** (con varios cientos de reseñas).",
+     "source": "web",
+     "title": "Quipu opiniones 2026: precios, pros y contras (reseña honesta)",
+     "url": "https://guiafiscal.es/comparativas/quipu-opiniones/"
+    },
+    {
+     "date": "2026-05-20",
+     "id": 61,
+     "last_updated": "2026-06-18",
+     "snippet": "|Software|Precio desde|VeriFactu|Canal|Velocidad emisión|Perfil ideal|\n...\n|Holded|15 EUR/mes (Plus, tope 250 fact/año)|Sí, vía actualización 2026|Web + app|90-180 seg|Pyme con empleados, ERP completo|\n|Quipu|17 EUR/mes (Starter, ilimitadas)|Sí, certificación 2025|Web + app|60-90 seg|Autónomo con gestoría externa|\n...\n|Anfix|15 EUR/mes|Sí, módulo dedicado|Web + app|90-120 seg|Microempresa con contabilidad|\n...\n|Software|Plan recomendado|Coste mensual|Coste anual|Coste por factura|\n...\n|Quipu|Starter|17 EUR (ilimitadas)|204 EUR|0,68 EUR|\n|Anfix|Asesor|15 EUR|180 EUR|0,60 EUR|\n...\nLos precios típicos en España 2026 van: gratis (FactuChat Free), 7,99-12,95 EUR/mes (FactuChat Basic, Contasimple Profesional), 12,99-17 EUR/mes (FactuChat Pro, Quipu Starter), 8-24 EUR",
+     "source": "web",
+     "title": "Software facturación autónomos España 2026: comparativa 10 ...",
+     "url": "https://factuchat.es/software-facturacion-autonomos-espana-2026/"
+    },
+    {
+     "date": "2026-06-24",
+     "id": 62,
+     "last_updated": "2026-08-02",
+     "snippet": "|Criterio|Quipu Solution|Anfix|Contasimple|Facturaz|\n...\n**Anfix**, desde €3,99/mes el plan Básico, con el Avanzado (€9,99/mes en pago anual) como el más popular entre autónomos.",
+     "source": "web",
+     "title": "Quipu Opiniones 2026: precios reales, pros, contras y ...",
+     "url": "https://facturaz.es/es/blog/quipu-opiniones"
+    },
+    {
+     "date": "2025-12-10",
+     "id": 63,
+     "last_updated": "2026-06-25",
+     "snippet": "|#|Producto|Precio/mes|VeriFactu|Voz|Foto ticket|Envío AEAT|Plan gratuito|Puntuación|\n...\n|2|Holded|15 € Plus|Sí|No|Sí (gastos)|Sí|14 días prueba|8,2/10|\n...\nDesde 15 €/mes (plan Plus); Básico 29 €/mes VeriFactu Web + iOS + Android Puntuación 8,2/10\n...\n24 €/mes (plan Autónomo) VeriFactu Web + iOS + Android Puntuación 7,5/10\n...\n**Recomendación:** FactuChat (plan Free para empezar, Pro Anual 99 €/año si superas las 10 facturas/mes habituales).\nSegunda opción: Quipu (17 € Starter) si valoras conexión bancaria nativa por encima de velocidad de emisión.",
+     "source": "web",
+     "title": "12 Mejores Programas Facturación Autónomos 2027 (Comparativa)",
+     "url": "https://factuchat.es/blog/12-mejores-programas-facturacion-autonomos-2027.html"
+    },
+    {
+     "date": "2018-03-19",
+     "id": 64,
+     "last_updated": "2026-03-04",
+     "snippet": "Anfix realiza la generación de facturas recurrentes. Personalmente Holded me entusiasma por su diseño, fácil manejo y potencial, únicamente hecho en falta que ...",
+     "source": "web",
+     "title": "Sistema contable para autónomos: Cuáles son los mejores",
+     "url": "https://www.albadelgado.com/sistema-contable-autonomos-mis-9-favoritos/"
+    },
+    {
+     "date": "2025-07-03",
+     "id": 65,
+     "last_updated": "2026-09-11",
+     "snippet": "- **Mejor para autónomos y micropymes:** Quipu\n...\n|Necesidad|Mejor opción|¿Por qué?|\n...\n|Autónomos y micropymes|Quipu|Interfaz muy sencilla, pensada para no contables, y precio de entrada asequible.|\n...\n|Software|Ideal para|Cumplimiento Verifactu|Integración RR.\nHH.|Precio inicial|\n...\n|**Quipu**|Autónomos y micropymes|Sí|No|8,5 €/mes|\n...\nQuipu es un software de facturación especializado en autónomos y pymes, enfocado en la simplicidad y la automatización.\nSu objetivo es facilitar la gestión financiera a usuarios sin conocimientos contables, automatizando la creación de facturas, la conciliación bancaria y la preparación de modelos fiscales.\n...\n|Software|Plan Básico|Plan Intermedio|Ideal para (en términos de precio)|\n...\n|**Factorial HR**|Desde 5,5 €/empleado/mes|Planes Business y Custom (a consultar)|Empresas en crecimiento que valoran la gestión integral.|\n|**Holded**|14,50 €/mes|33,25 €/mes (Standard)|Startups que pueden asumir una inversión creciente.|\n|**Quipu**|8,5 €/mes|20 €/mes (Business)|Autónomos y micropymes con un presupuesto ajustado.|\n|**Billin**|Gratis (recepción)|10 €/mes (Pro)|Freelancers y profesionales que están empezando.|",
+     "source": "web",
+     "title": "Top 10 mejores programas de facturación para empresas - Factorial",
+     "url": "https://factorial.es/blog/top-programas-facturacion-empresas/"
+    },
+    {
+     "id": 66,
+     "last_updated": "2026-04-15",
+     "snippet": "Para la mayoría de autónomos en España, nuestra recomendación es **Quipu** (mejor contabilidad + modelos fiscales automatizados) o **Billin** (más simple y potencialmente gratis con el Kit Digital).\n...\nERP más ambicioso, interesante si vas a contratar personal o necesitas CRM integrado con la facturación.",
+     "source": "web",
+     "title": "Mejores programas de facturación para autónomos en España (2026)",
+     "url": "https://www.conversoriaecnae.es/herramientas/comparativas/mejores-programas-facturacion-autonomos"
+    },
+    {
+     "date": "2025-12-12",
+     "id": 67,
+     "last_updated": "2026-09-12",
+     "snippet": "El mejor programa para Verifactu para un perfil autónomo suele ser aquel que combina** sencillez operativa, estabilidad, trazabilidad real y una app móvil robusta**.",
+     "source": "web",
+     "title": "Mejores softwares para Verifactu - Contasimple",
+     "url": "https://www.contasimple.com/blog/mejor-programa-verifactu/"
+    },
+    {
+     "id": 68,
+     "last_updated": "2025-11-03",
+     "snippet": "Holded Holded es un software inteligente de gestión de empresas, especialmente diseñado para autónomos y pymes. Trustpilot: 4,3/5 Ventajas",
+     "source": "web",
+     "title": "Holded, Quipu, Sage, A3 (Wolkers kluwer)",
+     "url": "https://www.laverconsultores.com/comparativa-de-programas-de-facturacion-electronica-holded-quipu-sage50-a3-wolkers-kluwer/"
+    }
+   ],
+   "type": "search_results"
+  },
+  {
+   "contents": [
+    {
+     "snippet": "- **Fechas obligatorias del RRSIF (Reglamento de Sistemas Informáticos de Facturación):**\n  - **1 de enero de 2027:** contribuyentes del Impuesto sobre Sociedades.\n  - **1 de julio de 2027:** el resto de obligados tributarios mencionados en el artículo 3.1 del RRSIF, **entre ellos, los contribuyentes del Impuesto sobre la Renta de las Personas Físicas que desarrollen actividades económicas** (autónomos).\n  - La Disposición final cuarta del RRSIF fue modificada por el Real Decreto-ley 15/2025, de 2 de diciembre.\n  - El periodo anterior a la entrada en vigor del RRSIF es un **periodo de pruebas**.\n  - Hasta el **31/12/2026** o el **30/06/2027**, según corresponda, se puede dejar de expedir facturas y remitir registros en prueba con un SIF modalidad VERI*FACTU y utilizar para facturar otros SIF, que podrían funcionar en modo NO VERI*FACTU si lo permiten, o incluso sistemas antiguos no adaptados.\n\n- **Aplicación gratuita de la AEAT:**\n  - La página indica que se puede valorar la utilización de **“la aplicación de facturación gratuita de la AEAT –si fuera suficiente para dar respuesta a sus necesidades–”**.\n  - El texto la menciona como alternativa cuando el SIF antiguo no adaptado no se actualice a una versión adaptada, junto con utilizar un SIF adaptado de otro fabricante o desarrollar un SIF propio adaptado.\n\n- **Qué significa VERI*FACTU:**\n  - VERI*FACTU o “reglamento VERI*FACTU” son formas abreviadas, coloquiales y significativas —aunque inexactas— de referirse al reglamento aprobado por el Real Decreto 1007/2023, de 5 de diciembre.\n  - El reglamento contempla **2 tipos de SIF** para cumplir la normativa.\n  - VERI*FACTU procede del nombre de **uno de esos 2 tipos de SIF**.\n  - Su característica más destacada es que **remite a la Agencia Tributaria un resumen estructurado de los datos de cada factura**, denominado **registro de facturación de alta**, **en el mismo momento de su expedición**.\n  - Por tanto, VERI*FACTU no designa necesariamente todos los SIF ni el reglamento en sentido técnico: es una **modalidad de SIF** contemplada por el reglamento, caracterizada por el envío a la AEAT del registro de facturación de alta en el momento de expedir la factura.\n\n- **Continuidad en la modalidad VERI*FACTU una vez que sea obligatoria:**\n  - A partir del **1/1/2027** o del **1/7/2027**, según corresponda, si los obligados optan por comenzar a expedir facturas y remitir registros de facturación con un SIF VERI*FACTU, deben permanecer en esa modalidad, al menos, hasta la finalización del año natural en el que se haya producido efectivamente el primer envío de los registros de facturación.",
+     "title": "Preguntas frecuentes (FAQ) - Cuestiones generales: objeto",
+     "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu/preguntas-frecuentes.html"
+    }
+   ],
+   "type": "fetch_url_results"
+  },
+  {
+   "contents": [
+    {
+     "snippet": "## Planes actuales para autónomos\n\nLa página indica que los planes están disponibles para **autónomos y empresas**. Los precios mostrados no especifican explícitamente si **excluyen IVA**.\n\n### Promoción de prueba y descuento\n\n- **15 días gratis**\n- **50% de descuento durante 3 meses**\n- Todas las funcionalidades\n- Sin compromiso\n- Sin introducir tarjeta\n\n### Precios mensuales\n\n| Plan | Descripción | Precio promocional | Precio regular mostrado | Ahorro indicado | Funciones incluidas |\n|---|---|---:|---:|---:|---|\n| Starter | Facturación para negocios que empiezan | 8,5 € / mes | 17,0 € | Ahorra 25,5 € en 3 meses | Adaptado a Verifactu; 30 escaneos/mes del lector automático; Facturas y presupuestos ilimitados; Previsión de impuestos; App móvil; Soporte por email; Genius AI |\n| Solution | Automatiza la gestión de tu facturación | 15 € / mes | 30,0 € | Ahorra 45,0 € en 3 meses | Todo lo del plan Starter; Adaptado a Verifactu; 250 escaneos/mes del lector automático; Conexión y conciliación bancaria; Pedidos y albaranes; Importador de nóminas; Integraciones y API; Soporte por chat y teléfono; Genius AI PRO |\n| Premium | Control total de la tesorería de tu negocio | 29,5 € / mes | 59,0 € | Ahorra 88,5 € en 3 meses | Todo lo del plan Solution; Adaptado a Verifactu; 350 escaneos/mes del lector automático; Conciliación bancaria automática; Remesas bancarias; Analítica y proyectos; Panel de control de tesorería; Escenarios y previsiones ilimitadas; Categorización automática de transacciones |\n\n### Precios anuales\n\n| Plan | Descripción | Precio promocional | Precio regular mostrado | Ahorro indicado | Funciones incluidas |\n|---|---|---:|---:|---:|---|\n| Starter | Facturación para negocios que empiezan | 168 € / año | 204,0 € | Ahorra 36,0 € | Adaptado a Verifactu; 30 escaneos/mes del lector automático; Facturas y presupuestos ilimitados; Previsión de impuestos; App móvil; Soporte por email; Genius AI |\n| Solution | Automatiza la gestión de tu facturación | 300 € / año | 360,0 € | Ahorra 60,0 € | Todo lo del plan Starter; Adaptado a Verifactu; 250 escaneos/mes del lector automático; Conexión y conciliación bancaria; Pedidos y albaranes; Importador de nóminas; Integraciones y API; Soporte por chat y teléfono; Genius AI PRO |\n| Premium | Control total de la tesorería de tu negocio | 588 € / año | 708,0 € | Ahorra 120,0 € | Todo lo del plan Solution; Adaptado a Verifactu; 350 escaneos/mes del lector automático; Conciliación bancaria automática; Remesas bancarias; Analítica y proyectos; Panel de control de tesorería; Escenarios y previsiones ilimitadas; Categorización automática de transacciones |\n\n> Al contratar el servicio anualmente se paga solo por 10 meses.\n\n## Comparación de planes\n\n| Funcionalidad | Starter | Solution | Premium |\n|---|---|---|---|\n| **Precio** | 8,5 € / mes | 15 € / mes | 29,5 € / mes |\n| **Facturación** |  |  |  |\n| Creación de facturas y tickets | Ilimitado | Ilimitado | Ilimitado |\n| Creación de presupuestos | Ilimitado | Ilimitado | Ilimitado |\n| Creación de albaranes |  |  |  |\n| Creación de pedidos |  |  |  |\n| Gestión integral del proceso de venta | Básica | Completa | Completa |\n| Creación de facturas recurrentes | Ilimitado | Ilimitado | Ilimitado |\n| Creación de rectificativas | Ilimitado | Ilimitado | Ilimitado |\n| Creación de proformas | Ilimitado | Ilimitado | Ilimitado |\n| Creación de productos | Ilimitado | Ilimitado | Ilimitado |\n| Envío de facturas desde Quipu |  |  |  |\n| Importación y exportación de la facturación en Excel |  |  |  |\n| Plantillas de facturas personalizables |  |  |  |\n| Operativa VeriFactu |  |  |  |\n\n## Estado de VeriFactu\n\nEn el detalle de los tres planes aparece explícitamente:\n\n- Starter: **Adaptado a Verifactu**\n- Solution: **Adaptado a Verifactu**\n- Premium: **Adaptado a Verifactu**\n\nLa tabla comparativa también incluye la funcionalidad **“Operativa VeriFactu”**, pero no muestra valores en las columnas de Starter, Solution o Premium.\n\n## Prueba gratuita\n\n- **15 días de prueba gratuitos**\n- Durante la prueba se obtiene **total acceso a todas las funciones** de la plataforma.\n- También se incluye acceso a **Academy**.\n- La página indica que no es necesario introducir la tarjeta.\n- La suscripción puede cancelarse en cualquier momento.\n- Es posible llevarse la información en Excel y los documentos adjuntos al cancelar.",
+     "title": "Plan de precios | Quipu",
+     "url": "https://getquipu.com/es/plan-de-precios"
+    }
+   ],
+   "type": "fetch_url_results"
+  },
+  {
+   "contents": [
+    {
+     "snippet": "## Planes, precios y condiciones\n\n- **Precios sin IVA**: todos los precios mostrados no incluyen IVA.\n- **Prueba gratuita**: 14 días, sin tarjeta de crédito.\n- **Descuento inicial**: 50 % durante los 3 primeros meses.\n- **Cancelación**: puedes cancelar cuando quieras.\n- **Asesoría**: todos los planes incluyen acceso para la asesoría Partner Holded; accede gratis sin ocupar una plaza de usuario.\n- **Facturación**: mensual o anual.\n- **No existe un plan gratuito permanente**.\n\n| Plan | Precio mensual habitual | Precio promocional mensual | Descuento | Ahorro en 3 meses | Usuarios incluidos | Descripción / características principales |\n|---|---:|---:|---|---:|---:|---|\n| Plus | 15,00 € | 7,50 € | 50 % durante 3 meses | — | — | Plan incluido en la comparativa completa. |\n| Básico | 29,00 € | 14,50 € | 50 % durante 3 meses | 43,50 € | 2 | Para negocios que facturan cada día y quieren ir más rápido. Más volumen y herramientas de venta. Incluye todo lo de Plus, y además: contactos ilimitados; 5 bancos conectados; control de rentabilidad de proyectos; 1.000 facturas/año; 15 reglas de conciliación activas; escáner de gastos ilimitado; cash flow; compras recurrentes; modelos IRPF. |\n| Estándar | 59,00 € | 29,50 € | 50 % durante 3 meses | 88,50 € | 4 | Contabilidad, bancos, equipo y CRM en un solo lugar para crecer con orden. Contabilidad completa + bancos ilimitados. Incluye todo lo de Básico, y además: asientos automáticos; bancos ilimitados; informes avanzados; 3.000 facturas/año; 50 reglas de conciliación activas; escáner de gastos ilimitado; cash flow; contabilidad analítica; impuesto de sociedades; integración SII; remesas bancarias; gestión de activos. |\n| Avanzado | 99,00 € | 49,50 € | 50 % durante 3 meses | 148,50 € | 7 | Más potencia y recursos para empresas que crecen: roles, campos a medida y soporte prioritario. Roles y campos personalizados. Incluye todo lo de Estándar, y además: roles personalizados; campos personalizados; soporte prioritario; 10.000 facturas/año; bancos ilimitados; 100 reglas de conciliación activas; recordatorios de pago; 300 facturas recurrentes. |\n| Premium | 199,00 € | 99,50 € | 50 % durante 3 meses, según la comparativa y las preguntas frecuentes | — | — | Plan incluido en la comparativa completa y mencionado en las preguntas frecuentes. La página no proporciona en este contenido el número de usuarios ni las características principales detalladas del plan Premium. |\n\n### Comparativa completa de planes\n\n| Funcionalidades | Plus 15,00 €7,50 €/mes | Básico 29,00 €14,50 €/mes | Estándar 59,00 €29,50 €/mes | Avanzado 99,00 €49,50 €/mes | Premium 199,00 €99,50 €/mes |\n|---|---|---|---|---|---|\n|  |  |  |  |  |  |\n| Facturas por año | 250 | 1,000 | 3,000 | 10,000 | Ilimitado |\n| Verifactu |  |  |  |  |  |\n| 50+ plantillas |  |  |  |  |  |\n| Presupuestos y proformas |  |  |  |  |  |\n| Multi-divisa |  |  |  |  |  |\n| Pagos online |  |  |  |  |  |\n| Facturas recurrentes | 0 | 10 | 100 | 300 | 1,000 |\n| Portal de clientes |  |  |  |  |  |\n| Recordatorios de pago |  |  |  |  |  |\n|  |  |  |  |  |  |\n| Bancos conectados | 1 | 5 | Ilimitado | Ilimitado | Ilimitado |\n| Remesas bancarias |  |  |  |  |  |\n| Cashflow |  |  |  |  |  |\n| Escenarios de tesorería |  |  |  |  |  |\n| Balance de apertura |  |  |  |  |  |\n\n### Límites y usuarios\n\n- Los límites anuales, como las facturas por año, se cuentan por año natural, de enero a diciembre, no desde la fecha de contratación.\n- **Básico**: 2 usuarios.\n- **Estándar**: 4 usuarios.\n- **Avanzado**: 7 usuarios.\n- Además de los usuarios incluidos, la asesoría Partner Holded accede gratis sin ocupar una plaza.\n- Usuarios extra: **10 €/mes por usuario adicional de Plataforma**.\n- La página no indica en este contenido el número de usuarios incluidos en Plus y Premium.\n\n## Prueba gratuita\n\n- **14 días de prueba gratis**.\n- **Sin tarjeta de crédito**.\n- No hay un plan gratuito permanente.\n- Se puede probar cualquier plan durante 14 días sin tarjeta de crédito.\n- Al terminar la prueba, se elige el plan y se paga la mitad durante los tres primeros meses.\n\n## Verifactu\n\n- La página indica que **todos los planes incluyen facturación con Verifactu**, el sistema de la Agencia Tributaria para verificar las facturas.\n- **No es necesario pagar ningún módulo aparte** para Verifactu.\n- En la tabla comparativa aparece la funcionalidad **“Verifactu”** para los planes Plus, Básico, Estándar, Avanzado y Premium, aunque las celdas no muestran marcas o valores adicionales.\n- El precio mostrado no incluye IVA; el precio final con los impuestos aplicables se muestra en el checkout tras el periodo de prueba.",
+     "title": "Precios",
+     "url": "https://www.holded.com/es/precios"
+    }
+   ],
+   "type": "fetch_url_results"
+  },
+  {
+   "content": [
+    {
+     "annotations": [],
+     "text": "## Respuesta corta: **Quipu**\n\nPara la mayoría de autónomos en España, elegiría **Quipu**: combina facturación sencilla, presupuestos, facturas recurrentes y rectificativas, aplicación móvil, lectura de gastos y preparación de impuestos, sin llegar a la complejidad de un ERP. Además, sus tres planes aparecen adaptados a Veri*Factu y ofrece 15 días de prueba sin tarjeta. [web:39]\n\n### Alternativas según tu caso\n\n- **Quipu — mejor opción general:** desde **17 €/mes** en el plan Starter; incluye facturas y presupuestos ilimitados, 30 escaneos de gastos al mes y previsión de impuestos. El plan Solution, de **30 €/mes**, añade conexión bancaria, conciliación, pedidos, albaranes e integraciones. [web:39]\n- **Holded — mejor si vas a crecer:** más completo como ERP, con CRM, bancos, conciliación, inventario y contabilidad. Parte de **15 €/mes**, tiene 14 días de prueba y todos los planes incluyen Veri*Factu; sin embargo, puede resultar excesivo para un autónomo que solo necesita emitir facturas. [web:1]\n- **Anfix — mejor si trabajas estrechamente con tu asesoría:** alternativa económica con facturación y contabilidad orientadas a compartir información con el asesor.\n- **FacturaDirecta — mejor para gastar lo mínimo:** dispone de un plan gratuito permanente y planes de pago desde **12 €/mes** —o **10 €/mes** pagando anualmente—. [web:82]\n- **Aplicación gratuita de la AEAT — mejor si solo emites pocas facturas:** Hacienda ofrece una aplicación gratuita, suficiente para una actividad muy sencilla, aunque con menos automatización, análisis y comodidad que Quipu o Holded. [web:34]\n\n### Mi recomendación práctica\n\n1. **Autónomo profesional o freelance, sin empleados:** Quipu Starter.  \n2. **Muchos gastos, bancos o necesidad de automatizar impuestos:** Quipu Solution.  \n3. **Negocio con stock, empleados, proyectos o CRM:** Holded.  \n4. **Muy pocas facturas y presupuesto cero:** aplicación gratuita de la AEAT o FacturaDirecta Gratis.\n\nImportante: para un autónomo persona física, la obligación de utilizar un sistema adaptado al Reglamento de Sistemas Informáticos de Facturación empieza el **1 de julio de 2027**, no en 2026. Veri*Factu es, técnicamente, una de las modalidades posibles del sistema; se caracteriza por remitir a la AEAT el registro de la factura en el momento de expedirla. [web:34]\n\n**Veredicto:** contrataría **Quipu Starter** como opción equilibrada; escogería **Holded** solo si necesitas una gestión empresarial más amplia.",
+     "type": "output_text"
+    }
+   ],
+   "id": "msg_d77a2c32-15c8-4310-933e-8ad0574a16ef",
+   "role": "assistant",
+   "status": "completed",
+   "type": "message"
+  }
+ ],
+ "parallel_tool_calls": true,
+ "presence_penalty": 0,
+ "previous_response_id": null,
+ "prompt_cache_key": null,
+ "reasoning": null,
+ "safety_identifier": null,
+ "service_tier": "default",
+ "status": "completed",
+ "store": true,
+ "temperature": 1,
+ "text": {
+  "format": {
+   "type": "text"
+  }
+ },
+ "tool_choice": "auto",
+ "tools": [],
+ "top_logprobs": 0,
+ "top_p": 1,
+ "truncation": "",
+ "usage": {
+  "cost": {
+   "cache_creation_cost": 0.00473,
+   "cache_read_cost": 0.00049,
+   "currency": "USD",
+   "input_cost": 0,
+   "output_cost": 0.00206,
+   "tool_calls_cost": 0.02313,
+   "tool_calls_cost_details": {
+    "fetch_url": 0.00813,
+    "search_web": 0.015
+   },
+   "total_cost": 0.03041
+  },
+  "input_tokens": 43195,
+  "input_tokens_details": {
+   "cache_creation_input_tokens": 18907,
+   "cache_read_input_tokens": 24276,
+   "cached_tokens": 24276
+  },
+  "output_tokens": 1716,
+  "output_tokens_details": {
+   "reasoning_tokens": 460
+  },
+  "tool_calls_details": {
+   "fetch_url": {
+    "cost_usd": 0.00813,
+    "invocation": 3,
+    "token_usage": [
+     {
+      "input_tokens": 3621,
+      "input_tokens_details": {
+       "cache_creation_input_tokens": 3618,
+       "cached_tokens": 0
+      },
+      "model": "openai/gpt-5.6-luna",
+      "output_tokens": 775,
+      "output_tokens_details": {
+       "reasoning_tokens": 90
+      }
+     },
+     {
+      "input_tokens": 1647,
+      "input_tokens_details": {
+       "cache_creation_input_tokens": 1644,
+       "cached_tokens": 0
+      },
+      "model": "openai/gpt-5.6-luna",
+      "output_tokens": 1659,
+      "output_tokens_details": {
+       "reasoning_tokens": 455
+      }
+     },
+     {
+      "input_tokens": 2370,
+      "input_tokens_details": {
+       "cache_creation_input_tokens": 2367,
+       "cached_tokens": 0
+      },
+      "model": "openai/gpt-5.6-luna",
+      "output_tokens": 1497,
+      "output_tokens_details": {
+       "reasoning_tokens": 164
+      }
+     }
+    ]
+   },
+   "search_web": {
+    "cost_usd": 0.015,
+    "invocation": 6
+   }
+  },
+  "total_tokens": 44911
+ },
+ "user": null
+}
