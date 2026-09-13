@@ -537,45 +537,11 @@ def init_database():
         # email de completitud distinga "en pausa por cuota" de un fallo real.
         cur.execute('ALTER TABLE llm_monitoring_analysis_runs ADD COLUMN IF NOT EXISTS project_results JSONB')
 
-        # ── Migración: Google → Gemini 3.5 Flash (2026-06-01) ──
-        # Asegurar que gemini-3.5-flash exista y sea el modelo current.
-        # Sustituye a gemini-3-flash-preview: ese modelo 'preview' es efímero y
-        # Google lo capó/limitó ~22-26 may 2026, lo que dejó a Gemini fuera del
-        # análisis diario de todos los proyectos sin previo aviso. 3.5-flash es
-        # un modelo estable y soportado para generateContent.
-        # NOTA: no referenciar 'pending_approval' aquí. Esa columna la añade la
-        # migración llm_model_discovery_v2 y NO existe en todos los entornos
-        # (p.ej. staging). Tocarla rompe init_database() e impide arrancar la app.
-        # La gestión de pending_approval se hace aparte, donde la columna exista.
-        cur.execute("""
-            INSERT INTO llm_model_registry (
-                llm_provider, model_id, model_display_name,
-                cost_per_1m_input_tokens, cost_per_1m_output_tokens,
-                is_current, is_available
-            ) VALUES (
-                'google', 'gemini-3.5-flash', 'Gemini 3.5 Flash',
-                0.50, 3.00, FALSE, TRUE
-            )
-            ON CONFLICT (llm_provider, model_id) DO UPDATE SET
-                model_display_name = 'Gemini 3.5 Flash',
-                cost_per_1m_input_tokens = 0.50,
-                cost_per_1m_output_tokens = 3.00,
-                is_available = TRUE,
-                updated_at = NOW()
-        """)
-        # Quitar is_current de todos los modelos Google
-        cur.execute("""
-            UPDATE llm_model_registry
-            SET is_current = FALSE, updated_at = NOW()
-            WHERE llm_provider = 'google'
-        """)
-        # Marcar Gemini 3.5 Flash como current
-        cur.execute("""
-            UPDATE llm_model_registry
-            SET is_current = TRUE, updated_at = NOW()
-            WHERE llm_provider = 'google' AND model_id = 'gemini-3.5-flash'
-        """)
-        logger.info("✅ Google model current = gemini-3.5-flash")
+        # El registry de modelos (current y precios) NO se toca al arrancar: lo
+        # gestionan las migraciones (migrate_models_*.py), el discovery y el admin.
+        # Hasta 2026-09-13 aquí se forzaba gemini-3.5-flash como current en cada
+        # deploy, lo que deshacía cualquier cambio de modelo de Google.
+
 
         # ── Admin Audit Log ──
         cur.execute('''
