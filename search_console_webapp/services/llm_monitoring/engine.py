@@ -950,6 +950,7 @@ class _EngineMixin:
         Returns:
             Dict con resultado analizado
         """
+        result_saved = False
         try:
             execution_query = task.get('execution_query') or task['query_text']
 
@@ -984,10 +985,14 @@ class _EngineMixin:
                 f"model={llm_result.get('model_used', 'n/a') if isinstance(llm_result, dict) else 'n/a'}"
             )
             
+            if llm_result['success'] and not (llm_result.get('content') or '').strip():
+                llm_result = {'success': False, 'error': f"Empty content from {task['llm_name']} response"}
+
             if not llm_result['success']:
                 # ✨ NUEVO: Guardar el error en BD para que sea visible
                 error_msg = llm_result.get('error', 'Unknown error')
                 self._save_error_result(task, error_msg)
+                result_saved = True
                 
                 return {
                     'success': False,
@@ -1140,6 +1145,7 @@ class _EngineMixin:
                     save_fanout(cur, result_id=result_id, task=task, search_queries=search_queries)
 
                 conn.commit()
+                result_saved = True
 
             finally:
                 try:
@@ -1163,6 +1169,11 @@ class _EngineMixin:
             
         except Exception as e:
             logger.error(f"❌ Error ejecutando tarea: {e}", exc_info=True)
+            # Sin esto la tarea desaparecía sin dejar rastro en BD: ni la pasada
+            # de completitud ni las alertas la veían como fallo. Solo si aún no se
+            # guardó nada, para no pisar un resultado bueno ya confirmado.
+            if not result_saved:
+                self._save_error_result(task, f"Unexpected error: {e}")
             return {
                 'success': False,
                 'error': str(e)

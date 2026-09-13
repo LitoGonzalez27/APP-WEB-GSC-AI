@@ -21,6 +21,23 @@ from .retry_handler import with_retry, RetryConfig, note_health_check_failure
 logger = logging.getLogger(__name__)
 
 
+def extract_response_text(blocks) -> str:
+    """
+    Texto de la respuesta: concatena solo los bloques `text`.
+
+    Claude Sonnet 5 puede anteponer un bloque `thinking` (y con herramientas hay
+    varios bloques de texto). Antes se leía `content[0].text`: con el SDK de
+    producción (0.39) el bloque thinking llega como TextBlock con text=None, la
+    tarea reventaba al medir el contenido y la respuesta se perdía sin dejar fila
+    de error (5-10 % de las respuestas de Anthropic en los crons de sept. 2026).
+    """
+    return ''.join(
+        getattr(block, 'text', None) or ''
+        for block in (blocks or [])
+        if getattr(block, 'type', None) == 'text'
+    )
+
+
 class AnthropicProvider(BaseLLMProvider):
     """Proveedor para Claude (Anthropic)."""
     
@@ -88,8 +105,12 @@ class AnthropicProvider(BaseLLMProvider):
 
             response_time = int((time.time() - start_time) * 1000)
 
-            # Claude retorna array de content blocks
-            content = response.content[0].text
+            content = extract_response_text(response.content)
+            if not content.strip():
+                return {
+                    'success': False,
+                    'error': f"Empty content from Anthropic response (stop_reason={getattr(response, 'stop_reason', None)})",
+                }
 
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
