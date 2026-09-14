@@ -459,7 +459,7 @@
         .project-list { list-style: none; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); }
         .project-row {
             display: grid; align-items: center; gap: 0.75rem 1rem;
-            grid-template-columns: minmax(0, 1fr) 7.5rem 7rem 5rem auto;
+            grid-template-columns: minmax(0, 1fr) 7.5rem 7rem 5rem 5.5rem;
             padding: 0.85rem 1rem;
         }
         .project-row + .project-row { border-top: 1px solid var(--color-border-subtle); }
@@ -473,21 +473,24 @@
         .project-usage { font-size: 0.875rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .project-usage small { font-weight: 400; color: var(--color-text-tertiary); }
         .modal-body .project-row input[type="number"] { padding: 7px 10px; font-size: 0.875rem; }
-        .project-field-label { display: none; }
+        .project-row > .btn { justify-self: end; }
+        /* Solo en móvil (sin fila de cabecera) cada campo lleva su etiqueta */
+        .project-field-label, .modal-body .project-row label.project-field-label { display: none; }
         .badge.paused::before { background: var(--color-error); }
         .badge.search-on::before { background: var(--color-success); }
 
         /* Búsqueda web: fila por proyecto LLM con estado y acción a la derecha */
         .detail-search-intro { max-width: 80ch; margin-bottom: 1rem; }
-        .search-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+        .project-list .search-row { grid-template-columns: minmax(0, 1fr) auto 6.5rem; }
 
         @media (max-width: 760px) {
             .project-row--head { display: none; }
             .project-row { grid-template-columns: 1fr 1fr; }
             .project-row .project-main { grid-column: 1 / -1; }
-            .project-field-label { display: block; font-size: 0.72rem; color: var(--color-text-tertiary); margin-bottom: 2px; }
-            .modal-body .project-row label.project-field-label { margin: 0 0 2px; font-weight: 500; }
-            .search-row { grid-template-columns: 1fr auto; }
+            .project-field-label, .modal-body .project-row label.project-field-label {
+                display: block; margin: 0 0 2px; font-size: 0.72rem; font-weight: 500; color: var(--color-text-tertiary);
+            }
+            .project-list .search-row { grid-template-columns: 1fr auto; }
         }
 
         /* Notificaciones toast simples */
@@ -2388,10 +2391,12 @@
 
         // Búsqueda web por proyecto LLM (services/llm_monitoring/search_settings.py)
         let llmSearchUnitWeights = {};
-        const LLM_PROVIDER_LABELS = { openai: 'OpenAI', anthropic: 'Claude', google: 'Gemini', perplexity: 'Perplexity' };
+        const LLM_PROVIDER_LABELS = { openai: 'ChatGPT', anthropic: 'Claude', google: 'Gemini', perplexity: 'Perplexity' };
 
         function searchWeightsText() {
+            const order = Object.keys(LLM_PROVIDER_LABELS);
             return Object.entries(llmSearchUnitWeights)
+                .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
                 .map(([provider, weight]) => `${LLM_PROVIDER_LABELS[provider] || provider} ×${weight}`)
                 .join(', ');
         }
