@@ -106,8 +106,9 @@ Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fa
 2. ~~P3 detrás del interruptor~~ y 3. ~~interruptor en el admin + ponderación de unidades~~: **hechos y verificados en
    staging y en producción** (ver "En curso"). Sin subir el SDK de `anthropic` (REST). Siguiente: probar el botón del admin
    con la sesión de Carlos y P4 antes de activar a un cliente.
-4. **Capacidad del cron con búsqueda** (bloque E) y **UI de fan-out** (bloque H: bloque en la respuesta, pestaña Fan-out,
-   marca de cambio de metodología en gráficos): cuando haya un cliente que lo contrate.
+4. **P4 · Capacidad del cron con búsqueda** (bloque E): **aplazado por Carlos (2026-09-14)**, sin clientes que paguen la
+   búsqueda. Plan detallado en la sección P4. Obligatorio antes de activar `auto` al primer cliente. La UI de fan-out (P7) ya
+   está en producción.
 5. **Opcional**: probar "fan-out estimado" barato (herramienta de búsqueda propia sin ejecutar; solo primera ronda, sin fuentes,
    etiquetado como estimado) con los 5 prompts de P1 (<1 USD) para valorar si sirve de gancho en todos los planes.
 6. **Alertas fuera del cron LLM** (Carlos quiere email ante cualquier problema): los emails de Manual AI y AI Mode marcan
@@ -337,6 +338,55 @@ Regla común: con `search_mode='memory'` o `'off'` no se envían tools. Con `'au
 ---
 
 ## P4 — Bloque E: Capacidad del cron y rate limits
+
+> **APLAZADO por decisión de Carlos (2026-09-14): no hay todavía clientes que paguen la búsqueda.** Hacerlo **antes de
+> activar `search_mode='auto'` al primer cliente real** (o antes de venderlo). Mientras todos los proyectos estén en `off`
+> no hay riesgo: el cron funciona exactamente igual que antes de P3. Revisado contra el código y las variables de prod el
+> 2026-09-14; donde choque con los párrafos antiguos de abajo, manda este bloque.
+
+### Situación real (2026-09-14)
+- Un run del cron crea **un solo** `MultiLLMMonitoringService` (`_analyze_all_active_projects_locked`), así que los
+  semáforos por proveedor (`provider_semaphores`) **ya son globales** entre proyectos. Prod: `OPENAI_CONCURRENCY=4`,
+  `ANTHROPIC_CONCURRENCY=5`, `GOOGLE_CONCURRENCY=4`, `PERPLEXITY_CONCURRENCY=6`, `LLM_PROJECT_PARALLELISM=3`,
+  `LLM_PROJECT_TIMEOUT_MINUTES=45`, `max_workers=8` por proyecto.
+- Circuit breaker global por proveedor: 3 fallos seguidos (`CIRCUIT_BREAKER_THRESHOLD`) → 120 s bloqueado para **todos**
+  los proyectos del run.
+- Medido con búsqueda (P1/P3, 1 prompt por proveedor): ChatGPT 30-80 s y 40-75k tokens por respuesta; Claude 20-35 s y
+  ~25k; Gemini ~20 s y ~4k; Perplexity `low` 20-60 s. Sin búsqueda: 5-40 s y ~2-4k. Límites de cuenta: OpenAI 10.000 RPM y
+  4M TPM; Anthropic 10.000 RPM y 10M tokens de entrada/min; Gemini sin cabeceras.
+
+### Riesgos que resuelve
+1. **Un cliente con búsqueda frena a los demás.** Las tareas con búsqueda ocupan los mismos 4 huecos de OpenAI que las de
+   los clientes sin búsqueda durante 30-80 s cada una: el resto del run se alarga y puede rozar el timeout.
+2. **Timeout por proyecto.** Estimación para un proyecto de 60 prompts con búsqueda: ChatGPT 60 × ~55 s / 4 huecos ≈ 14 min
+   solo de OpenAI, compitiendo con otros proyectos; con reintentos y pasada de completitud puede pasar de 45 min y quedar
+   incompleto.
+3. **429 por tokens/minuto en OpenAI.** 4 tareas simultáneas × ~75k tokens caben en 4M TPM, pero subir `OPENAI_CONCURRENCY`
+   para compensar la lentitud lo rompe. Tres 429 seguidos abren el breaker de OpenAI para todo el run.
+
+### Qué hacer (en orden)
+1. **Carriles separados por modo**: semáforo aparte para tareas `auto` por proveedor (`OPENAI_SEARCH_CONCURRENCY`,
+   `ANTHROPIC_SEARCH_CONCURRENCY`, `GOOGLE_SEARCH_CONCURRENCY`, `PERPLEXITY_SEARCH_CONCURRENCY`; por defecto 2, 2, 3, 3),
+   de modo que los proyectos `off` conservan sus huecos actuales intactos. Cambio en `_execute_single_query_task` (elegir
+   semáforo según `search_mode`) y en el constructor del servicio. Tests: una tarea `auto` nunca consume un hueco `off`.
+2. **Timeout proporcional** para proyectos `auto`: `max(LLM_PROJECT_TIMEOUT_MINUTES, prompts × proveedores × segundos por
+   tarea / huecos)` con un tope (`LLM_SEARCH_PROJECT_TIMEOUT_MAX_MINUTES`, p. ej. 120). Los `off` siguen con 45 min.
+3. **429 como espera, no como caída**: en `classify_error`/`with_retry`, los 429 por TPM/RPM respetan `Retry-After` (o
+   backoff largo de 30-60 s) y **no cuentan** para abrir el circuit breaker del proveedor; así un cliente con búsqueda no
+   tumba OpenAI al resto. Mantener el trato actual de cuenta sin crédito y cuota diaria.
+4. **Orden del run**: analizar primero los proyectos `off` y después los `auto`, para que el retraso de la búsqueda no
+   afecte nunca a los clientes actuales.
+5. **Alertas**: umbral de duración del run (`CRON_ALERT_DURATION_MIN`) y de coste (`CRON_ALERT_COST_MULTIPLIER`) recalibrados
+   cuando haya un proyecto `auto`; el primer run con búsqueda disparará el cost spike por diseño (avisar a Carlos).
+
+### Verificación (staging)
+- Proyecto de prueba de ~30 prompts × 4 proveedores en `auto` + los proyectos `off` de staging en el mismo run, lanzado por el
+  endpoint del cron. Medir: duración por proyecto, 429, aperturas de breaker, huecos tras la pasada de completitud y que los
+  proyectos `off` tarden lo mismo que sin el proyecto `auto`. Coste orientativo: ~13 USD por pasada (30 × 0,44 USD).
+- Crear los prompts de prueba en un proyecto de staging nuevo o desactivado; devolver a `off` y desactivar al terminar.
+- Producción solo con orden de Carlos; todos los proyectos siguen en `off` hasta que él active al cliente.
+
+### Plan antiguo (referencia)
 
 Situación actual: `LLM_PROJECT_PARALLELISM` (3 en prod) × `max_workers=8` = hasta 24 tareas simultáneas; timeout **por proyecto** (`project_timeout.py`); alerta de run a los 150 min.
 
