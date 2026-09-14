@@ -96,7 +96,7 @@ Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fa
   | **Con `off` nada cambia** | verificado | Mismas peticiones contra BD staging con el código anterior (`73b2f45`) y el nuevo: métricas, respuestas, Share of Voice y PDF idénticos; Excel igual salvo la hora de "Generated"; el JSON del proyecto solo añade `search_mode`/`search_enabled_at` (no se pintan) |
   | Deploy staging | hecho | SUCCESS, health 200, `/fanout` sin login 401, CSS y JS nuevos servidos |
   | E2E staging con búsqueda (proyectos 11 y 12 activados temporalmente) | hecho | 12/12 respuestas; `/fanout` coherente (P12: 8/8 con búsqueda, 44 sub-consultas, Gemini "Not reported"); respuestas con bloque de búsqueda; Excel con hoja "Query Fan-out" tras "URL Rankings"; PDF con la sección; render con esos datos reales sin errores de consola. Proyectos devueltos a `off` (los 3 en `off`). Coste ~1,5 USD |
-  | Panel real con la sesión de Carlos | pendiente | Hace falta su login; para verlo hay que activar un proyecto de staging desde el admin |
+  | Panel real con la sesión de Carlos | hecho | Proyecto staging 11 activado por orden de Carlos (sigue en `auto` hasta que él termine). Chrome: sección, fila expandible, páginas de marca y modal correctos, sin errores de consola. Fix `aa245a3`: páginas leídas sin duplicados |
   | Producción | **pendiente de orden de Carlos** | Sin migración (solo código). Orden: cherry-pick a `main` → deploy → comprobar `off` idéntico en prod (misma sonda en solo lectura) |
 
 ### Pendiente (en orden)
