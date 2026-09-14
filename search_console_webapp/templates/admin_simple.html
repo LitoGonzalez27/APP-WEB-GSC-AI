@@ -400,19 +400,95 @@
             outline: none; border-color: var(--color-text-primary);
         }
 
-        /* Detalles de usuario (modal Ver) */
-        .detail-section { margin-bottom: 1.5rem; }
+        /* ---------- Detalles de usuario (modal Ver) ----------
+           Cabecera y pie fijos; cuerpo en gris con un bloque blanco por tema, en dos columnas
+           (una en pantallas estrechas). Cada dato va como etiqueta pequeña encima del valor. */
+        .modal-content.user-detail-modal {
+            max-width: 1040px; max-height: 92vh; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .user-detail-header { align-items: flex-start; gap: 1rem; padding: 1.5rem 2rem 1.25rem; }
+        .user-detail-heading { min-width: 0; }
+        .user-detail-eyebrow {
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--color-text-tertiary); margin-bottom: 0.25rem;
+        }
+        .user-detail-header h3 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; overflow-wrap: anywhere; }
+        .user-detail-sub { font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 0.25rem; overflow-wrap: anywhere; }
+        .user-detail-body { background: var(--color-bg-subtle); padding: 1.5rem 2rem 2rem; overflow-y: auto; flex: 1 1 auto; }
+        .user-detail-footer { padding: 1rem 2rem; }
+
+        .detail-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; align-items: start; }
+        .detail-section {
+            background: var(--color-bg-paper); border: 1px solid var(--color-border-subtle);
+            border-radius: var(--radius-md); padding: 1.25rem 1.5rem 1.5rem; min-width: 0;
+        }
+        .detail-section--full { grid-column: 1 / -1; }
+        .detail-section[hidden] { display: none; }
         .detail-section h4 {
             font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-            color: var(--color-text-tertiary); margin-bottom: 0.75rem;
+            color: var(--color-text-tertiary); margin-bottom: 1rem;
             display: flex; align-items: center; gap: 8px;
-            border-bottom: 1px solid var(--color-border-subtle); padding-bottom: 0.5rem;
         }
-        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.5rem; }
-        @media (max-width: 640px) { .detail-grid { grid-template-columns: 1fr; } }
-        .detail-item { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.85rem; }
-        .detail-label { color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
-        .detail-value { font-weight: 600; text-align: right; }
+        .detail-section h4 svg.lucide { width: 15px; height: 15px; }
+        .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.5rem; }
+        .detail-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .detail-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .detail-label { font-size: 0.75rem; color: var(--color-text-tertiary); display: flex; align-items: center; gap: 6px; }
+        .detail-value { font-size: 0.925rem; font-weight: 600; color: var(--color-text-primary); overflow-wrap: anywhere; }
+        .detail-progress { margin-top: 1rem; }
+        .detail-hint { font-size: 0.8rem; color: var(--color-text-secondary); line-height: 1.5; }
+
+        @media (max-width: 860px) {
+            .detail-sections { grid-template-columns: 1fr; }
+            .user-detail-header, .user-detail-body, .user-detail-footer { padding-left: 1.25rem; padding-right: 1.25rem; }
+        }
+        @media (max-width: 520px) { .detail-grid, .detail-grid--3 { grid-template-columns: 1fr; } }
+
+        /* Límite y ciclo por proyecto: una fila por proyecto, sin tablas anchas */
+        .project-limits { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border-subtle); }
+        .project-limits-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
+        .project-limits-head h5 { font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .detail-help { margin: 0.5rem 0 1.25rem 1.1rem; font-size: 0.8rem; color: var(--color-text-secondary); line-height: 1.55; }
+        .project-module + .project-module { margin-top: 1.5rem; }
+        .project-module-title {
+            display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem;
+            font-size: 0.875rem; font-weight: 700;
+        }
+        .project-module-title span { font-size: 0.78rem; font-weight: 500; color: var(--color-text-tertiary); }
+        .project-list { list-style: none; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); }
+        .project-row {
+            display: grid; align-items: center; gap: 0.75rem 1rem;
+            grid-template-columns: minmax(0, 1fr) 7.5rem 7rem 5rem auto;
+            padding: 0.85rem 1rem;
+        }
+        .project-row + .project-row { border-top: 1px solid var(--color-border-subtle); }
+        .project-row--head {
+            padding-top: 0.55rem; padding-bottom: 0.55rem; background: var(--color-bg-subtle);
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-tertiary);
+        }
+        .project-name { font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .project-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; margin-top: 2px; font-size: 0.78rem; color: var(--color-text-tertiary); }
+        .project-meta .badge { font-size: 0.78rem; }
+        .project-usage { font-size: 0.875rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .project-usage small { font-weight: 400; color: var(--color-text-tertiary); }
+        .modal-body .project-row input[type="number"] { padding: 7px 10px; font-size: 0.875rem; }
+        .project-field-label { display: none; }
+        .badge.paused::before { background: var(--color-error); }
+        .badge.search-on::before { background: var(--color-success); }
+
+        /* Búsqueda web: fila por proyecto LLM con estado y acción a la derecha */
+        .detail-search-intro { max-width: 80ch; margin-bottom: 1rem; }
+        .search-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+
+        @media (max-width: 760px) {
+            .project-row--head { display: none; }
+            .project-row { grid-template-columns: 1fr 1fr; }
+            .project-row .project-main { grid-column: 1 / -1; }
+            .project-field-label { display: block; font-size: 0.72rem; color: var(--color-text-tertiary); margin-bottom: 2px; }
+            .modal-body .project-row label.project-field-label { margin: 0 0 2px; font-weight: 500; }
+            .search-row { grid-template-columns: 1fr auto; }
+        }
 
         /* Notificaciones toast simples */
         .admin-toast {
@@ -1126,269 +1202,132 @@
 
     <!-- Modal de Detalles de Usuario MEJORADO -->
     <div id="userModal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h3><i data-lucide="circle-user"></i> Detalles Completos del Usuario</h3>
-                <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+        <div class="modal-content user-detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailHeaderName">
+            <div class="modal-header user-detail-header">
+                <div class="user-detail-heading">
+                    <p class="user-detail-eyebrow">Detalles del usuario</p>
+                    <h3 id="detailHeaderName">-</h3>
+                    <p class="user-detail-sub" id="detailHeaderMeta"></p>
+                </div>
+                <button class="modal-close" onclick="closeModal('userModal')" aria-label="Cerrar">&times;</button>
             </div>
-            <div class="modal-body">
-                <!-- Sección: Información Básica -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="user"></i> Información Básica
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">ID:</span>
-                            <span class="detail-value" id="detailId">-</span>
+            <div class="modal-body user-detail-body">
+                <div class="detail-sections">
+                    <section class="detail-section ">
+                        <h4><i data-lucide="user"></i> Información básica</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item"><span class="detail-label">ID</span><span class="detail-value" id="detailId">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Nombre</span><span class="detail-value" id="detailName">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value" id="detailEmail">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Rol</span><span class="detail-value" id="detailRole">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Estado</span><span class="detail-value" id="detailStatus">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Registro</span><span class="detail-value" id="detailCreated">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Autenticación</span><span class="detail-value" id="detailAuth">-</span></div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Nombre:</span>
-                            <span class="detail-value" id="detailName">-</span>
+                    </section>
+                    <section class="detail-section ">
+                        <h4><i data-lucide="credit-card"></i> Plan y facturación</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item"><span class="detail-label">Plan actual</span><span class="detail-value" id="detailPlan">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Estado de facturación</span><span class="detail-value" id="detailBillingStatus">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Stripe Customer ID</span><span class="detail-value" id="detailStripeId">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Período de facturación</span><span class="detail-value" id="detailBillingPeriod">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Próxima renovación</span><span class="detail-value" id="detailNextRenewal">-</span></div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Email:</span>
-                            <span class="detail-value" id="detailEmail">-</span>
+                    </section>
+                    <section class="detail-section ">
+                        <h4><i data-lucide="gauge"></i> Cuotas y uso</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item"><span class="detail-label">Límite de cuota</span><span class="detail-value" id="detailQuotaLimit">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Cuota utilizada</span><span class="detail-value" id="detailQuotaUsed">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Porcentaje de uso</span><span class="detail-value" id="detailQuotaPercentage">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Reset de cuota</span><span class="detail-value" id="detailQuotaReset">-</span></div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Rol:</span>
-                            <span class="detail-value" id="detailRole">-</span>
+                        <div id="detailProgressContainer" class="detail-progress" style="display: none;">
+                            <div class="quota-progress-bar">
+                                <div id="detailProgressFill" class="quota-progress-fill" style="width: 0%"></div>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Estado:</span>
-                            <span class="detail-value" id="detailStatus">-</span>
+                    </section>
+                    <section class="detail-section ">
+                        <h4><i data-lucide="trending-up"></i> Uso SERP y LLM (mes actual)</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item"><span class="detail-label">SERP RU</span><span class="detail-value" id="detailSerpRuMonth">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM unidades</span><span class="detail-value" id="detailLlmUnitsMonth">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM coste</span><span class="detail-value" id="detailLlmCostMonth">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM proyectos activos</span><span class="detail-value" id="detailLlmProjects">-</span></div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Registro:</span>
-                            <span class="detail-value" id="detailCreated">-</span>
+                    </section>
+                    <section class="detail-section ">
+                        <h4><i data-lucide="circle-pause"></i> Pausas por cuota</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item"><span class="detail-label">AI Overview</span><span class="detail-value" id="detailAiOverviewPaused">-</span></div>
+                            <div class="detail-item"><span class="detail-label">AI Overview hasta</span><span class="detail-value" id="detailAiOverviewPausedUntil">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Motivo AI Overview</span><span class="detail-value" id="detailAiOverviewPausedReason">-</span></div>
+                            <div class="detail-item"><span class="detail-label">AI Mode pausados</span><span class="detail-value" id="detailAiModePausedProjects">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM pausados</span><span class="detail-value" id="detailLlmPausedProjects">-</span></div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Autenticación:</span>
-                            <span class="detail-value" id="detailAuth">-</span>
+                    </section>
+                    <section class="detail-section ">
+                        <h4><i data-lucide="send"></i> Invitaciones</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item"><span class="detail-label">Enviadas</span><span class="detail-value" id="detailInvSent">0</span></div>
+                            <div class="detail-item"><span class="detail-label">Aceptadas</span><span class="detail-value" id="detailInvAccepted">0</span></div>
+                            <div class="detail-item"><span class="detail-label">Pendientes</span><span class="detail-value" id="detailInvPending">0</span></div>
                         </div>
-                    </div>
-                </div>
+                    </section>
+                    <section class="detail-section detail-section--full" id="detailCustomQuotaSection" style="display: none;">
+                        <h4><i data-lucide="crown"></i> Custom Quota (Enterprise)</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item"><span class="detail-label">Custom RU limit</span><span class="detail-value" id="detailCustomLimit">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Notas</span><span class="detail-value" id="detailCustomNotes">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM prompts / proyecto</span><span class="detail-value" id="detailCustomLlmPrompts">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM units / mes</span><span class="detail-value" id="detailCustomLlmUnits">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Manual AI (proyectos / kws)</span><span class="detail-value" id="detailCustomManualAiCaps">-</span></div>
+                            <div class="detail-item"><span class="detail-label">AI Mode (proyectos / prompts)</span><span class="detail-value" id="detailCustomAiModeCaps">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM (proyectos)</span><span class="detail-value" id="detailCustomLlmProjects">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Asignado por</span><span class="detail-value" id="detailCustomAssignedBy">-</span></div>
+                            <div class="detail-item"><span class="detail-label">Fecha de asignación</span><span class="detail-value" id="detailCustomAssignedDate">-</span></div>
+                        </div>
+                    </section>
+                    <section class="detail-section detail-section--full">
+                        <h4><i data-lucide="folder-open"></i> Proyectos por módulo</h4>
+                        <div class="detail-grid detail-grid--3">
+                            <div class="detail-item"><span class="detail-label">AI Overview</span><span class="detail-value" id="detailAioProjects">-</span></div>
+                            <div class="detail-item"><span class="detail-label">AI Mode</span><span class="detail-value" id="detailAimProjects">-</span></div>
+                            <div class="detail-item"><span class="detail-label">LLM Monitoring</span><span class="detail-value" id="detailLlmProjectsDetail">-</span></div>
+                        </div>
 
-                <!-- 🚀 NUEVA: Sección Plan y Facturación -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="credit-card"></i> Plan y Facturación
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">Plan Actual:</span>
-                            <span class="detail-value" id="detailPlan">-</span>
+                        <!-- 🎯 Cuota y ciclo por PROYECTO (project_quota.py) -->
+                        <div class="project-limits">
+                            <div class="project-limits-head">
+                                <h5><i data-lucide="sliders-horizontal"></i> Límite y ciclo por proyecto</h5>
+                                <span class="detail-hint" id="detailProjectLimitsWindow"></span>
+                            </div>
+                            <ul class="detail-help">
+                                <li><strong>Límite</strong> vacío: sin tope propio, solo aplica la cuota del usuario.</li>
+                                <li><strong>Días</strong>: 1 = cada pasada del cron, 3 = cada 3 días.</li>
+                                <li>Al agotar su límite solo se pausa ese proyecto hasta el próximo ciclo; subir el límite lo reanuda.</li>
+                            </ul>
+                            <div id="detailProjectLimits">
+                                <p class="detail-hint">Cargando proyectos...</p>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Estado de Facturación:</span>
-                            <span class="detail-value" id="detailBillingStatus">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Stripe Customer ID:</span>
-                            <span class="detail-value" id="detailStripeId">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Período de Facturación:</span>
-                            <span class="detail-value" id="detailBillingPeriod">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Próxima Renovación:</span>
-                            <span class="detail-value" id="detailNextRenewal">-</span>
-                        </div>
-                    </div>
-                </div>
+                    </section>
 
-                <!-- 🚀 NUEVA: Sección Cuotas y Uso -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="gauge"></i> Cuotas y Uso
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">Límite de Cuota:</span>
-                            <span class="detail-value" id="detailQuotaLimit">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Cuota Utilizada:</span>
-                            <span class="detail-value" id="detailQuotaUsed">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Porcentaje de Uso:</span>
-                            <span class="detail-value" id="detailQuotaPercentage">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Reset de Cuota:</span>
-                            <span class="detail-value" id="detailQuotaReset">-</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Barra de progreso en modal -->
-                    <div id="detailProgressContainer" style="margin-top: 1rem; display: none;">
-                        <div style="margin-bottom: 0.25rem; font-size: 0.8rem; color: var(--color-text-secondary);">Progreso de Uso:</div>
-                        <div class="quota-progress-bar">
-                            <div id="detailProgressFill" class="quota-progress-fill" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 📊 Sección SERP & LLM -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="trending-up"></i> Uso SERP & LLM (Mes actual)
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">SERP RU:</span>
-                            <span class="detail-value" id="detailSerpRuMonth">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">LLM Unidades:</span>
-                            <span class="detail-value" id="detailLlmUnitsMonth">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">LLM Coste:</span>
-                            <span class="detail-value" id="detailLlmCostMonth">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">LLM Proyectos Activos:</span>
-                            <span class="detail-value" id="detailLlmProjects">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ⏸️ Sección Pausas por cuota -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="circle-pause"></i> Pausas por cuota
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">AI Overview:</span>
-                            <span class="detail-value" id="detailAiOverviewPaused">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">AI Overview hasta:</span>
-                            <span class="detail-value" id="detailAiOverviewPausedUntil">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Motivo AI Overview:</span>
-                            <span class="detail-value" id="detailAiOverviewPausedReason">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">AI Mode pausados:</span>
-                            <span class="detail-value" id="detailAiModePausedProjects">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">LLM pausados:</span>
-                            <span class="detail-value" id="detailLlmPausedProjects">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 🚀 NUEVA: Sección Custom Quota (Enterprise) -->
-                <div id="detailCustomQuotaSection" style="margin-bottom: 1.5rem; display: none;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="crown"></i> Custom Quota (Enterprise)
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">Custom RU Limit:</span>
-                            <span class="detail-value" id="detailCustomLimit">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Notas:</span>
-                            <span class="detail-value" id="detailCustomNotes">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label"><i data-lucide="bot"></i> LLM Prompts/Proyecto:</span>
-                            <span class="detail-value" id="detailCustomLlmPrompts">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label"><i data-lucide="bot"></i> LLM Units/Mes:</span>
-                            <span class="detail-value" id="detailCustomLlmUnits">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label"><i data-lucide="layers"></i> Manual AI (proyectos / kws):</span>
-                            <span class="detail-value" id="detailCustomManualAiCaps">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label"><i data-lucide="layers"></i> AI Mode (proyectos / prompts):</span>
-                            <span class="detail-value" id="detailCustomAiModeCaps">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label"><i data-lucide="layers"></i> LLM (proyectos):</span>
-                            <span class="detail-value" id="detailCustomLlmProjects">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Asignado por:</span>
-                            <span class="detail-value" id="detailCustomAssignedBy">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Fecha de Asignación:</span>
-                            <span class="detail-value" id="detailCustomAssignedDate">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 📁 Sección Proyectos por módulo -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="folder-open"></i> Proyectos por Módulo
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">AI Overview:</span>
-                            <span class="detail-value" id="detailAioProjects">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">AI Mode:</span>
-                            <span class="detail-value" id="detailAimProjects">-</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">LLM Monitoring:</span>
-                            <span class="detail-value" id="detailLlmProjectsDetail">-</span>
-                        </div>
-                    </div>
-
-                    <!-- 🎯 Cuota y ciclo por PROYECTO (project_quota.py) -->
-                    <div style="margin-top: 1rem;">
-                        <p style="margin: 0 0 0.5rem; font-weight: 600; color: var(--color-text-primary); font-size: 0.9rem;">
-                            <i data-lucide="sliders-horizontal"></i> Límite y ciclo por proyecto
-                            <small id="detailProjectLimitsWindow" style="font-weight: 400; color: var(--color-text-secondary, #666);"></small>
+                    <!-- Búsqueda web de LLM Monitoring (services/llm_monitoring/search_settings.py) -->
+                    <section class="detail-section detail-section--full" id="detailSearchSection" hidden>
+                        <h4><i data-lucide="globe"></i> Búsqueda web · LLM Monitoring</h4>
+                        <p class="detail-hint detail-search-intro">
+                            Desactivada por defecto. Actívala solo en proyectos de clientes que paguen el query fan-out:
+                            los modelos pueden buscar en la web, el coste por análisis sube (~×6) y cada prompt consume más unidades
+                            <span id="detailSearchWeights"></span>.
                         </p>
-                        <p style="margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--color-text-secondary, #666);">
-                            Límite vacío = sin tope propio (solo aplica la cuota del usuario). Frecuencia 1 = cada pasada del cron, 3 = cada 3 días.
-                            Al agotar su límite, solo se pausa ese proyecto hasta el próximo ciclo; subir el límite lo reanuda.
-                            Búsqueda web (solo LLM Monitoring): desactivada por defecto; activarla sube el coste y las unidades por prompt.
-                        </p>
-                        <div id="detailProjectLimits" style="overflow-x: auto;">
-                            <em style="font-size: 0.85rem;">Cargando proyectos...</em>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ✉️ Sección Invitaciones -->
-                <div style="margin-bottom: 1.5rem;">
-                    <h4 style="color: var(--color-text-primary); margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.25rem;">
-                        <i data-lucide="send"></i> Invitaciones
-                    </h4>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">Enviadas:</span>
-                            <span class="detail-value" id="detailInvSent">0</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Aceptadas:</span>
-                            <span class="detail-value" id="detailInvAccepted">0</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Pendientes:</span>
-                            <span class="detail-value" id="detailInvPending">0</span>
-                        </div>
-                    </div>
+                        <div id="detailSearchModes"></div>
+                    </section>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer user-detail-footer">
                 <button class="btn btn-secondary" onclick="closeModal('userModal')">Cerrar</button>
                 <button class="btn btn-primary" id="refreshUserDetails" style="display: none;">
                     <i data-lucide="refresh-cw"></i> Actualizar
@@ -1628,6 +1567,8 @@
             document.getElementById('detailStatus').textContent = status;
             document.getElementById('detailCreated').textContent = created;
             document.getElementById('detailAuth').textContent = authType;
+            document.getElementById('detailHeaderName').textContent = name || email || `Usuario #${id}`;
+            document.getElementById('detailHeaderMeta').textContent = [email, `ID ${id}`, role].filter(Boolean).join(' · ');
             
             // Mostrar modal inmediatamente
             openModal('userModal');
@@ -1845,13 +1786,13 @@
         
         function getBillingStatusDisplay(status) {
             const statusNames = {
-                'active': '✅ Activo',
-                'trialing': '🆓 Período de prueba',
-                'past_due': '⚠️ Pago atrasado',
-                'canceled': '❌ Cancelado',
-                'unpaid': '💸 Sin pagar',
-                'incomplete': '⏳ Incompleto',
-                'beta': '🧪 Beta'
+                'active': 'Activo',
+                'trialing': 'Período de prueba',
+                'past_due': 'Pago atrasado',
+                'canceled': 'Cancelado',
+                'unpaid': 'Sin pagar',
+                'incomplete': 'Incompleto',
+                'beta': 'Beta'
             };
             return statusNames[status] || status;
         }
@@ -2455,18 +2396,8 @@
                 .join(', ');
         }
 
-        function llmSearchCell(p, userId) {
-            const on = p.search_mode === 'auto';
-            const since = on && p.search_enabled_at ? ` desde ${new Date(p.search_enabled_at).toLocaleDateString('es-ES')}` : '';
-            const badge = on
-                ? `<span class="badge" style="background:#e67e22;color:#fff;" title="Unidades por prompt: ${escapeHtmlAdmin(searchWeightsText())}">Activa${since}</span>`
-                : '<span class="badge" style="background:#999;color:#fff;">Off</span>';
-            const next = on ? 'off' : 'auto';
-            const label = on ? 'Desactivar' : 'Activar';
-            // El nombre lo escribe el cliente: va escapado en un data-attribute, nunca dentro del JS del onclick
-            return `${badge} <button class="btn ${on ? 'btn-secondary' : 'btn-primary'}" style="padding:0.2rem 0.5rem; font-size:0.75rem;"
-                data-project-name="${escapeHtmlAdmin(p.name)}"
-                onclick="setLlmSearchMode(${Number(p.id)}, '${next}', ${Number(userId)}, this.dataset.projectName)">${label}</button>`;
+        function formatShortDateEs(value) {
+            return new Date(value).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
         }
 
         async function setLlmSearchMode(projectId, searchMode, userId, projectName) {
@@ -2496,21 +2427,87 @@
             }
         }
 
+        // Estado del proyecto: texto + punto de color (sin pills, brandbook §15)
         function projectStateBadge(p) {
-            if (!p.is_active) return '<span class="badge" style="background:#999;color:#fff;">Pausado (manual)</span>';
+            if (!p.is_active) return '<span class="badge">Pausado (manual)</span>';
             if (p.is_paused_by_quota) {
-                const until = p.paused_until ? new Date(p.paused_until).toLocaleDateString('es-ES') : '?';
+                const until = p.paused_until ? formatShortDateEs(p.paused_until) : '?';
                 const why = p.paused_reason === 'project_quota_exceeded' ? 'tope del proyecto' : 'cuota del usuario';
-                return `<span class="badge" style="background:#c0392b;color:#fff;" title="${escapeHtmlAdmin(p.paused_reason || '')}">Pausado por ${why} hasta ${until}</span>`;
+                return `<span class="badge paused" title="${escapeHtmlAdmin(p.paused_reason || '')}">Pausado por ${why} hasta ${until}</span>`;
             }
-            return '<span class="badge" style="background:#27ae60;color:#fff;">Activo</span>';
+            return '<span class="badge active">Activo</span>';
+        }
+
+        function renderProjectLimitRow(moduleKey, p, userId, unit) {
+            const limitText = p.monthly_limit === null || p.monthly_limit === undefined ? '∞' : p.monthly_limit;
+            const itemsLabel = moduleKey === 'llm_monitoring' ? 'prompts' : 'keywords';
+            const limitId = `pl-limit-${moduleKey}-${p.id}`;
+            const freqId = `pl-freq-${moduleKey}-${p.id}`;
+            return `
+                <li class="project-row">
+                    <div class="project-main">
+                        <div class="project-name" title="${escapeHtmlAdmin(p.name)}">${escapeHtmlAdmin(p.name)}</div>
+                        <div class="project-meta">
+                            <span>#${Number(p.id)}</span>
+                            <span>${p.keyword_count ?? '-'} ${itemsLabel}</span>
+                            ${projectStateBadge(p)}
+                        </div>
+                    </div>
+                    <div class="project-usage">
+                        <span class="project-field-label">Uso</span>
+                        ${p.used} / ${limitText} <small>${escapeHtmlAdmin(unit)}</small>
+                    </div>
+                    <div>
+                        <label class="project-field-label" for="${limitId}">Límite</label>
+                        <input type="number" min="1" step="1" id="${limitId}" value="${p.monthly_limit ?? ''}" placeholder="∞" aria-label="Límite de ${escapeHtmlAdmin(p.name)}">
+                    </div>
+                    <div>
+                        <label class="project-field-label" for="${freqId}">Días</label>
+                        <input type="number" min="1" max="90" step="1" id="${freqId}" value="${p.analysis_frequency_days ?? 1}" aria-label="Frecuencia en días de ${escapeHtmlAdmin(p.name)}">
+                    </div>
+                    <button class="btn btn-primary btn-sm" title="Guardar límite y frecuencia" onclick="saveProjectLimits('${moduleKey}', ${Number(p.id)}, ${Number(userId)})">Guardar</button>
+                </li>`;
+        }
+
+        function renderSearchModes(projects, userId) {
+            const section = document.getElementById('detailSearchSection');
+            const container = document.getElementById('detailSearchModes');
+            if (!section || !container) return;
+            if (!projects.length) {
+                section.hidden = true;
+                return;
+            }
+            const weights = searchWeightsText();
+            document.getElementById('detailSearchWeights').textContent = weights ? `(${weights})` : '';
+            container.innerHTML = `<ul class="project-list">${projects.map((p) => {
+                const on = p.search_mode === 'auto';
+                const state = on
+                    ? `<span class="badge search-on">Activa${p.search_enabled_at ? ` desde ${formatShortDateEs(p.search_enabled_at)}` : ''}</span>`
+                    : '<span class="badge free">Desactivada</span>';
+                // El nombre lo escribe el cliente: va escapado en un data-attribute, nunca dentro del JS del onclick
+                return `
+                    <li class="project-row search-row">
+                        <div class="project-main">
+                            <div class="project-name" title="${escapeHtmlAdmin(p.name)}">${escapeHtmlAdmin(p.name)}</div>
+                            <div class="project-meta"><span>#${Number(p.id)}</span>${p.is_active ? '' : '<span>Proyecto pausado</span>'}</div>
+                        </div>
+                        <div>${state}</div>
+                        <button class="btn ${on ? 'btn-secondary' : 'btn-primary'} btn-sm"
+                            data-project-name="${escapeHtmlAdmin(p.name)}"
+                            onclick="setLlmSearchMode(${Number(p.id)}, '${on ? 'off' : 'auto'}', ${Number(userId)}, this.dataset.projectName)">${on ? 'Desactivar' : 'Activar'}</button>
+                    </li>`;
+            }).join('')}</ul>`;
+            section.hidden = false;
         }
 
         async function loadUserProjectLimits(userId) {
             const container = document.getElementById('detailProjectLimits');
             const windowEl = document.getElementById('detailProjectLimitsWindow');
             if (!container) return;
-            container.innerHTML = '<em style="font-size: 0.85rem;">Cargando proyectos...</em>';
+            container.innerHTML = '<p class="detail-hint">Cargando proyectos...</p>';
+            if (windowEl) windowEl.textContent = '';
+            const searchSection = document.getElementById('detailSearchSection');
+            if (searchSection) searchSection.hidden = true;
             try {
                 const response = await fetch(`/admin/users/${userId}/project-limits`);
                 const data = await response.json();
@@ -2518,53 +2515,30 @@
                 llmSearchUnitWeights = data.search_unit_weights || {};
 
                 if (windowEl && data.window) {
-                    const ws = new Date(data.window.start).toLocaleDateString('es-ES');
-                    const we = new Date(data.window.end).toLocaleDateString('es-ES');
-                    windowEl.textContent = `(ventana de cuota vigente: ${ws} → ${we})`;
+                    windowEl.textContent = `Ventana de cuota vigente: ${formatShortDateEs(data.window.start)} → ${formatShortDateEs(data.window.end)}`;
                 }
 
                 let html = '';
-                let anyProject = false;
                 PROJECT_LIMIT_MODULE_ORDER.forEach((moduleKey) => {
                     const mod = (data.modules || {})[moduleKey];
                     if (!mod || !mod.projects || mod.projects.length === 0) return;
-                    anyProject = true;
-                    html += `<p style="margin: 0.75rem 0 0.25rem; font-weight: 600; font-size: 0.85rem;">${escapeHtmlAdmin(mod.label)} <small>(${escapeHtmlAdmin(mod.unit)} por ventana)</small></p>`;
-                    // Tabla compacta: el modal mide ~600px, así que cada columna va ajustada
-                    const td = 'padding:0.25rem 0.2rem; vertical-align:middle;';
-                    html += `<table style="width:100%; border-collapse: collapse; font-size: 0.8rem; table-layout:auto;">
-                        <thead><tr style="text-align:left; border-bottom:1px solid var(--color-border);">
-                            <th style="${td}">ID</th>
-                            <th style="${td}">Proyecto</th>
-                            <th style="${td}" title="Keywords o prompts activos">Kws</th>
-                            <th style="${td}">Estado</th>
-                            <th style="${td}" title="Consumo en la ventana / límite">Uso</th>
-                            <th style="${td}" title="Límite propio por ventana (vacío = sin tope)">Límite</th>
-                            <th style="${td}" title="Frecuencia de análisis en días (1 = cada pasada del cron)">Días</th>
-                            <th style="${td}"></th>
-                            ${moduleKey === 'llm_monitoring' ? `<th style="${td}" title="Búsqueda web de los modelos (solo admin)">Búsqueda web</th>` : ''}
-                        </tr></thead><tbody>`;
-                    mod.projects.forEach((p) => {
-                        const limitText = p.monthly_limit === null || p.monthly_limit === undefined ? '∞' : p.monthly_limit;
-                        html += `<tr style="border-bottom:1px solid var(--color-border);">
-                            <td style="${td}">${p.id}</td>
-                            <td style="${td} max-width:11rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtmlAdmin(p.name)}">${escapeHtmlAdmin(p.name)}</td>
-                            <td style="${td}">${p.keyword_count ?? '-'}</td>
-                            <td style="${td}">${projectStateBadge(p)}</td>
-                            <td style="${td} white-space:nowrap;">${p.used} / ${limitText}</td>
-                            <td style="${td}"><input type="number" min="1" step="1" style="width:4.5rem; padding:0.2rem;" id="pl-limit-${moduleKey}-${p.id}" value="${p.monthly_limit ?? ''}" placeholder="∞"></td>
-                            <td style="${td}"><input type="number" min="1" max="90" step="1" style="width:3.2rem; padding:0.2rem;" id="pl-freq-${moduleKey}-${p.id}" value="${p.analysis_frequency_days ?? 1}"></td>
-                            <td style="${td}"><button class="btn btn-primary" style="padding:0.2rem 0.5rem; font-size:0.75rem;" title="Guardar límite y frecuencia" onclick="saveProjectLimits('${moduleKey}', ${p.id}, ${userId})">Guardar</button></td>
-                            ${moduleKey === 'llm_monitoring' ? `<td style="${td} white-space:nowrap;">${llmSearchCell(p, userId)}</td>` : ''}
-                        </tr>`;
-                    });
-                    html += '</tbody></table>';
+                    html += `
+                        <div class="project-module">
+                            <p class="project-module-title">${escapeHtmlAdmin(mod.label)} <span>${mod.projects.length} proyecto${mod.projects.length === 1 ? '' : 's'} · ${escapeHtmlAdmin(mod.unit)} por ventana</span></p>
+                            <ul class="project-list">
+                                <li class="project-row project-row--head" aria-hidden="true">
+                                    <span>Proyecto</span><span>Uso</span><span>Límite</span><span>Días</span><span></span>
+                                </li>
+                                ${mod.projects.map((p) => renderProjectLimitRow(moduleKey, p, userId, mod.unit)).join('')}
+                            </ul>
+                        </div>`;
                 });
-                container.innerHTML = anyProject ? html : '<em style="font-size: 0.85rem;">Este usuario no tiene proyectos.</em>';
+                container.innerHTML = html || '<p class="detail-hint">Este usuario no tiene proyectos.</p>';
+                renderSearchModes(((data.modules || {}).llm_monitoring || {}).projects || [], userId);
                 if (window.lucide) lucide.createIcons();
             } catch (error) {
                 console.error('Error cargando límites por proyecto:', error);
-                container.innerHTML = `<em style="font-size: 0.85rem; color:#c0392b;">No se pudieron cargar los proyectos: ${escapeHtmlAdmin(error.message)}</em>`;
+                container.innerHTML = `<p class="detail-hint" style="color: var(--color-error);">No se pudieron cargar los proyectos: ${escapeHtmlAdmin(error.message)}</p>`;
             }
         }
 
