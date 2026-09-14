@@ -60,6 +60,7 @@ async showModelsModal() {
         modal.style.display = 'flex';
         modal.style.opacity = '0';
         setTimeout(() => modal.style.opacity = '1', 10);
+        this.renderModelsSearchNote();  // solo visible en proyectos con búsqueda web
 
         // Show loading
         content.innerHTML = `

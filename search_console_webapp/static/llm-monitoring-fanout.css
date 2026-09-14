@@ -1,0 +1,494 @@
+/**
+ * LLM Monitoring - Query Fan-out (P7, 2026-09)
+ * Solo se ve en proyectos con la búsqueda web activada (llm-monitoring-fanout.js).
+ *
+ * Brandbook v1.1: tokens --cs-* únicamente, sin badges ni pills informativos (estado con
+ * texto, icono y punto de color), sin degradados, colores de serie solo para identificar
+ * a cada LLM, Bio-Lime nunca como texto ni fondo.
+ */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ── Nota de cambio de metodología (bajo los KPIs) ─────────────────────────── */
+.search-method-note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--cs-space-xs);
+    margin: var(--cs-space-md) 0 0;
+    padding: var(--cs-space-sm) var(--cs-space-md);
+    background: var(--cs-bg-subtle);
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    color: var(--cs-text-secondary);
+    font-size: var(--cs-text-sm);
+    line-height: var(--cs-leading-normal);
+}
+
+.search-method-note[hidden] {
+    display: none;
+}
+
+.search-method-note i,
+.search-method-note svg.lucide {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+    color: var(--cs-text-tertiary);
+}
+
+/* ── Sección del panel ─────────────────────────────────────────────────────── */
+.fanout-card {
+    /* Dentro de grids/flex del panel: sin esto las tablas anchas ensanchan la página
+       en móvil en vez de hacer scroll dentro de .fanout-table-wrap */
+    min-width: 0;
+    max-width: 100%;
+}
+
+.fanout-card .chart-header {
+    align-items: flex-start;
+}
+
+.fanout-block {
+    margin-top: var(--cs-space-lg);
+}
+
+.fanout-block:first-child {
+    margin-top: var(--cs-space-xs);
+}
+
+.fanout-block-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--cs-space-sm);
+}
+
+.fanout-eyebrow {
+    margin: 0 0 var(--cs-space-xs);
+    font-family: var(--cs-font-sans);
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-semibold);
+    letter-spacing: var(--cs-tracking-wider);
+    text-transform: uppercase;
+    color: var(--cs-text-tertiary);
+}
+
+.fanout-block-meta,
+.fanout-muted {
+    font-size: var(--cs-text-sm);
+    font-weight: var(--cs-weight-regular);
+    color: var(--cs-text-secondary);
+}
+
+.fanout-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--cs-border-subtle);
+    border-radius: var(--cs-radius-sm);
+}
+
+.fanout-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--cs-text-sm);
+    color: var(--cs-text-primary);
+}
+
+.fanout-table thead th {
+    padding: var(--cs-space-xs) var(--cs-space-sm);
+    background: var(--cs-bg-subtle);
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-semibold);
+    color: var(--cs-text-secondary);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.fanout-table tbody th,
+.fanout-table tbody td {
+    padding: var(--cs-space-sm);
+    border-top: 1px solid var(--cs-border-subtle);
+    font-weight: var(--cs-weight-regular);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.fanout-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.fanout-rank {
+    width: 2.5rem;
+    color: var(--cs-text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+.fanout-query-cell {
+    min-width: 18rem;
+    font-weight: var(--cs-weight-medium);
+    overflow-wrap: anywhere;
+}
+
+.fanout-llm,
+.fanout-provider {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.fanout-providers {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--cs-space-xs) var(--cs-space-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+.fanout-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.fanout-expand-cell {
+    width: 2.75rem;
+    text-align: right;
+}
+
+.fanout-expand {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--cs-radius-pill);
+    background: transparent;
+    color: var(--cs-text-secondary);
+    cursor: pointer;
+    transition: background-color var(--cs-transition), color var(--cs-transition);
+}
+
+.fanout-expand:hover {
+    background: var(--cs-bg-subtle);
+    color: var(--cs-text-primary);
+}
+
+.fanout-expand:focus-visible {
+    outline: 2px solid var(--cs-text-primary);
+    outline-offset: 2px;
+}
+
+.fanout-expand i,
+.fanout-expand svg.lucide {
+    width: 16px;
+    height: 16px;
+    transition: transform 200ms var(--cs-ease);
+}
+
+.fanout-expand[aria-expanded="true"] i,
+.fanout-expand[aria-expanded="true"] svg.lucide {
+    transform: rotate(180deg);
+}
+
+.fanout-table .fanout-detail-row td {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.fanout-detail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--cs-space-md) var(--cs-space-lg);
+    padding: var(--cs-space-sm) 0 var(--cs-space-xs);
+}
+
+.fanout-detail-title {
+    margin: 0 0 var(--cs-space-2xs);
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-semibold);
+    color: var(--cs-text-secondary);
+}
+
+.fanout-detail-list {
+    display: grid;
+    gap: var(--cs-space-2xs);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fanout-detail-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--cs-space-sm);
+    color: var(--cs-text-primary);
+}
+
+.fanout-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--cs-space-sm);
+    margin-top: var(--cs-space-sm);
+}
+
+.fanout-pages-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: 0 var(--cs-space-xl);
+    margin-top: var(--cs-space-lg);
+}
+
+.fanout-pages-grid .fanout-block {
+    margin-top: 0;
+}
+
+.fanout-page-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fanout-page {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-space-xs);
+    padding: var(--cs-space-xs) 0;
+    border-top: 1px solid var(--cs-border-subtle);
+    font-size: var(--cs-text-sm);
+}
+
+.fanout-page:first-child {
+    border-top: 0;
+}
+
+.fanout-page a {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cs-text-primary);
+    text-decoration: none;
+}
+
+.fanout-page a:hover .fanout-page-path,
+.fanout-page a:focus-visible .fanout-page-path {
+    text-decoration: underline;
+}
+
+.fanout-page-host {
+    font-weight: var(--cs-weight-semibold);
+}
+
+.fanout-page-path {
+    color: var(--cs-text-secondary);
+}
+
+.fanout-footnote {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-space-xs);
+    margin: var(--cs-space-lg) 0 0;
+    padding-top: var(--cs-space-sm);
+    border-top: 1px solid var(--cs-border-subtle);
+    font-size: var(--cs-text-xs);
+    color: var(--cs-text-tertiary);
+}
+
+.fanout-footnote i,
+.fanout-footnote svg.lucide {
+    width: 14px;
+    height: 14px;
+}
+
+/* Estados */
+.fanout-state {
+    display: grid;
+    justify-items: center;
+    gap: var(--cs-space-2xs);
+    padding: var(--cs-space-xl) var(--cs-space-md);
+    text-align: center;
+}
+
+.fanout-state > i,
+.fanout-state > svg.lucide {
+    width: 20px;
+    height: 20px;
+    margin-bottom: var(--cs-space-2xs);
+    color: var(--cs-text-tertiary);
+}
+
+.fanout-state-title {
+    margin: 0;
+    font-weight: var(--cs-weight-semibold);
+    color: var(--cs-text-primary);
+}
+
+.fanout-state-text {
+    margin: 0;
+    max-width: 44ch;
+    font-size: var(--cs-text-sm);
+    color: var(--cs-text-secondary);
+}
+
+.fanout-state .btn {
+    margin-top: var(--cs-space-xs);
+}
+
+.fanout-skeleton {
+    display: grid;
+    gap: var(--cs-space-sm);
+    padding: var(--cs-space-xs) 0;
+}
+
+.fanout-skeleton span {
+    display: block;
+    height: 14px;
+    border-radius: var(--cs-radius-sm);
+    background: var(--cs-bg-subtle);
+    animation: fanout-pulse 1.2s var(--cs-ease) infinite alternate;
+}
+
+.fanout-skeleton span:nth-child(odd) {
+    width: 72%;
+}
+
+@keyframes fanout-pulse {
+    to { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fanout-skeleton span,
+    .fanout-expand i,
+    .fanout-expand svg.lucide {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* ── Modal de respuesta: "How the model searched" ──────────────────────────── */
+.fanout-response-summary {
+    margin: 0 0 var(--cs-space-sm);
+    font-size: var(--cs-text-sm);
+    font-weight: var(--cs-weight-medium);
+    color: var(--cs-text-primary);
+}
+
+.fanout-rounds {
+    display: grid;
+    gap: var(--cs-space-sm);
+    margin: 0 0 var(--cs-space-sm);
+    padding: 0;
+    list-style: none;
+}
+
+.fanout-round {
+    display: grid;
+    grid-template-columns: 1.5rem 1fr;
+    gap: var(--cs-space-xs);
+}
+
+.fanout-round-n {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1px solid var(--cs-border);
+    border-radius: 50%;
+    font-size: var(--cs-text-xs);
+    font-weight: var(--cs-weight-semibold);
+    color: var(--cs-text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.fanout-query {
+    margin: 0 0 2px;
+    font-size: var(--cs-text-sm);
+    color: var(--cs-text-primary);
+    overflow-wrap: anywhere;
+}
+
+.fanout-domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--cs-space-2xs) var(--cs-space-md);
+    margin: var(--cs-space-2xs) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--cs-text-xs);
+    color: var(--cs-text-secondary);
+}
+
+.fanout-domains li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fanout-domain-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: var(--cs-weight-semibold);
+    color: var(--cs-text-primary);
+}
+
+.fanout-domain-label.is-brand {
+    color: var(--cs-success-text);
+}
+
+.fanout-domain-label i,
+.fanout-domain-label svg.lucide {
+    width: 12px;
+    height: 12px;
+}
+
+.fanout-response-note {
+    margin: 0 0 var(--cs-space-sm);
+    font-size: var(--cs-text-xs);
+}
+
+.fanout-read-pages {
+    display: grid;
+    gap: var(--cs-space-2xs);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--cs-text-sm);
+}
+
+.fanout-read-pages li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px var(--cs-space-xs);
+}
+
+.fanout-read-pages a {
+    color: var(--cs-text-primary);
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+    .fanout-query-cell {
+        min-width: 12rem;
+    }
+
+    .fanout-pages-grid {
+        grid-template-columns: 1fr;
+    }
+}

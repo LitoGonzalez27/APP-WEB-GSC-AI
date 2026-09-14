@@ -45,6 +45,9 @@
     <!-- ✨ NEW: Response Inspector Modal -->
     <link href="{{ url_for('static', filename='response-modal.css') }}?v={{ ASSET_V }}" rel="stylesheet">
 
+    <!-- Query fan-out (solo proyectos con búsqueda web activada) -->
+    <link href="{{ url_for('static', filename='llm-monitoring-fanout.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
     <!-- CSS para navbar principal -->
     <link href="{{ url_for('static', filename='navbar.css') }}?v={{ ASSET_V }}" rel="stylesheet">
 
@@ -645,6 +648,12 @@
                     </div>
                 </div>
 
+                <!-- Cambio de metodología (solo proyectos con búsqueda web; lo muestra llm-monitoring-fanout.js) -->
+                <p class="search-method-note" id="searchMethodNote" role="note" hidden>
+                    <i class="fas fa-info-circle" aria-hidden="true"></i>
+                    <span data-role="text"></span>
+                </p>
+
                 <!-- Branded vs Non-Branded Comparison -->
                 <div class="branded-comparison-grid" id="brandedComparisonGrid" style="display:none;">
                     <div class="branded-card branded-card--non-branded">
@@ -988,6 +997,24 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Query Fan-out (solo proyectos con búsqueda web activada; llm-monitoring-fanout.js) -->
+                <div class="chart-card fanout-card" id="fanoutCard" style="display: none;" aria-labelledby="fanoutTitle">
+                    <div class="chart-header">
+                        <div class="chart-header-left">
+                            <h3 id="fanoutTitle">Query Fan-out</h3>
+                            <p class="chart-subtitle">What the models searched on the web to answer your prompts</p>
+                        </div>
+                        <div class="chart-actions">
+                            <span class="fanout-block-meta" id="fanoutPeriod"></span>
+                        </div>
+                    </div>
+                    <div id="fanoutBody" aria-live="polite"></div>
+                    <p class="fanout-footnote">
+                        <i class="fas fa-info-circle" aria-hidden="true"></i>
+                        Observed through each provider's API (ChatGPT, Claude, Gemini and Perplexity). The consumer apps may search differently.
+                    </p>
                 </div>
 
                 <!-- ✨ LLM Responses Inspector -->
@@ -1866,6 +1893,7 @@
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-urls.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-url-content.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-responses.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-fanout.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-clusters.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-filters.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-sets.js') }}?v={{ ASSET_V }}"></script>
@@ -2489,6 +2517,12 @@
                         <strong>Perplexity</strong> is web-grounded and can fetch current sources at query time.
                         For time-sensitive topics after each model's cutoff date, Perplexity is usually the most up-to-date.
                     </p>
+                </section>
+
+                <!-- Búsqueda web del proyecto (solo si está activada; llm-monitoring-fanout.js) -->
+                <section class="models-note models-note--positive" id="modelsSearchNote" hidden>
+                    <h4 class="models-note-title">Web search is on for this project</h4>
+                    <p class="models-note-text" data-role="text"></p>
                 </section>
 
                 <!-- ⚠️ Important Note -->
