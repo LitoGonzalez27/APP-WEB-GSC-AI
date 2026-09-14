@@ -232,9 +232,6 @@ def response_search_detail(execution_metadata: Optional[Dict], search_queries: O
 
 
 LLM_LABELS = {'openai': 'ChatGPT', 'anthropic': 'Claude', 'google': 'Gemini', 'perplexity': 'Perplexity'}
-METHOD_NOTE = ("Observed through each provider's API (ChatGPT, Claude, Gemini and Perplexity). "
-               "The consumer apps may search differently.")
-
 
 def _pct(rate: Optional[float]) -> str:
     return '' if rate is None else f"{round(rate * 100)}%"

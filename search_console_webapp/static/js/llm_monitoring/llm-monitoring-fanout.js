@@ -302,11 +302,11 @@ renderFanoutQueries() {
             </div>
             ${totalPages > 1 ? `
                 <nav class="fanout-pagination" aria-label="Sub-queries pages">
-                    <button type="button" class="btn btn-ghost btn-sm" ${page === 1 ? 'disabled' : ''}
-                            onclick="window.llmMonitoring.goToFanoutPage(${page - 1})">Previous</button>
-                    <span class="fanout-muted">Page ${page} of ${totalPages}</span>
-                    <button type="button" class="btn btn-ghost btn-sm" ${page === totalPages ? 'disabled' : ''}
-                            onclick="window.llmMonitoring.goToFanoutPage(${page + 1})">Next</button>
+                    <button type="button" class="btn btn-light btn-sm fanout-page-btn" ${page === 1 ? 'disabled' : ''}
+                            onclick="window.llmMonitoring.goToFanoutPage(${page - 1})"><i class="fas fa-chevron-left"></i> Previous</button>
+                    <span class="fanout-page-info">Page ${page} of ${totalPages}</span>
+                    <button type="button" class="btn btn-light btn-sm fanout-page-btn" ${page === totalPages ? 'disabled' : ''}
+                            onclick="window.llmMonitoring.goToFanoutPage(${page + 1})">Next <i class="fas fa-chevron-right"></i></button>
                 </nav>` : ''}`;
     },
 

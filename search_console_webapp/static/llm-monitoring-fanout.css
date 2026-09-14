@@ -242,8 +242,29 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: var(--cs-space-sm);
-    margin-top: var(--cs-space-sm);
+    gap: var(--cs-space-xs);
+    margin: var(--cs-space-lg) 0;
+}
+
+/* Mismo aspecto que el paginador de "Top Mentioned URLs by LLMs" (llm-monitoring-urls.js),
+   para que toda la sección LLM Monitoring pagine igual */
+.fanout-page-btn {
+    background-color: #C3F5A4;
+    border-color: #C3F5A4;
+    color: #111827;
+}
+
+.fanout-page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.fanout-page-info {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: var(--cs-weight-medium);
+    color: #6b7280;
 }
 
 .fanout-pages-grid {
@@ -297,23 +318,6 @@
 
 .fanout-page-path {
     color: var(--cs-text-secondary);
-}
-
-.fanout-footnote {
-    display: flex;
-    align-items: center;
-    gap: var(--cs-space-xs);
-    margin: var(--cs-space-lg) 0 0;
-    padding-top: var(--cs-space-sm);
-    border-top: 1px solid var(--cs-border-subtle);
-    font-size: var(--cs-text-xs);
-    color: var(--cs-text-tertiary);
-}
-
-.fanout-footnote i,
-.fanout-footnote svg.lucide {
-    width: 14px;
-    height: 14px;
 }
 
 /* Estados */
