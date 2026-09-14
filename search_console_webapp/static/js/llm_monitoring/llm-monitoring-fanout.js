@@ -398,13 +398,20 @@ renderResponseSearchSection(response) {
                 </li>`;
         }).join('');
 
-        const pages = (search.pages || []).filter(p => p.url).map(p => {
-            const href = this.toNavigableUrl(p.url);
+        // Una fila por página: abrirla y buscar dentro de ella son varias acciones sobre la misma URL
+        const pagesByUrl = new Map();
+        (search.pages || []).filter(p => p.url).forEach(p => {
+            if (!pagesByUrl.has(p.url)) pagesByUrl.set(p.url, new Set());
+            if (p.action === 'find_in_page' && p.pattern) pagesByUrl.get(p.url).add(p.pattern);
+        });
+        const pages = [...pagesByUrl.entries()].map(([url, patterns]) => {
+            const href = this.toNavigableUrl(url);
             const safeHref = this.isSafeUrl(href) ? href : '#';
+            const lookedFor = [...patterns].map(pattern => `"${this.escapeHtml(pattern)}"`).join(', ');
             return `
                 <li>
-                    <a href="${this.escapeAttr(safeHref)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(this.truncateUrl ? this.truncateUrl(p.url, 90) : p.url)}</a>
-                    ${p.action === 'find_in_page' && p.pattern ? `<span class="fanout-muted">looked for "${this.escapeHtml(p.pattern)}"</span>` : ''}
+                    <a href="${this.escapeAttr(safeHref)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(this.truncateUrl ? this.truncateUrl(url, 90) : url)}</a>
+                    ${lookedFor ? `<span class="fanout-muted">looked for ${lookedFor}</span>` : ''}
                 </li>`;
         }).join('');
         this.bindFaviconFallback();
