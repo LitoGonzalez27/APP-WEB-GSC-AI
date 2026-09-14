@@ -121,6 +121,7 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 | `services/llm_providers/perplexity_provider.py` | Perplexity sobre **Agent API** (`POST /v1/agent`, desde 2026-09-13; Sonar por Chat Completions se retira el 2026-09-27). `model_id` del registry → `preset` (`sonar`→`fast`). Idioma como mensaje `system` en `input` (NO `instructions`: sustituye el prompt del preset y se pierden las citas), país en `tools[web_search].user_location`. Coste real de `usage.cost`. Devuelve `search_queries` (fan-out). `parse_agent_response` es pura y tiene tests con respuestas reales. |
 | `services/llm_providers/web_search.py` | Búsqueda web detrás de `search_mode` (P3, 2026-09-13): `normalize_search_mode` (solo `'auto'` activa), `post_json` + `http_error_message` (errores con código HTTP para `classify_error`), `SourceCollector` (en `sources` solo URLs citadas), coste de tokens y de búsquedas, `build_search_result` (contrato común). Con `auto`: OpenAI Responses API + `web_search`, Anthropic `web_search_20250305` (con `pause_turn`), Gemini REST + `google_search`, todo por REST (sin depender del SDK); Perplexity sube a preset `low`. Parsers puros por provider: `parse_responses_output`, `parse_messages_response`, `parse_generate_content`. |
 | `services/llm_providers/fanout_utils.py` | Normalización compartida: `normalize_url` (quita `utm_*`), `normalize_domain` + `host_matches_domain` (única implementación; `url_content_analyzer` la reutiliza), `normalize_query` (clave de agrupación de sub-consultas), `resolve_redirects` (URIs de grounding de Gemini vía `Location`). |
+| `services/llm_monitoring/fanout_stats.py` | Métricas de fan-out para panel y exportaciones (P7): `collect_fanout_metrics` (solo `auto`, desde `search_enabled_at`, respuestas sin error con `execution_metadata.search_mode='auto'`), `aggregate_fanout` (pura: por modelo, top sub-consultas por `query_normalized` con variantes y prompts, páginas propias y de competidores), `response_search_detail` (bloque del modal) y `fanout_export_tables` (filas comunes de Excel y PDF). |
 | `services/llm_monitoring/search_settings.py` | `set_project_search_mode` (interruptor del admin, fija `search_enabled_at` al activar). |
 | `services/llm_monitoring/schema_check.py` | `SchemaFeature`: comprobación cacheada de que una migración existe (fan-out, `units_consumed`). |
 | `services/llm_monitoring/fanout_store.py` | Persistencia del fan-out: `fanout_schema_available` (el engine no escribe fan-out si falta la migración), `build_fanout_rows`, `save_fanout`. |
@@ -168,6 +169,7 @@ SQL: `update_llm_models_freetier_may2026.sql`, `update_llm_pricing_2026.sql`, `u
 | `static/js/llm_monitoring/llm-monitoring-charts.js` | — | Mixin `charts` (Chart.js: SoV, mention rate, sentiment, clusters). |
 | `static/js/llm_monitoring/llm-monitoring-urls.js` | — | Mixin `urls` (URLs ranking). |
 | `static/js/llm_monitoring/llm-monitoring-responses.js` | — | Mixin `responses` (inspección de respuestas crudas). |
+| `static/js/llm_monitoring/llm-monitoring-fanout.js` + `static/llm-monitoring-fanout.css` | — | Mixin `fanout` (P7, 2026-09-14). **Solo proyectos con `search_mode='auto'`**; con `off` cada método sale sin tocar el DOM ni pedir nada. Sección "Query Fan-out" (`#fanoutCard`, tras Top URLs), bloque "How the model searched" del modal de respuesta (`renderResponseSearchSection`), marca "Web search on" en SOV / Total Mentions / Sentiment (plugin Chart.js `csSearchMarker` vía `searchMarkerOption(días)`), nota bajo KPIs (`#searchMethodNote`) y nota en el modal de modelos (`#modelsSearchNote`). |
 | `static/js/llm_monitoring/llm-monitoring-clusters.js` | — | Mixin `clusters` (gestión y métricas de clusters). |
 | `static/js/llm_monitoring/llm-monitoring-modals.js` | — | Mixin `modals` (modales informativos). |
 | `static/js/llm_monitoring/llm-monitoring-models.js` | — | Mixin `models` (info de modelos, knowledge cutoff). |
@@ -624,6 +626,13 @@ vs **media móvil 7d** (excluyendo hoy). Si hoy > `multiplier × media` (default
 Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@validate_project_ownership`, `@cron_or_auth_required`, y middleware `enforce_llm_access` (excepto `/cron/*` y `/health`).
 
 > ⚠️ `llm_monitoring_routes.py` es un monolito de **~9039 líneas**. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
+
+> **Query fan-out (P7, 2026-09-14)**: `GET /projects/<id>/fanout?days=&filtros` → `{enabled:false}` si el proyecto está en
+> `off` (sin más consultas); si está en `auto`, `by_llm`, `top_queries`, `brand_pages`, `competitor_pages`. `GET /projects/<id>`
+> añade `search_mode` y `search_enabled_at` (y `search_unit_weights` solo con `auto`). `GET /projects/<id>/responses` solo en
+> proyectos `auto` selecciona `execution_metadata`/`search_queries` y añade `search` a cada respuesta. Excel: hoja "Query
+> Fan-out" y PDF: sección "Query Fan-out", ambas solo con `auto` (`_safe_fanout_metrics`). Con `off`, comparado contra el
+> código anterior con datos de staging: métricas, respuestas, SOV y PDF idénticos.
 
 ### UI / proyectos
 

@@ -8,7 +8,7 @@
 
 ---
 
-## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-14 08:40)
+## Estado de ejecución — LEER PRIMERO (actualizado 2026-09-14 10:00)
 
 > Para retomar en otra sesión: lee esta sección, luego `CLAUDE-query-fanout.md` (§1b coste) y el `HISTORIAL.md` de
 > `~/Desktop/proyectos/propio/clicandseo/`. Lo que viene después (§0 en adelante) es el plan original; donde choque con esta
@@ -83,6 +83,21 @@ Backups y scripts: `~/Desktop/proyectos/propio/clicandseo/investigacion/query-fa
   y cita ~8, así que guardar todas inflaría la tasa de mención con páginas que el usuario no ve. Todas las recuperadas
   quedan en el fan-out (`search_queries[].sources` y `llm_monitoring_fanout_queries`, con `brand_in_sources`).
   Perplexity sigue como estaba.
+
+- **P7 · UI de fan-out solo para proyectos con búsqueda** (rama `feature/llm-fanout-p7` → `staging` `4b9fc4a`, 2026-09-14).
+  Órdenes de Carlos: brandbook de Clicandseo; en inglés como el resto del panel; proyectos sin búsqueda no ven nada;
+  P7 completo; **siempre off por defecto y con off todo sigue igual**; staging primero, producción con su orden.
+
+  | Paso | Estado | Evidencia |
+  |---|---|---|
+  | Brief de diseño (`/impeccable shape`) | aprobado por Carlos | modal, sección del panel, marca en gráficos, notas de fidelidad y metodología, Excel y PDF |
+  | Código + tests | hecho (`4b9fc4a`) | 429 OK (26+5 previos, BD local); 18 tests nuevos (`test_llm_fanout_stats.py`: agregación con respuestas reales, `off` sin consultas, blindaje de rutas y del mixin) |
+  | Revisión visual | hecho | Página de prueba con los CSS/JS reales: desktop y móvil (las tablas hacen scroll dentro de su caja), fila expandible, modal; con `mode=off` 0 peticiones y nada visible. Ajustes: nombres de modelo en vez de puntos con números, alineación de páginas, fuente de la marca del gráfico |
+  | **Con `off` nada cambia** | verificado | Mismas peticiones contra BD staging con el código anterior (`73b2f45`) y el nuevo: métricas, respuestas, Share of Voice y PDF idénticos; Excel igual salvo la hora de "Generated"; el JSON del proyecto solo añade `search_mode`/`search_enabled_at` (no se pintan) |
+  | Deploy staging | hecho | SUCCESS, health 200, `/fanout` sin login 401, CSS y JS nuevos servidos |
+  | E2E staging con búsqueda (proyectos 11 y 12 activados temporalmente) | hecho | 12/12 respuestas; `/fanout` coherente (P12: 8/8 con búsqueda, 44 sub-consultas, Gemini "Not reported"); respuestas con bloque de búsqueda; Excel con hoja "Query Fan-out" tras "URL Rankings"; PDF con la sección; render con esos datos reales sin errores de consola. Proyectos devueltos a `off` (los 3 en `off`). Coste ~1,5 USD |
+  | Panel real con la sesión de Carlos | pendiente | Hace falta su login; para verlo hay que activar un proyecto de staging desde el admin |
+  | Producción | **pendiente de orden de Carlos** | Sin migración (solo código). Orden: cherry-pick a `main` → deploy → comprobar `off` idéntico en prod (misma sonda en solo lectura) |
 
 ### Pendiente (en orden)
 1. **Resultado de la verificación del 15/09** (arriba). Debería salir Anthropic completo por primera vez desde agosto.
