@@ -54,6 +54,7 @@ from llm_monitoring_limits import (
     count_project_active_queries,
     get_llm_limits_summary,
     get_upgrade_options,
+    SEARCH_UNIT_WEIGHTS,
 )
 from services.project_access_service import (
     get_project_permissions,
@@ -65,6 +66,13 @@ from services.project_access_service import (
 from database import get_db_connection, acquire_analysis_lock, release_analysis_lock, get_latest_analysis_run
 from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
 from services.llm_monitoring_stats import LLMMonitoringStatsService
+from services.llm_monitoring.fanout_stats import (
+    METHOD_NOTE as FANOUT_METHOD_NOTE,
+    collect_fanout_metrics,
+    fanout_export_tables,
+    response_search_detail,
+)
+from services.llm_providers.web_search import is_search_enabled, normalize_search_mode
 from services.llm_providers.base_provider import DEFAULT_MODELS
 from services.llm_monitoring import url_content_analyzer
 from services.llm_monitoring import prompt_sets as prompt_sets_lib
@@ -641,6 +649,27 @@ def fetch_current_models(cur):
     return models, bool(rows)
 
 
+def _safe_fanout_metrics(cur, project, start_date, end_date, enabled_llms, query_ids):
+    """
+    Métricas de fan-out para las exportaciones. None si el proyecto no tiene la búsqueda
+    web activada (el Excel y el PDF quedan igual que siempre) o si falla la consulta
+    (una exportación nunca debe romperse por esta sección).
+    """
+    if not is_search_enabled(project.get('search_mode')):
+        return None
+    try:
+        metrics = collect_fanout_metrics(cur, project, start_date=start_date, end_date=end_date,
+                                         enabled_llms=enabled_llms, query_ids=query_ids)
+        return metrics if metrics.get('enabled') else None
+    except Exception as exc:
+        logger.warning(f"⚠️ Could not compute fan-out for export of project {project.get('id')}: {exc}")
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+        return None
+
+
 def _safe_content_overview(project_id, days):
     """
     Análisis de contenido del Top de URLs, o un vacío si no se puede leer.
@@ -1163,6 +1192,8 @@ def get_project(project_id):
                 p.last_analysis_date,
                 p.created_at,
                 p.updated_at,
+                p.search_mode,
+                p.search_enabled_at,
                 COUNT(DISTINCT q.id) FILTER (WHERE q.is_active = TRUE) as total_queries,
                 COUNT(DISTINCT s.id) as total_snapshots,
                 MAX(s.snapshot_date) as last_snapshot_date
@@ -1173,7 +1204,8 @@ def get_project(project_id):
             GROUP BY p.id, p.user_id, p.name, p.brand_name, p.brand_domain, p.brand_keywords,
                      p.industry, p.enabled_llms, p.competitors, p.competitor_domains, 
                      p.competitor_keywords, p.selected_competitors, p.language, p.country_code, p.queries_per_llm,
-                     p.is_active, p.last_analysis_date, p.created_at, p.updated_at
+                     p.is_active, p.last_analysis_date, p.created_at, p.updated_at,
+                     p.search_mode, p.search_enabled_at
         """, (project_id,))
         
         project = cur.fetchone()
@@ -1762,6 +1794,10 @@ def get_project(project_id):
                 'total_queries': project['total_queries'],
                 'total_snapshots': project['total_snapshots'],
                 'last_snapshot_date': project['last_snapshot_date'].isoformat() if project['last_snapshot_date'] else None,
+                # Búsqueda web (P7): la UI de fan-out solo se pinta con search_mode='auto'
+                'search_mode': normalize_search_mode(project.get('search_mode')),
+                'search_enabled_at': project['search_enabled_at'].isoformat() if project.get('search_enabled_at') else None,
+                **({'search_unit_weights': SEARCH_UNIT_WEIGHTS} if is_search_enabled(project.get('search_mode')) else {}),
                 'access_role': permissions.get('access_role'),
                 'is_owner': permissions.get('is_owner', False),
                 'can_edit': permissions.get('can_edit', False),
@@ -4634,6 +4670,62 @@ def get_urls_ranking(project_id):
             pass
 
 
+@llm_monitoring_bp.route('/projects/<int:project_id>/fanout', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_project_fanout(project_id):
+    """
+    Query fan-out del proyecto (P7): sub-consultas que lanzan los modelos al buscar en la
+    web, páginas que leen y presencia de la marca. Solo para proyectos con
+    search_mode='auto'; con 'off' devuelve {"enabled": false} y el panel no pinta nada.
+
+    Query params: days (default 30) + filtros globales del informe.
+    """
+    days = _normalize_days_param(request.args.get('days'), default=30)
+    report_filters = _parse_report_filters(request.args)
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, enabled_llms, brand_domain, competitor_domains, selected_competitors,
+                   search_mode, search_enabled_at
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project = cur.fetchone()
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+        if not is_search_enabled(project.get('search_mode')):
+            return jsonify({'success': True, 'enabled': False}), 200
+
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        metrics = collect_fanout_metrics(
+            cur, project,
+            start_date=start_date, end_date=end_date,
+            enabled_llms=_narrow_llms(project.get('enabled_llms') or [], report_filters),
+            query_ids=_resolve_filtered_query_ids(cur, project_id, report_filters,
+                                                  start_date=start_date, end_date=end_date),
+        )
+        return jsonify({'success': True, 'days': days, **metrics}), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo fan-out del proyecto {project_id}: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 @llm_monitoring_bp.route('/projects/<int:project_id>/url-content-analysis', methods=['POST'])
 @login_required
 @validate_project_ownership
@@ -6669,13 +6761,15 @@ def get_project_responses(project_id):
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT enabled_llms, brand_keywords
+            SELECT enabled_llms, brand_keywords, search_mode
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
         project_row = cur.fetchone()
         if not project_row:
             return jsonify({'error': 'Project not found'}), 404
+        # Con la búsqueda desactivada la consulta y el JSON son exactamente los de siempre
+        include_search = is_search_enabled(project_row.get('search_mode'))
         enabled_llms_filter = project_row.get('enabled_llms') or []
         resp_brand_keywords = project_row.get('brand_keywords') or []
         if llm_provider and enabled_llms_filter and llm_provider not in enabled_llms_filter:
@@ -6707,7 +6801,9 @@ def get_project_responses(project_id):
                 r.response_length,
                 r.sources,
                 r.analysis_date,
-                r.created_at
+                r.created_at""" + (""",
+                r.execution_metadata,
+                r.search_queries""" if include_search else "") + """
             FROM llm_monitoring_results r
             JOIN llm_monitoring_queries q ON r.query_id = q.id
             WHERE r.project_id = %s
@@ -6758,7 +6854,7 @@ def get_project_responses(project_id):
         # Formatear resultados
         responses = []
         for r in results:
-            responses.append({
+            item = {
                 'id': r['id'],
                 'query_id': r['query_id'],
                 'query_text': r['query_text'],
@@ -6777,7 +6873,10 @@ def get_project_responses(project_id):
                 'is_branded_query': classify_query_branded(r['query_text'], resp_brand_keywords),
                 'analysis_date': r['analysis_date'].isoformat() if r['analysis_date'] else None,
                 'created_at': r['created_at'].isoformat() if r['created_at'] else None
-            })
+            }
+            if include_search:
+                item['search'] = response_search_detail(r.get('execution_metadata'), r.get('search_queries'))
+            responses.append(item)
         
         return jsonify({
             'success': True,
@@ -6868,10 +6967,11 @@ def export_project_excel(project_id):
 
         # 1. Project info
         cur.execute("""
-            SELECT name, brand_name, industry, brand_domain, brand_keywords,
+            SELECT id, name, brand_name, industry, brand_domain, brand_keywords,
                    competitor_domains, selected_competitors,
                    language, country_code, enabled_llms, queries_per_llm,
-                   is_active, created_at, last_analysis_date
+                   is_active, created_at, last_analysis_date,
+                   search_mode, search_enabled_at
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -7323,6 +7423,10 @@ def export_project_excel(project_id):
         except Exception as url_err:
             logger.warning(f"⚠️ Could not fetch URL rankings: {url_err}")
             urls_ranking = []
+
+        # 6b. Query fan-out: solo proyectos con búsqueda web (con 'off' el Excel no cambia)
+        excel_fanout = _safe_fanout_metrics(cur, project, start_date, end_date,
+                                            enabled_llms_filter or None, filtered_query_ids)
 
         # ──────────────────────────────────────────────────
         # BUILD EXCEL WORKBOOK
@@ -7907,6 +8011,26 @@ def export_project_excel(project_id):
         ws6.column_dimensions['B'].width = 70  # Override for URL column
 
         # ════════════════════════════════════════════════
+        # SHEET 6a: QUERY FAN-OUT (solo proyectos con búsqueda web)
+        # ════════════════════════════════════════════════
+        if excel_fanout:
+            ws_fanout = wb.create_sheet("Query Fan-out")
+            ws_fanout['A1'] = "Query Fan-out — what the models searched on the web"
+            ws_fanout['A1'].font = title_font
+            ws_fanout['A2'] = (f"{excel_fanout['responses_with_search']} of {excel_fanout['responses']} answers used web search "
+                               f"since {excel_fanout['period']['start_date']}. {FANOUT_METHOD_NOTE}")
+            row_cursor = 4
+            for title, table in (("By model", 'by_llm'), ("Top sub-queries", 'queries'), ("Pages the models read", 'pages')):
+                rows = fanout_export_tables(excel_fanout)[table]
+                ws_fanout.cell(row=row_cursor, column=1, value=title).font = Font(bold=True)
+                write_header_row(ws_fanout, row_cursor + 1, rows[0])
+                for offset, values in enumerate(rows[1:], row_cursor + 2):
+                    for col, value in enumerate(values, 1):
+                        write_data_cell(ws_fanout, offset, col, value)
+                row_cursor += len(rows) + 3
+            auto_width(ws_fanout, min_width=12, max_width=70)
+
+        # ════════════════════════════════════════════════
         # SHEET 6b: CONTENT ANALYSIS  (Top 30 cited pages)
         # ════════════════════════════════════════════════
         # Solo aparece si el usuario ha lanzado el análisis de contenido: es una
@@ -8280,8 +8404,9 @@ def export_project_pdf(project_id):
 
         # ── 1. Project data ──
         cur.execute("""
-            SELECT name, industry, brand_domain, brand_keywords, language,
-                   country_code, enabled_llms, selected_competitors
+            SELECT id, name, industry, brand_domain, brand_keywords, language,
+                   country_code, enabled_llms, selected_competitors,
+                   search_mode, search_enabled_at
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -9514,6 +9639,44 @@ def export_project_pdf(project_id):
             elements.append(url_table)
         else:
             elements.append(Paragraph("No cited URL data available for this period.", st_no_data))
+
+        # ── Query Fan-out (solo proyectos con búsqueda web; con 'off' el PDF no cambia) ──
+        pdf_fanout = _safe_fanout_metrics(cur, project, start_date.date(), end_date.date(),
+                                          enabled_llms_filter or None, pdf_filtered_query_ids)
+        if pdf_fanout:
+            fanout_tables = fanout_export_tables(pdf_fanout)
+            elements.append(Spacer(1, 0.6 * cm))
+            elements.append(Paragraph("Query Fan-out", st_section))
+            elements.append(Paragraph(
+                f"What the models searched on the web to answer your prompts: "
+                f"{pdf_fanout['responses_with_search']} of {pdf_fanout['responses']} answers used web search "
+                f"since {pdf_fanout['period']['start_date']}. {FANOUT_METHOD_NOTE}", st_body))
+            elements.append(Spacer(1, 0.3 * cm))
+            if pdf_fanout['responses']:
+                # (tabla, anchos de columna, filas máximas, columna de texto largo que se ajusta)
+                fanout_specs = (
+                    ('by_llm', [3 * cm, 1.8 * cm, 2.4 * cm, 2.4 * cm, 2.4 * cm, 2.6 * cm], None, None),
+                    ('queries', [0.8 * cm, 7 * cm, 1.6 * cm, 1.8 * cm, 3.4 * cm, 2.2 * cm], 15, 1),
+                    ('pages', [3.2 * cm, 8.8 * cm, 1.8 * cm, 3 * cm], 15, 1),
+                )
+                for key, widths, limit, wrap_col in fanout_specs:
+                    header, *body = fanout_tables[key]
+                    if not body:
+                        continue
+                    columns = len(widths)
+                    data = [header[:columns]] + [
+                        [Paragraph(_truncate(str(v), 90), st_body) if i == wrap_col else str(v)
+                         for i, v in enumerate(row[:columns])]
+                        for row in body[:limit]
+                    ]
+                    table = Table(data, colWidths=widths, repeatRows=1)
+                    style = _base_table_style(len(data))
+                    style.append(('ALIGN', (1, 1), (1, -1), 'LEFT'))
+                    table.setStyle(TableStyle(style))
+                    elements.append(table)
+                    elements.append(Spacer(1, 0.3 * cm))
+            else:
+                elements.append(Paragraph("No web search data for this period yet.", st_no_data))
 
         # ── Content Analysis (Top cited pages) ──
         # Solo si el usuario ha lanzado el análisis: es una acción manual que

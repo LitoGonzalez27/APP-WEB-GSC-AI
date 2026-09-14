@@ -535,6 +535,8 @@ showResponseModal(index) {
                         </div>
                     ` : ''}
 
+                    ${this.renderResponseSearchSection(response)}
+
                     ${response.sources && response.sources.length > 0 ? `
                         <div class="response-modal-section">
                             <h4><i class="fas fa-link"></i> Sources & Links (${response.sources.length})</h4>

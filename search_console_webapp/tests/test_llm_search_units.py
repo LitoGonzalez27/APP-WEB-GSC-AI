@@ -216,9 +216,13 @@ class TestSetProjectSearchMode:
 
 
 def test_user_project_update_route_cannot_change_search_mode():
-    """Solo el admin cambia el interruptor: la ruta de edición del usuario no lo acepta."""
+    """Solo el admin cambia el interruptor: ninguna escritura de las rutas del usuario lo toca."""
+    import re
     src = open(os.path.join(os.path.dirname(__file__), '..', 'llm_monitoring_routes.py')).read()
-    assert 'search_mode' not in src
+    update = src[src.index('def update_project('):]
+    update = update[:update.index('\n@llm_monitoring_bp.route')]
+    assert 'search_mode' not in update
+    assert not re.search(r"UPDATE llm_monitoring_projects[^;]*search_mode", src)
 
 
 def test_admin_route_is_admin_only():

@@ -329,6 +329,7 @@ async renderShareOfVoiceChart() {
                         })
                     },
                     plugins: {
+                        csSearchMarker: this.searchMarkerOption(dates),
                         legend: {
                             display: false  // Usar leyenda HTML personalizada
                         },
@@ -445,6 +446,7 @@ async renderMentionsTimelineChart() {
                         }
                     },
                     plugins: {
+                        csSearchMarker: this.searchMarkerOption(dates),
                         legend: {
                             display: false
                         },
@@ -547,6 +549,7 @@ renderSentimentOverTimeChart(data) {
                     }
                 },
                 plugins: {
+                    csSearchMarker: this.searchMarkerOption(days),
                     legend: { position: 'bottom' },
                     tooltip: {
                         callbacks: {

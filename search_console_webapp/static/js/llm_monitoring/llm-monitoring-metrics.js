@@ -72,6 +72,9 @@ async loadMetrics(projectId) {
             // Load top URLs ranking
             await this.loadTopUrlsRanking(projectId);
 
+            // Query fan-out: no hace nada si el proyecto no tiene la búsqueda web activada
+            await this.loadFanout(projectId);
+
         } catch (error) {
             console.error('❌ Error loading metrics:', error);
             this.showError('Failed to load metrics.');
