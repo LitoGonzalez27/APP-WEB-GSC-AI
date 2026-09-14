@@ -67,7 +67,6 @@ from database import get_db_connection, acquire_analysis_lock, release_analysis_
 from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
 from services.llm_monitoring_stats import LLMMonitoringStatsService
 from services.llm_monitoring.fanout_stats import (
-    METHOD_NOTE as FANOUT_METHOD_NOTE,
     collect_fanout_metrics,
     fanout_export_tables,
     response_search_detail,
@@ -8018,7 +8017,7 @@ def export_project_excel(project_id):
             ws_fanout['A1'] = "Query Fan-out — what the models searched on the web"
             ws_fanout['A1'].font = title_font
             ws_fanout['A2'] = (f"{excel_fanout['responses_with_search']} of {excel_fanout['responses']} answers used web search "
-                               f"since {excel_fanout['period']['start_date']}. {FANOUT_METHOD_NOTE}")
+                               f"since {excel_fanout['period']['start_date']}.")
             row_cursor = 4
             for title, table in (("By model", 'by_llm'), ("Top sub-queries", 'queries'), ("Pages the models read", 'pages')):
                 rows = fanout_export_tables(excel_fanout)[table]
@@ -9650,7 +9649,7 @@ def export_project_pdf(project_id):
             elements.append(Paragraph(
                 f"What the models searched on the web to answer your prompts: "
                 f"{pdf_fanout['responses_with_search']} of {pdf_fanout['responses']} answers used web search "
-                f"since {pdf_fanout['period']['start_date']}. {FANOUT_METHOD_NOTE}", st_body))
+                f"since {pdf_fanout['period']['start_date']}.", st_body))
             elements.append(Spacer(1, 0.3 * cm))
             if pdf_fanout['responses']:
                 # (tabla, anchos de columna, filas máximas, columna de texto largo que se ajusta)
