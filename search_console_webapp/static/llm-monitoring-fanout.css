@@ -271,7 +271,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
     gap: 0 var(--cs-space-xl);
-    margin-top: var(--cs-space-lg);
+    /* Separa claramente la tabla de sub-consultas (y su paginación) de las páginas leídas */
+    margin-top: var(--cs-space-2xl);
 }
 
 .fanout-pages-grid .fanout-block {
