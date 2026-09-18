@@ -113,6 +113,26 @@ class TestChatCompletions:
         assert result['success'] and result['service_tier'] == 'default'
         assert result['cost_usd'] == pytest.approx(100 * 5e-06 + 1000 * 3e-05)
 
+    def test_flex_timeout_falls_back_to_standard_queue(self, provider):
+        # Un timeout en flex no debe encadenar reintentos en flex: se repite en la cola estándar
+        import openai as openai_sdk
+        provider.set_service_tier('flex')
+        timeout_error = openai_sdk.APITimeoutError(request=MagicMock())
+        provider.client.chat.completions.create.side_effect = [timeout_error, _response(tier='default')]
+        result = provider.execute_query('q')
+        calls = provider.client.chat.completions.create.call_args_list
+        assert len(calls) == 2
+        assert calls[0].kwargs['timeout'] == op.FLEX_TIMEOUT_SECONDS
+        assert calls[1].kwargs['service_tier'] == 'auto'
+        assert calls[1].kwargs['timeout'] == op.STANDARD_TIMEOUT_SECONDS
+        assert result['success'] and result['service_tier'] == 'default'
+
+    def test_standard_tier_timeout_is_not_retried_as_auto(self, provider):
+        import openai as openai_sdk
+        provider.client.chat.completions.create.side_effect = openai_sdk.APITimeoutError(request=MagicMock())
+        provider.execute_query('q')
+        assert all('service_tier' not in c.kwargs for c in provider.client.chat.completions.create.call_args_list)
+
     def test_other_errors_are_not_retried_as_auto(self, provider):
         provider.set_service_tier('flex')
         provider.client.chat.completions.create.side_effect = Exception(
@@ -163,6 +183,18 @@ class TestResponsesApiSearch:
         assert result['success'] and result['service_tier'] == 'default'
         assert result['cost_usd'] == pytest.approx(100 * 5e-06 + 1000 * 3e-05 + 0.01)
 
+    def test_search_flex_timeout_falls_back(self, provider):
+        provider.set_service_tier('flex')
+        responses = [
+            (None, f"OpenAI request timed out after {op.FLEX_TIMEOUT_SECONDS}s"),
+            ({'service_tier': 'default', 'output': []}, None),
+        ]
+        with patch.object(provider, '_post_responses', side_effect=responses) as post, \
+             patch('services.llm_providers.openai_provider.parse_responses_output', return_value=self._parsed()):
+            result = provider._execute_with_search('q', None)
+        assert post.call_args_list[1].args[0]['service_tier'] == 'auto'
+        assert result['success'] and result['service_tier'] == 'default'
+
     def test_search_default_tier_untouched(self, provider):
         with patch.object(provider, '_post_responses', return_value=({'output': []}, None)) as post, \
              patch('services.llm_providers.openai_provider.parse_responses_output', return_value=self._parsed()):
@@ -194,6 +226,62 @@ class TestServiceWiring:
     def test_base_provider_ignores_tier(self):
         from services.llm_providers.base_provider import BaseLLMProvider
         assert BaseLLMProvider.set_service_tier(MagicMock(), 'flex') is None
+
+
+class TestFlexAlerts:
+    """Check `openai_flex_share` y fila del email (cron_alerts)."""
+    RUN = {'id': 71, 'started_at': __import__('datetime').datetime(2026, 9, 18, 4, 0),
+           'completed_at': __import__('datetime').datetime(2026, 9, 18, 4, 30)}
+
+    @staticmethod
+    def _conn(row):
+        cur = MagicMock(); cur.fetchone.return_value = row
+        conn = MagicMock(); conn.cursor.return_value = cur
+        return conn
+
+    def test_full_flex_run_has_no_alert_and_reports_saving(self, monkeypatch):
+        import cron_alerts
+        monkeypatch.delenv('OPENAI_CRON_SERVICE_TIER', raising=False)
+        conn = self._conn({'rows_total': 219, 'rows_flex': 219, 'cost_total': 5.74, 'cost_flex': 5.74})
+        assert cron_alerts._check_flex_share(self.RUN, 0.7, lambda: conn) is None
+        stats = cron_alerts._load_flex_stats(self.RUN, lambda: conn)
+        assert stats['share'] == 1.0 and stats['saved_usd'] == pytest.approx(5.74) and stats['extra_usd'] == 0
+        row = cron_alerts._format_flex_row(stats)
+        assert '219/219 (100%)' in row and 'ahorro $5.74' in row and 'de más' not in row
+
+    def test_low_flex_share_is_medium_alert_with_extra_cost(self, monkeypatch):
+        import cron_alerts
+        monkeypatch.delenv('OPENAI_CRON_SERVICE_TIER', raising=False)
+        # 100 en flex (2,60 $) + 119 en estándar (6,20 $): de más = 3,10 $
+        conn = self._conn({'rows_total': 219, 'rows_flex': 100, 'cost_total': 8.80, 'cost_flex': 2.60})
+        alert = cron_alerts._check_flex_share(self.RUN, 0.7, lambda: conn)
+        assert alert['type'] == 'openai_flex_share' and alert['severity'] == 'medium'
+        assert '100/219' in alert['metric'] and '119 respuesta' in alert['message'] and '$3.10' in alert['message']
+
+    def test_no_alert_when_cron_does_not_request_flex(self, monkeypatch):
+        import cron_alerts
+        monkeypatch.setenv('OPENAI_CRON_SERVICE_TIER', 'default')
+        conn = self._conn({'rows_total': 219, 'rows_flex': 0, 'cost_total': 11.5, 'cost_flex': 0})
+        assert cron_alerts._check_flex_share(self.RUN, 0.7, lambda: conn) is None
+
+    def test_no_openai_rows_means_no_stats_and_no_alert(self, monkeypatch):
+        import cron_alerts
+        monkeypatch.delenv('OPENAI_CRON_SERVICE_TIER', raising=False)
+        conn = self._conn({'rows_total': 0, 'rows_flex': 0, 'cost_total': 0, 'cost_flex': 0})
+        assert cron_alerts._load_flex_stats(self.RUN, lambda: conn) is None
+        assert cron_alerts._check_flex_share(self.RUN, 0.7, lambda: conn) is None
+        assert cron_alerts._format_flex_row(None) == ''
+
+    def test_check_is_registered_and_db_errors_never_raise(self, monkeypatch):
+        import cron_alerts
+        monkeypatch.delenv('OPENAI_CRON_SERVICE_TIER', raising=False)
+        broken = MagicMock(); broken.cursor.side_effect = RuntimeError('db down')
+        assert cron_alerts._check_flex_share(self.RUN, 0.7, lambda: broken) is None
+        cfg = cron_alerts._get_config()
+        assert cfg['flex_min_share'] == 0.7
+        with patch.object(cron_alerts, '_check_flex_share', return_value={'type': 'openai_flex_share', 'severity': 'medium'}) as chk:
+            alerts = cron_alerts._run_checks(self.RUN, cfg, lambda: broken)
+        assert chk.called and any(a['type'] == 'openai_flex_share' for a in alerts)
 
 
 class TestEngineMetadata:

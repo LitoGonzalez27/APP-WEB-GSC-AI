@@ -726,7 +726,8 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 | `PERPLEXITY_CONCURRENCY` | 4 | Semáforo Perplexity. |
 | `OPENAI_TIMEOUT` | 90 | Timeout request OpenAI. |
 | `OPENAI_CRON_SERVICE_TIER` | `flex` | Cola de OpenAI en el cron (batch diario, re-runs por cron, pasada de completitud, `rerun_single_project.py`). `flex` = misma respuesta a mitad de precio; `default` la desactiva. Las llamadas interactivas no la usan. Ver §13 "Flex processing". |
-| `OPENAI_FLEX_TIMEOUT_SECONDS` | 600 | Timeout por petición en flex (OpenAI recomienda hasta 10 min). |
+| `OPENAI_FLEX_TIMEOUT_SECONDS` | 240 | Timeout por petición en flex; si se agota, la petición se repite en la cola estándar (acotado para que Fini, 59 prompts a 4 en paralelo, nunca roce el timeout de proyecto de 45 min). |
+| `CRON_ALERT_FLEX_MIN_SHARE` | 0.7 | Alerta `openai_flex_share` (media) si menos de esta fracción de las respuestas de OpenAI del run se sirvió en flex. |
 | `OPENAI_FLEX_PRICE_FACTOR` | 0.5 | Factor sobre el precio del registry cuando la API confirma `service_tier=flex` (precio Batch). |
 | `GOOGLE_TIMEOUT` | 30 | Timeout request Google. |
 | `ANTHROPIC_TIMEOUT` | 60 | Timeout request Anthropic. |
@@ -900,9 +901,14 @@ el 18/09); en flex baja a la mitad sin cambiar la respuesta (mismo `model` en la
   `rerun_single_project.py`. La pasada de completitud reutiliza el servicio del run, así que hereda el tier.
 - Los análisis interactivos (primer análisis desde la UI, etc.) instancian el servicio sin tier: cola estándar,
   porque ahí la latencia sí importa.
-- `OpenAIProvider._chat_create` / `_post_responses_tiered`: añaden `service_tier` y el timeout largo; si la API
-  responde `resource_unavailable`, repiten la misma petición con `service_tier='auto'` (cola estándar, precio
-  normal). El resto de errores siguen el camino de siempre (`with_retry`). El health-check no usa tier.
+- `OpenAIProvider._chat_create` / `_post_responses_tiered`: añaden `service_tier` y el timeout de flex; si la API
+  responde `resource_unavailable` **o la petición agota `OPENAI_FLEX_TIMEOUT_SECONDS`**, repiten la misma petición
+  con `service_tier='auto'` (cola estándar, precio normal) — log `OpenAI flex <motivo>: repitiendo en la cola
+  estándar`. El resto de errores siguen el camino de siempre (`with_retry`). El health-check no usa tier.
+- Visibilidad: el email de fin de run lleva la fila "OpenAI en flex: N/M (x %) · ahorro $" (`_load_flex_stats`,
+  desde `execution_metadata.service_tier`), y el check `openai_flex_share` avisa (severidad media) si la fracción
+  servida en flex baja de `CRON_ALERT_FLEX_MIN_SHARE`: sin él, un flex que falla en silencio solo se notaría en la
+  factura.
 - Coste: se aplica `OPENAI_FLEX_PRICE_FACTOR` solo si la respuesta dice `service_tier == 'flex'` (si OpenAI
   sirve en estándar aunque se pidiera flex, se cobra entero y así se guarda). En búsqueda web el descuento
   aplica a los tokens, no a la herramienta (se cobra por llamada). El tier servido se guarda en
