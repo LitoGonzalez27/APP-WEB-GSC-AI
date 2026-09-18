@@ -38,6 +38,8 @@ def _get_config() -> Dict:
         'duration_min_threshold': float(os.getenv('CRON_ALERT_DURATION_MIN', '90')),
         'error_rate_threshold': float(os.getenv('CRON_ALERT_ERROR_RATE', '0.20')),
         'cost_multiplier_threshold': float(os.getenv('CRON_ALERT_COST_MULTIPLIER', '2.0')),
+        # Mínimo de respuestas de OpenAI servidas en flex (si el cron pide flex)
+        'flex_min_share': float(os.getenv('CRON_ALERT_FLEX_MIN_SHARE', '0.7')),
         'environment': os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown')),
     }
 
@@ -484,6 +486,100 @@ def _check_provider_completeness(run: Dict, get_db_connection_fn) -> Optional[Di
                 pass
 
 
+def _cron_requests_flex() -> bool:
+    """Misma regla que services.llm_monitoring_service.cron_service_tier (sin importar el servicio)."""
+    return (os.getenv('OPENAI_CRON_SERVICE_TIER', 'flex') or 'default').strip().lower() == 'flex'
+
+
+def _load_flex_stats(run: Dict, get_db_connection_fn) -> Optional[Dict]:
+    """
+    Respuestas de OpenAI del run servidas en la cola flex (execution_metadata.service_tier).
+
+    Devuelve None si no hubo filas de OpenAI. `saved_usd` es lo ahorrado frente a la
+    cola estándar (flex cuesta la mitad: el ahorro es igual a lo pagado en flex) y
+    `extra_usd` lo pagado de más por las respuestas que cayeron a la cola estándar.
+    """
+    started = run.get('started_at')
+    completed = run.get('completed_at')
+    if not started or not completed:
+        return None
+    conn = None
+    try:
+        conn = get_db_connection_fn()
+        if conn is None:
+            return None
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) AS rows_total,
+                   COUNT(*) FILTER (WHERE execution_metadata->>'service_tier' = 'flex') AS rows_flex,
+                   COALESCE(SUM(cost_usd), 0) AS cost_total,
+                   COALESCE(SUM(cost_usd) FILTER (WHERE execution_metadata->>'service_tier' = 'flex'), 0) AS cost_flex
+            FROM llm_monitoring_results
+            WHERE llm_provider = 'openai'
+              AND created_at >= %s AND created_at <= %s
+              AND COALESCE(has_error, FALSE) = FALSE
+        """, (started, completed))
+        row = cur.fetchone()
+        if not row:
+            return None
+        if isinstance(row, dict):
+            rows_total, rows_flex = int(row.get('rows_total') or 0), int(row.get('rows_flex') or 0)
+            cost_total, cost_flex = float(row.get('cost_total') or 0), float(row.get('cost_flex') or 0)
+        else:
+            rows_total, rows_flex, cost_total, cost_flex = int(row[0] or 0), int(row[1] or 0), float(row[2] or 0), float(row[3] or 0)
+        if rows_total == 0:
+            return None
+        return {
+            'rows_total': rows_total,
+            'rows_flex': rows_flex,
+            'share': rows_flex / rows_total,
+            'cost_usd': cost_total,
+            'saved_usd': cost_flex,
+            'extra_usd': (cost_total - cost_flex) / 2.0,
+        }
+    except Exception as e:
+        logger.warning(f"[cron_alerts] _load_flex_stats failed: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return None
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _check_flex_share(run: Dict, min_share: float, get_db_connection_fn) -> Optional[Dict]:
+    """
+    Alert si el cron pidió flex a OpenAI pero una parte relevante de las respuestas
+    acabó en la cola estándar (fallback por falta de capacidad o timeout): todo sale
+    verde pero se paga el doble en esos prompts. Sin este check nadie lo vería.
+    """
+    if not _cron_requests_flex():
+        return None
+    stats = _load_flex_stats(run, get_db_connection_fn)
+    if not stats or stats['share'] >= min_share:
+        return None
+    fallback = stats['rows_total'] - stats['rows_flex']
+    return {
+        'type': 'openai_flex_share',
+        'severity': 'medium',
+        'metric': f"{stats['rows_flex']}/{stats['rows_total']} respuestas de OpenAI en flex ({stats['share']:.0%})",
+        'threshold': f">= {min_share:.0%}",
+        'message': (
+            f"El cron pidió la cola flex de OpenAI pero {fallback} respuesta(s) se sirvieron en la cola "
+            f"estándar a precio completo (unos ${stats['extra_usd']:.2f} de más). Causas habituales: flex sin "
+            "capacidad (429 resource_unavailable) o timeout de flex; revisa en los logs las líneas "
+            "'OpenAI flex ... repitiendo en la cola estándar'. Si se repite varios runs, ajustar "
+            "OPENAI_FLEX_TIMEOUT_SECONDS o la hora del cron."
+        ),
+    }
+
+
 def _run_checks(run: Dict, cfg: Dict, get_db_connection_fn) -> List[Dict]:
     """
     Todas las comprobaciones de un run (una sola lista para el email de alertas y
@@ -497,6 +593,7 @@ def _run_checks(run: Dict, cfg: Dict, get_db_connection_fn) -> List[Dict]:
         ('provider-coverage', lambda: _check_provider_coverage(run, get_db_connection_fn)),
         ('provider-completeness', lambda: _check_provider_completeness(run, get_db_connection_fn)),
         ('provider-billing', lambda: _check_provider_billing(run, get_db_connection_fn)),
+        ('openai-flex-share', lambda: _check_flex_share(run, cfg.get('flex_min_share', 0.7), get_db_connection_fn)),
     )
     alerts = []
     for name, check in checks:
@@ -825,8 +922,22 @@ def _derive_severity(run: Dict, alerts: List[Dict]) -> str:
     return 'ok'
 
 
+def _format_flex_row(flex_stats: Optional[Dict]) -> str:
+    """Fila del email con la cuota de respuestas de OpenAI servidas en flex y el ahorro."""
+    if not flex_stats:
+        return ''
+    saved = flex_stats.get('saved_usd') or 0.0
+    extra = flex_stats.get('extra_usd') or 0.0
+    detail = f"{flex_stats['rows_flex']}/{flex_stats['rows_total']} ({flex_stats['share']:.0%}) · ahorro ${saved:.2f}"
+    if extra > 0:
+        detail += f" · ${extra:.2f} de más por la cola estándar"
+    return (f'<tr><td style="padding:8px 12px;color:#6b7280;">OpenAI en flex</td>'
+            f'<td style="padding:8px 12px;font-family:monospace;">{detail}</td></tr>')
+
+
 def _build_completion_email_html(run: Dict, alerts: List[Dict], run_cost: Optional[float],
-                                 errors: List[Dict], env_name: str, severity: str) -> str:
+                                 errors: List[Dict], env_name: str, severity: str,
+                                 flex_stats: Optional[Dict] = None) -> str:
     icon = {'ok': '✅', 'warning': '⚠️', 'critical': '🚨'}.get(severity, 'ℹ️')
     color = {'ok': '#16a34a', 'warning': '#f59e0b', 'critical': '#dc2626'}.get(severity, '#6b7280')
 
@@ -902,6 +1013,7 @@ def _build_completion_email_html(run: Dict, alerts: List[Dict], run_cost: Option
     cost_row = ''
     if run_cost is not None:
         cost_row = f'<tr><td style="padding:8px 12px;color:#6b7280;">Coste de la run</td><td style="padding:8px 12px;font-family:monospace;">${run_cost:.4f}</td></tr>'
+    cost_row += _format_flex_row(flex_stats)
 
     alert_rows = ''
     if alerts:
@@ -1136,7 +1248,8 @@ def send_run_completion_email(run_id: int, get_db_connection_fn=None) -> Dict:
     try:
         from email_service import send_email
         html = _build_completion_email_html(run, alerts, run_cost, errors,
-                                            cfg['environment'], severity)
+                                            cfg['environment'], severity,
+                                            flex_stats=_load_flex_stats(run, get_db_connection_fn))
         sent = send_email(cfg['email'], subject, html)
         logger.info(f"[cron_alerts] completion email run {run_id} severity={severity} sent={bool(sent)}")
         return {

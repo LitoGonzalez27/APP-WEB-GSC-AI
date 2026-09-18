@@ -45,15 +45,35 @@ PAGE_ACTIONS = ('open_page', 'find_in_page')
 # siempre, para no perder ninguna respuesta.
 SERVICE_TIERS = ('default', 'flex', 'auto', 'priority')
 FLEX_PRICE_FACTOR = float(os.getenv('OPENAI_FLEX_PRICE_FACTOR', '0.5'))
-FLEX_TIMEOUT_SECONDS = int(os.getenv('OPENAI_FLEX_TIMEOUT_SECONDS', '600'))
+# Timeout por petición en flex: acotado (no los 10 min que sugiere OpenAI) para que
+# un proyecto grande (Fini, 59 prompts, 4 en paralelo) nunca se acerque al timeout
+# de proyecto de 45 min; si se agota, la petición se repite en la cola estándar.
+FLEX_TIMEOUT_SECONDS = int(os.getenv('OPENAI_FLEX_TIMEOUT_SECONDS', '240'))
 STANDARD_TIMEOUT_SECONDS = 120
 FLEX_UNAVAILABLE_MARKERS = ('resource_unavailable', 'resource unavailable')
+TIMEOUT_MARKERS = ('timed out', 'timeout')
 
 
 def is_flex_unavailable(error) -> bool:
     """429 de flex sin capacidad (no se cobra): repetir en la cola estándar."""
     err = str(error).lower()
     return any(marker in err for marker in FLEX_UNAVAILABLE_MARKERS)
+
+
+def is_timeout(error) -> bool:
+    if isinstance(error, getattr(openai, 'APITimeoutError', ())):
+        return True
+    err = str(error).lower()
+    return any(marker in err for marker in TIMEOUT_MARKERS)
+
+
+def should_retry_in_standard_queue(error) -> Optional[str]:
+    """Motivo por el que una petición en flex debe repetirse en la cola estándar, o None."""
+    if is_flex_unavailable(error):
+        return 'sin capacidad (429 resource_unavailable, sin cargo)'
+    if is_timeout(error):
+        return f'timeout de {FLEX_TIMEOUT_SECONDS}s'
+    return None
 
 
 def tier_price_factor(served_tier: Optional[str]) -> float:
@@ -208,8 +228,9 @@ class OpenAIProvider(BaseLLMProvider):
         try:
             return self.client.chat.completions.create(**params)
         except Exception as e:
-            if params.get('service_tier') == 'flex' and is_flex_unavailable(e):
-                logger.warning("⚠️ OpenAI flex sin capacidad (429 resource_unavailable, sin cargo): repitiendo en la cola estándar")
+            reason = should_retry_in_standard_queue(e) if params.get('service_tier') == 'flex' else None
+            if reason:
+                logger.warning(f"⚠️ OpenAI flex {reason}: repitiendo en la cola estándar")
                 params.update(service_tier='auto', timeout=STANDARD_TIMEOUT_SECONDS)
                 return self.client.chat.completions.create(**params)
             raise
@@ -471,8 +492,9 @@ class OpenAIProvider(BaseLLMProvider):
             return self._post_responses(body)
         timeout = FLEX_TIMEOUT_SECONDS if self.service_tier == 'flex' else SEARCH_TIMEOUT_SECONDS
         data, error = self._post_responses({**body, 'service_tier': self.service_tier}, timeout=timeout)
-        if error and self.service_tier == 'flex' and is_flex_unavailable(error):
-            logger.warning("⚠️ OpenAI flex (búsqueda) sin capacidad (429 resource_unavailable, sin cargo): repitiendo en la cola estándar")
+        reason = should_retry_in_standard_queue(error) if (error and self.service_tier == 'flex') else None
+        if reason:
+            logger.warning(f"⚠️ OpenAI flex (búsqueda) {reason}: repitiendo en la cola estándar")
             data, error = self._post_responses({**body, 'service_tier': 'auto'})
         return data, error
 

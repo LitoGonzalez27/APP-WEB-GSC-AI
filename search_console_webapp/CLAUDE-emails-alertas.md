@@ -204,6 +204,7 @@ check_and_send_cron_alerts(run_id, get_db_connection_fn=None) -> Dict
 | **Duración** | `_check_duration(run, threshold_min)` | `(completed_at - started_at)` minutos vs `CRON_ALERT_DURATION_MIN` (default `90`). Severity `high` si >1.5×, sino `medium`. |
 | **Error rate** | `_check_error_rate(run, threshold)` | `failed_projects / total_projects` vs `CRON_ALERT_ERROR_RATE` (default `0.20`). Severity `high` si >2× umbral. |
 | **Cost spike** | `_check_cost_spike(get_db_connection_fn, multiplier)` | Suma `cost_usd` de `llm_monitoring_results` de hoy vs **media móvil 7 días** (excluyendo hoy). Si avg=0, devuelve `None` (no hay baseline). |
+| **OpenAI flex share** (2026-09-18) | `_check_flex_share(run, min_share, get_db_connection_fn)` | Solo si el cron pide flex (`OPENAI_CRON_SERVICE_TIER`, default `flex`). Fracción de filas de OpenAI del run con `execution_metadata.service_tier = 'flex'` vs `CRON_ALERT_FLEX_MIN_SHARE` (default `0.7`). Severity `medium`; el mensaje incluye cuántas respuestas cayeron a la cola estándar y el sobrecoste. El email de fin de run lleva además la fila "OpenAI en flex: N/M (x %) · ahorro $" (`_load_flex_stats`). |
 
 ### Resultado
 
