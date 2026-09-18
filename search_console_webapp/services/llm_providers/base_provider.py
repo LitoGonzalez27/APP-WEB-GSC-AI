@@ -357,6 +357,13 @@ class BaseLLMProvider(ABC):
         """
         pass
     
+    def set_service_tier(self, tier: Optional[str]) -> None:
+        """
+        Cola de servicio del proveedor (p.ej. Flex processing de OpenAI). Por defecto
+        no hace nada: solo los providers que lo soportan lo sobreescriben.
+        """
+        return None
+
     def get_pricing_info(self) -> Dict:
         """
         Retorna información de pricing del modelo actual

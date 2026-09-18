@@ -1073,6 +1073,9 @@ class _EngineMixin:
                     key: llm_result[key] for key in SEARCH_METADATA_KEYS if key in llm_result
                 })
                 _execution_metadata['search_mode'] = search_mode
+                # Tier en que se sirvió la respuesta (OpenAI flex = mitad de precio)
+                if llm_result.get('service_tier'):
+                    _execution_metadata['service_tier'] = llm_result['service_tier']
                 _prompt_version = task.get('prompt_version', 'v2_system')
                 search_queries = llm_result.get('search_queries') or []
 

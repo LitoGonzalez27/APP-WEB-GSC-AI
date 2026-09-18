@@ -21,6 +21,7 @@ from .fanout_utils import dedupe_preserving_order, normalize_url
 from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry, note_health_check_failure
 from .web_search import (
+    SEARCH_TIMEOUT_SECONDS,
     SourceCollector,
     build_search_result,
     is_search_enabled,
@@ -34,6 +35,35 @@ logger = logging.getLogger(__name__)
 RESPONSES_API_URL = "https://api.openai.com/v1/responses"
 MAX_OUTPUT_TOKENS = 16000
 PAGE_ACTIONS = ('open_page', 'find_in_page')
+
+# ── Service tier (Flex processing, 2026-09-18) ────────────────────────────
+# `flex` sirve la MISMA petición al MISMO modelo a precio Batch (50 %) a cambio
+# de más latencia y de un 429 `resource_unavailable` ocasional que OpenAI no
+# cobra. Lo activa solo el cron (MultiLLMMonitoringService(service_tier=...));
+# las llamadas interactivas siguen en la cola estándar. Si flex no tiene
+# capacidad, la petición se repite en la cola estándar (`auto`), al precio de
+# siempre, para no perder ninguna respuesta.
+SERVICE_TIERS = ('default', 'flex', 'auto', 'priority')
+FLEX_PRICE_FACTOR = float(os.getenv('OPENAI_FLEX_PRICE_FACTOR', '0.5'))
+FLEX_TIMEOUT_SECONDS = int(os.getenv('OPENAI_FLEX_TIMEOUT_SECONDS', '600'))
+STANDARD_TIMEOUT_SECONDS = 120
+FLEX_UNAVAILABLE_MARKERS = ('resource_unavailable', 'resource unavailable')
+
+
+def is_flex_unavailable(error) -> bool:
+    """429 de flex sin capacidad (no se cobra): repetir en la cola estándar."""
+    err = str(error).lower()
+    return any(marker in err for marker in FLEX_UNAVAILABLE_MARKERS)
+
+
+def tier_price_factor(served_tier: Optional[str]) -> float:
+    """Factor sobre el precio del registry según el tier en que OpenAI sirvió la respuesta."""
+    return FLEX_PRICE_FACTOR if served_tier == 'flex' else 1.0
+
+
+def served_service_tier(tier) -> str:
+    """Normaliza el `service_tier` que la API declara en la respuesta; 'default' si no lo dice."""
+    return tier if isinstance(tier, str) and tier else 'default'
 
 
 def parse_responses_output(data: Dict) -> Dict:
@@ -135,6 +165,7 @@ class OpenAIProvider(BaseLLMProvider):
         """
         self.api_key = api_key
         self.client = openai.OpenAI(api_key=api_key)
+        self.service_tier = 'default'  # ver set_service_tier()
         
         # ✅ CORRECCIÓN: Priorizar variable de entorno, luego parámetro, luego BD
         preferred = os.getenv('OPENAI_PREFERRED_MODEL')
@@ -151,6 +182,38 @@ class OpenAIProvider(BaseLLMProvider):
         logger.info(f"   Modelo: {self.model}")
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
+    def set_service_tier(self, tier: Optional[str]) -> None:
+        """
+        Cola de OpenAI para las peticiones de este provider: 'default' (estándar),
+        'flex' (50 % de precio, más latencia), 'auto' o 'priority'.
+        """
+        tier = (tier or 'default').strip().lower()
+        if tier not in SERVICE_TIERS:
+            raise ValueError(f"service_tier inválido: {tier!r} (válidos: {', '.join(SERVICE_TIERS)})")
+        self.service_tier = tier
+        if tier != 'default':
+            logger.info(f"⚙️ OpenAI service_tier={tier} (timeout {FLEX_TIMEOUT_SECONDS if tier == 'flex' else STANDARD_TIMEOUT_SECONDS}s)")
+
+    def _tier_request_params(self) -> Dict:
+        if self.service_tier == 'default':
+            return {'timeout': STANDARD_TIMEOUT_SECONDS}
+        return {
+            'service_tier': self.service_tier,
+            'timeout': FLEX_TIMEOUT_SECONDS if self.service_tier == 'flex' else STANDARD_TIMEOUT_SECONDS,
+        }
+
+    def _chat_create(self, **params):
+        """Chat Completions con el tier configurado; si flex no tiene capacidad, repite en la cola estándar."""
+        params = {**params, **self._tier_request_params()}
+        try:
+            return self.client.chat.completions.create(**params)
+        except Exception as e:
+            if params.get('service_tier') == 'flex' and is_flex_unavailable(e):
+                logger.warning("⚠️ OpenAI flex sin capacidad (429 resource_unavailable, sin cargo): repitiendo en la cola estándar")
+                params.update(service_tier='auto', timeout=STANDARD_TIMEOUT_SECONDS)
+                return self.client.chat.completions.create(**params)
+            raise
+
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str, *,
                       locale: Optional[LocaleContext] = None,
@@ -208,8 +271,7 @@ class OpenAIProvider(BaseLLMProvider):
             completion_params = {
                 "model": self.model,
                 "messages": messages,  # ← usa la lista construida arriba
-                "timeout": 120,
-            }
+            }  # timeout y service_tier los pone _chat_create()
 
             # Añadir el parámetro correcto según el modelo
             if is_gpt5:
@@ -219,9 +281,11 @@ class OpenAIProvider(BaseLLMProvider):
 
             actual_model_used = self.model  # Track qué modelo se usó realmente
             actual_pricing = self.pricing  # Track pricing correcto
+            served_tier = 'default'  # tier en que OpenAI sirvió la respuesta (afecta al precio)
 
             try:
-                response = self.client.chat.completions.create(**completion_params)
+                response = self._chat_create(**completion_params)
+                served_tier = served_service_tier(getattr(response, 'service_tier', None))
                 content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
                 input_tokens = getattr(response.usage, 'prompt_tokens', 0)
                 output_tokens = getattr(response.usage, 'completion_tokens', 0)
@@ -264,8 +328,9 @@ class OpenAIProvider(BaseLLMProvider):
             sources = extract_urls_from_text(content)
 
             # Calcular coste usando pricing del modelo que realmente se usó
+            # (y el tier: flex = precio Batch, la mitad del registry)
             cost = (input_tokens * actual_pricing['input'] +
-                   output_tokens * actual_pricing['output'])
+                   output_tokens * actual_pricing['output']) * tier_price_factor(served_tier)
 
             return {
                 'success': True,
@@ -278,6 +343,7 @@ class OpenAIProvider(BaseLLMProvider):
                 'response_time_ms': response_time,
                 'model_used': actual_model_used,
                 'prompt_strategy': prompt_strategy,  # ✨ NUEVO
+                'service_tier': served_tier,
             }
 
         except (getattr(openai, 'APIStatusError', Exception), getattr(openai, 'BadRequestError', Exception), getattr(openai, 'NotFoundError', Exception), openai.APIError) as e:
@@ -352,7 +418,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         fallback_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
         model = self.model
-        data, error = self._post_responses({**body, 'model': model})
+        data, error = self._post_responses_tiered({**body, 'model': model})
         if error and _is_model_unavailable(error) and fallback_model != model:
             logger.warning(f"⚠️ OpenAI (búsqueda): '{model}' no disponible, usando fallback {fallback_model}: {error}")
             model = fallback_model
@@ -371,11 +437,14 @@ class OpenAIProvider(BaseLLMProvider):
             }
 
         pricing = self.pricing if model == self.model else get_model_pricing_from_db('openai', model)
+        served_tier = served_service_tier(data.get('service_tier'))
         search_cost = search_tool_cost(parsed['billable_search_calls'], pricing, provider='openai', model=model)
-        return build_search_result(
+        # El descuento flex aplica a los tokens; la herramienta de búsqueda se cobra por llamada
+        tokens_cost = token_cost(parsed['input_tokens'], parsed['output_tokens'], pricing) * tier_price_factor(served_tier)
+        result = build_search_result(
             parsed,
             provider='openai',
-            cost_usd=token_cost(parsed['input_tokens'], parsed['output_tokens'], pricing) + search_cost,
+            cost_usd=tokens_cost + search_cost,
             search_cost_usd=search_cost,
             model_used=model,
             prompt_strategy=prompt_strategy,
@@ -383,14 +452,29 @@ class OpenAIProvider(BaseLLMProvider):
             search_country=locale.country_code if locale is not None else None,
             started_at=start_time,
         )
+        result['service_tier'] = served_tier
+        return result
 
-    def _post_responses(self, body: Dict):
+    def _post_responses(self, body: Dict, timeout: Optional[float] = None):
+        kwargs = {'timeout': timeout} if timeout else {}
         return post_json(
             RESPONSES_API_URL,
             headers={'Authorization': f'Bearer {self.api_key}', 'Content-Type': 'application/json'},
             body=body,
             provider_label='OpenAI',
+            **kwargs,
         )
+
+    def _post_responses_tiered(self, body: Dict):
+        """Responses API con el tier configurado; si flex no tiene capacidad, repite en la cola estándar."""
+        if self.service_tier == 'default':
+            return self._post_responses(body)
+        timeout = FLEX_TIMEOUT_SECONDS if self.service_tier == 'flex' else SEARCH_TIMEOUT_SECONDS
+        data, error = self._post_responses({**body, 'service_tier': self.service_tier}, timeout=timeout)
+        if error and self.service_tier == 'flex' and is_flex_unavailable(error):
+            logger.warning("⚠️ OpenAI flex (búsqueda) sin capacidad (429 resource_unavailable, sin cargo): repitiendo en la cola estándar")
+            data, error = self._post_responses({**body, 'service_tier': 'auto'})
+        return data, error
 
     def get_provider_name(self) -> str:
         return 'openai'
