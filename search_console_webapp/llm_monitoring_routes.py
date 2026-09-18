@@ -64,7 +64,7 @@ from services.project_access_service import (
 
 # Importar servicios
 from database import get_db_connection, acquire_analysis_lock, release_analysis_lock, get_latest_analysis_run
-from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
+from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects, cron_service_tier
 from services.llm_monitoring_stats import LLMMonitoringStatsService
 from services.llm_monitoring.fanout_stats import (
     collect_fanout_metrics,
@@ -6371,7 +6371,8 @@ def trigger_daily_analysis():
         # --- Modo proyecto individual (sin lock global) ---
         if single_project_id:
             def run_single_project(pid):
-                service = MultiLLMMonitoringService(api_keys=None)
+                # Re-run por cron/admin: misma cola barata que el batch diario
+                service = MultiLLMMonitoringService(api_keys=None, service_tier=cron_service_tier())
                 result = service.analyze_project(project_id=pid, max_workers=8)
                 # 🩹 Fase B también en re-runs de proyecto único: si quedaron
                 # huecos, reintentar solo los pares faltantes y reconstruir

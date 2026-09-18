@@ -26,9 +26,9 @@ def main():
     project_id = int(sys.argv[1])
     logger.info(f"🚀 Re-ejecutando análisis para proyecto #{project_id}")
 
-    from services.llm_monitoring_service import MultiLLMMonitoringService
+    from services.llm_monitoring_service import MultiLLMMonitoringService, cron_service_tier
 
-    service = MultiLLMMonitoringService(api_keys=None)
+    service = MultiLLMMonitoringService(api_keys=None, service_tier=cron_service_tier())
     result = service.analyze_project(project_id=project_id, max_workers=8)
 
     if result.get('success') or result.get('total_queries_executed', 0) > 0:

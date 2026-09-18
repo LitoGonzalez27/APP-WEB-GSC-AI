@@ -67,7 +67,7 @@ class MultiLLMMonitoringService(_HelpersMixin, _GenerationMixin, _DetectionMixin
         result = service.analyze_project(project_id=1)
     """
     
-    def __init__(self, api_keys: Dict[str, str] = None):
+    def __init__(self, api_keys: Dict[str, str] = None, service_tier: Optional[str] = None):
         """
         Inicializa el servicio
         
@@ -75,6 +75,10 @@ class MultiLLMMonitoringService(_HelpersMixin, _GenerationMixin, _DetectionMixin
             api_keys: Dict con API keys por proveedor (opcional)
                      Si es None, usa variables de entorno (recomendado)
                      Ejemplo: {'openai': 'sk-...', 'google': 'AIza...', ...}
+            service_tier: cola de servicio para los providers que la soportan
+                     (hoy OpenAI: 'flex' = misma respuesta a mitad de precio, más
+                     latencia). None/'default' = cola estándar. El cron pasa
+                     `cron_service_tier()`; los análisis interactivos, nada.
         """
         logger.info("🚀 Inicializando MultiLLMMonitoringService...")
         
@@ -88,6 +92,14 @@ class MultiLLMMonitoringService(_HelpersMixin, _GenerationMixin, _DetectionMixin
         if len(self.providers) == 0:
             logger.error("❌ No se pudo crear ningún proveedor LLM")
             raise ValueError("No hay proveedores LLM disponibles")
+
+        # Cola de servicio (Flex processing de OpenAI en el cron). Los providers
+        # que no la soportan la ignoran (BaseLLMProvider.set_service_tier).
+        self.service_tier = (service_tier or 'default').strip().lower()
+        if self.service_tier != 'default':
+            for provider in self.providers.values():
+                provider.set_service_tier(self.service_tier)
+            logger.info(f"⚙️ service_tier={self.service_tier} aplicado a los providers que lo soportan")
         
         # Proveedor dedicado para análisis de sentimiento (Gemini Flash - más barato)
         self.sentiment_analyzer = self.providers.get('google')
@@ -124,6 +136,17 @@ class MultiLLMMonitoringService(_HelpersMixin, _GenerationMixin, _DetectionMixin
 # Advisory lock class_id para el cron diario de LLM Monitoring.
 # Namespacing consistente con los otros crons: manual_ai=4242, ai_mode=4243, llm=4244.
 LLM_CRON_LOCK_CLASS_ID = 4244
+
+
+def cron_service_tier() -> str:
+    """
+    Cola de OpenAI para los análisis del cron (batch diario, re-runs por cron y
+    pasada de completitud): `OPENAI_CRON_SERVICE_TIER`, por defecto 'flex'
+    (mismo modelo y misma respuesta a mitad de precio; si flex no tiene capacidad
+    el provider repite la petición en la cola estándar). 'default' lo desactiva.
+    Las llamadas interactivas de la app no usan esta función.
+    """
+    return (os.getenv('OPENAI_CRON_SERVICE_TIER', 'flex') or 'default').strip().lower()
 
 
 def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: int = 8) -> List[Dict]:
@@ -206,7 +229,7 @@ def _analyze_all_active_projects_locked(api_keys: Dict[str, str] = None, max_wor
     Returns:
         Lista de resultados por proyecto con métricas de completitud
     """
-    service = MultiLLMMonitoringService(api_keys)
+    service = MultiLLMMonitoringService(api_keys, service_tier=cron_service_tier())
 
     conn = get_db_connection()
     if not conn:

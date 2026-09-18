@@ -269,6 +269,7 @@ Otros: `CUSTOMER_PORTAL_RETURN_URL`, `PRICING_PAGE_URL`, `BILLING_ENABLED`, `TRI
 | `LLM_HEALTHCHECK_DELAY_SECONDS` | `2` |
 | `LLM_HEALTHCHECK_RETRIES` | `2` |
 | `OPENAI_CONCURRENCY` | `2` |
+| `OPENAI_CRON_SERVICE_TIER` | `flex` (cola barata de OpenAI solo en el cron; `default` la desactiva sin deploy) |
 | `PERPLEXITY_CONCURRENCY` | `4` |
 | `AI_OVERVIEW_MAX_DURATION_SECONDS` | — |
 

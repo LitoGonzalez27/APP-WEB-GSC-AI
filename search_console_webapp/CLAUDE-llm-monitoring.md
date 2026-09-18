@@ -725,6 +725,9 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 | `ANTHROPIC_CONCURRENCY` | 3 | Semáforo Anthropic. |
 | `PERPLEXITY_CONCURRENCY` | 4 | Semáforo Perplexity. |
 | `OPENAI_TIMEOUT` | 90 | Timeout request OpenAI. |
+| `OPENAI_CRON_SERVICE_TIER` | `flex` | Cola de OpenAI en el cron (batch diario, re-runs por cron, pasada de completitud, `rerun_single_project.py`). `flex` = misma respuesta a mitad de precio; `default` la desactiva. Las llamadas interactivas no la usan. Ver §13 "Flex processing". |
+| `OPENAI_FLEX_TIMEOUT_SECONDS` | 600 | Timeout por petición en flex (OpenAI recomienda hasta 10 min). |
+| `OPENAI_FLEX_PRICE_FACTOR` | 0.5 | Factor sobre el precio del registry cuando la API confirma `service_tier=flex` (precio Batch). |
 | `GOOGLE_TIMEOUT` | 30 | Timeout request Google. |
 | `ANTHROPIC_TIMEOUT` | 60 | Timeout request Anthropic. |
 | `PERPLEXITY_TIMEOUT` | 45 | Timeout request Perplexity. |
@@ -883,6 +886,30 @@ Marcadores `insufficient_quota`, `credit_balance_exhausted`, `no credits remaini
   reintenta (`split_billing_exhausted`).
 - Si el health-check falla por crédito, abre el breaker antes de lanzar ninguna tarea (`note_health_check_failure`).
 - `cron_alerts._check_provider_billing` envía la alerta `provider_billing_exhausted`.
+
+### Flex processing de OpenAI en el cron (2026-09-18)
+
+OpenAI sirve la misma petición al mismo modelo en tres colas: `priority` (2,5x), `default` (estándar) y `flex`
+(precio Batch, el 50 %, a cambio de más latencia y de un 429 `resource_unavailable` ocasional que no se cobra).
+Con gpt-5.5 y ~1.750 tokens de salida por prompt, OpenAI era dos tercios del coste de cada run (11,5 USD de 17,4
+el 18/09); en flex baja a la mitad sin cambiar la respuesta (mismo `model` en la respuesta, mismo razonamiento).
+
+- `MultiLLMMonitoringService(service_tier=...)` propaga el tier a los providers (`set_service_tier`; no-op salvo
+  OpenAI). El cron pasa `cron_service_tier()` (env `OPENAI_CRON_SERVICE_TIER`, default `flex`) en
+  `_analyze_all_active_projects_locked`, en el re-run por proyecto de `/cron/daily-analysis?project_id=` y en
+  `rerun_single_project.py`. La pasada de completitud reutiliza el servicio del run, así que hereda el tier.
+- Los análisis interactivos (primer análisis desde la UI, etc.) instancian el servicio sin tier: cola estándar,
+  porque ahí la latencia sí importa.
+- `OpenAIProvider._chat_create` / `_post_responses_tiered`: añaden `service_tier` y el timeout largo; si la API
+  responde `resource_unavailable`, repiten la misma petición con `service_tier='auto'` (cola estándar, precio
+  normal). El resto de errores siguen el camino de siempre (`with_retry`). El health-check no usa tier.
+- Coste: se aplica `OPENAI_FLEX_PRICE_FACTOR` solo si la respuesta dice `service_tier == 'flex'` (si OpenAI
+  sirve en estándar aunque se pidiera flex, se cobra entero y así se guarda). En búsqueda web el descuento
+  aplica a los tokens, no a la herramienta (se cobra por llamada). El tier servido se guarda en
+  `execution_metadata.service_tier` de cada fila para auditar el panel de costes.
+- Estado beta en OpenAI con modelos limitados (gpt-5.5 incluido, verificado con la clave de prod). Si lo
+  retiraran, el fallback a `auto` mantiene el cron funcionando al precio estándar.
+- Tests: `tests/test_llm_flex_tier.py` (17).
 
 ### Health check pre-análisis
 
