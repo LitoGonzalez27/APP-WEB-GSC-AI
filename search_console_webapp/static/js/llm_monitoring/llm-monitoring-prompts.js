@@ -601,6 +601,9 @@ async savePrompts() {
 
             // Show success message
             let message = `${data.added_count} prompts added successfully!`;
+            if (data.reactivated_count > 0) {
+                message += ` (${data.reactivated_count} previously deleted, restored with their history)`;
+            }
             if (data.duplicate_count > 0) {
                 message += ` (${data.duplicate_count} duplicates skipped)`;
             }

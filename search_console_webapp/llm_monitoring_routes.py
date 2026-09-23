@@ -2340,6 +2340,7 @@ def add_queries_to_project(project_id):
                 )
 
         added_count = 0
+        reactivated_count = 0
         duplicate_count = 0
         error_count = 0
 
@@ -2350,15 +2351,32 @@ def add_queries_to_project(project_id):
                 continue
 
             try:
+                # El borrado de prompts es "soft" (is_active = FALSE) y la fila
+                # sigue ocupando el UNIQUE (project_id, query_text). Un prompt
+                # borrado y vuelto a añadir se REACTIVA con los valores del lote
+                # (idioma, tipo, cluster, set) conservando su id y, por tanto, su
+                # histórico. Solo cuenta como duplicado si ya está activo:
+                # con DO UPDATE ... WHERE, rowcount es 0 cuando la guarda falla.
                 cur.execute("""
                     INSERT INTO llm_monitoring_queries (
                         project_id, query_text, language, query_type, topic_cluster, prompt_set, is_active, added_at
                     ) VALUES (%s, %s, %s, %s, %s, %s, TRUE, NOW())
-                    ON CONFLICT (project_id, query_text) DO NOTHING
+                    ON CONFLICT (project_id, query_text) DO UPDATE SET
+                        is_active = TRUE,
+                        language = EXCLUDED.language,
+                        query_type = EXCLUDED.query_type,
+                        topic_cluster = EXCLUDED.topic_cluster,
+                        prompt_set = EXCLUDED.prompt_set,
+                        added_at = NOW()
+                    WHERE llm_monitoring_queries.is_active = FALSE
+                    RETURNING (xmax = 0) AS inserted
                 """, (project_id, query_text, language, query_type, target_cluster, target_set))
 
                 if cur.rowcount > 0:
                     added_count += 1
+                    row = cur.fetchone()
+                    if row is not None and not row['inserted']:
+                        reactivated_count += 1
                 else:
                     duplicate_count += 1
 
@@ -2372,6 +2390,7 @@ def add_queries_to_project(project_id):
         return jsonify({
             'success': True,
             'added_count': added_count,
+            'reactivated_count': reactivated_count,
             'duplicate_count': duplicate_count,
             'error_count': error_count,
             'message': f'{added_count} prompts added successfully'
