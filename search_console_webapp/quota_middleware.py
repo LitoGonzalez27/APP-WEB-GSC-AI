@@ -307,6 +307,19 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
     
     return success, result
 
+# La librería de SerpAPI pasa timeout=60000 a requests, que lo lee en SEGUNDOS
+# (~17 h): una llamada colgada bloquearía el cron sin límite. SerpAPI corta sus
+# búsquedas fallidas a los ~90 s, así que el tope va por encima para no abandonar
+# búsquedas que aún pueden salir bien (SerpAPI las cobra aunque cortemos nosotros).
+SERPAPI_TIMEOUT_SECONDS = float(os.getenv('SERPAPI_TIMEOUT_SECONDS', '120'))
+
+
+def _google_search(params: dict) -> GoogleSearch:
+    search = GoogleSearch(params)
+    search.timeout = SERPAPI_TIMEOUT_SECONDS
+    return search
+
+
 def _execute_serp_call(params: dict, call_type: str) -> Tuple[bool, Dict[str, Any]]:
     """Ejecuta la llamada real a SerpAPI"""
     max_attempts = int(os.getenv('SERPAPI_RETRY_ATTEMPTS', '3'))
@@ -315,7 +328,7 @@ def _execute_serp_call(params: dict, call_type: str) -> Tuple[bool, Dict[str, An
     for attempt in range(1, max_attempts + 1):
         try:
             if call_type == "json":
-                data = GoogleSearch(params).get_dict()
+                data = _google_search(params).get_dict()
                 if "error" in data:
                     error_msg = str(data.get("error", ""))
                     logger.warning(f"SerpAPI error: {error_msg}")
@@ -328,7 +341,7 @@ def _execute_serp_call(params: dict, call_type: str) -> Tuple[bool, Dict[str, An
                 return True, data
                 
             if call_type == "html":
-                html_content = GoogleSearch({**params, 'output': 'html'}).get_html()
+                html_content = _google_search({**params, 'output': 'html'}).get_html()
                 if not html_content:
                     error_msg = "No HTML content returned"
                     if attempt < max_attempts and _should_retry_serp_error(error_msg):
