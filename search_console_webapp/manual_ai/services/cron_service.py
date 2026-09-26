@@ -4,7 +4,9 @@ Servicio para análisis diario automático (Cron Jobs)
 
 import logging
 import json
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from database import get_db_connection
 from manual_ai.config import CRON_LOCK_CLASS_ID
@@ -244,153 +246,172 @@ class CronService:
         return projects
     
     def _process_projects(self, projects):
-        """Procesar lista de proyectos"""
-        successful_analyses = 0
-        failed_analyses = 0
-        skipped_analyses = 0
-        total_keywords_processed = 0
-        
-        for project in projects:
-            # Convertir a dict si es necesario
-            if isinstance(project, (tuple, list)):
-                project_dict = {
-                    'id': project[0],
-                    'name': project[1],
-                    'domain': project[2],
-                    'country_code': project[3],
-                    'user_id': project[4],
-                    'keyword_count': project[5]
-                }
-            else:
-                project_dict = dict(project)
-            
+        """Procesar lista de proyectos.
+
+        MANUAL_AI_PROJECT_PARALLELISM (por defecto 1 = secuencial, como siempre)
+        procesa N proyectos a la vez; las keywords de cada proyecto siguen en
+        serie. Solo el cron usa este camino: el análisis lanzado desde la web
+        (run_project_analysis en la petición del usuario) no cambia. Cada
+        proyecto escribe solo sus filas (project_id), así que no se pisan.
+        Race benigno: dos proyectos del mismo usuario al borde de la cuota
+        pueden pasarse 1-2 RU (el mismo caso que el cron de LLM).
+        """
+        stats = {'successful': 0, 'failed': 0, 'skipped': 0, 'total_keywords': 0}
+
+        try:
+            parallelism = max(int(os.getenv('MANUAL_AI_PROJECT_PARALLELISM', '1')), 1)
+        except ValueError:
+            parallelism = 1
+
+        def _accumulate(outcome):
+            status, keywords_processed = outcome
+            stats[status] += 1
+            stats['total_keywords'] += keywords_processed
+
+        if parallelism == 1 or len(projects) <= 1:
+            for project in projects:
+                _accumulate(self._process_single_project(project))
+            return stats
+
+        logger.info(f"⚡ Manual AI cron: {parallelism} proyectos en paralelo "
+                    f"(MANUAL_AI_PROJECT_PARALLELISM)")
+        with ThreadPoolExecutor(max_workers=parallelism,
+                                thread_name_prefix='manual-ai-cron') as executor:
+            futures = [executor.submit(self._process_single_project, p) for p in projects]
+            for future in as_completed(futures):
+                _accumulate(future.result())
+        return stats
+
+    def _process_single_project(self, project):
+        """Procesa un proyecto. Devuelve (estado, keywords procesadas) y nunca lanza."""
+        # Convertir a dict si es necesario
+        if isinstance(project, (tuple, list)):
+            project_dict = {
+                'id': project[0],
+                'name': project[1],
+                'domain': project[2],
+                'country_code': project[3],
+                'user_id': project[4],
+                'keyword_count': project[5]
+            }
+        else:
+            project_dict = dict(project)
+
+        try:
+            # Verificar estado del usuario
+            conn = get_db_connection()
+            if not conn:
+                raise Exception("No se pudo conectar a BD")
+
+            cur = None
+            existing_results = 0
+            user_plan = 'free'
+            user_billing = ''
             try:
-                # Verificar estado del usuario
-                conn = get_db_connection()
-                if not conn:
-                    raise Exception("No se pudo conectar a BD")
+                cur = conn.cursor()
+                today = date.today()
 
-                cur = None
-                existing_results = 0
-                user_plan = 'free'
-                user_billing = ''
+                # Verificar plan y facturación
+                cur.execute("""
+                    SELECT COALESCE(plan, 'free') AS plan,
+                           COALESCE(billing_status, '') AS billing_status
+                    FROM users
+                    WHERE id = %s
+                """, (project_dict['user_id'],))
+
+                user_state = cur.fetchone() or {}
+                user_plan = user_state.get('plan', 'free') if isinstance(user_state, dict) else (
+                    user_state[0] if user_state else 'free'
+                )
+                user_billing = user_state.get('billing_status', '') if isinstance(user_state, dict) else (
+                    user_state[1] if user_state and len(user_state) > 1 else ''
+                )
+
+                if user_plan == 'free' or user_billing in ('canceled',):
+                    logger.info(f"⏭️ Skipping project {project_dict['id']} due to user "
+                              f"plan/billing status (plan={user_plan}, billing={user_billing})")
+                    return 'skipped', 0  # el finally devuelve la conexión al pool
+
+                # Frecuencia de análisis del proyecto (1 = cada tick del cron,
+                # 7 = semanal). Fallback a 1 si la migración no ha corrido.
+                frequency_days = 1
                 try:
-                    cur = conn.cursor()
-                    today = date.today()
-
-                    # Verificar plan y facturación
                     cur.execute("""
-                        SELECT COALESCE(plan, 'free') AS plan,
-                               COALESCE(billing_status, '') AS billing_status
-                        FROM users
+                        SELECT COALESCE(analysis_frequency_days, 1) AS freq
+                        FROM manual_ai_projects
                         WHERE id = %s
-                    """, (project_dict['user_id'],))
-
-                    user_state = cur.fetchone() or {}
-                    user_plan = user_state.get('plan', 'free') if isinstance(user_state, dict) else (
-                        user_state[0] if user_state else 'free'
-                    )
-                    user_billing = user_state.get('billing_status', '') if isinstance(user_state, dict) else (
-                        user_state[1] if user_state and len(user_state) > 1 else ''
-                    )
-
-                    if user_plan == 'free' or user_billing in ('canceled',):
-                        logger.info(f"⏭️ Skipping project {project_dict['id']} due to user "
-                                  f"plan/billing status (plan={user_plan}, billing={user_billing})")
-                        skipped_analyses += 1
-                        continue  # inner finally closes conn before continuing the outer for
-
-                    # Frecuencia de análisis del proyecto (1 = cada tick del cron,
-                    # 7 = semanal). Fallback a 1 si la migración no ha corrido.
+                    """, (project_dict['id'],))
+                    freq_row = cur.fetchone()
+                    if freq_row:
+                        freq_value = freq_row['freq'] if isinstance(freq_row, dict) else freq_row[0]
+                        frequency_days = max(int(freq_value or 1), 1)
+                except Exception:
+                    conn.rollback()
                     frequency_days = 1
-                    try:
-                        cur.execute("""
-                            SELECT COALESCE(analysis_frequency_days, 1) AS freq
-                            FROM manual_ai_projects
-                            WHERE id = %s
-                        """, (project_dict['id'],))
-                        freq_row = cur.fetchone()
-                        if freq_row:
-                            freq_value = freq_row['freq'] if isinstance(freq_row, dict) else freq_row[0]
-                            frequency_days = max(int(freq_value or 1), 1)
-                    except Exception:
-                        conn.rollback()
-                        frequency_days = 1
 
-                    # Verificar si ya hay resultados dentro de la ventana de frecuencia
-                    cur.execute("""
-                        SELECT COUNT(*) as count
-                        FROM manual_ai_results
-                        WHERE project_id = %s AND analysis_date > %s - %s::integer
-                    """, (project_dict['id'], today, frequency_days))
+                # Verificar si ya hay resultados dentro de la ventana de frecuencia
+                cur.execute("""
+                    SELECT COUNT(*) as count
+                    FROM manual_ai_results
+                    WHERE project_id = %s AND analysis_date > %s - %s::integer
+                """, (project_dict['id'], today, frequency_days))
 
-                    result_row = cur.fetchone()
-                    existing_results = result_row['count'] if result_row else 0
-                finally:
-                    # Always return the pooled connection — previously the
-                    # outer except (failed_analyses += 1; continue) leaked
-                    # conn whenever cur.execute or fetch raised, contributing
-                    # to the 2026-05-14 pool exhaustion incident.
-                    if cur is not None:
-                        try:
-                            cur.close()
-                        except Exception:
-                            pass
+                result_row = cur.fetchone()
+                existing_results = result_row['count'] if result_row else 0
+            finally:
+                # Always return the pooled connection — previously the
+                # outer except (failed_analyses += 1; continue) leaked
+                # conn whenever cur.execute or fetch raised, contributing
+                # to the 2026-05-14 pool exhaustion incident.
+                if cur is not None:
                     try:
-                        conn.close()
+                        cur.close()
                     except Exception:
                         pass
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
-                if existing_results > 0:
-                    logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) "
-                              f"already analyzed within last {frequency_days} day(s) "
-                              f"with {existing_results} results, skipping")
-                    skipped_analyses += 1
-                    continue
-                
-                logger.info(f"🚀 Starting daily analysis for project {project_dict['id']} "
-                          f"({project_dict['name']}) - {project_dict['keyword_count']} keywords")
-                
-                # Ejecutar análisis automático (sin sobreescritura)
-                results = self.analysis_service.run_project_analysis(
-                    project_dict['id'],
-                    force_overwrite=False,
-                    user_id=project_dict['user_id']
-                )
-                
-                total_keywords_processed += len(results)
-                
-                # Crear snapshot diario
-                self.result_repo.create_snapshot(
-                    project_id=project_dict['id'],
-                    snapshot_date=today,
-                    metrics=self._calculate_snapshot_metrics(project_dict['id'])
-                )
-                
-                # Crear evento
-                self.event_repo.create_event(
-                    project_id=project_dict['id'],
-                    event_type='daily_analysis',
-                    event_title='Daily automated analysis completed',
-                    keywords_affected=len(results),
-                    user_id=project_dict['user_id']
-                )
-                
-                logger.info(f"✅ Completed daily analysis for project {project_dict['id']}: "
-                          f"{len(results)} keywords processed")
-                successful_analyses += 1
-                
-            except Exception as e:
-                logger.error(f"❌ Error analyzing project {project_dict['id']}: {e}")
-                failed_analyses += 1
-                continue
-        
-        return {
-            'successful': successful_analyses,
-            'failed': failed_analyses,
-            'skipped': skipped_analyses,
-            'total_keywords': total_keywords_processed
-        }
+            if existing_results > 0:
+                logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) "
+                          f"already analyzed within last {frequency_days} day(s) "
+                          f"with {existing_results} results, skipping")
+                return 'skipped', 0
+            
+            logger.info(f"🚀 Starting daily analysis for project {project_dict['id']} "
+                      f"({project_dict['name']}) - {project_dict['keyword_count']} keywords")
+            
+            # Ejecutar análisis automático (sin sobreescritura)
+            results = self.analysis_service.run_project_analysis(
+                project_dict['id'],
+                force_overwrite=False,
+                user_id=project_dict['user_id']
+            )
+            
+            # Crear snapshot diario
+            self.result_repo.create_snapshot(
+                project_id=project_dict['id'],
+                snapshot_date=today,
+                metrics=self._calculate_snapshot_metrics(project_dict['id'])
+            )
+            
+            # Crear evento
+            self.event_repo.create_event(
+                project_id=project_dict['id'],
+                event_type='daily_analysis',
+                event_title='Daily automated analysis completed',
+                keywords_affected=len(results),
+                user_id=project_dict['user_id']
+            )
+            
+            logger.info(f"✅ Completed daily analysis for project {project_dict['id']}: "
+                      f"{len(results)} keywords processed")
+            return 'successful', len(results)
+
+        except Exception as e:
+            logger.error(f"❌ Error analyzing project {project_dict['id']}: {e}")
+            return 'failed', 0
     
     def _calculate_snapshot_metrics(self, project_id: int) -> dict:
         """Calcular métricas para snapshot diario"""
