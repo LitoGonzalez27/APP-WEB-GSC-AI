@@ -27,6 +27,7 @@ import argparse
 import json
 import logging
 import sys
+import time
 from datetime import date
 
 from database import get_db_connection
@@ -69,13 +70,56 @@ def mark(apply: bool):
         conn.close()
 
 
+def _replace_result(pid, kid, target_date, keyword, project, ai_result, serp_data, attempts=3):
+    """DELETE + INSERT en una sola transacción: un corte nunca deja la keyword sin fila."""
+    for attempt in range(1, attempts + 1):
+        conn = get_db_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                DELETE FROM manual_ai_results
+                WHERE project_id = %s AND keyword_id = %s AND analysis_date = %s
+            """, (pid, kid, target_date))
+            cur.execute("""
+                INSERT INTO manual_ai_results (
+                    project_id, keyword_id, analysis_date, keyword, domain,
+                    has_ai_overview, domain_mentioned, domain_position,
+                    ai_elements_count, impact_score, raw_serp_data,
+                    ai_analysis_data, country_code
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                pid, kid, target_date, keyword, project['domain'],
+                ai_result.get('has_ai_overview', False),
+                ai_result.get('domain_is_ai_source', False),
+                ai_result.get('domain_ai_source_position'),
+                ai_result.get('total_elements', 0),
+                ai_result.get('impact_score', 0),
+                json.dumps(serp_data), json.dumps(ai_result),
+                project['country_code'],
+            ))
+            conn.commit()
+            return
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            if attempt == attempts:
+                raise
+            time.sleep(5 * attempt)
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 def reanalyze(target_date: date, project_id, apply: bool):
     if target_date != date.today():
         sys.exit("reanalyze solo es válido para la fecha de hoy (la SERP de días pasados no se puede recuperar)")
 
     from manual_ai.services.analysis_service import AnalysisService
     from manual_ai.models.project_repository import ProjectRepository
-    from manual_ai.models.result_repository import ResultRepository
 
     conn = get_db_connection()
     try:
@@ -111,20 +155,23 @@ def reanalyze(target_date: date, project_id, apply: bool):
             continue
 
         status = (ai_result.get('aio_expansion') or {}).get('status', 'refetched')
+        try:
+            _replace_result(pid, kid, target_date, keyword, project, ai_result, serp_data)
+        except Exception as e:
+            stats['error'] += 1
+            logger.warning(f"[{pid}] '{keyword}': fallo al guardar, se conserva la fila original: {e}")
+            continue
         stats[status] = stats.get(status, 0) + 1
-        ResultRepository.delete_result_for_date(pid, kid, target_date)
-        ResultRepository.create_result(
-            project_id=pid, keyword_id=kid, analysis_date=target_date,
-            keyword=keyword, domain=project['domain'], ai_result=ai_result,
-            serp_data=serp_data, country_code=project['country_code'],
-        )
         if ai_result.get('has_ai_overview'):
-            service.domains_service.store_global_domains_detected(
-                project_id=pid, keyword_id=kid, keyword=keyword,
-                project_domain=project['domain'], ai_analysis_data=ai_result,
-                analysis_date=target_date, country_code=project['country_code'],
-                selected_competitors=project.get('selected_competitors', []),
-            )
+            try:
+                service.domains_service.store_global_domains_detected(
+                    project_id=pid, keyword_id=kid, keyword=keyword,
+                    project_domain=project['domain'], ai_analysis_data=ai_result,
+                    analysis_date=target_date, country_code=project['country_code'],
+                    selected_competitors=project.get('selected_competitors', []),
+                )
+            except Exception as e:
+                logger.warning(f"[{pid}] '{keyword}': fila guardada pero falló global_domains: {e}")
         logger.info(f"[{pid}] '{keyword}': {status}, mencionado={ai_result.get('domain_is_ai_source', False)}")
 
     logger.info(f"Resumen: {json.dumps(stats)}")
