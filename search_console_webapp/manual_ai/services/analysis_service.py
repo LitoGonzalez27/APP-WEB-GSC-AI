@@ -387,51 +387,13 @@ class AnalysisService:
         # 3. Analizar AI Overview
         ai_result = self._detect_ai_overview(serp_data, project['domain'])
 
-        # 3b. ✨ NUEVO (2026-04-09): Si el AI Overview viene "collapsed"
-        #     (escondido detrás de un "Show more" con page_token pero sin
-        #     text_blocks), hacer un segundo fetch para obtener el contenido
-        #     expandido y re-analizarlo. Mismo patrón que app.py:1723-1742
-        #     (flujo web, probado en producción).
-        #
-        #     Medido en prod: 11.9% de los AIOs están en este estado
-        #     (UEMC 23.6%, Catalonia 22.2%, Adeslas 10.4%), lo que significa
-        #     que hasta ahora estábamos marcando "sí hay AIO" pero perdiendo
-        #     el contenido completo (text_blocks, references, brand_mentioned,
-        #     domain_position).
-        #
-        #     El segundo fetch consume 1 RU adicional via el flujo normal de
-        #     quota_middleware (SerpAPI cobra por la expansión del page_token).
-        #     Si el segundo fetch falla por cualquier razón, mantenemos el
-        #     resultado original collapsed — es un no-op seguro.
+        # 3b. AI Overview "collapsed" (escondido tras "Show more": ai_overview
+        #     solo trae page_token, sin text_blocks/references). Se expande con
+        #     el engine google_ai_overview; ver _expand_collapsed_aio.
         if ai_result.get('debug_info', {}).get('requires_additional_request'):
-            page_token = ai_result['debug_info'].get('page_token', '')
-            if page_token:
-                logger.info(f"[Manual AI] Expanding collapsed AIO for '{keyword}' (page_token present)")
-                try:
-                    expanded_serp_data = self._fetch_expanded_aio(
-                        keyword, internal_country, page_token
-                    )
-                    if (expanded_serp_data
-                        and not expanded_serp_data.get('error')
-                        and expanded_serp_data.get('ai_overview')):
-                        # Merge: sustituir el ai_overview collapsed por el
-                        # expandido (con text_blocks y references poblados).
-                        serp_data['ai_overview'] = expanded_serp_data['ai_overview']
-                        # Re-analizar con el contenido completo.
-                        ai_result = self._detect_ai_overview(serp_data, project['domain'])
-                        logger.info(f"[Manual AI] ✅ AIO expanded successfully for '{keyword}'")
-                    else:
-                        logger.warning(
-                            f"[Manual AI] Second call returned no expanded data for '{keyword}' "
-                            f"(keeping collapsed result)"
-                        )
-                except Exception as e_page_token:
-                    logger.warning(
-                        f"[Manual AI] Second API call failed for '{keyword}': {e_page_token} "
-                        f"(keeping collapsed result)"
-                    )
-                    # No-op: el ai_result original queda intacto
-                    # (has_ai_overview=True pero sin text_blocks/references)
+            serp_data, ai_result = self._expand_collapsed_aio(
+                keyword, internal_country, serp_data, ai_result, project['domain']
+            )
 
         # 4. Guardar en caché
         if ai_cache:
@@ -445,6 +407,78 @@ class AnalysisService:
         
         return ai_result, serp_data
     
+    def _expand_collapsed_aio(self, keyword: str, internal_country: str,
+                              serp_data: Dict, ai_result: Dict, domain: str) -> tuple:
+        """
+        Expande un AI Overview collapsed y deja constancia del resultado en
+        ai_result['aio_expansion'] (se guarda en ai_analysis_data).
+
+        Hasta 2026-09 la expansión repetía la búsqueda con engine=google +
+        page_token: SerpAPI ignora el token en ese engine y devuelve una SERP
+        nueva, que casi siempre vuelve a traer el AIO collapsed (~30% de los
+        AIO sin contenido). El token es del engine google_ai_overview y caduca
+        ~1 minuto después de la búsqueda, así que se usa enseguida y, si aun
+        así falla, se repite la búsqueda completa para obtener un token nuevo
+        (MANUAL_AI_AIO_REFETCH_ATTEMPTS veces, por defecto 1).
+
+        Si nada funciona se conserva el resultado collapsed (has_ai_overview
+        sigue siendo True) marcado con aio_expansion.status='failed'.
+
+        Returns:
+            Tuple (serp_data, ai_result)
+        """
+        refetch_attempts = max(0, int(os.getenv('MANUAL_AI_AIO_REFETCH_ATTEMPTS', '1')))
+        expansion = {'status': 'failed', 'attempts': 0, 'refetches': 0, 'error': None}
+
+        for round_idx in range(refetch_attempts + 1):
+            page_token = ai_result.get('debug_info', {}).get('page_token', '')
+            if not page_token:
+                expansion['error'] = 'collapsed AIO without page_token'
+                break
+
+            expansion['attempts'] += 1
+            try:
+                expanded_aio = self._fetch_expanded_aio(keyword, internal_country, page_token)
+                serp_data['ai_overview'] = expanded_aio
+                ai_result = self._detect_ai_overview(serp_data, domain)
+                expansion['status'] = 'expanded'
+                expansion['error'] = None
+                logger.info(f"[Manual AI] ✅ AIO expanded for '{keyword}' (attempt {expansion['attempts']})")
+                break
+            except Exception as e_expand:
+                if getattr(e_expand, 'is_quota_error', False):
+                    raise
+                expansion['error'] = str(e_expand)[:300]
+                logger.warning(f"[Manual AI] AIO expansion failed for '{keyword}': {e_expand}")
+
+            if round_idx >= refetch_attempts:
+                break
+
+            # Token probablemente caducado o sin contenido: SERP nueva → token nuevo.
+            expansion['refetches'] += 1
+            try:
+                serp_data = self._fetch_serp_data(keyword, internal_country)
+            except Exception as e_refetch:
+                if getattr(e_refetch, 'is_quota_error', False):
+                    raise
+                expansion['error'] = f"refetch failed: {str(e_refetch)[:250]}"
+                logger.warning(f"[Manual AI] SERP refetch for AIO expansion failed for '{keyword}': {e_refetch}")
+                break
+            ai_result = self._detect_ai_overview(serp_data, domain)
+            if not ai_result.get('debug_info', {}).get('requires_additional_request'):
+                # La SERP nueva ya trae el AIO completo (o ya no hay AIO).
+                expansion['status'] = 'refetched'
+                expansion['error'] = None
+                break
+
+        if expansion['status'] == 'failed':
+            logger.warning(
+                f"[Manual AI] Keeping collapsed AIO for '{keyword}' after "
+                f"{expansion['attempts']} expansion attempt(s): {expansion['error']}"
+            )
+        ai_result['aio_expansion'] = expansion
+        return serp_data, ai_result
+
     def _fetch_serp_data(self, keyword: str, internal_country: str) -> Dict:
         """Obtener datos SERP con reintentos"""
         try:
@@ -503,37 +537,18 @@ class AnalysisService:
 
     def _fetch_expanded_aio(self, keyword: str, internal_country: str, page_token: str) -> Dict:
         """
-        Hace una segunda llamada a SerpAPI con el page_token para expandir
-        un AI Overview collapsed.
+        Pide a SerpAPI el contenido de un AI Overview collapsed con el engine
+        google_ai_overview (el page_token solo es válido en ese engine y
+        caduca ~1 minuto después de la búsqueda original).
 
-        Reutiliza la misma construcción de params que _fetch_serp_data pero
-        añade el `page_token` para que SerpAPI devuelva el contenido real
-        del AI Overview (text_blocks + references).
-
-        A diferencia de _fetch_serp_data, este helper NO usa @with_backoff
-        porque el segundo fetch es opcional: si falla, el análisis sigue con
-        el resultado collapsed original. Cualquier excepción que lance se
-        captura en el caller (_analyze_keyword) y se convierte en warning.
-
-        Costes:
-        - Consume 1 RU adicional via quota_middleware (SerpAPI cobra por la
-          expansión del page_token).
-        - Es el mismo patrón usado por el flujo web en app.py:1728-1731.
-
-        Args:
-            keyword: Texto de la query original (debe coincidir con el
-                     primer fetch para que SerpAPI acepte el page_token).
-            internal_country: Código interno del país (ej. 'esp', 'mex').
-            page_token: Token devuelto por SerpAPI en el primer fetch,
-                        leído de ai_overview.page_token.
+        Consume 1 RU vía quota_middleware, igual que cualquier llamada SERP.
 
         Returns:
-            dict con el SERP expandido. Si get_serp_json devuelve error, el
-            caller lo detecta por el campo 'error' en el dict.
+            dict ai_overview con text_blocks y/o references.
 
         Raises:
-            RuntimeError: si SERPAPI_KEY no está configurada.
-            Exception: cualquier error de red/SerpAPI se propaga al caller.
+            RuntimeError: error de SerpAPI, bloqueo de cuota (is_quota_error)
+                          o respuesta sin contenido de AIO.
         """
         try:
             from services.serp_service import get_serp_json
@@ -548,25 +563,37 @@ class AnalysisService:
             raise RuntimeError("SERPAPI_KEY not configured")
 
         expanded_params = {
-            'engine': 'google',
-            'q': keyword,
+            'engine': 'google_ai_overview',
+            'page_token': page_token,
             'api_key': api_key,
-            'num': 20,
-            'page_token': page_token,  # ← única diferencia vs _fetch_serp_data
+            # q/gl solo sirven para el tracking de cuota (quota_middleware);
+            # SerpAPI los ignora en este engine.
+            'q': keyword,
         }
-        if SERP_NO_CACHE:
-            expanded_params['no_cache'] = True
-
         country_config = get_country_config(internal_country)
         if country_config:
-            expanded_params.update({
-                'location': country_config['serp_location'],
-                'gl': country_config['serp_gl'],
-                'hl': country_config['serp_hl'],
-                'google_domain': country_config['google_domain'],
-            })
+            expanded_params['gl'] = country_config['serp_gl']
 
-        return get_serp_json(expanded_params)
+        # Sin reintento propio: quota_middleware ya reintenta los errores
+        # transitorios, y repetir un token caducado solo gasta RU. Si falla,
+        # _expand_collapsed_aio repite la búsqueda para obtener otro token.
+        data = get_serp_json(expanded_params)
+        if not data:
+            raise RuntimeError('No AIO expansion data returned')
+        if data.get('quota_blocked'):
+            quota_error = RuntimeError(f"QUOTA_EXCEEDED: {data.get('error', 'Quota limit reached')}")
+            quota_error.quota_info = data.get('quota_info', {})
+            quota_error.action_required = data.get('action_required', 'upgrade')
+            quota_error.is_quota_error = True
+            raise quota_error
+        if data.get('error'):
+            raise RuntimeError(data['error'])
+        aio = data.get('ai_overview') or {}
+        if aio.get('error'):
+            raise RuntimeError(f"ai_overview error: {aio['error']}")
+        if not aio.get('text_blocks') and not aio.get('references'):
+            raise RuntimeError(f"AIO expansion without content (keys: {sorted(aio.keys())})")
+        return aio
 
     def _detect_ai_overview(self, serp_data: Dict, domain: str) -> Dict:
         """Detectar elementos de AI Overview en SERP"""
