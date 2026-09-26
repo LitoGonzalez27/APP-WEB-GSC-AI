@@ -315,7 +315,7 @@ Para cada keyword activa:
    - **Cache check**: `services.ai_cache.ai_cache.get_cached_analysis(keyword, domain, country)`.
    - **Fetch SERP**: `services.serp_service.get_serp_json` envuelto por `quota_protected_serp_call` de `quota_middleware.py`. Engine `google`, `num=20`, location/gl/hl/google_domain de `services.country_config.get_country_config`. API key: `os.getenv('SERPAPI_KEY')`. Decorador `@with_backoff(max_attempts=3, base_delay_sec=1.0)`.
    - **Detectar AIO**: `services.ai_analysis.detect_ai_overview_elements(serp_data, project_domain)`. Devuelve dict con `has_ai_overview`, `domain_is_ai_source`, `domain_ai_source_position`, `total_elements`, `impact_score`, `debug_info: {references_found, requires_additional_request, page_token}`.
-   - **Expansión collapsed AIO** (NUEVO 2026-04-09): si `requires_additional_request` y hay `page_token`, hace un **segundo fetch** con `page_token` para extraer `text_blocks/references` del AIO oculto tras "Show more". Cuesta 1 RU adicional. Si falla → no-op seguro.
+   - **Expansión collapsed AIO** (`_expand_collapsed_aio`, corregido 2026-09-26): si `requires_additional_request` y hay `page_token`, pide el AIO a SerpAPI con **`engine=google_ai_overview`** + `page_token`. Si falla (el token caduca ~1 min), repite la búsqueda para obtener un token nuevo (`MANUAL_AI_AIO_REFETCH_ATTEMPTS`, defecto 1). El resultado queda en `ai_analysis_data.aio_expansion.status` (`expanded` / `refetched` / `failed`).
    - **Cache write**.
 4. **Guardar**: `result_repository.create_result` (insert en `manual_ai_results`).
 5. **Almacenar dominios globales**: si `has_ai_overview`, `domains_service.store_global_domains_detected` extrae `references_found`, normaliza dominios, marca `is_project_domain` y `is_selected_competitor`, e inserta en `manual_ai_global_domains` (con DELETE previo del día para idempotencia).
@@ -349,17 +349,24 @@ Antes del fix, en este caso el sistema:
 
 **Producción mide ~12% de AIOs en este estado.** Algunos casos extremos: UEMC 23.6%, Catalonia 22.2%, Adeslas 10.4%.
 
-### El fix
+### El fix (reescrito 2026-09-26)
 
-Si `debug_info.requires_additional_request == True` y hay `page_token`:
+El fix de abril repetía la búsqueda con `engine=google` + `page_token`. **SerpAPI ignora el `page_token` en ese engine** y devuelve una SERP nueva, casi siempre otra vez collapsed: la expansión solo "funcionaba" cuando la SERP nueva salía expandida por azar. Resultado: entre mayo y septiembre, 20-45% de los AIO se guardaron sin contenido (6.606 filas desde 2026-03-05), lo que infravaloraba la visibilidad (p. ej. Laserum ES 24,9% medido frente a 71,7% sobre AIO con contenido). Prueba en vivo 2026-09-26: `engine=google`+token 0/8 expandidos; `engine=google_ai_overview`+token 7/8 (el fallo fue con el token caducado a los 60 s).
 
-1. Segundo fetch a SerpAPI con `page_token` (cuesta 1 RU adicional).
-2. Re-analizar el payload expandido.
-3. Si el segundo fetch falla → no-op seguro: se mantiene el resultado collapsed sin reventar el flujo.
+Ahora (`_expand_collapsed_aio` + `_fetch_expanded_aio`):
+
+1. `engine=google_ai_overview` + `page_token` (el `serpapi_link` del propio AIO apunta ahí). Se exige `text_blocks` o `references` en la respuesta.
+2. Si falla → nueva búsqueda `engine=google` (token nuevo) y otro intento. Si la SERP nueva ya trae el AIO completo → `refetched`.
+3. Si todo falla → se conserva el resultado collapsed con `aio_expansion.status='failed'`.
+4. Los errores de cuota se propagan (no se tragan).
+
+El mismo bug existía en el flujo web (`app.py`, análisis de keyword) y está corregido igual (sin re-fetch).
+
+**Reparación** (`repair_collapsed_aio.py`, dry-run por defecto): `mark --apply` marca las filas históricas con `aio_expansion.status='failed_legacy'` (no recuperables: el token y la SERP de ese día ya no existen); `reanalyze --date <hoy> --apply` re-analiza las filas collapsed del día en curso.
 
 ### Coste
 
-`MANUAL_AI_KEYWORD_ANALYSIS_COST = 1` por keyword normal. Las keywords con AIO collapsed consumen **2 RU** (fetch inicial + fetch con `page_token`). El `quota_middleware.py` lo contabiliza correctamente.
+`MANUAL_AI_KEYWORD_ANALYSIS_COST = 1` por keyword normal. Una keyword con AIO collapsed consume 2 llamadas SerpAPI (4 en el peor caso con re-fetch). El `quota_middleware.py` las contabiliza.
 
 ---
 
@@ -642,7 +649,7 @@ Confirmar **en Railway** qué disparador está activo:
 
 ### "Hay un AIO que detecta el sistema pero no captura references"
 
-Probablemente es un AIO collapsed sin `page_token`. Mirar `raw_serp_data` del resultado — si `requires_additional_request=true` pero `page_token=null`, SerpAPI no nos da herramienta para abrirlo. Es un caso aceptado actualmente (~12% de AIOs).
+Probablemente es un AIO collapsed cuya expansión falló. Mirar `ai_analysis_data->'aio_expansion'` (`status` + `error`). `failed_legacy` = fila anterior al fix de 2026-09-26 (no recuperable).
 
 ---
 

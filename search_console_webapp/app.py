@@ -1771,11 +1771,21 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
             if page_token:
                 logger.info(f"[AI OVERVIEW] Making second API call with page_token for '{keyword_arg}'")
                 try:
-                    expanded_params = dict(params_ai)
-                    expanded_params['page_token'] = page_token
+                    # El page_token solo vale en engine=google_ai_overview (con
+                    # engine=google SerpAPI lo ignora y devuelve otra SERP
+                    # collapsed) y caduca ~1 min tras la búsqueda.
+                    expanded_params = {
+                        'engine': 'google_ai_overview',
+                        'page_token': page_token,
+                        'api_key': params_ai.get('api_key'),
+                        'q': params_ai.get('q'),
+                        'gl': params_ai.get('gl'),
+                    }
                     expanded_serp_data = get_serp_json(expanded_params)
+                    expanded_aio = (expanded_serp_data or {}).get('ai_overview') or {}
 
-                    if expanded_serp_data and not expanded_serp_data.get('error') and expanded_serp_data.get('ai_overview'):
+                    if (not (expanded_serp_data or {}).get('error')
+                            and (expanded_aio.get('text_blocks') or expanded_aio.get('references'))):
                         logger.info(f"[AI OVERVIEW] Expanded AI Overview received for '{keyword_arg}'")
                         # Merge expanded ai_overview into original SERP data for complete analysis
                         serp_data_from_service['ai_overview'] = expanded_serp_data['ai_overview']
