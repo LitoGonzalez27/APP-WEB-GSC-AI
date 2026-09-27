@@ -127,7 +127,6 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 | Archivo | Qué contiene |
 |---|---|
 | `templates/manual_ai_dashboard.html` | Plantilla principal (1973 líneas). |
-| `templates/paywall_manual_ai.html` | Paywall para usuarios free. |
 | `static/js/manual-ai-system-modular.js` | Entry point ES modules (único que carga el template). |
 | ~~`static/js/manual-ai-system.js`~~ | Monolito JS eliminado (ya no existe en el repo). |
 | `static/js/manual-ai/*.js` | Submódulos: `manual-ai-core.js`, `-projects.js`, `-keywords.js`, `-analysis.js`, `-charts.js`, `-competitors.js`, `-clusters.js`, `-modals.js`, `-exports.js`, `-utils.js`. **`-analytics.js` es ahora un barrel (~13 líneas)** que reexporta 6 sub-módulos temáticos: `-analytics-core.js`, `-analytics-domains.js`, `-analytics-urls.js`, `-analytics-table.js`, `-analytics-comparative.js`, `-analytics-aio-organic.js`. |
