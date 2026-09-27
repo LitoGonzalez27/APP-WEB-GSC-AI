@@ -45,7 +45,7 @@
 1. **Los crons reales son servicios Bun, NO el array `crons` de `railway.json`** (que está silenciosamente ignorado en este proyecto).
 2. **Las migraciones de BD NO se ejecutan automáticamente** en cada deploy (a propósito). Se lanzan manualmente con `railway run --service Clicandseo python3 migrate_xxx.py`.
 3. **Las env vars secretas** se gestionan en Railway dashboard (Settings → Variables → Raw Editor), no en el repo.
-4. **`RAILWAY_STAGING_VARIABLES.txt` está commited al repo con secretos** (vulnerabilidad — debería rotarse).
+4. **`RAILWAY_STAGING_VARIABLES.txt` nunca se commiteó** (`.gitignore:125`). La copia local con secretos se movió al vault de Carlos el 27-sep-2026: `api-vault/clicandseo/railway-staging-variables.txt`.
 
 ---
 
@@ -203,7 +203,7 @@ Confirmado con `find`. Deuda técnica documentada en `CLAUDE-manual-ai.md`.
 
 ## 5. Variables de entorno
 
-Lista exhaustiva extraída con `grep` sobre todos los `.py` + `RAILWAY_STAGING_VARIABLES.txt` + Bun functions.
+Lista exhaustiva extraída con `grep` sobre todos los `.py` + las variables de staging (hoy en `api-vault/clicandseo/railway-staging-variables.txt`) + Bun functions.
 
 ### Críticas / obligatorias
 
@@ -283,11 +283,11 @@ Otros: `CUSTOMER_PORTAL_RETURN_URL`, `PRICING_PAGE_URL`, `BILLING_ENABLED`, `TRI
 
 ### Otras
 
-`APP_TZ` (default `Europe/Madrid`), `ENCRYPTION_KEY` (en `RAILWAY_STAGING_VARIABLES.txt` pero **no encontré uso en `.py`** — posible legacy o duplicado de `TOKEN_ENCRYPTION_KEY`).
+`APP_TZ` (default `Europe/Madrid`), `ENCRYPTION_KEY` (en las variables de staging pero **no encontré uso en `.py`** — posible legacy o duplicado de `TOKEN_ENCRYPTION_KEY`).
 
 ### ⚠️ Vulnerabilidad de seguridad
 
-**`RAILWAY_STAGING_VARIABLES.txt` contiene secretos en plano** (Stripe test keys, Brevo SMTP password, BREVO_API_KEY, OPENAI/ANTHROPIC/GOOGLE/PERPLEXITY API keys, FLASK_SECRET_KEY, CRON_TOKEN, SERPAPI_KEY, ENCRYPTION_KEY, GOOGLE_CLIENT_SECRET).
+**La copia local de variables de staging contiene secretos en plano** (Stripe test keys, Brevo SMTP password, BREVO_API_KEY, OPENAI/ANTHROPIC/GOOGLE/PERPLEXITY API keys, FLASK_SECRET_KEY, CRON_TOKEN, SERPAPI_KEY, ENCRYPTION_KEY, GOOGLE_CLIENT_SECRET). Nunca se commiteó; desde el 27-sep-2026 está en el vault (`api-vault/clicandseo/railway-staging-variables.txt`).
 
 **El archivo está commited al repo** (no en .gitignore). Si el repo se hace público o se filtra → todas esas keys deben rotarse.
 
@@ -511,14 +511,14 @@ Ver `CLAUDE-base-de-datos.md` §9.
 | **`requirements_llm_monitoring.txt`** separado pero no usado | Deuda. | Trivial. |
 | **`postinstall.sh`** rol no claro | Posible vestigio. | Bajo. |
 | **`ENCRYPTION_KEY` vs `TOKEN_ENCRYPTION_KEY`** | Posible duplicado. | Bajo. |
-| **`RAILWAY_STAGING_VARIABLES.txt` con secretos** commited | Vulnerabilidad. | Alto. |
+| **Copia local de variables de staging con secretos** fuera del vault | Resuelto el 27-sep-2026: movida al vault; nunca se commiteó. | Bajo. |
 | **Scripts con creds DB hardcoded** | Vulnerabilidad. | Alto. |
 | **Sin CI/CD pipeline** | Sin smoke tests automatizados post-deploy. | Medio. |
 | **Sin backup automático verificado de Postgres** | Pérdida de datos en catástrofe. | Alto. |
 
 ### Documentos `.md` históricos
 
-- `RAILWAY_STAGING_VARIABLES.txt` — set de env vars staging con secretos.
+- Variables de staging con secretos: en el vault de Carlos (`api-vault/clicandseo/railway-staging-variables.txt`), no en el repo.
 - `CLAUDE-stripe-cuotas-crons.md` — arquitectura de Bun crons.
 - `OPTIMIZACION_CRON_DIARIO.md`, `IMPLEMENTACION_RETRY*.md`, `MEJORAS_LLM_MONITORING.md`, `ANALISIS_RETRY_SYSTEM.md`.
 - `ai_mode_projects/SAFE_MIGRATION.md`, `manual_ai/SAFE_MIGRATION.md`, `*COMPLETION_SUMMARY.md`.
@@ -619,7 +619,7 @@ psql "$DATABASE_URL" < production_backup_20251019_230248.sql
 3. **Builder = nixpacks**, no Dockerfile. Procfile define `web` y `cron`; el `cron` probablemente inactivo.
 4. **El array `crons` de `railway.json` NO se ejecuta** en este proyecto. Los crons reales son los Bun services. Documentado tras el caso Driza UEMC.
 5. **Migraciones manuales**: `railway run --service Clicandseo python3 migrate_xxx.py`. NO automáticas en deploy.
-6. **`RAILWAY_STAGING_VARIABLES.txt` está commited con secretos** — vulnerabilidad. Debería rotarse.
+6. **Copia local de variables de staging con secretos**: movida al vault el 27-sep-2026 (nunca se commiteó). Pendiente rotar SerpAPI y el client secret de Google tras la fase 0.
 7. **Sin backup automático verificado** de Postgres. Riesgo alto.
 8. **Sin observabilidad externa** (Sentry/Datadog). Solo logs Railway + alertas email vía Brevo.
 9. **MCP Railway disponible desde Claude** — listar servicios, leer/setear vars, redeploy, logs.

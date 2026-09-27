@@ -543,7 +543,7 @@ RAILWAY_ENVIRONMENT (detector)
 
 ### ⚠️ Vulnerabilidad
 
-`/Users/carlosgonzalez/Desktop/app/APP-WEB-GSC-AI/search_console_webapp/RAILWAY_STAGING_VARIABLES.txt` contiene **secretos en claro** (Stripe test keys, BREVO_API_KEY, SERPAPI_KEY, OPENAI/ANTHROPIC/GOOGLE/PERPLEXITY keys, FLASK_SECRET_KEY, GOOGLE_CLIENT_SECRET, ENCRYPTION_KEY).
+La copia local de las variables de staging (antes `RAILWAY_STAGING_VARIABLES.txt` en esta carpeta) contiene **secretos en claro** (Stripe test keys, BREVO_API_KEY, SERPAPI_KEY, OPENAI/ANTHROPIC/GOOGLE/PERPLEXITY keys, FLASK_SECRET_KEY, GOOGLE_CLIENT_SECRET, ENCRYPTION_KEY). Nunca se commiteó (`.gitignore:125`); desde el 27-sep-2026 está en el vault de Carlos: `api-vault/clicandseo/railway-staging-variables.txt`.
 
 **El archivo está commited al repo**. Aunque solo son del entorno staging, es un riesgo conocido. Auditar `.gitignore` y rotar todas esas keys.
 
@@ -607,7 +607,7 @@ Lo que existe es indirecto vía mocks.
 5. **GTM `GTM-NXJS74ZQ` hardcoded en 10 plantillas** — deuda.
 6. **AI Mode salta el quota middleware** de SerpAPI (lee `SERPAPI_API_KEY` directo) — verificar si es intencional.
 7. **Brevo, Jina, reCAPTCHA, GSC sin reintentos** — fallo único = error definitivo.
-8. **`RAILWAY_STAGING_VARIABLES.txt` con secretos en plano commiteado** — vulnerabilidad. Rotar.
+8. **Copia local de variables de staging con secretos en plano** (nunca commiteada) — movida al vault el 27-sep-2026. Pendiente rotar SerpAPI y el client secret de Google tras desplegar la fase 0.
 9. **Tools MCP de Ahrefs/GA4/Notion/Figma/Hostinger NO son integraciones de la app** — son del usuario en Claude.
 10. **Servicios NO integrados**: Twilio, Slack, AWS/GCS, Mailgun, Mixpanel, Sentry, Bing.
 
