@@ -227,9 +227,9 @@ paused_reason       TEXT
 ```
 
 En:
-- `manual_ai_projects` (migración `migrate_manual_ai_quota_pause_fields.py`).
+- `manual_ai_projects` (migración `scripts/migrations/migrate_manual_ai_quota_pause_fields.py`).
 - `ai_mode_projects` (sin migración explícita en el repo — aplicada manualmente).
-- `llm_monitoring_projects` (migración `migrate_quota_pause_fields.py`).
+- `llm_monitoring_projects` (migración `scripts/migrations/migrate_quota_pause_fields.py`).
 
 ### AI Overview se pausa a nivel **usuario**, no proyecto
 
@@ -477,7 +477,7 @@ Hay **dos** vías de despausa. `resume_quota_pauses_for_user` es la global (tras
 
 Los LLM aplican **solo cuando `plan == 'enterprise'`** (`llm_monitoring_limits.py:196-202`).
 
-### Topes por módulo (2026-09-11, `migrate_enterprise_module_limits.py`)
+### Topes por módulo (2026-09-11, `scripts/migrations/migrate_enterprise_module_limits.py`)
 
 Cinco columnas más en `users`, todas `INTEGER NULL` (NULL = sin tope). Resolución centralizada en `enterprise_limits.py`; solo aplican con `plan == 'enterprise'` y nunca a `role == 'admin'`.
 
@@ -493,7 +493,7 @@ Cinco columnas más en `users`, todas `INTEGER NULL` (NULL = sin tope). Resoluci
 
 ### Cuota y ciclo por PROYECTO (2026-09-11, `project_quota.py`)
 
-Tercer nivel, por debajo de la cuota del usuario: `manual_ai_projects.monthly_ru_limit`, `ai_mode_projects.monthly_ru_limit`, `llm_monitoring_projects.monthly_units_limit` (NULL = sin tope propio) y `analysis_frequency_days` en las tres tablas (LLM la estrena aquí). Misma ventana que el usuario (`compute_quota_window`, que ahora también usa `get_user_monthly_llm_usage`). Consumo por proyecto: `quota_usage_events` por `metadata->>'project_id'` (Manual AI / AI Mode) o `llm_monitoring_results` (LLM). Al agotarse se pausa **solo ese proyecto** con `paused_reason = 'project_quota_exceeded'` y `paused_until = reset_date`; la auto-reanudación y `resume_quota_pauses_for_user` existentes lo despausan. Gates en los tres `analysis_service`/`engine`; frecuencia LLM en el filtro de elegibilidad del cron. Admin: `GET /admin/users/<id>/project-limits` y `POST /admin/projects/<module>/<id>/limits` (tabla en la ficha del usuario). Migración `migrate_project_quota_limits.py` (+ `init_database`). Runbook completo: `CLAUDE-enterprise-agencias.md`.
+Tercer nivel, por debajo de la cuota del usuario: `manual_ai_projects.monthly_ru_limit`, `ai_mode_projects.monthly_ru_limit`, `llm_monitoring_projects.monthly_units_limit` (NULL = sin tope propio) y `analysis_frequency_days` en las tres tablas (LLM la estrena aquí). Misma ventana que el usuario (`compute_quota_window`, que ahora también usa `get_user_monthly_llm_usage`). Consumo por proyecto: `quota_usage_events` por `metadata->>'project_id'` (Manual AI / AI Mode) o `llm_monitoring_results` (LLM). Al agotarse se pausa **solo ese proyecto** con `paused_reason = 'project_quota_exceeded'` y `paused_until = reset_date`; la auto-reanudación y `resume_quota_pauses_for_user` existentes lo despausan. Gates en los tres `analysis_service`/`engine`; frecuencia LLM en el filtro de elegibilidad del cron. Admin: `GET /admin/users/<id>/project-limits` y `POST /admin/projects/<module>/<id>/limits` (tabla en la ficha del usuario). Migración `scripts/migrations/migrate_project_quota_limits.py` (+ `init_database`). Runbook completo: `CLAUDE-enterprise-agencias.md`.
 
 ### Asignación
 
@@ -503,7 +503,7 @@ Validaciones: tipos enteros, `>= 1`. Persiste también en `custom_quota_notes`, 
 
 ### Endpoint admin
 
-`POST /admin/users/<int:user_id>/update-plan` (`admin_billing_routes.py:198`).
+`POST /admin/users/<int:user_id>/change-plan` (`auth.py:2433`, usa `admin_billing_panel.update_user_plan_manual`). Cuota custom: `assign-custom-quota` (`auth.py:2459`) y `remove-custom-quota` (`auth.py:2499`).
 
 ### Eliminación
 
@@ -536,9 +536,9 @@ UPDATE a NULL en `admin_billing_panel.py:1037-1042`.
 | `GET /api/llm-monitoring/projects` (línea 564) | Incluye `limits` en payload. |
 | `POST /api/cron/quota-reset` (`cron_routes.py:48`) | Auth Bearer CRON_TOKEN. `?async=1` (202) o sync (200). Triggers cron + health-check. |
 | `POST /api/cron/quota-health-check` (`cron_routes.py:108`) | Solo health (sin reset). |
-| `POST /admin/users/<id>/reset-quota` (`admin_billing_routes.py:218`) | Admin manual reset. |
-| `POST /admin/users/<id>/update-plan` (`admin_billing_routes.py:72,198`) | Cambia plan / asigna custom quota. |
-| `GET /admin/billing` y `GET /admin/users/<id>/billing-details` | Vistas admin. |
+| `POST /admin/users/<id>/reset-quota` (`auth.py:2520`) | Admin manual reset. |
+| `POST /admin/users/<id>/change-plan` y `assign-custom-quota` / `remove-custom-quota` (`auth.py`) | Cambia plan / asigna custom quota. |
+| `GET /admin/users/<id>/billing-details` | Vista admin. |
 | `POST /webhooks/stripe` | Handler en `stripe_webhooks.py`. Fuente principal de resets. |
 
 ---
@@ -590,12 +590,13 @@ Todos llaman a `window.QuotaUI.showBlockModal(...)`.
 
 ### Rutas admin
 
-`admin_billing_routes.py` registra:
-- `/admin/billing` (panel).
+Se registran en `auth.py` (`setup_auth_routes`):
 - `/admin/users/<id>/billing-details`.
-- `/admin/users/<id>/update-plan`.
+- `/admin/users/<id>/change-plan`.
+- `/admin/users/<id>/assign-custom-quota` y `/remove-custom-quota`.
 - `/admin/users/<id>/reset-quota`.
-- `/admin/billing-stats`.
+
+`admin_billing_routes.py` (con `/admin/billing`, `/admin/billing-stats` y `update-plan`) nunca se registró y se eliminó el 2026-09-27.
 
 Decorador: `@admin_required`.
 
@@ -700,22 +701,22 @@ Decorador: `@admin_required`.
 
 | Archivo | Cubre |
 |---|---|
-| `test_stripe_aware_reset.py` | Crea 4 usuarios test (no-sub, stripe-active, stripe-expired, stripe-legacy con NULL), corre `daily_quota_reset_cron.main()`, verifica que solo se resetean los correctos. Usa `unittest.mock.patch`. |
-| `test_webhook_hardening.py` | Idempotencia (`stripe_webhook_events`) y extracción robusta del periodo desde `invoice.lines`. |
-| `test_cron_routes.py` | Tests de los endpoints `/api/cron/*` (auth bearer, async/sync, health). |
-| `test_cron_alerts.py` | Alerta de duración/error rate/coste. |
-| `test_llm_cron_jobs.py` | Flujo completo del cron LLM (incluye eligibility filter). |
+| `scripts/manual_checks/test_stripe_aware_reset.py` | Crea 4 usuarios test (no-sub, stripe-active, stripe-expired, stripe-legacy con NULL), corre `daily_quota_reset_cron.main()`, verifica que solo se resetean los correctos. Usa `unittest.mock.patch`. |
+| `scripts/manual_checks/test_webhook_hardening.py` | Idempotencia (`stripe_webhook_events`) y extracción robusta del periodo desde `invoice.lines`. |
+| `scripts/manual_checks/test_cron_routes.py` | Tests de los endpoints `/api/cron/*` (auth bearer, async/sync, health). |
+| `scripts/manual_checks/test_cron_alerts.py` | Alerta de duración/error rate/coste. |
+| `scripts/manual_checks/test_llm_cron_jobs.py` | Flujo completo del cron LLM (incluye eligibility filter). |
 | `tests/test_quota_pauses_regression.py` | **Regresión del fix de pausas (commits `3504c78`/`d1923d5`)**: el dispatcher Stripe usa los nombres de evento reales con guion bajo (`invoice.payment_succeeded`) y no la variante con punto; el cron y el engine de LLM honran `paused_until` (auto-reanudan al expirar, mismo criterio que Manual AI); la pausa LLM nunca deja `paused_until=NULL` (fallback `+30d`). Asserts sobre el código fuente. |
 
 ### Scripts (no tests)
 
-- `fix_quota_events_table.py` — script para arreglar la tabla `quota_usage_events` si tiene constraints viejos.
+- `scripts/migrations/fix_quota_events_table.py` — script para arreglar la tabla `quota_usage_events` si tiene constraints viejos.
 
 ### Lo que NO está cubierto
 
-- **Lógica de `compute_next_quota_reset_date`** con edge cases (period_end pasado, NULL, etc.) — solo cubierta indirectamente via `test_stripe_aware_reset.py`.
+- **Lógica de `compute_next_quota_reset_date`** con edge cases (period_end pasado, NULL, etc.) — solo cubierta indirectamente via `scripts/manual_checks/test_stripe_aware_reset.py`.
 - **`track_quota_consumption` con retry para deadlocks** — sin test específico.
-- **`resume_quota_pauses_for_user` con SAVEPOINT** — solo `test_webhook_hardening.py:121-123` valida que el código fuente contiene el `SAVEPOINT` (assertion sobre el código, no comportamiento).
+- **`resume_quota_pauses_for_user` con SAVEPOINT** — solo `scripts/manual_checks/test_webhook_hardening.py:121-123` valida que el código fuente contiene el `SAVEPOINT` (assertion sobre el código, no comportamiento).
 
 ---
 

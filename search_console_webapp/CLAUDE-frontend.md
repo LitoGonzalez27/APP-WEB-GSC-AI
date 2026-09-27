@@ -105,8 +105,6 @@ Total: **20 plantillas** (todas en root, sin subcarpetas). **No hay `/templates/
 | `manual_ai_dashboard.html` | 110 KB / 1.973+ líneas | Manual AI Analysis (tabs Projects, Keywords, Analytics, Modals). |
 | `ai_mode_dashboard.html` | 104 KB | AI Mode Monitoring. |
 | `llm_monitoring.html` | 144 KB / 2.473+ líneas | LLM Monitoring (GPT/Claude/Gemini/Perplexity). |
-| `paywall_manual_ai.html` | 9 KB | Paywall para usuarios free intentando entrar a Manual AI. |
-| `billing.html` | 10 KB | Gestión de suscripción Stripe (sin Stripe.js cliente; redirección al portal/checkout). |
 | `billing_success.html` | 12 KB | Página de éxito tras checkout Stripe. |
 | `admin_simple.html` | 121 KB | Panel admin general (Carlos). |
 | `admin_billing.html` | 36 KB | Panel admin específico de billing. |
@@ -216,7 +214,7 @@ Cargadas vía `<script src="https://…">` directamente en cada plantilla. **No 
 |---|---|---|
 | `estilos-principales.css` | 53 | Estilos globales del dashboard `/app`. |
 | `base-y-componentes.css` | 35 | Reset + componentes (botones, cards, formularios). |
-| `manual-ai.css` | 127 | Manual AI dashboard. Reutilizada por `paywall_manual_ai.html` y `billing.html`. |
+| `manual-ai.css` | 127 | Manual AI dashboard. |
 | `llm-monitoring.css` | 117 | Estilos LLM Monitoring (`?v=8`). |
 | `llm-monitoring-enhanced.css` | 19 | Refinamientos LLM (`?v=1`). |
 | `ai-overview-section.css` | 39 | Sección AI Overview en `/app`. |
@@ -224,7 +222,6 @@ Cargadas vía `<script src="https://…">` directamente en cada plantilla. **No 
 | `paywall.css` | 25 | Paywall genérico. |
 | `keywords-section.css` | 41 | Sección keywords. |
 | `tablas.css` | 27 | Tablas (compartido). |
-| `modulos-especificos.css` | 44 | Estilos específicos de módulos. |
 | `gridjs-styles.css` | 16 | Override del tema Grid.js. |
 | `auth.css` | 15 | Auth pages. |
 | `login.css` | 20 | Login específico. |
@@ -393,7 +390,7 @@ grid.updateConfig({ data: () => safeData }).forceRender()
 
 Cuando hay riesgo de stale state (`manual-ai-analytics.js:923`), reemplaza el nodo container completo (`replaceWith(newDiv)`) antes de instanciar nuevo `Grid`.
 
-### Bug histórico (`FIX_GRIDJS_ERROR.md`, 2025-11-06)
+### Bug histórico (Grid.js, 2025-11-06; la nota `FIX_GRIDJS_ERROR.md` se eliminó el 2026-09-27)
 
 - **Síntoma**: el endpoint `/api/llm-monitoring/projects/:id/comparison` no devolvía `total_mentions`. Al renderizar, la línea 1358 hacía `(item.total_mentions || 0)/(item.total_queries || 0)` con `undefined`.
 - **Error**: `TypeError: Cannot read properties of undefined (reading 'length')` × 4.
@@ -469,7 +466,6 @@ En `manual_ai_dashboard.html` (y `ai_mode_dashboard.html`) se setea `window.DISA
 
 ### Documentos `.md` con info frontend
 
-- `FIX_GRIDJS_ERROR.md` — bug Grid.js descrito en §10.
 - `static/js/manual-ai/{README.md, STATUS.md, SUMMARY.md, REFACTORING_PLAN.md, REFACTORING_COMPLETE.md, PROGRESS_CHECKPOINT.md}` — documentan la refactorización **frontend** Manual AI.
 - `manual_ai/MIGRATION_COMPLETE.md`, `REFACTORING_GUIDE.md`, `SAFE_MIGRATION.md`, `COMPLETION_SUMMARY.md`, `README.md` — refactorización **backend** Manual AI.
 
@@ -483,7 +479,7 @@ En `manual_ai_dashboard.html` (y `ai_mode_dashboard.html`) se setea `window.DISA
 | `static/admin-fix-llm.html` | HTML estático servido desde `/static/`, no Jinja. |
 | `static/ai-overview-section.css` + `static/ai-overlay-styles.css` + `static/ai-typology-chart.css` + `static/ai-reset-styles.css` | 5 archivos CSS de la sección AI del dashboard, fragmentación heredada. |
 | `console-silencer.js` (2.4 KB) | Silencia logs verbosos del console (legacy o anti-noise). |
-| `debug-logger.js`, `debug-number-formatting.js`, `session-manager-test.js` | Scripts de debug presentes pero no siempre cargados. |
+| (eliminados el 2026-09-27) | `debug-logger.js`, `debug-number-formatting.js`, `session-manager-test.js`, `data-validator.js`, `ui-ai-overview-download.js`, `modulos-especificos.css` y las plantillas `billing.html` y `paywall_manual_ai.html`: nadie los cargaba ni renderizaba. `tests/test_static_references.py` vigila que toda referencia a `static/` exista. |
 
 ### Deuda técnica
 
@@ -507,7 +503,7 @@ En `manual_ai_dashboard.html` (y `ai_mode_dashboard.html`) se setea `window.DISA
 
 | Archivo | Cubre |
 |---|---|
-| `test_llm_monitoring_frontend.py` (385 líneas aprox.) | **Test estático**: verifica que existan `templates/llm_monitoring.html`, `static/js/llm_monitoring.js`, `static/llm-monitoring.css`, y que el HTML contenga ciertos strings (`<!DOCTYPE html>`, `Chart.js`, `Grid.js`). **No es funcional**, solo valida presencia y tamaño. |
+| `scripts/manual_checks/test_llm_monitoring_frontend.py` (385 líneas aprox.) | **Test estático**: verifica que existan `templates/llm_monitoring.html`, `static/js/llm_monitoring.js`, `static/llm-monitoring.css`, y que el HTML contenga ciertos strings (`<!DOCTYPE html>`, `Chart.js`, `Grid.js`). **No es funcional**, solo valida presencia y tamaño. |
 | `verify_manual_ai_js.sh` y `verify_manual_ai_refactoring.py` | Verifican que la refactorización Manual AI conserva todos los métodos del prototipo (matching de nombres entre el monolítico y los submódulos modulares). |
 
 ### Sin framework JS de testing

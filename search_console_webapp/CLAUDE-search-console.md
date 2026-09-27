@@ -96,7 +96,7 @@
 | Archivo | Líneas | Rol |
 |---|---:|---|
 | `app.js` | 1801 | Orquestador del front. |
-| `data.js` / `data-validator.js` | — | POST a `/get-data`. |
+| `data.js` | — | POST a `/get-data`. (`data-validator.js` no se cargaba y se eliminó el 2026-09-27.) |
 | `ui-render.js` | 2560 | Render principal; también llama `/api/url-keywords`. |
 | `ui-keywords-gridjs.js` | 1527 | Tabla keywords. |
 | `ui-urls-gridjs.js`, `ui-url-keywords-gridjs.js` | — | Otras tablas Grid.js. |
@@ -110,7 +110,7 @@
 | `gsc-connect-modal.js` | — | Modal "conecta tu Google Search Console". |
 | `quota-ui.js`, `paywall.js`, `ai-reset-manager.js`, `sidebar-navigation.js`, `onboarding-popups.js`, `tooltips-fix.js` | — | UX. |
 
-> El usuario antiguamente hablaba de `api-handler.js` y `state-manager.js`: **no existen** con esos nombres. Sus equivalentes son `data.js`/`data-validator.js` (handler de `/get-data`) y partes de `app.js` + `ui-render.js` para estado.
+> El usuario antiguamente hablaba de `api-handler.js` y `state-manager.js`: **no existen** con esos nombres. Su equivalente es `data.js` (handler de `/get-data`) y partes de `app.js` + `ui-render.js` para estado.
 
 ---
 
@@ -167,7 +167,7 @@ user_id, created_at
 
 ### Columnas en `users` para pausa AIO
 
-Migración `migrate_quota_pause_fields.py`:
+Migración `scripts/migrations/migrate_quota_pause_fields.py`:
 
 ```
 ai_overview_paused_until    TIMESTAMPTZ
@@ -567,7 +567,7 @@ En `services/ai_analysis.py` hay funciones marcadas como `LEGACY` y mantenidas p
 
 ### Migraciones
 
-`migrate_quota_pause_fields.py` añade columnas `ai_overview_paused_*` a `users`.
+`scripts/migrations/migrate_quota_pause_fields.py` añade columnas `ai_overview_paused_*` a `users`.
 
 ### Documentos `.md`
 
@@ -615,13 +615,13 @@ Pueden tocar GSC tangencialmente pero **no es la cobertura principal**.
 
 | Script | Para qué |
 |---|---|
-| `webhook_diagnostics.py` | Inspeccionar webhooks recibidos. |
-| `oauth_diagnostic.py` | Diagnóstico OAuth. |
-| `debug_oauth_flow.py` | Trazado del flow OAuth. |
+| `scripts/diagnostics/webhook_diagnostics.py` | Inspeccionar webhooks recibidos. |
+| `scripts/diagnostics/oauth_diagnostic.py` | Diagnóstico OAuth. |
+| `scripts/diagnostics/debug_oauth_flow.py` | Trazado del flow OAuth. |
 | `debug_ai_structure.py` | Inspecciona estructura SerpAPI AIO. |
 | `debug_qipu_detection.py` | Diagnóstico de detección de marca específica. |
 | `debug_connection.py` | Diagnóstico de conexiones OAuth. |
-| `diagnose_user_payment.py` | Diagnóstico billing. |
+| `scripts/diagnostics/diagnose_user_payment.py` | Diagnóstico billing. |
 | `diagnostic_endpoint.py` | HTTP `/diagnostic/imports`. |
 
 ---

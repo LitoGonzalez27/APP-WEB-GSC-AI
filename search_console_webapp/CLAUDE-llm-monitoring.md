@@ -142,16 +142,16 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 
 | Archivo | Qué contiene |
 |---|---|
-| `weekly_model_discovery_cron.py` | Clase `ModelDiscoveryService`. Descubrimiento por API + email de aprobación. |
+| `scripts/maintenance/weekly_model_discovery_cron.py` | Clase `ModelDiscoveryService`. Descubrimiento por API + email de aprobación. |
 | `weekly_model_check_cron.py` | Variante adicional. |
 | `llm_model_discovery_cron_function.js` | Bun function. |
 | Endpoint `POST /api/llm-monitoring/cron/model-discovery` | (`llm_monitoring_routes.py:8199`) Versión v2 con flujo de aprobación por token. |
 
 ### Migraciones / setup
 
-`create_llm_monitoring_tables.py`, `migrate_llm_brand_fields.py`, `migrate_competitors_structure.py`, `migrate_llm_add_country.py`, `migrate_quota_pause_fields.py`, `add_prompt_clusters_to_llm_monitoring.py`, `migrate_add_sources_field.py`, `migrate_add_position_source.py`, `migrate_add_error_fields.py`, `migrate_add_weighted_sov.py`, `migrate_llm_execution_metadata.py`, `migrate_llm_enterprise_support.py`, `migrate_llm_prompt_limits.py`, `migrate_llm_query_min_length.py`, `migrate_llm_queries_unique_constraint.py`, `migrate_llm_model_discovery_v2.py`, `migrate_models_2026_09.py` (registry con `--apply`), `migrate_llm_fanout_schema.py`, `migrate_llm_search_p3.py` (`cost_per_1k_search_calls` + `units_consumed`, con `--apply`).
+`scripts/migrations/create_llm_monitoring_tables.py`, `scripts/migrations/migrate_llm_brand_fields.py`, `scripts/migrations/migrate_competitors_structure.py`, `scripts/migrations/migrate_llm_add_country.py`, `scripts/migrations/migrate_quota_pause_fields.py`, `scripts/migrations/add_prompt_clusters_to_llm_monitoring.py`, `scripts/migrations/migrate_add_sources_field.py`, `scripts/migrations/migrate_add_position_source.py`, `scripts/migrations/migrate_add_error_fields.py`, `scripts/migrations/migrate_add_weighted_sov.py`, `scripts/migrations/migrate_llm_execution_metadata.py`, `scripts/migrations/migrate_llm_enterprise_support.py`, `scripts/migrations/migrate_llm_prompt_limits.py`, `scripts/migrations/migrate_llm_query_min_length.py`, `scripts/migrations/migrate_llm_queries_unique_constraint.py`, `scripts/migrations/migrate_llm_model_discovery_v2.py`, `scripts/migrations/migrate_models_2026_09.py` (registry con `--apply`), `scripts/migrations/migrate_llm_fanout_schema.py`, `scripts/migrations/migrate_llm_search_p3.py` (`cost_per_1k_search_calls` + `units_consumed`, con `--apply`).
 
-SQL: `update_llm_models_freetier_may2026.sql`, `update_llm_pricing_2026.sql`, `update_llm_models.sql`, `migrate_to_gemini_flash.sql`.
+SQL: `scripts/migrations/update_llm_models_freetier_may2026.sql`, `scripts/migrations/update_llm_pricing_2026.sql`, `scripts/migrations/update_llm_models.sql`, `scripts/migrations/migrate_to_gemini_flash.sql`.
 
 ### Frontend
 
@@ -179,11 +179,11 @@ SQL: `update_llm_models_freetier_may2026.sql`, `update_llm_pricing_2026.sql`, `u
 
 ### Diagnóstico y fix scripts
 
-`diagnose_llm_queries.py`, `diagnose_llm_providers.py`, `diagnose_llm_mention_detection.py`, `check_llm_models_config.py`, `check_llm_project_config.py`, `check_llm_tables.py`, `fix_llm_models.py`, `fix_llm_project_3_config.py`, `fix_openai_incomplete_analysis.py`, `fix_openai_model.py`, `fix_openai_monitoring.py`, `update_models_now.py`, `update_to_gpt53_chat.py`, `update_current_llm_models.py`, `configure_gpt5.py`, `admin_fix_llm_models.py`.
+`scripts/diagnostics/diagnose_llm_queries.py`, `scripts/diagnostics/diagnose_llm_providers.py`, `scripts/diagnostics/diagnose_llm_mention_detection.py`, `scripts/diagnostics/check_llm_models_config.py`, `scripts/diagnostics/check_llm_project_config.py`, `scripts/diagnostics/check_llm_tables.py`, `fix_llm_models.py`, `fix_llm_project_3_config.py`, `fix_openai_incomplete_analysis.py`, `fix_openai_model.py`, `fix_openai_monitoring.py`, `update_models_now.py`, `update_to_gpt53_chat.py`, `scripts/migrations/update_current_llm_models.py`, `configure_gpt5.py`, `admin_fix_llm_models.py`.
 
 ### Tests
 
-`test_llm_cron_jobs.py`, `test_llm_monitoring_endpoints.py`, `test_llm_monitoring_frontend.py`, `test_llm_monitoring_service.py`, `test_llm_providers.py`, `test_all_llm_providers.py`, `test_locale_fidelity.py`, `test_project_parallelism.py`, `test_project_timeout.py`.
+`scripts/manual_checks/test_llm_cron_jobs.py`, `scripts/manual_checks/test_llm_monitoring_endpoints.py`, `scripts/manual_checks/test_llm_monitoring_frontend.py`, `test_llm_monitoring_service.py`, `test_llm_providers.py`, `scripts/manual_checks/test_all_llm_providers.py`, `scripts/manual_checks/test_locale_fidelity.py`, `scripts/manual_checks/test_project_parallelism.py`, `scripts/manual_checks/test_project_timeout.py`.
 
 ### Documentos `.md` históricos
 
@@ -265,7 +265,7 @@ full_response       TEXT
 response_length     INTEGER
 -- sources:
 sources             JSONB        -- [{url, provider, title?, query_round?, cited?}, ...]; provider='extracted' si sale de regex
-search_queries      JSONB        -- fan-out tal cual lo devuelve el provider (migrate_llm_fanout_schema.py, 2026-09-13)
+search_queries      JSONB        -- fan-out tal cual lo devuelve el provider (scripts/migrations/migrate_llm_fanout_schema.py, 2026-09-13)
 -- performance:
 tokens_used, input_tokens, output_tokens INTEGER
 cost_usd            DECIMAL(10,6)
@@ -273,7 +273,7 @@ response_time_ms    INTEGER
 -- errores:
 has_error           BOOLEAN
 error_message       TEXT
--- cuota (migrate_llm_search_p3.py, 2026-09-13):
+-- cuota (scripts/migrations/migrate_llm_search_p3.py, 2026-09-13):
 units_consumed      SMALLINT NOT NULL DEFAULT 1  -- 1 sin búsqueda; con search_mode='auto', peso del proveedor; errores 1
 -- locale audit + búsqueda web (search_mode, search_tool, search_country, search_used,
 -- search_calls, page_opens, search_cost_usd, model_reported = modelo que devuelve la API):
@@ -385,7 +385,7 @@ Tiene campos para keys cifradas, presupuesto mensual, etc. **El modelo de negoci
 
 `LLM_PROVIDERS = ['openai', 'anthropic', 'google', 'perplexity']` (en `llm_monitoring_limits.py:16`).
 
-### Modelos activos (`migrate_models_2026_09.py`, 2026-09-13; precios de las páginas oficiales ese día)
+### Modelos activos (`scripts/migrations/migrate_models_2026_09.py`, 2026-09-13; precios de las páginas oficiales ese día)
 
 Regla: el modelo que ve el usuario **gratuito** de cada app de consumo, o el más cercano disponible por API.
 
@@ -418,13 +418,13 @@ por `MODEL_FALLBACKS` de `llm_monitoring_routes.py`. OpenAI respeta además `OPE
 
 **No hay restricción a nivel de modelo por usuario en LLM Monitoring**. El plan **free** simplemente **no puede acceder al producto en absoluto** (`LLM_ALLOWED_PLANS = ['basic','premium','business','enterprise']`).
 
-El `update_llm_models_freetier_may2026.sql` lo que hace es elegir como "current" globalmente los modelos que mejor reflejan **lo que ven los usuarios free de cada LLM-app** (para no medir un GPT-5 caro si los usuarios reales del cliente ven GPT-5-chat-latest).
+El `scripts/migrations/update_llm_models_freetier_may2026.sql` lo que hace es elegir como "current" globalmente los modelos que mejor reflejan **lo que ven los usuarios free de cada LLM-app** (para no medir un GPT-5 caro si los usuarios reales del cliente ven GPT-5-chat-latest).
 
 ### Discovery de modelos nuevos
 
 Dos vías:
 
-**Vía 1 — Script `weekly_model_discovery_cron.py`:**
+**Vía 1 — Script `scripts/maintenance/weekly_model_discovery_cron.py`:**
 - Clase `ModelDiscoveryService`.
 - Consulta APIs de OpenAI / Google / Anthropic / Perplexity.
 - Filtra por `NON_CHAT_PATTERNS = ['image','codex','embedding','tts','whisper','dall-e','vision','realtime','audio','moderation','-lite','customtools']`.
@@ -725,7 +725,7 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 | `ANTHROPIC_CONCURRENCY` | 3 | Semáforo Anthropic. |
 | `PERPLEXITY_CONCURRENCY` | 4 | Semáforo Perplexity. |
 | `OPENAI_TIMEOUT` | 90 | Timeout request OpenAI. |
-| `OPENAI_CRON_SERVICE_TIER` | `flex` | Cola de OpenAI en el cron (batch diario, re-runs por cron, pasada de completitud, `rerun_single_project.py`). `flex` = misma respuesta a mitad de precio; `default` la desactiva. Las llamadas interactivas no la usan. Ver §13 "Flex processing". |
+| `OPENAI_CRON_SERVICE_TIER` | `flex` | Cola de OpenAI en el cron (batch diario, re-runs por cron, pasada de completitud, `scripts/maintenance/rerun_single_project.py`). `flex` = misma respuesta a mitad de precio; `default` la desactiva. Las llamadas interactivas no la usan. Ver §13 "Flex processing". |
 | `OPENAI_FLEX_TIMEOUT_SECONDS` | 240 | Timeout por petición en flex; si se agota, la petición se repite en la cola estándar (acotado para que Fini, 59 prompts a 4 en paralelo, nunca roce el timeout de proyecto de 45 min). |
 | `CRON_ALERT_FLEX_MIN_SHARE` | 0.7 | Alerta `openai_flex_share` (media) si menos de esta fracción de las respuestas de OpenAI del run se sirvió en flex. |
 | `OPENAI_FLEX_PRICE_FACTOR` | 0.5 | Factor sobre el precio del registry cuando la API confirma `service_tier=flex` (precio Batch). |
@@ -898,7 +898,7 @@ el 18/09); en flex baja a la mitad sin cambiar la respuesta (mismo `model` en la
 - `MultiLLMMonitoringService(service_tier=...)` propaga el tier a los providers (`set_service_tier`; no-op salvo
   OpenAI). El cron pasa `cron_service_tier()` (env `OPENAI_CRON_SERVICE_TIER`, default `flex`) en
   `_analyze_all_active_projects_locked`, en el re-run por proyecto de `/cron/daily-analysis?project_id=` y en
-  `rerun_single_project.py`. La pasada de completitud reutiliza el servicio del run, así que hereda el tier.
+  `scripts/maintenance/rerun_single_project.py`. La pasada de completitud reutiliza el servicio del run, así que hereda el tier.
 - Los análisis interactivos (primer análisis desde la UI, etc.) instancian el servicio sin tier: cola estándar,
   porque ahí la latencia sí importa.
 - `OpenAIProvider._chat_create` / `_post_responses_tiered`: añaden `service_tier` y el timeout de flex; si la API
@@ -950,7 +950,7 @@ Implementado en 2026-04-08. Cada provider recibe la **query raw + locale aparte*
 
 `COUNTRY_NAMES_LOCALIZED` traduce el país al idioma del prompt (ej. "España" en español, "Spain" en inglés).
 
-Test: `test_locale_fidelity.py` verifica que cada provider aplica el locale correctamente.
+Test: `scripts/manual_checks/test_locale_fidelity.py` verifica que cada provider aplica el locale correctamente.
 
 > ⚠️ Antes de este fix se usaba `execute_query("Hi")` para health check, lo que disparaba el retry chain y fallback gpt-5→gpt-4o innecesariamente. Ahora `test_connection()` es ligero y no dispara nada.
 
@@ -1032,7 +1032,7 @@ El análisis hace **cartesian product N × M tareas** por día. Cada tarea persi
 
 ### Prompt Clusters
 
-Añadido por `add_prompt_clusters_to_llm_monitoring.py`. Configuración a nivel proyecto en `llm_monitoring_projects.prompt_clusters JSONB`:
+Añadido por `scripts/migrations/add_prompt_clusters_to_llm_monitoring.py`. Configuración a nivel proyecto en `llm_monitoring_projects.prompt_clusters JSONB`:
 
 ```json
 {
@@ -1048,7 +1048,7 @@ Endpoints: `GET/PUT /clusters`, `rename`, `bulk-cluster`, `metrics`.
 ### Topic Clusters vs Prompt Clusters
 
 - **LLM Monitoring**: `topic_cluster` (singular, en queries) + `prompt_clusters` (config en project).
-- **Manual AI**: `topic_clusters` distinto (`add_topic_clusters_field.py`).
+- **Manual AI**: `topic_clusters` distinto (`scripts/migrations/add_topic_clusters_field.py`).
 
 Son conceptualmente lo mismo; nombres distintos por motivos históricos.
 
@@ -1101,7 +1101,7 @@ Fix discrepancia entre tabla y "Brand Mentions Analysis": el endpoint `/queries`
 
 - Validación de completitud por LLM (`completeness_by_llm`, `incomplete_llms`, `all_queries_analyzed` en el resultado).
 - Snapshots loguean warning cuando faltan queries.
-- Script `diagnose_llm_queries.py` para investigar.
+- Script `scripts/diagnostics/diagnose_llm_queries.py` para investigar.
 
 ### `IMPLEMENTACION_RETRY*.md` / `ANALISIS_RETRY_SYSTEM.md`
 
@@ -1120,7 +1120,7 @@ Eliminó el "análisis manual" del LLM Monitoring (botón ad-hoc de re-analizar 
 
 ### Otros cambios reflejados en código
 
-- **`LocaleContext`** (2026-04-08): cada provider recibe query raw + locale separado. Test `test_locale_fidelity.py`.
+- **`LocaleContext`** (2026-04-08): cada provider recibe query raw + locale separado. Test `scripts/manual_checks/test_locale_fidelity.py`.
 - **`test_connection()` ligero**: reemplaza `execute_query("Hi")` para health check, sin disparar retry chain ni fallback.
 
 ---
@@ -1193,17 +1193,17 @@ Ver `CLAUDE-stripe-cuotas-crons.md` (sección de troubleshooting). El webhook `i
 
 | Archivo | Cubre |
 |---|---|
-| `test_llm_cron_jobs.py` | Existencia de archivos cron, sintaxis Python, configuración `railway.json`, imports críticos, helpers. |
-| `test_llm_monitoring_endpoints.py` | Imports, estructura del Blueprint, presencia de funciones de endpoint, decoradores, registro en `app.py`, integración DB. |
-| `test_llm_monitoring_frontend.py` | Existencia de archivos HTML/JS/CSS, estructura HTML, funciones JS, estilos CSS, ruta en `app.py`, integración API, responsive, Chart.js. |
+| `scripts/manual_checks/test_llm_cron_jobs.py` | Existencia de archivos cron, sintaxis Python, configuración `railway.json`, imports críticos, helpers. |
+| `scripts/manual_checks/test_llm_monitoring_endpoints.py` | Imports, estructura del Blueprint, presencia de funciones de endpoint, decoradores, registro en `app.py`, integración DB. |
+| `scripts/manual_checks/test_llm_monitoring_frontend.py` | Existencia de archivos HTML/JS/CSS, estructura HTML, funciones JS, estilos CSS, ruta en `app.py`, integración API, responsive, Chart.js. |
 | `test_llm_monitoring_service.py` | Tests del servicio (asumido similar al patrón). |
 | `test_llm_providers.py` | Estructura providers, imports, `test_interface_implementation`, Factory pattern, helpers de BD (`get_model_pricing_from_db`, `get_current_model_for_provider`). |
-| `test_all_llm_providers.py` | **Test integración real con APIs** (calls reales — cuidado, consume cuota). |
-| `test_locale_fidelity.py` | Fidelidad del locale (LocaleContext aplicado correctamente por cada provider). |
-| `test_project_parallelism.py` | Comportamiento de `LLM_PROJECT_PARALLELISM` (paths secuencial vs paralelo, orden preservado). |
-| `test_project_timeout.py` | `run_project_with_timeout` (daemon + join, dict sintético `timed_out`). |
+| `scripts/manual_checks/test_all_llm_providers.py` | **Test integración real con APIs** (calls reales — cuidado, consume cuota). |
+| `scripts/manual_checks/test_locale_fidelity.py` | Fidelidad del locale (LocaleContext aplicado correctamente por cada provider). |
+| `scripts/manual_checks/test_project_parallelism.py` | Comportamiento de `LLM_PROJECT_PARALLELISM` (paths secuencial vs paralelo, orden preservado). |
+| `scripts/manual_checks/test_project_timeout.py` | `run_project_with_timeout` (daemon + join, dict sintético `timed_out`). |
 
-Adicionalmente: `test_cron_alerts.py`, `test_cron_routes.py`, `test_db_pool.py`.
+Adicionalmente: `scripts/manual_checks/test_cron_alerts.py`, `scripts/manual_checks/test_cron_routes.py`, `scripts/manual_checks/test_db_pool.py`.
 
 ---
 

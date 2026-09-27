@@ -46,8 +46,7 @@ cryptography==43.0.1
 # Para manejo de fechas
 python-dateutil==2.9.0
 
-# Cache y sesiones
-Flask-Session==0.8.0
+# Cache (Redis opcional para caché y rate limiting)
 redis==5.1.1
 
 # PostgreSQL
@@ -59,9 +58,6 @@ urllib3==2.2.3
 
 # Stripe for payments
 stripe==12.4.0
-
-# Scheduling
-schedule==1.2.2
 
 # ====================================================================
 # LLM Providers para Multi-LLM Brand Monitoring
@@ -79,17 +75,7 @@ anthropic==0.39.0
 # Google Generative AI (Gemini)
 google-generativeai==0.8.5
 
-# ====================================================================
-# Testing Dependencies
-# ====================================================================
+# Las dependencias de tests están en requirements-dev.txt (no van a producción).
 
-# pytest y plugins
-pytest==8.3.3
-pytest-mock==3.14.0
-pytest-cov==6.0.0
-pytest-asyncio==0.24.0
-
-# Para mocking y testing
-mock==5.1.0
 # Agent-Ready Scanner: DNS-AID lookups
 dnspython==2.6.1

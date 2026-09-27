@@ -163,7 +163,7 @@ updated_at      TIMESTAMP
 last_login_at   TIMESTAMP
 ```
 
-**Billing** (`migrate_billing_phase1.py`):
+**Billing** (`scripts/migrations/migrate_billing_phase1.py`):
 ```
 stripe_customer_id      TEXT
 plan                    VARCHAR(20) DEFAULT 'free'
@@ -180,7 +180,7 @@ pending_plan_date       TIMESTAMPTZ
 cancel_at_period_end    BOOLEAN
 ```
 
-**Pausas por cuota** (`migrate_quota_pause_fields.py`):
+**Pausas por cuota** (`scripts/migrations/migrate_quota_pause_fields.py`):
 ```
 ai_overview_paused_until    TIMESTAMPTZ
 ai_overview_paused_at       TIMESTAMPTZ
@@ -192,7 +192,7 @@ ai_overview_paused_reason   TEXT
 trial_used              BOOLEAN DEFAULT FALSE
 ```
 
-**Enterprise quota** (`migrate_enterprise_quotas.py`):
+**Enterprise quota** (`scripts/migrations/migrate_enterprise_quotas.py`):
 ```
 custom_quota_limit          INTEGER
 custom_quota_notes          TEXT
@@ -200,13 +200,13 @@ custom_quota_assigned_by    VARCHAR(255)
 custom_quota_assigned_date  TIMESTAMP
 ```
 
-**LLM custom limits** (`migrate_llm_enterprise_support.py`):
+**LLM custom limits** (`scripts/migrations/migrate_llm_enterprise_support.py`):
 ```
 custom_llm_prompts_limit        INTEGER
 custom_llm_monthly_units_limit  INTEGER
 ```
 
-**Topes por módulo Enterprise** (`migrate_enterprise_module_limits.py`, también en `init_database()`; resolución en `enterprise_limits.py`):
+**Topes por módulo Enterprise** (`scripts/migrations/migrate_enterprise_module_limits.py`, también en `init_database()`; resolución en `enterprise_limits.py`):
 ```
 custom_manual_ai_max_projects     INTEGER  -- NULL = sin tope
 custom_manual_ai_keywords_limit   INTEGER  -- min(custom, 200)
@@ -221,7 +221,7 @@ custom_llm_max_projects           INTEGER
 - `chk_current_plan`, `chk_pending_plan` (mismas listas).
 - `chk_quota_limit/used >= 0`.
 
-> El constraint de `plan` se reemplaza dinámicamente al añadir `enterprise` (`migrate_enterprise_quotas.py:65-72`) — patrón `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`.
+> El constraint de `plan` se reemplaza dinámicamente al añadir `enterprise` (`scripts/migrations/migrate_enterprise_quotas.py:65-72`) — patrón `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`.
 
 ### 3.2 `oauth_connections`
 
@@ -374,7 +374,7 @@ UNIQUE INDEX parcial: `(module_name, project_id, lower(invitee_email)) WHERE sta
   - `CREATE TABLE IF NOT EXISTS`.
   - `CREATE INDEX IF NOT EXISTS`.
   - Para CHECK constraints que evolucionan: `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`.
-- Casi todos usan `from database import get_db_connection`. Algunos (e.g. `migrate_selected_competitors.py`, `migrate_roles_phase1b.py`, `migrate_llm_staging_to_production.py`) abren conexión directa con `psycopg2.connect(os.getenv('DATABASE_URL'))`.
+- Casi todos usan `from database import get_db_connection`. Algunos (e.g. `scripts/migrations/migrate_selected_competitors.py`, `scripts/migrations/migrate_roles_phase1b.py`, `migrate_llm_staging_to_production.py`) abren conexión directa con `psycopg2.connect(os.getenv('DATABASE_URL'))`.
 
 ### Cómo se ejecutan
 
@@ -394,30 +394,30 @@ No hay un release-step automático que las dispare en cada deploy.
 ### Lista completa (40+ scripts en raíz)
 
 **`migrate_*.py`** (migraciones puras):
-- `migrate_add_error_fields.py`, `migrate_add_position_source.py`, `migrate_add_sources_field.py`, `migrate_add_trial_used.py`, `migrate_add_weighted_sov.py`, `migrate_add_weighted_sov_columns.py`.
-- `migrate_admin_perf_indexes.py` — `CREATE INDEX CONCURRENTLY` (requiere `autocommit=True`).
-- `migrate_billing_phase1.py`, `migrate_billing_simple.py`.
-- `migrate_competitors_structure.py`, `migrate_enterprise_quotas.py`.
-- `migrate_llm_add_country.py`, `migrate_llm_brand_fields.py`, `migrate_llm_enterprise_support.py`, `migrate_llm_execution_metadata.py`, `migrate_llm_model_discovery_v2.py`, `migrate_llm_prompt_limits.py`, `migrate_llm_queries_unique_constraint.py`, `migrate_llm_query_min_length.py`.
+- `scripts/migrations/migrate_add_error_fields.py`, `scripts/migrations/migrate_add_position_source.py`, `scripts/migrations/migrate_add_sources_field.py`, `scripts/migrations/migrate_add_trial_used.py`, `scripts/migrations/migrate_add_weighted_sov.py`, `scripts/migrations/migrate_add_weighted_sov_columns.py`.
+- `scripts/migrations/migrate_admin_perf_indexes.py` — `CREATE INDEX CONCURRENTLY` (requiere `autocommit=True`).
+- `scripts/migrations/migrate_billing_phase1.py`, `scripts/migrations/migrate_billing_simple.py`.
+- `scripts/migrations/migrate_competitors_structure.py`, `scripts/migrations/migrate_enterprise_quotas.py`.
+- `scripts/migrations/migrate_llm_add_country.py`, `scripts/migrations/migrate_llm_brand_fields.py`, `scripts/migrations/migrate_llm_enterprise_support.py`, `scripts/migrations/migrate_llm_execution_metadata.py`, `scripts/migrations/migrate_llm_model_discovery_v2.py`, `scripts/migrations/migrate_llm_prompt_limits.py`, `scripts/migrations/migrate_llm_queries_unique_constraint.py`, `scripts/migrations/migrate_llm_query_min_length.py`.
 - `migrate_llm_staging_to_production.py` — copia datos staging → prod (no migración de schema).
-- `migrate_manual_ai_quota_pause_fields.py`, `migrate_quota_pause_fields.py`.
+- `scripts/migrations/migrate_manual_ai_quota_pause_fields.py`, `scripts/migrations/migrate_quota_pause_fields.py`.
 - `migrate_project_access_control.py` (acceso compartido).
-- `migrate_roles_phase1b.py`, `migrate_roles_simple.py`.
-- `migrate_selected_competitors.py`.
+- `scripts/migrations/migrate_roles_phase1b.py`, `scripts/migrations/migrate_roles_simple.py`.
+- `scripts/migrations/migrate_selected_competitors.py`.
 
 **`add_*.py`** (ALTER TABLE simples):
-- `add_competitors_fields.py`, `add_missing_columns_production.py`, `add_prompt_clusters_to_llm_monitoring.py`, `add_selected_competitors_to_ai_mode.py`, `add_topic_clusters_field.py`, `add_topic_clusters_to_ai_mode.py`, `add_updated_at_field.py`.
+- `scripts/migrations/add_competitors_fields.py`, `add_missing_columns_production.py`, `scripts/migrations/add_prompt_clusters_to_llm_monitoring.py`, `scripts/migrations/add_selected_competitors_to_ai_mode.py`, `scripts/migrations/add_topic_clusters_field.py`, `scripts/migrations/add_topic_clusters_to_ai_mode.py`, `scripts/migrations/add_updated_at_field.py`.
 
 **`create_*.py`** (creación de tablas en bloque):
-- `create_ai_mode_tables.py`, `create_ai_mode_tables_production.py`, `create_ai_table.py`, `create_global_domains_table.py`, `create_llm_monitoring_tables.py`, `create_manual_ai_tables.py`.
+- `scripts/migrations/create_ai_mode_tables.py`, `create_ai_mode_tables_production.py`, `create_ai_table.py`, `scripts/migrations/create_global_domains_table.py`, `scripts/migrations/create_llm_monitoring_tables.py`, `create_manual_ai_tables.py`.
 
 **Bootstrap**: `init_database.py`.
 
 **SQL puros** (`*.sql`):
-- `migrate_to_gemini_flash.sql` — switch de modelo Google a Gemini 3 Flash (BEGIN/COMMIT explícitos).
-- `update_llm_models.sql` — actualiza modelos (GPT-5/Gemini 3/Claude Sonnet 4.5/Sonar) — Diciembre 2025.
-- `update_llm_models_freetier_may2026.sql` — modelos free-tier (mayo 2026).
-- `update_llm_pricing_2026.sql` — pricing en `llm_model_registry` (febrero 2026).
+- `scripts/migrations/migrate_to_gemini_flash.sql` — switch de modelo Google a Gemini 3 Flash (BEGIN/COMMIT explícitos).
+- `scripts/migrations/update_llm_models.sql` — actualiza modelos (GPT-5/Gemini 3/Claude Sonnet 4.5/Sonar) — Diciembre 2025.
+- `scripts/migrations/update_llm_models_freetier_may2026.sql` — modelos free-tier (mayo 2026).
+- `scripts/migrations/update_llm_pricing_2026.sql` — pricing en `llm_model_registry` (febrero 2026).
 - `production_backup_20251019_230248.sql` — backup puntual (no es script ejecutable).
 
 ---
@@ -511,7 +511,7 @@ finally:
 Solo se usa en 3 sitios:
 - `manual_ai/services/cron_service.py:63` (advisory lock).
 - `daily_quota_reset_cron.py:63` (advisory lock).
-- `migrate_admin_perf_indexes.py:44` — para `CREATE INDEX CONCURRENTLY` (no se puede dentro de transacción).
+- `scripts/migrations/migrate_admin_perf_indexes.py:44` — para `CREATE INDEX CONCURRENTLY` (no se puede dentro de transacción).
 
 ### 5.6 Idempotencia con `INSERT ... ON CONFLICT`
 
@@ -646,28 +646,27 @@ psql "$DATABASE_URL" < production_backup_20251019_230248.sql
 Patrón:
 1. `ADD COLUMN IF NOT EXISTS` con `DEFAULT NULL` o valor seguro.
 2. Backfill posterior si hace falta (en otro script).
-3. Para `CREATE INDEX` en tablas grandes: `CONCURRENTLY` con `autocommit=True` (`migrate_admin_perf_indexes.py:44`).
+3. Para `CREATE INDEX` en tablas grandes: `CONCURRENTLY` con `autocommit=True` (`scripts/migrations/migrate_admin_perf_indexes.py:44`).
 
-`migrate_llm_execution_metadata.py:20` lo documenta como zero-downtime.
+`scripts/migrations/migrate_llm_execution_metadata.py:20` lo documenta como zero-downtime.
 
 ### Auditoría manual
 
 | Script | Para qué |
 |---|---|
 | `audit_manual_ai_system.py` | Estado de Manual AI. |
-| `check_billing_migration.py` | Estado migración billing. |
-| `check_llm_models_config.py` | Modelos LLM activos. |
-| `check_llm_project_config.py` | Config de un proyecto LLM. |
-| `check_llm_tables.py` | Tablas LLM. |
-| `check_manual_ai_system.py` | Sistema Manual AI. |
-| `check_production_ready.py` | Pre-deploy check. |
+| `scripts/diagnostics/check_billing_migration.py` | Estado migración billing. |
+| `scripts/diagnostics/check_llm_models_config.py` | Modelos LLM activos. |
+| `scripts/diagnostics/check_llm_project_config.py` | Config de un proyecto LLM. |
+| `scripts/diagnostics/check_llm_tables.py` | Tablas LLM. |
+| `scripts/diagnostics/check_production_ready.py` | Pre-deploy check. |
 | `check_projects_confusion.py` | Conflictos cross-módulo. |
-| `check_setup.py` | Setup general. |
-| `check_staging_config.py` | Diff staging vs prod. |
-| `check_environment_vars.py` | Env vars críticas. |
-| `webhook_diagnostics.py` | Inspeccionar webhooks recibidos. |
-| `diagnose_cron_skip.py` | Por qué un cron saltó algún proyecto. |
-| `find_user_by_id.py` | Buscar usuario. |
+| `scripts/diagnostics/check_setup.py` | Setup general. |
+| `scripts/diagnostics/check_staging_config.py` | Diff staging vs prod. |
+| `scripts/diagnostics/check_environment_vars.py` | Env vars críticas. |
+| `scripts/diagnostics/webhook_diagnostics.py` | Inspeccionar webhooks recibidos. |
+| `scripts/diagnostics/diagnose_cron_skip.py` | Por qué un cron saltó algún proyecto. |
+| `scripts/diagnostics/find_user_by_id.py` | Buscar usuario. |
 | `diagnostic_endpoint.py` | HTTP `/diagnostic/imports`. |
 
 ---
@@ -744,16 +743,16 @@ Ver `CLAUDE-stripe-cuotas-crons.md` §12. Motivó el cron Stripe-aware con live-
 
 | Archivo | Qué cubre |
 |---|---|
-| `test_db_pool.py` | **Suite explícita del pool**. 12 tests: init con minconn/maxconn, get/use/close, reuso de conn física entre ciclos, RealDictCursor preservado, context manager con rollback, **50 threads concurrentes**, `DB_POOL_DISABLED=true` bypass, patrón legacy try/finally, `close()` doble es harmless. |
-| `test_webhook_hardening.py` | Idempotencia de `stripe_webhook_events`, extracción robusta del periodo, **patrón SAVEPOINT** en `resume_quota_pauses_for_user` (verifica que el código fuente contiene `SAVEPOINT before_manual_ai_resume`). |
-| `test_stripe_aware_reset.py` | Filtro Stripe-aware en cron de cuotas. |
+| `scripts/manual_checks/test_db_pool.py` | **Suite explícita del pool**. 12 tests: init con minconn/maxconn, get/use/close, reuso de conn física entre ciclos, RealDictCursor preservado, context manager con rollback, **50 threads concurrentes**, `DB_POOL_DISABLED=true` bypass, patrón legacy try/finally, `close()` doble es harmless. |
+| `scripts/manual_checks/test_webhook_hardening.py` | Idempotencia de `stripe_webhook_events`, extracción robusta del periodo, **patrón SAVEPOINT** en `resume_quota_pauses_for_user` (verifica que el código fuente contiene `SAVEPOINT before_manual_ai_resume`). |
+| `scripts/manual_checks/test_stripe_aware_reset.py` | Filtro Stripe-aware en cron de cuotas. |
 
 ### Tests adicionales que tocan BD
 
-- `test_cron_alerts.py` — alertas leyendo `llm_monitoring_analysis_runs`.
-- `test_cron_routes.py` — endpoints `/api/cron/*`.
-- `test_llm_cron_jobs.py`, `test_project_parallelism.py`, `test_project_timeout.py` — cron LLM.
-- `test_ai_mode_system.py`, `test_locale_fidelity.py`, `test_llm_monitoring_*`, `test_all_llm_providers.py`.
+- `scripts/manual_checks/test_cron_alerts.py` — alertas leyendo `llm_monitoring_analysis_runs`.
+- `scripts/manual_checks/test_cron_routes.py` — endpoints `/api/cron/*`.
+- `scripts/manual_checks/test_llm_cron_jobs.py`, `scripts/manual_checks/test_project_parallelism.py`, `scripts/manual_checks/test_project_timeout.py` — cron LLM.
+- `scripts/manual_checks/test_ai_mode_system.py`, `scripts/manual_checks/test_locale_fidelity.py`, `test_llm_monitoring_*`, `scripts/manual_checks/test_all_llm_providers.py`.
 
 ### Lo que NO está cubierto
 

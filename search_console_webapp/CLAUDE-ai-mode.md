@@ -128,14 +128,14 @@ AI Mode es estructuralmente una réplica de Manual AI (mismo patrón de blueprin
 
 | Archivo | Qué hace |
 |---|---|
-| `create_ai_mode_tables.py` | Versión local. |
+| `scripts/migrations/create_ai_mode_tables.py` | Versión local. |
 | `create_ai_mode_tables_production.py` | Versión producción (mismo SQL; ⚠️ credenciales hardcodeadas). |
-| `add_selected_competitors_to_ai_mode.py` | Añade `selected_competitors JSONB`. |
-| `add_topic_clusters_to_ai_mode.py` | Añade `topic_clusters JSONB` + índice GIN. |
-| `migrate_analysis_frequency_fields.py` | Añade `analysis_frequency_days INTEGER DEFAULT 1` a `manual_ai_projects` y `ai_mode_projects` (2026-06-10). |
-| `create_global_domains_table.py` | Crea la tabla de dominios globales (mismo esquema que usa `ai_mode_global_domains`). |
+| `scripts/migrations/add_selected_competitors_to_ai_mode.py` | Añade `selected_competitors JSONB`. |
+| `scripts/migrations/add_topic_clusters_to_ai_mode.py` | Añade `topic_clusters JSONB` + índice GIN. |
+| `scripts/migrations/migrate_analysis_frequency_fields.py` | Añade `analysis_frequency_days INTEGER DEFAULT 1` a `manual_ai_projects` y `ai_mode_projects` (2026-06-10). |
+| `scripts/migrations/create_global_domains_table.py` | Crea la tabla de dominios globales (mismo esquema que usa `ai_mode_global_domains`). |
 
-> ℹ️ La tabla `ai_mode_global_domains` **existe en producción** (backfill 2026-06-19, ~52k filas) y la usa `domains_service.py:store_global_domains_detected`. Su esquema replica el de `create_global_domains_table.py`; el `CREATE TABLE` específico de `ai_mode_global_domains` se aplicó a mano (no aparece literal en el repo).
+> ℹ️ La tabla `ai_mode_global_domains` **existe en producción** (backfill 2026-06-19, ~52k filas) y la usa `domains_service.py:store_global_domains_detected`. Su esquema replica el de `scripts/migrations/create_global_domains_table.py`; el `CREATE TABLE` específico de `ai_mode_global_domains` se aplicó a mano (no aparece literal en el repo).
 >
 > ⚠️ Los campos de pause-by-quota (`is_paused_by_quota`, `paused_until`, `paused_at`, `paused_reason`) existen en producción (el código los usa con confianza) pero su SQL de creación no aparece en el repo; probablemente se aplicaron manualmente vía psql.
 
@@ -151,10 +151,10 @@ AI Mode es estructuralmente una réplica de Manual AI (mismo patrón de blueprin
 
 | Archivo | Qué hace |
 |---|---|
-| `test_ai_mode_system.py` | Verifica tablas, conexión y registro del blueprint. |
-| `quick_test_ai_mode.py` | Existencia de archivos clave. |
-| `verify_ai_mode_brand_detection.py` | Verifica detección de marca para un proyecto. |
-| `verify_ai_mode_methods.py` | Comprueba que ciertos métodos existen en el código. |
+| `scripts/manual_checks/test_ai_mode_system.py` | Verifica tablas, conexión y registro del blueprint. |
+| `scripts/diagnostics/quick_test_ai_mode.py` | Existencia de archivos clave. |
+| `scripts/diagnostics/verify_ai_mode_brand_detection.py` | Verifica detección de marca para un proyecto. |
+| `scripts/diagnostics/verify_ai_mode_methods.py` | Comprueba que ciertos métodos existen en el código. |
 
 **No hay tests pytest reales.** Todo son scripts de inspección/verificación CLI sin asserts formales.
 
@@ -177,7 +177,7 @@ updated_at            TIMESTAMP
 -- migraciones posteriores:
 selected_competitors  JSONB DEFAULT '[]'   -- max 10 dominios
 topic_clusters        JSONB DEFAULT NULL   -- índice GIN idx_ai_mode_projects_topic_clusters
-analysis_frequency_days INTEGER DEFAULT 1  -- migrate_analysis_frequency_fields.py (1=diario hist., 7=semanal); cron usa COALESCE(...,1)
+analysis_frequency_days INTEGER DEFAULT 1  -- scripts/migrations/migrate_analysis_frequency_fields.py (1=diario hist., 7=semanal); cron usa COALESCE(...,1)
 -- pause-by-quota (migración no localizada en repo):
 is_paused_by_quota    BOOLEAN
 paused_until          TIMESTAMP
@@ -256,7 +256,7 @@ created_at          TIMESTAMP
 
 ### `ai_mode_global_domains`
 
-Tabla **en producción** (backfill 2026-06-19, ~52k filas). El `CREATE` no está literal en `create_ai_mode_tables.py`; su esquema replica el de `create_global_domains_table.py` y se infiere de `domains_service.py`. Columnas usadas:
+Tabla **en producción** (backfill 2026-06-19, ~52k filas). El `CREATE` no está literal en `scripts/migrations/create_ai_mode_tables.py`; su esquema replica el de `scripts/migrations/create_global_domains_table.py` y se infiere de `domains_service.py`. Columnas usadas:
 
 ```
 project_id, keyword_id, analysis_date
@@ -574,7 +574,7 @@ AbortSignal.timeout(60000)
 2. `_get_active_projects` → SELECT con los filtros de §7.
 3. Itera **secuencial** (no paralelo, a diferencia de LLM Monitoring):
    - Verifica plan/billing del user otra vez.
-   - Si ya hay resultados en `ai_mode_results` dentro de la ventana `analysis_frequency_days` del proyecto (default 1 = comportamiento histórico "hoy"; 7 = semanal; NUEVO 2026-06-10, migración `migrate_analysis_frequency_fields.py`) → skip.
+   - Si ya hay resultados en `ai_mode_results` dentro de la ventana `analysis_frequency_days` del proyecto (default 1 = comportamiento histórico "hoy"; 7 = semanal; NUEVO 2026-06-10, migración `scripts/migrations/migrate_analysis_frequency_fields.py`) → skip.
    - Llama a `analysis_service.run_project_analysis(project_id, force_overwrite=False, user_id=...)`.
    - Si devuelve `error in ('QUOTA_EXCEEDED', 'project_paused_quota')` → cuenta como skipped.
    - Crea snapshot diario + evento `daily_analysis`.
@@ -728,10 +728,10 @@ Es **deuda conocida**: las listas de palabras positivas/negativas están sólo e
 
 | Archivo | Cubre |
 |---|---|
-| `test_ai_mode_system.py` | Existencia de tablas + acceso. |
-| `quick_test_ai_mode.py` | Smoke estructural (existencia de archivos). |
-| `verify_ai_mode_brand_detection.py` | Imprime detección de marca para `project_id` dado. |
-| `verify_ai_mode_methods.py` | Verifica que ciertos métodos esperados existen. |
+| `scripts/manual_checks/test_ai_mode_system.py` | Existencia de tablas + acceso. |
+| `scripts/diagnostics/quick_test_ai_mode.py` | Smoke estructural (existencia de archivos). |
+| `scripts/diagnostics/verify_ai_mode_brand_detection.py` | Imprime detección de marca para `project_id` dado. |
+| `scripts/diagnostics/verify_ai_mode_methods.py` | Verifica que ciertos métodos esperados existen. |
 
 **No hay tests pytest**. Todo son scripts CLI sin asserts.
 

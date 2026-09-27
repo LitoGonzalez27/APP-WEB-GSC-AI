@@ -135,7 +135,7 @@ def test_admin_template_has_project_limits_table():
 
 
 def test_migration_and_init_database_cover_columns():
-    mig = _read("migrate_project_quota_limits.py")
+    mig = _read("scripts/migrations/migrate_project_quota_limits.py")
     init = _read("database.py")
     for table, col in [
         ("manual_ai_projects", "monthly_ru_limit"),

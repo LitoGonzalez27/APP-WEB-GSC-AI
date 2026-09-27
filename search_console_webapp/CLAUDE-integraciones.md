@@ -191,7 +191,7 @@ En `services/serp_service.py`:
 | Variable | Notas |
 |---|---|
 | `SERPAPI_KEY` | Canónica (app principal). |
-| `SERPAPI_API_KEY` | Alias usado por AI Mode service y `quick_test_ai_mode.py`. |
+| `SERPAPI_API_KEY` | Alias usado por AI Mode service y `scripts/diagnostics/quick_test_ai_mode.py`. |
 
 > ⚠️ **Inconsistencia de naming**: dos formas conviven. Configurar ambas para evitar gaps.
 
@@ -560,7 +560,7 @@ Documentos `.md` de troubleshooting:
 | `FIX_DISCREPANCIA_MENCIONES_LLM.md` | Discrepancia de menciones detectadas (LLM). |
 | `ANALISIS_RETRY_SYSTEM.md`, `IMPLEMENTACION_RETRY*.md` | Diseño/implementación del sistema de retry de LLM. |
 | `MEJORAS_LLM_MONITORING.md`, `OPTIMIZACION_CRON_DIARIO.md` | Mejoras de rendimiento y paralelismo de crons. |
-| `FIX_GRIDJS_ERROR.md` | Bug de frontend (no integración externa). |
+| (antes `FIX_GRIDJS_ERROR.md`) | Bug de frontend ya cerrado; nota eliminada el 2026-09-27 (ver `CLAUDE-frontend.md`). |
 
 > **NO hay incidentes documentados** de Brevo, Jina, GSC ni reCAPTCHA en archivos `.md`.
 
@@ -576,13 +576,13 @@ Documentos `.md` de troubleshooting:
 
 | Archivo | Cubre |
 |---|---|
-| `test_all_llm_providers.py` | Diagnóstico real contra OpenAI / Anthropic / Google / Perplexity (requiere API keys vivas; ejecutable como `railway run python …`). |
+| `scripts/manual_checks/test_all_llm_providers.py` | Diagnóstico real contra OpenAI / Anthropic / Google / Perplexity (requiere API keys vivas; ejecutable como `railway run python …`). |
 | `test_llm_providers.py` | Tests unitarios de providers. |
-| `test_locale_fidelity.py` | Verifica fidelidad de locale en LLM responses. |
-| `test_llm_cron_jobs.py`, `test_llm_monitoring_endpoints.py`, `test_llm_monitoring_frontend.py`, `test_llm_monitoring_service.py` | Cron y endpoints de LLM Monitoring. |
-| `test_stripe_aware_reset.py`, `test_webhook_hardening.py` | Stripe (mocks de `stripe.Subscription.retrieve`). |
-| `test_cron_alerts.py`, `test_cron_routes.py`, `test_db_pool.py`, `test_project_timeout.py`, `test_project_parallelism.py` | Infra/crons. |
-| `test_ai_mode_system.py`, `quick_test_ai_mode.py` | AI Mode (incluye check de `SERPAPI_API_KEY`). |
+| `scripts/manual_checks/test_locale_fidelity.py` | Verifica fidelidad de locale en LLM responses. |
+| `scripts/manual_checks/test_llm_cron_jobs.py`, `scripts/manual_checks/test_llm_monitoring_endpoints.py`, `scripts/manual_checks/test_llm_monitoring_frontend.py`, `test_llm_monitoring_service.py` | Cron y endpoints de LLM Monitoring. |
+| `scripts/manual_checks/test_stripe_aware_reset.py`, `scripts/manual_checks/test_webhook_hardening.py` | Stripe (mocks de `stripe.Subscription.retrieve`). |
+| `scripts/manual_checks/test_cron_alerts.py`, `scripts/manual_checks/test_cron_routes.py`, `scripts/manual_checks/test_db_pool.py`, `scripts/manual_checks/test_project_timeout.py`, `scripts/manual_checks/test_project_parallelism.py` | Infra/crons. |
+| `scripts/manual_checks/test_ai_mode_system.py`, `scripts/diagnostics/quick_test_ai_mode.py` | AI Mode (incluye check de `SERPAPI_API_KEY`). |
 
 `tests/` (carpeta) — tests más estructurados de LLM Monitoring (`test_llm_monitoring_e2e.py`, `…_performance.py`, `…_service.py`, `test_llm_providers.py`).
 

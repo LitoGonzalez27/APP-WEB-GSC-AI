@@ -5,7 +5,7 @@ Enterprise Limits - Topes por módulo para usuarios Enterprise
 
 Centraliza la resolución de los límites "custom" que el admin puede asignar
 a un usuario con plan `enterprise` (columnas `users.custom_*`, ver
-`migrate_enterprise_module_limits.py`):
+`scripts/migrations/migrate_enterprise_module_limits.py`):
 
     Módulo          Máx. proyectos                  Máx. keywords/prompts por proyecto
     ------          --------------                  ----------------------------------
