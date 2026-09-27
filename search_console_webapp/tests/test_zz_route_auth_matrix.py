@@ -86,7 +86,10 @@ def build_matrix(flask_app_module, db_url):
 
 
 def test_route_auth_matrix_matches_snapshot(flask_app, test_db_url):
-    current = build_matrix(flask_app, test_db_url)
+    try:
+        current = build_matrix(flask_app, test_db_url)
+    finally:
+        truncate_all_tables(test_db_url)
 
     if os.environ.get("UPDATE_SNAPSHOTS") == "1":
         SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)

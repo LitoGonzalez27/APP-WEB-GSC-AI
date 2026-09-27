@@ -193,8 +193,11 @@ def flask_app(test_db_url):
 
 @pytest.fixture
 def clean_db(test_db_url):
+    """Base vacía al empezar y al terminar: los tests que vienen detrás (p. ej.
+    los e2e, que se saltan si no hay usuarios) la encuentran como estaba."""
     truncate_all_tables(test_db_url)
     yield test_db_url
+    truncate_all_tables(test_db_url)
 
 
 SEED_USER_EMAIL = "usuario.test@example.invalid"

@@ -1173,8 +1173,8 @@
  },
  "POST /debug-ai-detection [debug_ai_detection]": {
   "anon": "401",
-  "paid": "400",
-  "user": "400"
+  "paid": "403",
+  "user": "403"
  },
  "POST /download-excel [download_excel]": {
   "anon": "401",
