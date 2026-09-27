@@ -20,7 +20,7 @@ IMG=clicandseo-tests:py312
 
 # Contexto mínimo (solo requirements y Dockerfile): no se añade .dockerignore al
 # repo para no alterar el contexto de build de Railway.
-COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$APP_DIR" -cf - requirements.txt tests/docker/Dockerfile \
+COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$APP_DIR" -cf - requirements.txt requirements-dev.txt tests/docker/Dockerfile \
   | docker build -q -t "$IMG" -f tests/docker/Dockerfile - >/dev/null
 
 cleanup() {

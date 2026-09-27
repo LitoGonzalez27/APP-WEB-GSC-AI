@@ -3,7 +3,7 @@
 > Auditoría hecha el 2026-09-13 con las claves de Railway (prod) y la BD de producción (solo lectura). Regla de producto vigente
 > (`CLAUDE-llm-monitoring.md` §5): el modelo "current" de cada proveedor debe ser el que ven los **usuarios gratuitos** de la app
 > de consumo (ChatGPT, Claude.ai, Gemini app, Perplexity). Aquí se compara eso con lo que la app usa hoy y con lo que la API permite.
-> **Actualización 2026-09-13 (tarde)**: aplicado en **staging** (`migrate_models_2026_09.py --apply`): Google current
+> **Actualización 2026-09-13 (tarde)**: aplicado en **staging** (`scripts/migrations/migrate_models_2026_09.py --apply`): Google current
 > `gemini-3.6-flash` (0,75/3,75), `claude-sonnet-5` 2/10, `gpt-5.5` **5/30** (el registry tenía 2,5/10), `gpt-5.3-chat-latest`
 > no disponible, Perplexity servido por Agent API. Descubierto y arreglado: `init_database()` volvía a poner
 > `gemini-3.5-flash` como current en cada arranque (por eso 3.6/3.7 nunca se quedaban). **Producción: aplicado también el 2026-09-13 18:44** (misma migración, 6 cambios,

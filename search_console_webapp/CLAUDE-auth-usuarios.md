@@ -74,8 +74,8 @@
 
 | Archivo | Qué hace |
 |---|---|
-| `migrate_roles_phase1b.py` | Migración formal `AI User` → `user`, añade CHECK `chk_user_role IN ('user','admin')`. |
-| `migrate_roles_simple.py` | Versión rápida del mismo cambio (también asigna planes beta). |
+| `scripts/migrations/migrate_roles_phase1b.py` | Migración formal `AI User` → `user`, añade CHECK `chk_user_role IN ('user','admin')`. |
+| `scripts/migrations/migrate_roles_simple.py` | Versión rápida del mismo cambio (también asigna planes beta). |
 | `verificacion_completa_fase1b.py` | Script de verificación post-migración. |
 
 ### Admin
@@ -83,11 +83,11 @@
 | Archivo | Qué contiene |
 |---|---|
 | `admin_billing_panel.py` | `log_admin_action`, `get_users_with_billing`, `update_user_plan_manual`, `assign_custom_quota`, `remove_custom_quota`, `reset_user_quota_manual`, `get_user_billing_details`. |
-| `admin_billing_routes.py` | Rutas adicionales del admin (dashboard de billing). |
+| ~~`admin_billing_routes.py`~~ | Eliminado el 2026-09-27: nunca se importaba (sus rutas estaban dentro de un docstring "para pegar en app.py"). |
 
 ### Diagnóstico/utilidades
 
-`oauth_diagnostic.py`, `debug_oauth_flow.py`, `find_user_by_id.py`, `simple_user_diagnosis.py`, `check_environment_vars.py`, `check_production_ready.py`, `check_staging_config.py`, `check_setup.py`.
+`scripts/diagnostics/oauth_diagnostic.py`, `scripts/diagnostics/debug_oauth_flow.py`, `scripts/diagnostics/find_user_by_id.py`, `scripts/diagnostics/simple_user_diagnosis.py`, `scripts/diagnostics/check_environment_vars.py`, `scripts/diagnostics/check_production_ready.py`, `scripts/diagnostics/check_staging_config.py`, `scripts/diagnostics/check_setup.py`.
 
 ### Templates Jinja2 (todas en `/templates/`)
 
@@ -286,7 +286,7 @@ Todos en `auth.py`:
 
 - `'user'` (default).
 - `'admin'`.
-- Constraint `chk_user_role CHECK (role IN ('user','admin'))` añadido por `migrate_roles_phase1b.py`.
+- Constraint `chk_user_role CHECK (role IN ('user','admin'))` añadido por `scripts/migrations/migrate_roles_phase1b.py`.
 - **Histórico**: existía `'AI User'` que daba permisos AI sin pagar — **eliminado**.
 
 ### Cómo asignar admin
@@ -314,7 +314,7 @@ Endpoints decorados `@admin_required`:
 - `/admin/stats/detailed`.
 - `/admin/debug-stats`, `/admin/fix-dates`.
 
-Adicionales en `admin_billing_routes.py`: `/admin/billing`, `/admin/billing-stats`, `/admin/users/<id>/update-plan`.
+`/admin/billing`, `/admin/billing-stats` y `/admin/users/<id>/update-plan` solo existían en `admin_billing_routes.py`, que nunca se registró y se eliminó el 2026-09-27; las rutas reales de admin están en `auth.py` (`/admin/users/<id>/change-plan` L2433, `assign-custom-quota` L2459, `remove-custom-quota` L2499, `reset-quota` L2520, `billing-details`).
 
 ---
 
@@ -620,12 +620,12 @@ Comentario en código: *"Railway termina SSL y reenvía HTTP internamente. Sin P
 
 Solo scripts de diagnóstico (no son tests pytest):
 
-- `oauth_diagnostic.py`
-- `debug_oauth_flow.py`
-- `find_user_by_id.py`
-- `simple_user_diagnosis.py`
+- `scripts/diagnostics/oauth_diagnostic.py`
+- `scripts/diagnostics/debug_oauth_flow.py`
+- `scripts/diagnostics/find_user_by_id.py`
+- `scripts/diagnostics/simple_user_diagnosis.py`
 - `verificacion_completa_fase1b.py`
-- `check_environment_vars.py`, `check_setup.py`, `check_production_ready.py`, `check_staging_config.py`.
+- `scripts/diagnostics/check_environment_vars.py`, `scripts/diagnostics/check_setup.py`, `scripts/diagnostics/check_production_ready.py`, `scripts/diagnostics/check_staging_config.py`.
 
 Testing manual del flow de auth se hace contra staging Railway. **Es un gap notable** que conviene priorizar.
 

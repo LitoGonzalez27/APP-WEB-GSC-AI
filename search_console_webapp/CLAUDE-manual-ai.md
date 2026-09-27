@@ -127,7 +127,6 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 | Archivo | Qué contiene |
 |---|---|
 | `templates/manual_ai_dashboard.html` | Plantilla principal (1973 líneas). |
-| `templates/paywall_manual_ai.html` | Paywall para usuarios free. |
 | `static/js/manual-ai-system-modular.js` | Entry point ES modules (único que carga el template). |
 | ~~`static/js/manual-ai-system.js`~~ | Monolito JS eliminado (ya no existe en el repo). |
 | `static/js/manual-ai/*.js` | Submódulos: `manual-ai-core.js`, `-projects.js`, `-keywords.js`, `-analysis.js`, `-charts.js`, `-competitors.js`, `-clusters.js`, `-modals.js`, `-exports.js`, `-utils.js`. **`-analytics.js` es ahora un barrel (~13 líneas)** que reexporta 6 sub-módulos temáticos: `-analytics-core.js`, `-analytics-domains.js`, `-analytics-urls.js`, `-analytics-table.js`, `-analytics-comparative.js`, `-analytics-aio-organic.js`. |
@@ -137,15 +136,15 @@ Los tres sistemas comparten patrón de arquitectura (blueprint Flask + repos + s
 | Archivo | Qué hace |
 |---|---|
 | `create_manual_ai_tables.py` | Crea las 5 tablas base + índices. |
-| `create_global_domains_table.py` | `manual_ai_global_domains`. |
-| `add_competitors_fields.py` | Añade `selected_competitors JSONB`. |
-| `add_topic_clusters_field.py` | Añade `topic_clusters JSONB`. |
-| `migrate_manual_ai_quota_pause_fields.py` | Añade `is_paused_by_quota`, `paused_until`, `paused_at`, `paused_reason`. |
-| `migrate_analysis_frequency_fields.py` | Añade `analysis_frequency_days` a `manual_ai_projects` y `ai_mode_projects` (2026-06-10). |
+| `scripts/migrations/create_global_domains_table.py` | `manual_ai_global_domains`. |
+| `scripts/migrations/add_competitors_fields.py` | Añade `selected_competitors JSONB`. |
+| `scripts/migrations/add_topic_clusters_field.py` | Añade `topic_clusters JSONB`. |
+| `scripts/migrations/migrate_manual_ai_quota_pause_fields.py` | Añade `is_paused_by_quota`, `paused_until`, `paused_at`, `paused_reason`. |
+| `scripts/migrations/migrate_analysis_frequency_fields.py` | Añade `analysis_frequency_days` a `manual_ai_projects` y `ai_mode_projects` (2026-06-10). |
 
 ### Tests / diagnóstico
 
-Scripts vigentes: `check_manual_ai_system.py`, `diagnose_cron_skip.py`. Los scripts de verificación de la migración (`audit_manual_ai_system.py`, `verify_manual_ai_refactoring.py`, `verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`) y el test de caracterización del blueprint (`tests/test_manual_ai_contract.py`, que congelaba el contrato de las 36 rutas) se eliminaron (último limpiado en commit 91a0f7a). El dato **36 endpoints** sigue siendo correcto (ver §8). Cobertura de **lógica de negocio** sigue ~0% (ver §14).
+Script vigente: `scripts/diagnostics/diagnose_cron_skip.py` (`check_manual_ai_system.py` importaba un módulo inexistente y se eliminó el 2026-09-27). Los scripts de verificación de la migración (`audit_manual_ai_system.py`, `verify_manual_ai_refactoring.py`, `verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`) y el test de caracterización del blueprint (`tests/test_manual_ai_contract.py`, que congelaba el contrato de las 36 rutas) se eliminaron (último limpiado en commit 91a0f7a). El dato **36 endpoints** sigue siendo correcto (ver §8). Cobertura de **lógica de negocio** sigue ~0% (ver §14).
 
 ---
 
@@ -362,7 +361,7 @@ Ahora (`_expand_collapsed_aio` + `_fetch_expanded_aio`):
 
 El mismo bug existía en el flujo web (`app.py`, análisis de keyword) y está corregido igual (sin re-fetch).
 
-**Reparación** (`repair_collapsed_aio.py`, dry-run por defecto): `mark --apply` marca las filas históricas con `aio_expansion.status='failed_legacy'` (no recuperables: el token y la SERP de ese día ya no existen); `reanalyze --date <hoy> --apply` re-analiza las filas collapsed del día en curso.
+**Reparación** (`scripts/maintenance/repair_collapsed_aio.py`, dry-run por defecto): `mark --apply` marca las filas históricas con `aio_expansion.status='failed_legacy'` (no recuperables: el token y la SERP de ese día ya no existen); `reanalyze --date <hoy> --apply` re-analiza las filas collapsed del día en curso.
 
 ### Coste
 
@@ -502,7 +501,7 @@ Llama a `/manual-ai/api/cron/daily-analysis?async=1` con Bearer `CRON_TOKEN`. El
 
 **Por qué NO se ejecutan ni Procfile ni railway.json** (confirmado por API: el servicio web `Clicandseo` no tiene `cronSchedule`):
 - El arranque lo gobierna `nixpacks.toml` (`[phases.start] = "python3 app.py"`), así que el `Procfile` es inerte en Railway. La línea `cron:` del Procfile se eliminó el 2026-06-19 (no había servicio que la corriera).
-- El array `crons` de `railway.json` no es parte del esquema de Railway (solo honra `deploy.cronSchedule`), así que se ignora. **Se mantiene a propósito** como manifiesto documental porque `test_llm_cron_jobs.py` lo valida; NO refleja los horarios reales (que son los de arriba).
+- El array `crons` de `railway.json` no es parte del esquema de Railway (solo honra `deploy.cronSchedule`), así que se ignora. **Se mantiene a propósito** como manifiesto documental porque `scripts/manual_checks/test_llm_cron_jobs.py` lo valida; NO refleja los horarios reales (que son los de arriba).
 - `daily_analysis_cron.py` queda como entrypoint de invocación **manual** (`railway run ... python3 daily_analysis_cron.py`), no programado.
 
 ### Frecuencia por proyecto (NUEVO 2026-06-10)
@@ -603,7 +602,7 @@ Auto-refresh con `refreshInterval` (en core). Cachebusting con `?_t=${Date.now()
 
 Los `.md` sueltos del repo (`ANALISIS_RETRY_SYSTEM.md`, `IMPLEMENTACION_RETRY*.md`, `ELIMINACION_ANALISIS_MANUAL.md`, `FIX_DISCREPANCIA_MENCIONES_LLM.md`, `MEJORAS_LLM_MONITORING.md`, `OPTIMIZACION_CRON_DIARIO.md`, `SOLUCION_OPENAI_GPT5.md`, `SOLUCION_QUERIES_INCOMPLETAS.md`) son **de LLM Monitoring**, NO de Manual AI. La historia de Manual AI vive en los comentarios `# NOTA/NUEVO 2026-04-09` del propio código.
 
-`FIX_GRIDJS_ERROR.md` es frontend genérico, posiblemente afecta a Manual AI también.
+El bug histórico de Grid.js (ver `CLAUDE-frontend.md`) era frontend genérico; la nota `FIX_GRIDJS_ERROR.md` se eliminó el 2026-09-27.
 
 ---
 
@@ -659,8 +658,7 @@ Probablemente es un AIO collapsed cuya expansión falló. Mirar `ai_analysis_dat
 
 | Archivo | Cubre |
 |---|---|
-| `check_manual_ai_system.py` | Smoke check del sistema. |
-| `diagnose_cron_skip.py` | Investigar por qué el cron saltó algún proyecto (genérico, también LLM). |
+| `scripts/diagnostics/diagnose_cron_skip.py` | Investigar por qué el cron saltó algún proyecto (genérico, también LLM). |
 
 > Los scripts de auditoría/verificación del refactor (`audit_manual_ai_system.py`, `verify_manual_ai_refactoring.py`, `verify_manual_ai_js.sh`, `manual_ai/check_refactoring_status.py`) y el test de caracterización del blueprint (`tests/test_manual_ai_contract.py`) se eliminaron (último limpiado en commit 91a0f7a).
 

@@ -109,7 +109,7 @@ Si el cliente pausa a mano un proyecto, deja de contar para el tope del módulo 
 - **Margen en las cuotas**: el gate es `usado + previsto > límite`. Un cliente se pausó al llegar exactamente a 640/640. Deja 10-25%.
 - **RU compartidas**: Manual AI y AI Mode comparten el contador del usuario. Los límites por proyecto son la forma de que un proyecto no deje sin cuota a los demás.
 - **Admins nunca se limitan** (`role = 'admin'`), ni por módulo ni por tope de keywords. Para probar límites usa un usuario no-admin.
-- **Migraciones**: `migrate_enterprise_module_limits.py` y `migrate_project_quota_limits.py` son idempotentes y `init_database()` crea las mismas columnas al arrancar, así que un deploy nuevo no depende del orden. Staging migrado el 2026-09-11.
+- **Migraciones**: `scripts/migrations/migrate_enterprise_module_limits.py` y `scripts/migrations/migrate_project_quota_limits.py` son idempotentes y `init_database()` crea las mismas columnas al arrancar, así que un deploy nuevo no depende del orden. Staging migrado el 2026-09-11.
 - **`remove_custom_quota`** vuelve al usuario a `free` y limpia todos los topes de usuario; **no** toca los límites por proyecto (quedan guardados por si vuelve).
 
 ---
@@ -123,5 +123,5 @@ Si el cliente pausa a mano un proyecto, deja de contar para el tope del módulo 
 | Límite y ciclo por proyecto | `project_quota.py`; gates en `manual_ai/services/analysis_service.py`, `ai_mode_projects/services/analysis_service.py`, `services/llm_monitoring/engine.py`; frecuencia LLM en `services/llm_monitoring_service.py` (Manual AI / AI Mode ya la tenían en sus `cron_service.py`) |
 | Panel admin | `admin_billing_panel.assign_custom_quota` (+ `MODULE_LIMIT_FIELDS`), rutas en `auth.py` (`/admin/users/<id>/assign-custom-quota`, `/admin/users/<id>/project-limits`, `/admin/projects/<module>/<id>/limits`), UI en `templates/admin_simple.html` |
 | Columnas BD | `users.custom_manual_ai_max_projects`, `custom_manual_ai_keywords_limit`, `custom_ai_mode_max_projects`, `custom_ai_mode_keywords_limit`, `custom_llm_max_projects` (+ `custom_quota_limit`, `custom_llm_prompts_limit`, `custom_llm_monthly_units_limit` previas); `manual_ai_projects.monthly_ru_limit`, `ai_mode_projects.monthly_ru_limit`, `llm_monitoring_projects.monthly_units_limit`, `llm_monitoring_projects.analysis_frequency_days` |
-| Migraciones | `migrate_enterprise_module_limits.py`, `migrate_project_quota_limits.py` (ambas también en `database.init_database`) |
+| Migraciones | `scripts/migrations/migrate_enterprise_module_limits.py`, `scripts/migrations/migrate_project_quota_limits.py` (ambas también en `database.init_database`) |
 | Tests | `tests/test_enterprise_module_limits.py`, `tests/test_project_quota.py` |

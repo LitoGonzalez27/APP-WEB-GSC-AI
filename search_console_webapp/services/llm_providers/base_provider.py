@@ -68,7 +68,7 @@ def extract_urls_from_text(text: str) -> List[Dict]:
 # ============================================
 
 # Solo se usan si llm_model_registry no responde (BD caída o sin fila current).
-# Fuente de verdad: registry. Mantener alineado con migrate_models_2026_09.py.
+# Fuente de verdad: registry. Mantener alineado con scripts/migrations/migrate_models_2026_09.py.
 DEFAULT_MODELS = {
     'openai': {'model_id': 'gpt-5.5', 'display_name': 'GPT-5.5'},
     'anthropic': {'model_id': 'claude-sonnet-5', 'display_name': 'Claude Sonnet 5'},
@@ -128,7 +128,7 @@ def get_model_pricing_from_db(llm_provider: str, model_id: str) -> Dict:
     try:
         cur = conn.cursor()
         # cost_per_1k_search_calls se lee vía to_jsonb para no fallar en un entorno
-        # donde aún no se ha ejecutado migrate_llm_search_p3.py (ahí vale NULL).
+        # donde aún no se ha ejecutado scripts/migrations/migrate_llm_search_p3.py (ahí vale NULL).
         cur.execute("""
             SELECT
                 r.cost_per_1m_input_tokens,

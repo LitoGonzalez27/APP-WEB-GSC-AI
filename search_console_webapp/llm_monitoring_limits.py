@@ -82,7 +82,7 @@ DEFAULT_SEARCH_UNIT_WEIGHTS: Dict[str, int] = {
 UNITS_SCHEMA = SchemaFeature(
     name='unidades ponderadas',
     sql=column_exists_sql('llm_monitoring_results', 'units_consumed'),
-    migration='migrate_llm_search_p3.py',
+    migration='scripts/migrations/migrate_llm_search_p3.py',
 )
 
 

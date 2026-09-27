@@ -340,7 +340,7 @@ Esto es lo que evita que vuelva a pasar lo de Driza UEMC (53 días sin servicio 
 | `quota_manager.py`               | `increment_quota`, `compute_next_quota_reset_date`, `check_quota_available`. |
 | `quota_middleware.py`            | Decoradores que se aplican a las rutas que consumen cuota. |
 | `billing_routes.py`              | Rutas Flask para que el usuario gestione su suscripción (portal, upgrade…). |
-| `admin_billing_routes.py`        | Rutas admin (Carlos) para ajustar planes, dar cuota custom, etc. |
+| `auth.py` (rutas `/admin/users/<id>/…`) | Rutas admin (Carlos) para ajustar planes, dar cuota custom, etc. (`admin_billing_routes.py` nunca se registró; eliminado 2026-09-27). |
 | `admin_billing_panel.py`         | Vistas y backend del panel admin. |
 
 ### Crons (Python)
@@ -351,7 +351,7 @@ Esto es lo que evita que vuelva a pasar lo de Driza UEMC (53 días sin servicio 
 | `daily_ai_mode_cron.py`          | Cron de AI Mode. |
 | `daily_analysis_cron.py`         | Cron Manual AI Analysis. |
 | `daily_quota_reset_cron.py`      | Cron de reset de cuota Stripe-aware. |
-| `weekly_model_discovery_cron.py` | Descubrimiento semanal de modelos LLM. |
+| `scripts/maintenance/weekly_model_discovery_cron.py` | Descubrimiento semanal de modelos LLM. |
 | `cron_routes.py`                 | Blueprint Flask con `/api/cron/*` endpoints, auth Bearer, modos sync/async, health-check. |
 | `cron_alerts.py`                 | Sistema de alertas (duración / errores / coste) por email. |
 | `project_timeout.py`             | Wrapper `run_project_with_timeout` con daemon thread + join. |
@@ -379,13 +379,13 @@ Esto es lo que evita que vuelva a pasar lo de Driza UEMC (53 días sin servicio 
 
 | Archivo                          | Qué contiene |
 |----------------------------------|--------------|
-| `test_cron_alerts.py`            | Tests de las alertas. |
-| `test_cron_routes.py`            | Tests de los endpoints `/api/cron/*`. |
-| `test_stripe_aware_reset.py`     | Tests del filtro Stripe-aware en el cron. |
-| `test_webhook_hardening.py`      | Tests de idempotencia y extracción robusta del periodo. |
-| `test_llm_cron_jobs.py`          | Tests del cron LLM completo. |
-| `webhook_diagnostics.py`         | Script para inspeccionar webhooks recibidos. |
-| `diagnose_cron_skip.py`          | Script para investigar por qué un cron saltó algún proyecto. |
+| `scripts/manual_checks/test_cron_alerts.py`            | Tests de las alertas. |
+| `scripts/manual_checks/test_cron_routes.py`            | Tests de los endpoints `/api/cron/*`. |
+| `scripts/manual_checks/test_stripe_aware_reset.py`     | Tests del filtro Stripe-aware en el cron. |
+| `scripts/manual_checks/test_webhook_hardening.py`      | Tests de idempotencia y extracción robusta del periodo. |
+| `scripts/manual_checks/test_llm_cron_jobs.py`          | Tests del cron LLM completo. |
+| `scripts/diagnostics/webhook_diagnostics.py`         | Script para inspeccionar webhooks recibidos. |
+| `scripts/diagnostics/diagnose_cron_skip.py`          | Script para investigar por qué un cron saltó algún proyecto. |
 
 ---
 

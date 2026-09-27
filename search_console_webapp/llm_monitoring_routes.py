@@ -604,7 +604,7 @@ def fetch_current_models(cur):
     cada uno consultase por su cuenta acabarían enseñando modelos distintos.
 
     Tolera que falten `knowledge_cutoff`/`knowledge_cutoff_date`: son columnas
-    que añade migrate_llm_model_discovery_v2.py y que en entornos sin migrar no
+    que añade scripts/migrations/migrate_llm_model_discovery_v2.py y que en entornos sin migrar no
     existen. El endpoint del panel ya sobrevivía a eso por su try/except global,
     pero el PDF no, y la descarga entera fallaba con un 500.
     """
