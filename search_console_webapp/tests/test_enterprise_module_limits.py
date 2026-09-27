@@ -130,10 +130,10 @@ class TestProjectCap:
 # ---------------------------------------------------------------------------
 
 def test_columns_catalog_matches_migration():
-    src = _read("migrate_enterprise_module_limits.py")
+    src = _read("scripts/migrations/migrate_enterprise_module_limits.py")
     for col in ENTERPRISE_LIMIT_COLUMNS:
         if col == 'custom_llm_prompts_limit':
-            continue  # ya existía (migrate_llm_enterprise_support.py)
+            continue  # ya existía (scripts/migrations/migrate_llm_enterprise_support.py)
         assert col in src, f"{col} falta en la migración"
 
 

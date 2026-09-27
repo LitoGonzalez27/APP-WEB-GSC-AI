@@ -393,7 +393,7 @@ grid.updateConfig({ data: () => safeData }).forceRender()
 
 Cuando hay riesgo de stale state (`manual-ai-analytics.js:923`), reemplaza el nodo container completo (`replaceWith(newDiv)`) antes de instanciar nuevo `Grid`.
 
-### Bug histórico (`FIX_GRIDJS_ERROR.md`, 2025-11-06)
+### Bug histórico (Grid.js, 2025-11-06; la nota `FIX_GRIDJS_ERROR.md` se eliminó el 2026-09-27)
 
 - **Síntoma**: el endpoint `/api/llm-monitoring/projects/:id/comparison` no devolvía `total_mentions`. Al renderizar, la línea 1358 hacía `(item.total_mentions || 0)/(item.total_queries || 0)` con `undefined`.
 - **Error**: `TypeError: Cannot read properties of undefined (reading 'length')` × 4.
@@ -469,7 +469,6 @@ En `manual_ai_dashboard.html` (y `ai_mode_dashboard.html`) se setea `window.DISA
 
 ### Documentos `.md` con info frontend
 
-- `FIX_GRIDJS_ERROR.md` — bug Grid.js descrito en §10.
 - `static/js/manual-ai/{README.md, STATUS.md, SUMMARY.md, REFACTORING_PLAN.md, REFACTORING_COMPLETE.md, PROGRESS_CHECKPOINT.md}` — documentan la refactorización **frontend** Manual AI.
 - `manual_ai/MIGRATION_COMPLETE.md`, `REFACTORING_GUIDE.md`, `SAFE_MIGRATION.md`, `COMPLETION_SUMMARY.md`, `README.md` — refactorización **backend** Manual AI.
 
@@ -507,7 +506,7 @@ En `manual_ai_dashboard.html` (y `ai_mode_dashboard.html`) se setea `window.DISA
 
 | Archivo | Cubre |
 |---|---|
-| `test_llm_monitoring_frontend.py` (385 líneas aprox.) | **Test estático**: verifica que existan `templates/llm_monitoring.html`, `static/js/llm_monitoring.js`, `static/llm-monitoring.css`, y que el HTML contenga ciertos strings (`<!DOCTYPE html>`, `Chart.js`, `Grid.js`). **No es funcional**, solo valida presencia y tamaño. |
+| `scripts/manual_checks/test_llm_monitoring_frontend.py` (385 líneas aprox.) | **Test estático**: verifica que existan `templates/llm_monitoring.html`, `static/js/llm_monitoring.js`, `static/llm-monitoring.css`, y que el HTML contenga ciertos strings (`<!DOCTYPE html>`, `Chart.js`, `Grid.js`). **No es funcional**, solo valida presencia y tamaño. |
 | `verify_manual_ai_js.sh` y `verify_manual_ai_refactoring.py` | Verifican que la refactorización Manual AI conserva todos los métodos del prototipo (matching de nombres entre el monolítico y los submódulos modulares). |
 
 ### Sin framework JS de testing

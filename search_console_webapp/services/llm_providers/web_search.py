@@ -124,7 +124,7 @@ def search_tool_cost(billable_calls: int, pricing: Dict, *, provider: str, model
     if billable_calls and not per_call:
         logger.warning(
             f"⚠️ {provider}/{model} sin cost_per_1k_search_calls en llm_model_registry: "
-            f"{billable_calls} búsquedas sin coste (ejecutar migrate_llm_search_p3.py)"
+            f"{billable_calls} búsquedas sin coste (ejecutar scripts/migrations/migrate_llm_search_p3.py)"
         )
         return 0.0
     return billable_calls * (per_call or 0.0)

@@ -6,7 +6,7 @@ Cada respuesta con búsqueda guarda:
 - una fila por sub-consulta o página abierta en `llm_monitoring_fanout_queries`
   (para agregar por proyecto, prompt, proveedor o dominio sin recorrer JSONB).
 
-Esquema: migrate_llm_fanout_schema.py. Si la migración aún no se ha ejecutado en
+Esquema: scripts/migrations/migrate_llm_fanout_schema.py. Si la migración aún no se ha ejecutado en
 un entorno, `fanout_schema_available()` devuelve False y el engine sigue
 guardando resultados como siempre, sin fan-out.
 """
@@ -38,7 +38,7 @@ FANOUT_SCHEMA = SchemaFeature(
                 WHERE table_name = 'llm_monitoring_results' AND column_name = 'search_queries'
             ) AS available
     """,
-    migration='migrate_llm_fanout_schema.py',
+    migration='scripts/migrations/migrate_llm_fanout_schema.py',
 )
 
 
