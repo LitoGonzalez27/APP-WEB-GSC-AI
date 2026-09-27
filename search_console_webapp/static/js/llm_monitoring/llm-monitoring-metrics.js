@@ -231,7 +231,10 @@ highlightMentions(response) {
         // http(s)/relativos (bloquea javascript:, data:, etc.), igual que parseMarkdown.
         html = html.replace(/\[(.+?)\]\((.+?)\)/g, (match, label, url) => {
             if (!this.isSafeUrl(url)) return label;
-            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="md-link">${label}</a>`;
+            // El texto ya viene escapado (<, >, &) pero sin comillas: se escapan aquí
+            // para que la URL no pueda salirse del atributo href (XSS).
+            const safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="md-link">${label}</a>`;
         });
 
         // Lists

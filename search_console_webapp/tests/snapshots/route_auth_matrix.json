@@ -1,0 +1,1349 @@
+{
+ "DELETE /agent/api/historial/<job_id> [agent_scanner.borrar_informe]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "DELETE /ai-mode-projects/api/projects/<int:project_id> [ai_mode.delete_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "DELETE /ai-mode-projects/api/projects/<int:project_id>/keywords/<int:keyword_id> [ai_mode.delete_project_keyword]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "DELETE /ai-summary/api/brands/<int:brand_id> [ai_summary.delete_brand]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "DELETE /api/llm-monitoring/projects/<int:project_id> [llm_monitoring.delete_project]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "DELETE /api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id> [llm_monitoring.delete_query]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "DELETE /api/project-access/invitations/<int:invitation_id> [project_access.revoke_invitation]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "DELETE /api/project-access/projects/<module_name>/<int:project_id>/members/<int:member_user_id> [project_access.remove_member]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "DELETE /connections/<int:connection_id> [delete_connection_route]": {
+  "anon": "302 -> /login",
+  "paid": "404",
+  "user": "404"
+ },
+ "DELETE /manual-ai/api/projects/<int:project_id> [manual_ai.delete_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "DELETE /manual-ai/api/projects/<int:project_id>/keywords/<int:keyword_id> [manual_ai.delete_project_keyword]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET / [landing]": {
+  "admin": "302 -> /dashboard",
+  "anon": "200",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /__routes [__list_routes]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/api/costs [admin_costs.admin_costs_api]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/audit-log [admin_audit_log]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/debug-stats [debug_stats]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/fix-dates [fix_user_dates]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/stats/detailed [admin_detailed_stats]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/users [admin_users]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/users/<int:user_id>/billing-details [user_billing_details]": {
+  "admin": "404",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/users/<int:user_id>/invitations [admin_user_invitations]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /admin/users/<int:user_id>/project-limits [admin_user_project_limits]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /agent/ [agent_scanner.index]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /login",
+  "user": "302 -> /login"
+ },
+ "GET /agent/acceso [agent_scanner.access_page]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /agent/api/access/list [agent_scanner.access_list]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /agent/api/agents/<job_id>/status [agent_scanner.agents_status]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/catalog [agent_scanner.catalog]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/diag [agent_scanner.diag]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /agent/api/historial [agent_scanner.historial]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/me [agent_scanner.whoami]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/prompt/<job_id> [agent_scanner.prompt_rescate]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/report/<job_id>.json [agent_scanner.report_json]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/report/<job_id>.pdf [agent_scanner.report_pdf]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/result/<job_id> [agent_scanner.result]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /agent/api/status/<job_id> [agent_scanner.status]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/ [ai_mode.ai_mode_dashboard]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /ai-mode-projects/api/health [ai_mode.manual_ai_health]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /ai-mode-projects/api/projects [ai_mode.get_projects]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id> [ai_mode.get_project_details]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/ai-overview-table [ai_mode.get_ai_overview_table_data]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/ai-overview-table-latest [ai_mode.get_ai_overview_table_latest]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/clusters [ai_mode.get_project_clusters]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/clusters/statistics [ai_mode.get_clusters_statistics]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/comparative-charts [ai_mode.get_comparative_charts_data]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/competitors [ai_mode.get_project_competitors]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/competitors-charts [ai_mode.get_competitors_charts_data]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/export [ai_mode.export_project_data]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/global-domains-ranking [ai_mode.get_global_domains_ranking]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/keywords [ai_mode.get_project_keywords]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/results [ai_mode.get_project_results]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/stats [ai_mode.get_project_stats]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/stats-latest [ai_mode.get_project_stats_latest]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/top-domains [ai_mode.get_top_domains]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-mode-projects/api/projects/<int:project_id>/urls-ranking [ai_mode.get_urls_ranking]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /ai-summary/ [ai_summary.ai_summary_dashboard]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /ai-summary/api/brands [ai_summary.get_brands]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /ai-summary/api/brands/<int:brand_id>/export/pdf [ai_summary.export_brand_pdf]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /ai-summary/api/brands/<int:brand_id>/score-history [ai_summary.get_brand_score_history]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /ai-summary/api/brands/<int:brand_id>/summary [ai_summary.get_brand_summary]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /ai-summary/api/brands/scores [ai_summary.get_brand_scores]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /api/ai-overview-history [get_ai_overview_history_route]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/ai-overview-stats [get_ai_overview_stats_route]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/ai-overview-typology [get_ai_overview_typology_route]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/billing/verify-activation [verify_plan_activation]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/cron/quota-health-check [cron.quota_health_check_endpoint]": {
+  "anon": "403",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /api/llm-monitoring/cron/watchdog [llm_monitoring.cron_watchdog]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /api/llm-monitoring/health [llm_monitoring.health_check]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/llm-monitoring/models [llm_monitoring.get_models]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/models/approve [llm_monitoring.approve_model_by_token]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/llm-monitoring/models/changelog [llm_monitoring.get_model_changelog]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/models/current [llm_monitoring.get_current_models]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/models/reject [llm_monitoring.reject_model_by_token]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/llm-monitoring/projects [llm_monitoring.get_projects]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id> [llm_monitoring.get_project]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/clusters [llm_monitoring.get_project_clusters]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/clusters/metrics [llm_monitoring.get_clusters_metrics]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/comparison [llm_monitoring.get_llm_comparison]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/export/excel [llm_monitoring.export_project_excel]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/export/pdf [llm_monitoring.export_project_pdf]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/fanout [llm_monitoring.get_project_fanout]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/metrics [llm_monitoring.get_project_metrics]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/queries [llm_monitoring.get_project_queries]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id>/history [llm_monitoring.get_query_history]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/responses [llm_monitoring.get_project_responses]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/sets [llm_monitoring.get_project_sets]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/share-of-voice-history [llm_monitoring.get_share_of_voice_history]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/url-content-analysis [llm_monitoring.get_url_content_analysis]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/projects/<int:project_id>/urls-ranking [llm_monitoring.get_urls_ranking]": {
+  "admin": "404",
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "GET /api/llm-monitoring/usage [llm_monitoring.get_usage]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /api/project-access/my-invitations [project_access.my_invitations]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/project-access/projects/<module_name>/<int:project_id>/invitations [project_access.get_invitations]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /api/project-access/projects/<module_name>/<int:project_id>/members [project_access.get_project_members]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /api/project-access/projects/<module_name>/<int:project_id>/permissions [project_access.get_permissions]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /api/quota/status [get_quota_status]": {
+  "admin": "200",
+  "anon": "401",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /api/serp [get_serp_raw_json]": {
+  "admin": "400",
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "GET /api/serp/position [get_serp_position]": {
+  "admin": "400",
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "GET /api/serp/screenshot [get_serp_screenshot_route]": {
+  "admin": "400",
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "GET /app [app_main]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /auth/callback [auth_callback]": {
+  "admin": "302 -> /login",
+  "anon": "302 -> /login",
+  "paid": "302 -> /login",
+  "user": "302 -> /login"
+ },
+ "GET /auth/check-email [check_email_route]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /auth/login [auth_login]": {
+  "admin": "302 -> /o/oauth2/auth",
+  "anon": "302 -> /o/oauth2/auth",
+  "paid": "302 -> /o/oauth2/auth",
+  "user": "302 -> /o/oauth2/auth"
+ },
+ "GET /auth/logout [auth_logout]": {
+  "admin": "302 -> /login",
+  "anon": "302 -> /login",
+  "paid": "302 -> /login",
+  "user": "302 -> /login"
+ },
+ "GET /auth/signup [auth_signup]": {
+  "admin": "302 -> /o/oauth2/auth",
+  "anon": "302 -> /o/oauth2/auth",
+  "paid": "302 -> /o/oauth2/auth",
+  "user": "302 -> /o/oauth2/auth"
+ },
+ "GET /auth/status [auth_status]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /auth/user [auth_user]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /billing [billing_page]": {
+  "admin": "302 -> /billing/portal",
+  "anon": "302 -> /login",
+  "paid": "302 -> /billing/portal",
+  "user": "302 -> /billing/portal"
+ },
+ "GET /billing/cancel [billing_cancel]": {
+  "admin": "302 -> /pricing/",
+  "anon": "302 -> /login",
+  "paid": "302 -> /pricing/",
+  "user": "302 -> /pricing/"
+ },
+ "GET /billing/checkout/<plan> [billing_checkout]": {
+  "admin": "302 -> /pricing/",
+  "anon": "302 -> /login",
+  "paid": "302 -> /pricing/",
+  "user": "302 -> /pricing/"
+ },
+ "GET /billing/portal [billing_portal]": {
+  "admin": "302 -> /billing",
+  "anon": "302 -> /login",
+  "paid": "500",
+  "user": "302 -> /billing"
+ },
+ "GET /billing/success [billing_success]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /connections [list_connections_route]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /connections/google/start [start_google_link]": {
+  "admin": "302 -> /o/oauth2/auth",
+  "anon": "302 -> /login",
+  "paid": "302 -> /o/oauth2/auth",
+  "user": "302 -> /o/oauth2/auth"
+ },
+ "GET /dashboard [dashboard]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /debug-serp-params [debug_serp_params]": {
+  "admin": "400",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /diagnostic/imports [diagnostic.check_imports]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /forgot-password [forgot_password_page]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /get-properties [get_properties]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /gsc/properties [list_aggregated_properties]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /llm-monitoring [llm_monitoring_page]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /login [login_page]": {
+  "admin": "302 -> /",
+  "anon": "200",
+  "paid": "302 -> /",
+  "user": "302 -> /"
+ },
+ "GET /manual-ai/ [manual_ai.manual_ai_dashboard]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /manual-ai/api/health [manual_ai.manual_ai_health]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /manual-ai/api/projects [manual_ai.get_projects]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "200",
+  "user": "402"
+ },
+ "GET /manual-ai/api/projects/<int:project_id> [manual_ai.get_project_details]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/ai-overview-historical [manual_ai.get_ai_overview_historical]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/ai-overview-table [manual_ai.get_ai_overview_table_data]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/ai-overview-table-latest [manual_ai.get_ai_overview_table_latest]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/aio-vs-organic [manual_ai.get_aio_vs_organic_comparison]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/clusters [manual_ai.get_project_clusters]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/clusters/statistics [manual_ai.get_clusters_statistics]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/comparative-charts [manual_ai.get_comparative_charts_data]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/competitors [manual_ai.get_project_competitors]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/competitors-charts [manual_ai.get_competitors_charts_data]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/export [manual_ai.export_project_data]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/export/pdf [manual_ai.download_manual_ai_pdf]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/global-domains-ranking [manual_ai.get_global_domains_ranking]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/keywords [manual_ai.get_project_keywords]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/results [manual_ai.get_project_results]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/stats [manual_ai.get_project_stats]": {
+  "admin": "402",
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/stats-latest [manual_ai.get_project_stats_latest]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/top-domains [manual_ai.get_top_domains]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /manual-ai/api/projects/<int:project_id>/urls-ranking [manual_ai.get_urls_ranking]": {
+  "admin": "403",
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "GET /mobile-not-supported [mobile_not_supported]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /profile [user_profile]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /project-access [project_access_page]": {
+  "admin": "200",
+  "anon": "302 -> /login",
+  "paid": "200",
+  "user": "200"
+ },
+ "GET /project-invitations/accept [accept_project_invitation_page]": {
+  "admin": "302 -> /dashboard",
+  "anon": "302 -> /dashboard",
+  "paid": "302 -> /dashboard",
+  "user": "302 -> /dashboard"
+ },
+ "GET /reset-password [reset_password_page]": {
+  "admin": "302 -> /forgot-password",
+  "anon": "302 -> /forgot-password",
+  "paid": "302 -> /forgot-password",
+  "user": "302 -> /forgot-password"
+ },
+ "GET /signup [signup_page]": {
+  "admin": "302 -> /",
+  "anon": "200",
+  "paid": "302 -> /",
+  "user": "302 -> /"
+ },
+ "GET /static/<path:filename> [static]": {
+  "admin": "404",
+  "anon": "404",
+  "paid": "404",
+  "user": "404"
+ },
+ "GET /webhooks/stripe [stripe_webhook_health]": {
+  "admin": "200",
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "POST /admin/fix-llm-models [admin_fix.fix_llm_models_endpoint]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/projects/<module>/<int:project_id>/limits [admin_set_project_limits]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/projects/llm_monitoring/<int:project_id>/search-mode [admin_set_llm_search_mode]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/assign-custom-quota [admin_assign_custom_quota]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/change-plan [admin_change_user_plan]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/delete [admin_delete_user]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/remove-custom-quota [admin_remove_custom_quota]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/reset-password [admin_reset_user_password]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/reset-quota [admin_reset_quota]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/toggle-status [toggle_user_status]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /admin/users/<int:user_id>/update-role [update_user_role_route]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /agent/api/access/add [agent_scanner.access_add]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /agent/api/access/remove [agent_scanner.access_remove]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /agent/api/access/resend [agent_scanner.access_resend]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /agent/api/agents/<job_id> [agent_scanner.run_agents]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /agent/api/cancel/<job_id> [agent_scanner.cancel]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /agent/api/scan [agent_scanner.scan]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /ai-mode-projects/api/cron/daily-analysis [ai_mode.trigger_daily_analysis]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /ai-mode-projects/api/projects [ai_mode.create_project]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "402"
+ },
+ "POST /ai-mode-projects/api/projects/<int:project_id>/analyze [ai_mode.analyze_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "POST /ai-mode-projects/api/projects/<int:project_id>/clusters/test [ai_mode.test_cluster_classification]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /ai-mode-projects/api/projects/<int:project_id>/clusters/validate [ai_mode.validate_clusters_config]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /ai-mode-projects/api/projects/<int:project_id>/download-excel [ai_mode.download_manual_ai_excel]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "POST /ai-mode-projects/api/projects/<int:project_id>/keywords [ai_mode.add_keywords_to_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /ai-summary/api/brands [ai_summary.create_brand]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "402"
+ },
+ "POST /ai-summary/api/cron/daily-snapshots [ai_summary.cron_daily_snapshots]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/ai-recommendations [ai_recommendations_route]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "402"
+ },
+ "POST /api/analyze-ai-overview [analyze_ai_overview_route]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "402"
+ },
+ "POST /api/cache-management [cache_management_route]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/cron/quota-health-check [cron.quota_health_check_endpoint]": {
+  "anon": "403",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/cron/quota-reset [cron.trigger_quota_reset]": {
+  "anon": "403",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/llm-monitoring/cron/alert [llm_monitoring.cron_alert]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/llm-monitoring/cron/daily-analysis [llm_monitoring.trigger_daily_analysis]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/llm-monitoring/cron/model-discovery [llm_monitoring.cron_model_discovery]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/llm-monitoring/cron/watchdog [llm_monitoring.cron_watchdog]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/llm-monitoring/projects [llm_monitoring.create_project]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/clusters/rename [llm_monitoring.rename_project_cluster]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/queries [llm_monitoring.add_queries_to_project]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/queries/bulk-cluster [llm_monitoring.bulk_assign_cluster]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/queries/bulk-set [llm_monitoring.bulk_assign_set]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/queries/suggest [llm_monitoring.suggest_queries]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/queries/suggest-variations [llm_monitoring.suggest_query_variations]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/run-initial-analysis [llm_monitoring.run_initial_analysis]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/sets/rename [llm_monitoring.rename_project_set]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/llm-monitoring/projects/<int:project_id>/url-content-analysis [llm_monitoring.start_url_content_analysis]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "POST /api/project-access/invitations/accept [project_access.accept_invitation]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /api/project-access/my-invitations/<int:invitation_id>/resend [project_access.resend_my_invitation]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /api/project-access/projects/<module_name>/<int:project_id>/invitations [project_access.create_invitation]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /api/test-url-matching [test_url_matching_route]": {
+  "anon": "400",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /api/url-keywords [get_url_keywords]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /auth/email/login [email_login_route]": {
+  "anon": "400",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /auth/email/signup [email_signup_route]": {
+  "anon": "400",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /auth/forgot-password [forgot_password_request]": {
+  "anon": "400",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /auth/keepalive [auth_keepalive]": {
+  "anon": "401",
+  "paid": "200",
+  "user": "200"
+ },
+ "POST /auth/logout [auth_logout]": {
+  "anon": "200",
+  "paid": "200",
+  "user": "200"
+ },
+ "POST /auth/reset-password [reset_password_process]": {
+  "anon": "400",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /connections/<int:connection_id>/refresh [refresh_connection_route]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "404"
+ },
+ "POST /debug-ai-detection [debug_ai_detection]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /download-excel [download_excel]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /get-available-countries [get_available_countries]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /get-data [get_data]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /manual-ai/api/cron/daily-analysis [manual_ai.trigger_daily_analysis]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /manual-ai/api/projects [manual_ai.create_project]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "402"
+ },
+ "POST /manual-ai/api/projects/<int:project_id>/analyze [manual_ai.analyze_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "POST /manual-ai/api/projects/<int:project_id>/clusters/test [manual_ai.test_cluster_classification]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /manual-ai/api/projects/<int:project_id>/clusters/validate [manual_ai.validate_clusters_config]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /manual-ai/api/projects/<int:project_id>/download-excel [manual_ai.download_manual_ai_excel]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "POST /manual-ai/api/projects/<int:project_id>/keywords [manual_ai.add_keywords_to_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /profile/change-password [change_user_password]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /profile/update [update_profile]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "POST /webhooks/stripe [stripe_webhook]": {
+  "anon": "400",
+  "paid": "400",
+  "user": "400"
+ },
+ "PUT /ai-mode-projects/api/projects/<int:project_id> [ai_mode.update_project]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "PUT /ai-mode-projects/api/projects/<int:project_id>/clusters [ai_mode.update_project_clusters]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /ai-mode-projects/api/projects/<int:project_id>/competitors [ai_mode.update_project_competitors]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /ai-mode-projects/api/projects/<int:project_id>/keywords/<int:keyword_id> [ai_mode.update_project_keyword]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /ai-mode-projects/api/projects/<int:project_id>/pause [ai_mode.pause_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /ai-mode-projects/api/projects/<int:project_id>/resume [ai_mode.resume_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /ai-summary/api/brands/<int:brand_id> [ai_summary.update_brand]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/models/<int:model_id> [llm_monitoring.update_model]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/projects/<int:project_id> [llm_monitoring.update_project]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/projects/<int:project_id>/activate [llm_monitoring.activate_project]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/projects/<int:project_id>/clusters [llm_monitoring.update_project_clusters]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/projects/<int:project_id>/deactivate [llm_monitoring.deactivate_project]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id>/cluster [llm_monitoring.assign_query_cluster]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id>/set [llm_monitoring.assign_query_set]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /api/llm-monitoring/projects/<int:project_id>/sets [llm_monitoring.update_project_sets]": {
+  "anon": "401",
+  "paid": "404",
+  "user": "402"
+ },
+ "PUT /manual-ai/api/projects/<int:project_id> [manual_ai.update_project]": {
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
+ "PUT /manual-ai/api/projects/<int:project_id>/clusters [manual_ai.update_project_clusters]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /manual-ai/api/projects/<int:project_id>/competitors [manual_ai.update_project_competitors]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /manual-ai/api/projects/<int:project_id>/keywords/<int:keyword_id> [manual_ai.update_project_keyword]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /manual-ai/api/projects/<int:project_id>/pause [manual_ai.pause_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "PUT /manual-ai/api/projects/<int:project_id>/resume [manual_ai.resume_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ }
+}
