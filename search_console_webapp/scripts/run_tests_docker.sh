@@ -9,8 +9,13 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"   # search_console_webapp
 REPO_DIR="$(cd "$APP_DIR/.." && pwd)"
-NET=clicandseo-test
-DB=clicandseo-test-db
+# Cada ejecución tiene su propia red y su propio Postgres, así que se pueden
+# lanzar varias a la vez. El alias de red es siempre clicandseo-test-db, que es
+# el host que tests/conftest.py acepta como base desechable.
+RUN_ID="${TEST_RUN_ID:-$$}"
+NET="clicandseo-test-$RUN_ID"
+DB="clicandseo-test-db-$RUN_ID"
+DB_ALIAS=clicandseo-test-db
 IMG=clicandseo-tests:py312
 
 # Contexto mínimo (solo requirements y Dockerfile): no se añade .dockerignore al
@@ -18,12 +23,16 @@ IMG=clicandseo-tests:py312
 COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$APP_DIR" -cf - requirements.txt tests/docker/Dockerfile \
   | docker build -q -t "$IMG" -f tests/docker/Dockerfile - >/dev/null
 
-docker network inspect "$NET" >/dev/null 2>&1 || docker network create --internal "$NET" >/dev/null
-docker rm -f "$DB" >/dev/null 2>&1 || true
-docker run -d --name "$DB" --network "$NET" \
+cleanup() {
+  docker rm -f "$DB" >/dev/null 2>&1 || true
+  docker network rm "$NET" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+cleanup
+docker network create --internal "$NET" >/dev/null
+docker run -d --name "$DB" --network "$NET" --network-alias "$DB_ALIAS" \
   -e POSTGRES_PASSWORD=test -e POSTGRES_DB=clicandseo_test \
   --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null
-trap 'docker rm -f "$DB" >/dev/null 2>&1 || true' EXIT
 
 for _ in $(seq 1 60); do
   docker exec "$DB" pg_isready -U postgres -q && break
@@ -33,7 +42,7 @@ docker exec -i "$DB" psql -U postgres -d clicandseo_test -v ON_ERROR_STOP=1 -q \
   < "$APP_DIR/tests/db/schema.sql" >/dev/null
 
 docker run --rm --network "$NET" \
-  -e DATABASE_URL="postgresql://postgres:test@$DB:5432/clicandseo_test" \
+  -e DATABASE_URL="postgresql://postgres:test@$DB_ALIAS:5432/clicandseo_test" \
   -e UPDATE_SNAPSHOTS="${UPDATE_SNAPSHOTS:-}" \
   -v "$REPO_DIR":/app -w /app/search_console_webapp \
   "$IMG" python -m pytest -p no:cacheprovider "$@"
