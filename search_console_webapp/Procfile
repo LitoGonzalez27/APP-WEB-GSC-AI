@@ -8,7 +8,7 @@
 #   - DB migrations should be run intentionally, not on every restart.
 #
 # How to run a one-off DB migration on Railway:
-#   railway run --service <service> python3 <migration_script>.py
+#   railway run --service <service> python3 -m scripts.migrations.<script>
 # or from the Railway shell.
 # NOTA: en Railway el arranque lo gobierna nixpacks.toml ([phases.start] = "python3 app.py"),
 # por lo que este Procfile no se ejecuta en producción. Se mantiene como referencia / fallback.

@@ -128,14 +128,9 @@ cmd = "python3 app.py"
 - Los `aptPkgs` están en **setup phase** para que se cacheen y no fallen por "mirror sync in progress".
 - `playwright install chromium` sin `--with-deps` (los apt están en setup).
 
-### `postinstall.sh`
+### `postinstall.sh` (eliminado)
 
-```bash
-playwright install chromium
-python3 fix_quota_events_table.py || echo "non-critical"
-```
-
-> ⚠️ **No queda claro si Railway lo ejecuta**. Probablemente vestigio; la lógica equivalente está en `nixpacks.toml`.
+No lo ejecutaba nada (el arranque lo gobierna `nixpacks.toml`); se eliminó el 2026-09-27. La migración que lanzaba está en `scripts/migrations/fix_quota_events_table.py`.
 
 ### `requirements.txt`
 
@@ -145,9 +140,9 @@ Sin configuración Railway-específica. Stack:
 - stripe 12.4.0.
 - playwright 1.48.0.
 - openai≥1.56,<2, anthropic 0.39.0, google-generativeai 0.8.5.
-- redis 5.1.1 (no usado).
+- redis 5.1.1 (opcional: caché y rate limiting si hay `REDIS_URL`).
 
-> Hay un `requirements_llm_monitoring.txt` separado **pero no usado** por nixpacks (que solo instala `requirements.txt`). Deuda.
+Las dependencias de tests están en `requirements-dev.txt` (no van a producción). `requirements_llm_monitoring.txt` (duplicado sin uso) se eliminó el 2026-09-27.
 
 ### Otros archivos
 
@@ -197,7 +192,7 @@ Si falla, llaman a `/api/llm-monitoring/cron/alert` con payload `{notify_email, 
 
 Confirmado con `find`. Deuda técnica documentada en `CLAUDE-manual-ai.md`.
 
-> Existe `cron_worker.py` (37 líneas, usa la lib `schedule` de Python para llamar a `/manual-ai/api/cron/daily-analysis` cada día a las 02:00). **No queda claro si está deployed como worker en Railway**.
+> `cron_worker.py` (lib `schedule`, llamaba a `/manual-ai/api/cron/daily-analysis`) no lo arrancaba nada y duplicaba el cron de Bun; se eliminó el 2026-09-27 junto con la dependencia `schedule`.
 
 ---
 
@@ -322,8 +317,7 @@ Otros: `CUSTOMER_PORTAL_RETURN_URL`, `PRICING_PAGE_URL`, `BILLING_ENABLED`, `TRI
 > 🚨 **NO se ejecutan automáticamente** en cada deploy (a propósito).
 
 - Comentario en `Procfile:8-9` deja claro: *"DB migrations should be run intentionally"*.
-- Comando manual: `railway run --service Clicandseo python3 <migration_script>.py`.
-- `postinstall.sh` ejecuta una sola migración (`fix_quota_events_table.py`) tolerante a errores. **No queda claro si Railway lo ejecuta**.
+- Comando manual, desde `search_console_webapp/`: `railway run --service Clicandseo python3 -m scripts.migrations.<script>` (ver `scripts/README.md`).
 
 ### CI/CD pipeline
 
@@ -341,8 +335,8 @@ No hay scripts CI que validen el deploy. Solo scripts manuales tipo `verify_*.py
 |---|---|
 | `verify_llm_monitoring_setup.py` | Setup LLM. |
 | `verify_manual_ai_refactoring.py` | Integridad post-refactor. |
-| `check_production_ready.py` | Pre-deploy check. |
-| `check_staging_config.py` | Diff staging vs prod. |
+| `scripts/diagnostics/check_production_ready.py` | Pre-deploy check. |
+| `scripts/diagnostics/check_staging_config.py` | Diff staging vs prod. |
 
 ### Health-check endpoints
 
@@ -505,11 +499,8 @@ Ver `CLAUDE-base-de-datos.md` §9.
 |---|---|---|
 | **Inconsistencia mayúsculas Bun services** (`Quota-Reset` vs `Quota-reset`) | Riesgo de duplicar servicio sin querer. | Medio. |
 | **Archivo `railway`** (sin extensión) con contenido `Not Found` | Basura. | Trivial. |
-| **`cron_worker.py`** (Python con lib `schedule`) duplica funcionalidad de Bun | No claro si está deployed. | Medio. |
 | **`manual_ai_cron_function.js` no existe** | Cron Manual AI sin disparador claro. | Alto. |
 | **`redis==5.1.1`** en requirements pero no en uso | Deuda. | Trivial. |
-| **`requirements_llm_monitoring.txt`** separado pero no usado | Deuda. | Trivial. |
-| **`postinstall.sh`** rol no claro | Posible vestigio. | Bajo. |
 | **`ENCRYPTION_KEY` vs `TOKEN_ENCRYPTION_KEY`** | Posible duplicado. | Bajo. |
 | **Copia local de variables de staging con secretos** fuera del vault | Resuelto el 27-sep-2026: movida al vault; nunca se commiteó. | Bajo. |
 | **Scripts con creds DB hardcoded** | Vulnerabilidad. | Alto. |

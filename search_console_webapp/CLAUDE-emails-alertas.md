@@ -48,7 +48,7 @@
 | Aprobación de modelos LLM nuevos | model discovery semanal | `llm_monitoring_routes.py:8225-8359` |
 | Confirmación tras aprobar modelo | endpoint `/models/approve` | `llm_monitoring_routes.py:8503-8522` |
 | Alertas genéricas Bun → Flask | falla un Bun cron service | `llm_monitoring_routes.py:8717` (`POST /cron/alert`) |
-| Notificación discovery (legacy) | clase `LLMModelDiscovery.send_notification` | `weekly_model_discovery_cron.py:312-345` |
+| Notificación discovery (legacy) | clase `LLMModelDiscovery.send_notification` | `scripts/maintenance/weekly_model_discovery_cron.py:312-345` |
 | Invitaciones a proyectos | invitar viewer a un proyecto | `services/project_access_service.py:408-453` |
 
 **Reglas de oro:**
@@ -73,15 +73,15 @@
 | `cron_routes.py` | Endpoints `/api/cron/quota-reset`, `/api/cron/quota-health-check` + `_send_stuck_quota_alert`. |
 | `stripe_webhooks.py` | `_alert_unmatched_customer` (l. 209) + email trial-started (l. 567). |
 | `llm_monitoring_routes.py` | Endpoints `/cron/alert`, `/models/approve`, `/models/reject`, `/cron/model-discovery` (~l. 7983-8800). |
-| `weekly_model_discovery_cron.py` | Clase legacy `LLMModelDiscovery.send_notification` (l. 312). |
+| `scripts/maintenance/weekly_model_discovery_cron.py` | Clase legacy `LLMModelDiscovery.send_notification` (l. 312). |
 | `llm_monitoring_cron_function.js` | Bun cron — al fallar `fetch`, postea a `/cron/alert`. |
 | `ai_mode_cron_function.js` | Idem para AI Mode. |
 | `llm_model_discovery_cron_function.js` | Bun cron model discovery — postea a `/cron/alert` si falla. |
 | `services/project_access_service.py` | `_send_project_invitation_email` (l. 408). |
 | `auth.py` | Llama a `send_welcome_email`, `send_password_reset_email/_via_api`, sincroniza Brevo en signup. |
 | `database.py:2710` | Hook a `cron_alerts.check_and_send_cron_alerts` tras `release_analysis_lock`. |
-| `test_cron_alerts.py` | Test del módulo `cron_alerts`. |
-| `test_cron_routes.py` | Test del health-check + stuck quota alert. |
+| `scripts/manual_checks/test_cron_alerts.py` | Test del módulo `cron_alerts`. |
+| `scripts/manual_checks/test_cron_routes.py` | Test del health-check + stuck quota alert. |
 | `email_preview.html` | Snapshot estático del HTML del password-reset (NO se sirve). |
 
 > ⚠️ **No hay carpeta `/templates/email/`**. Todos los emails están **hardcoded** como f-strings.
@@ -333,11 +333,11 @@ approval_token_expires_at   TIMESTAMP
 pending_approval            BOOLEAN
 ```
 
-Migración: `migrate_llm_model_discovery_v2.py`. Índice parcial `idx_model_approval_token`.
+Migración: `scripts/migrations/migrate_llm_model_discovery_v2.py`. Índice parcial `idx_model_approval_token`.
 
 ### Legacy
 
-`weekly_model_discovery_cron.py:312` — clase `LLMModelDiscovery.send_notification` usa `os.getenv('NOTIFICATION_EMAIL')`. Es un **camino paralelo** (usado por scripts internos antiguos), no por el flujo Bun.
+`scripts/maintenance/weekly_model_discovery_cron.py:312` — clase `LLMModelDiscovery.send_notification` usa `os.getenv('NOTIFICATION_EMAIL')`. Es un **camino paralelo** (usado por scripts internos antiguos), no por el flujo Bun.
 
 ---
 
@@ -419,7 +419,7 @@ Tras crear usuario en BD (signup local o Google OAuth):
 | `CRON_ALERT_ERROR_RATE` | `0.20` | `cron_alerts.py` |
 | `CRON_ALERT_COST_MULTIPLIER` | `2.0` | `cron_alerts.py` |
 | `MODEL_DISCOVERY_EMAIL` | `info@soycarlosgonzalez.com` | `llm_monitoring_routes.py:8505`, Bun functions |
-| `NOTIFICATION_EMAIL` | — | `weekly_model_discovery_cron.py:314` (legacy) |
+| `NOTIFICATION_EMAIL` | — | `scripts/maintenance/weekly_model_discovery_cron.py:314` (legacy) |
 | `APP_ENV` / `RAILWAY_ENVIRONMENT_NAME` | `unknown` | label de entorno en alertas |
 | `CRON_TOKEN` | (oblig.) | auth Bearer en `cron_routes.py`, `_ensure_cron_token_or_admin` |
 | `APP_URL` | `https://clicandseo.up.railway.app` | Bun functions: target del fetch |
@@ -486,7 +486,7 @@ python /Users/carlosgonzalez/Desktop/app/APP-WEB-GSC-AI/search_console_webapp/sy
 
 ```bash
 DATABASE_URL=<staging> CRON_ALERTS_EMAIL=... \
-  python test_cron_alerts.py [--send-real-email]
+  python3 -m scripts.manual_checks.test_cron_alerts [--send-real-email]
 ```
 
 ---
@@ -525,8 +525,8 @@ DATABASE_URL=<staging> CRON_ALERTS_EMAIL=... \
 
 | Archivo | Cubre |
 |---|---|
-| `test_cron_alerts.py` | Inserta run sintético en `llm_monitoring_analysis_runs` (150 min, 30% fail), monkey-patch de `email_service.send_email`, asserts sobre `alerts_triggered`, tipos de alerta y destinatario. Flag `--send-real-email` para test e2e. |
-| `test_cron_routes.py` | Test del `_run_health_check_and_alert` con stuck users mock + `send_email` mock. |
+| `scripts/manual_checks/test_cron_alerts.py` | Inserta run sintético en `llm_monitoring_analysis_runs` (150 min, 30% fail), monkey-patch de `email_service.send_email`, asserts sobre `alerts_triggered`, tipos de alerta y destinatario. Flag `--send-real-email` para test e2e. |
+| `scripts/manual_checks/test_cron_routes.py` | Test del `_run_health_check_and_alert` con stuck users mock + `send_email` mock. |
 
 ### Lo que NO está cubierto
 

@@ -364,7 +364,7 @@ def init_database():
             pass
 
         # ✅ Topes por módulo para Enterprise (ver enterprise_limits.py y
-        # migrate_enterprise_module_limits.py). Se aseguran aquí para que el
+        # scripts/migrations/migrate_enterprise_module_limits.py). Se aseguran aquí para que el
         # deploy no dependa de ejecutar la migración antes que el código: las
         # rutas y el cron LLM hacen SELECT explícito de estas columnas.
         for _col in (
@@ -380,7 +380,7 @@ def init_database():
                 pass
 
         # ✅ Cuota y ciclo por PROYECTO (ver project_quota.py y
-        # migrate_project_quota_limits.py). Las tablas de proyectos las crean
+        # scripts/migrations/migrate_project_quota_limits.py). Las tablas de proyectos las crean
         # sus propios scripts, así que solo se intenta si ya existen.
         for _tbl, _col_sql in (
             ('manual_ai_projects', 'monthly_ru_limit INTEGER DEFAULT NULL'),
