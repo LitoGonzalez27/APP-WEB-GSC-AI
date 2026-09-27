@@ -510,6 +510,39 @@ def auth_required_no_activity_update(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def _oauth_client_secret(client_id, stored_secret=None):
+    """Secreto del cliente OAuth para `client_id`.
+
+    El secreto ya no viaja en la cookie de sesión. Se toma de la configuración
+    (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, o client_secret.json en local, igual
+    que create_flow) cuando el client_id coincide con el configurado. Si no
+    coincide o no hay configuración, se usa el valor guardado, como hasta ahora.
+    Hoy ambos valores son el mismo, así que nada cambia, y además permite rotar
+    el secreto sin romper sesiones ni conexiones guardadas."""
+    env_id = os.getenv('GOOGLE_CLIENT_ID', '').strip()
+    env_secret = os.getenv('GOOGLE_CLIENT_SECRET', '').strip()
+    if env_id and env_secret:
+        return env_secret if client_id == env_id else stored_secret
+    try:
+        if os.path.exists(CLIENT_SECRETS_FILE):
+            with open(CLIENT_SECRETS_FILE) as fh:
+                data = json.load(fh)
+            section = data.get('web') or data.get('installed') or {}
+            if section.get('client_id') == client_id and section.get('client_secret'):
+                return section['client_secret']
+    except Exception as e:
+        logger.warning(f"No se pudo leer {CLIENT_SECRETS_FILE}: {e}")
+    return stored_secret
+
+
+def _credentials_for_session(creds_dict):
+    """Credenciales sin client_secret, para guardarlas en la cookie de sesión
+    (firmada pero no cifrada: cualquier usuario puede leer la suya)."""
+    if not creds_dict:
+        return creds_dict
+    return {k: v for k, v in creds_dict.items() if k != 'client_secret'}
+
+
 def get_user_credentials():
     """Obtiene las credenciales de Google OAuth del usuario actual"""
     if not is_user_authenticated():
@@ -525,7 +558,7 @@ def get_user_credentials():
             refresh_token=credentials_dict.get('refresh_token'),
             token_uri=credentials_dict['token_uri'],
             client_id=credentials_dict['client_id'],
-            client_secret=credentials_dict['client_secret'],
+            client_secret=_oauth_client_secret(credentials_dict['client_id'], credentials_dict.get('client_secret')),
             scopes=credentials_dict['scopes']
         )
     except Exception as e:
@@ -574,7 +607,8 @@ def get_user_info_from_temp_credentials():
             'email': user_info.get('email'),
             'name': user_info.get('name'),
             'picture': user_info.get('picture'),
-            'verified_email': user_info.get('verified_email', False)
+            # None si Google no lo informa: solo un False explícito bloquea (ver auth_callback)
+            'verified_email': user_info.get('verified_email')
         }
     except Exception as e:
         logger.error(f"Error obteniendo información del usuario desde credenciales temporales: {e}")
@@ -590,7 +624,6 @@ def refresh_credentials_if_needed(credentials):
                 'refresh_token': credentials.refresh_token,
                 'token_uri': credentials.token_uri,
                 'client_id': credentials.client_id,
-                'client_secret': credentials.client_secret,
                 'scopes': credentials.scopes
             }
         return credentials
@@ -668,6 +701,29 @@ def _safe_next_url(value):
     if any(c in value for c in ('\r', '\n', '\t')):
         return None
     return value
+
+def _same_site_next_url(value):
+    """Como _safe_next_url, pero además acepta URLs absolutas del propio dominio.
+
+    /auth/login y /auth/signup reciben `next` desde /login y /signup, y el flujo
+    de pago lo manda como URL absoluta del mismo host (billing_routes: redirect a
+    '/login?next=' + request.url). Esas se conservan tal cual para no cambiar el
+    destino tras el login con Google; cualquier otro dominio se descarta (open
+    redirect)."""
+    safe = _safe_next_url(value)
+    if safe:
+        return safe
+    if not isinstance(value, str) or not value:
+        return None
+    if any(c in value for c in ('\r', '\n', '\t')):
+        return None
+    try:
+        parsed = urllib.parse.urlparse(value)
+    except ValueError:
+        return None
+    if parsed.scheme in ('http', 'https') and parsed.netloc and parsed.netloc.lower() == (request.host or '').lower():
+        return value
+    return None
 
 def _clear_signup_intent():
     """Clear pricing/signup intent values to avoid stale checkout redirects."""
@@ -1154,7 +1210,7 @@ def setup_auth_routes(app):
     def auth_login():
         """Inicio de sesión con Google OAuth - Solo para usuarios existentes"""
         try:
-            next_url = request.args.get('next')
+            next_url = _same_site_next_url(request.args.get('next'))
             if next_url:
                 session['auth_next'] = next_url
             if _is_invitation_next_url(session.get('auth_next')):
@@ -1188,7 +1244,7 @@ def setup_auth_routes(app):
             interval_param = (request.args.get('interval') or 'monthly').lower()
             explicit_pricing_flow = plan_param in ['basic', 'premium', 'business', 'enterprise']
 
-            next_url = request.args.get('next')
+            next_url = _same_site_next_url(request.args.get('next'))
             if next_url:
                 session['auth_next'] = next_url
             invitation_context = _is_invitation_next_url(session.get('auth_next')) and not explicit_pricing_flow
@@ -1230,7 +1286,13 @@ def setup_auth_routes(app):
     def auth_callback():
         """Callback de Google OAuth - Maneja registro y login por separado"""
         try:
-            if request.args.get('state') != session.get('state'):
+            # El state se genera en los tres flujos que mandan a Google (login,
+            # signup y añadir conexión). Se exige, se consume y se compara en
+            # tiempo constante: antes pasaba si faltaban los dos (CSRF de login).
+            expected_state = session.pop('state', None)
+            received_state = request.args.get('state')
+            if (not expected_state or not received_state
+                    or not secrets.compare_digest(str(received_state), str(expected_state))):
                 return redirect('/login?auth_error=invalid_state')
             
             # Manejar si el usuario negó el acceso
@@ -1359,7 +1421,7 @@ def setup_auth_routes(app):
                     
                     if signup_plan and signup_plan in ['basic', 'premium', 'business']:
                         # ✅ NUEVO: Login automático + redirect directo a checkout
-                        session['credentials'] = session.pop('temp_credentials')
+                        session['credentials'] = _credentials_for_session(session.pop('temp_credentials'))
                         session['user_id'] = new_user['id']
                         session['user_email'] = new_user['email']
                         session['user_name'] = new_user['name']
@@ -1396,7 +1458,7 @@ def setup_auth_routes(app):
                         return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true{extra_qs}")
                     else:
                         # Auto-login after Google signup — direct to dashboard
-                        session['credentials'] = session.pop('temp_credentials', None)
+                        session['credentials'] = _credentials_for_session(session.pop('temp_credentials', None))
                         session['user_id'] = new_user['id']
                         session['user_email'] = new_user['email']
                         session['user_name'] = new_user['name']
@@ -1493,6 +1555,15 @@ def setup_auth_routes(app):
                 if not existing_user['is_active']:
                     session.pop('temp_credentials', None)
                     return redirect('/login?auth_error=account_suspended')
+
+                # Cuenta encontrada por email (no por Google ID) con un email que
+                # Google marca explícitamente como NO verificado: no se entra ni se
+                # vincula. Cualquiera puede crear una cuenta de Google con el email
+                # de otra persona sin verificarlo y entraría en su cuenta.
+                if existing_user.get('google_id') != user_info['id'] and user_info.get('verified_email') is False:
+                    session.pop('temp_credentials', None)
+                    logger.warning(f"Login Google rechazado: email no verificado por Google para la cuenta {existing_user['id']}")
+                    return redirect('/login?auth_error=email_not_verified')
                 
                 # ✅ VINCULAR cuenta existente con Google ID si es necesario
                 # Refactor 2026-05-25: try/finally to GUARANTEE conn.close() on error.
@@ -1519,7 +1590,10 @@ def setup_auth_routes(app):
                                 pass
                 
                 # ✅ INICIAR SESIÓN
-                session['credentials'] = session.pop('temp_credentials')  # Mover credenciales a permanentes
+                # Credenciales completas solo en memoria de esta petición (para la
+                # conexión persistida de abajo); en la cookie van sin client_secret.
+                google_creds_full = session.pop('temp_credentials')
+                session['credentials'] = _credentials_for_session(google_creds_full)  # Mover credenciales a permanentes
                 session['user_id'] = existing_user['id']
                 session['user_email'] = existing_user['email']
                 session['user_name'] = existing_user['name']
@@ -1551,7 +1625,7 @@ def setup_auth_routes(app):
                         user_id=existing_user['id'],
                         google_account_id=user_info['id'],
                         google_email=user_info['email'],
-                        creds=session.get('credentials', {})
+                        creds=google_creds_full or {}
                     )
                 except Exception as e:
                     logger.warning(f"No se pudo crear conexión persistida en login: {e}")
@@ -2686,7 +2760,7 @@ def get_authenticated_service_for_connection(connection, service_name, version):
             refresh_token=refresh_token,
             token_uri=connection.get('token_uri'),
             client_id=connection.get('client_id'),
-            client_secret=connection.get('client_secret'),
+            client_secret=_oauth_client_secret(connection.get('client_id'), connection.get('client_secret')),
             scopes=json.loads(connection['scopes']) if connection.get('scopes') and connection['scopes'].startswith('[') else connection.get('scopes')
         )
 

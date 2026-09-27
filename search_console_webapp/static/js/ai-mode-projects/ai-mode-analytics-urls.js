@@ -6,6 +6,33 @@
 
 import { getDomainLogoUrl } from './ai-mode-utils.js';
 
+// Escape local que también escapa comillas, seguro dentro de atributos HTML, y
+// filtro de esquema para href. Copia exacta de manual-ai-analytics-urls.js: las
+// URLs vienen de resultados de Google AI Mode y no son de confianza.
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Devuelve la url solo si es http(s); si no, '#'. Rechaza javascript:, data:, etc.
+function safeHttpUrl(url) {
+    if (typeof url !== 'string') return '#';
+    try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return url;
+        }
+    } catch (e) {
+        // fall through
+    }
+    return '#';
+}
+
 // ================================
 // TOP URLS RANKING
 // ================================
@@ -306,16 +333,21 @@ export function renderTopUrlsRanking(urls) {
             ? urlData.url.substring(0, 67) + '...' 
             : urlData.url;
         
+        const safeHref = escapeHtml(safeHttpUrl(urlData.url));
+        const safeFullUrl = escapeHtml(urlData.url);
+        const safeDisplayUrl = escapeHtml(displayUrl);
+        const safeUrlDomain = escapeHtml(urlDomain);
+        const safeUrlDomainInitial = escapeHtml((urlDomain || '').charAt(0).toUpperCase());
         row.innerHTML = `
             <td class="rank-cell">${urlData.rank}</td>
             <td class="url-cell">
                 <div class="global-domain-cell">
-                    <img src="${logoUrl}" alt="${urlDomain} logo" class="domain-logo" 
-                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${urlDomain.charAt(0).toUpperCase()}</text></svg>'">
+                    <img src="${logoUrl}" alt="${safeUrlDomain} logo" class="domain-logo" 
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${safeUrlDomainInitial}</text></svg>'">
                     <div class="global-domain-info">
                         <div class="global-domain-label">
-                            <a href="${urlData.url}" target="_blank" rel="noopener noreferrer" title="${urlData.url}" class="url-link">
-                                ${displayUrl}
+                            <a href="${safeHref}" target="_blank" rel="noopener noreferrer" title="${safeFullUrl}" class="url-link">
+                                ${safeDisplayUrl}
                                 <i class="fas fa-external-link-alt"></i>
                             </a>
                             ${domainBadge}

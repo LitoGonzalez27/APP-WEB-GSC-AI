@@ -276,6 +276,7 @@
                     case 'user_not_found':      msg = 'Usuario no registrado. <a href="' + withAuthContext('/signup') + '">Crea una cuenta</a>.'; break;
                     case 'user_not_registered': msg = 'No tienes cuenta registrada. <a href="' + withAuthContext('/signup') + '">Crea una primero</a>.'; break;
                     case 'user_already_exists': msg = 'Ya tienes una cuenta activa. Mejor <a href="' + withAuthContext('/login') + '">inicia sesión</a>.'; break;
+                    case 'email_not_verified':  msg = 'Tu cuenta de Google no tiene el email verificado. Verifícalo en Google o entra con tu email y contraseña.'; break;
                 }
                 showNotification(msg, 'error');
             }
