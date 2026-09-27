@@ -3447,7 +3447,7 @@ def cache_management_route():
         }), 500
 
 @app.route('/debug-ai-detection', methods=['POST'])
-@auth_required
+@admin_required
 def debug_ai_detection():
     """
     Ruta de debugging para probar el sistema de detección de AI Overview mejorado.
@@ -3476,9 +3476,11 @@ def debug_ai_detection():
             return jsonify({'error': 'SERPAPI_KEY no configurada'}), 500
             
         params = get_serp_params_with_location(keyword, api_key, country, site_url)
+        # La clave de SerpAPI nunca sale en logs ni en la respuesta (igual que /debug-serp-params)
+        params_redacted = {k: ('***REDACTED***' if k == 'api_key' else v) for k, v in params.items()}
         
         # Obtener datos SERP
-        logger.info(f"[DEBUG] Obteniendo datos SERP con parámetros: {params}")
+        logger.info(f"[DEBUG] Obteniendo datos SERP con parámetros: {params_redacted}")
         serp_data = get_serp_json(params)
         
         if not serp_data or "error" in serp_data:
@@ -3502,7 +3504,7 @@ def debug_ai_detection():
                 'generative_snippet'
             ],
             'ai_overview_keys_found': [],
-            'serp_params_used': params,
+            'serp_params_used': params_redacted,
             'domain_normalized': normalize_search_console_url(site_url),
             'domain_extracted': extract_domain(site_url)
         }

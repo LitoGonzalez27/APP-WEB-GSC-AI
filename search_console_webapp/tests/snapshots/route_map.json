@@ -1,0 +1,1678 @@
+[
+ {
+  "rule": "/",
+  "endpoint": "landing",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/__routes",
+  "endpoint": "__list_routes",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/api/costs",
+  "endpoint": "admin_costs.admin_costs_api",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/audit-log",
+  "endpoint": "admin_audit_log",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/debug-stats",
+  "endpoint": "debug_stats",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/fix-dates",
+  "endpoint": "fix_user_dates",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/fix-llm-models",
+  "endpoint": "admin_fix.fix_llm_models_endpoint",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/projects/<module>/<int:project_id>/limits",
+  "endpoint": "admin_set_project_limits",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/projects/llm_monitoring/<int:project_id>/search-mode",
+  "endpoint": "admin_set_llm_search_mode",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/stats/detailed",
+  "endpoint": "admin_detailed_stats",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/users",
+  "endpoint": "admin_users",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/assign-custom-quota",
+  "endpoint": "admin_assign_custom_quota",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/billing-details",
+  "endpoint": "user_billing_details",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/change-plan",
+  "endpoint": "admin_change_user_plan",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/delete",
+  "endpoint": "admin_delete_user",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/invitations",
+  "endpoint": "admin_user_invitations",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/project-limits",
+  "endpoint": "admin_user_project_limits",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/remove-custom-quota",
+  "endpoint": "admin_remove_custom_quota",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/reset-password",
+  "endpoint": "admin_reset_user_password",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/reset-quota",
+  "endpoint": "admin_reset_quota",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/toggle-status",
+  "endpoint": "toggle_user_status",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/admin/users/<int:user_id>/update-role",
+  "endpoint": "update_user_role_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/agent/",
+  "endpoint": "agent_scanner.index",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/acceso",
+  "endpoint": "agent_scanner.access_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/access/add",
+  "endpoint": "agent_scanner.access_add",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/agent/api/access/list",
+  "endpoint": "agent_scanner.access_list",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/access/remove",
+  "endpoint": "agent_scanner.access_remove",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/agent/api/access/resend",
+  "endpoint": "agent_scanner.access_resend",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/agent/api/agents/<job_id>",
+  "endpoint": "agent_scanner.run_agents",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/agent/api/agents/<job_id>/status",
+  "endpoint": "agent_scanner.agents_status",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/cancel/<job_id>",
+  "endpoint": "agent_scanner.cancel",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/agent/api/catalog",
+  "endpoint": "agent_scanner.catalog",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/diag",
+  "endpoint": "agent_scanner.diag",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/historial",
+  "endpoint": "agent_scanner.historial",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/historial/<job_id>",
+  "endpoint": "agent_scanner.borrar_informe",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/agent/api/me",
+  "endpoint": "agent_scanner.whoami",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/prompt/<job_id>",
+  "endpoint": "agent_scanner.prompt_rescate",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/report/<job_id>.json",
+  "endpoint": "agent_scanner.report_json",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/report/<job_id>.pdf",
+  "endpoint": "agent_scanner.report_pdf",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/result/<job_id>",
+  "endpoint": "agent_scanner.result",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/agent/api/scan",
+  "endpoint": "agent_scanner.scan",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/agent/api/status/<job_id>",
+  "endpoint": "agent_scanner.status",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/",
+  "endpoint": "ai_mode.ai_mode_dashboard",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/cron/daily-analysis",
+  "endpoint": "ai_mode.trigger_daily_analysis",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/health",
+  "endpoint": "ai_mode.manual_ai_health",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects",
+  "endpoint": "ai_mode.create_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects",
+  "endpoint": "ai_mode.get_projects",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>",
+  "endpoint": "ai_mode.delete_project",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>",
+  "endpoint": "ai_mode.get_project_details",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>",
+  "endpoint": "ai_mode.update_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/ai-overview-table",
+  "endpoint": "ai_mode.get_ai_overview_table_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/ai-overview-table-latest",
+  "endpoint": "ai_mode.get_ai_overview_table_latest",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/analyze",
+  "endpoint": "ai_mode.analyze_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/clusters",
+  "endpoint": "ai_mode.get_project_clusters",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/clusters",
+  "endpoint": "ai_mode.update_project_clusters",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/clusters/statistics",
+  "endpoint": "ai_mode.get_clusters_statistics",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/clusters/test",
+  "endpoint": "ai_mode.test_cluster_classification",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/clusters/validate",
+  "endpoint": "ai_mode.validate_clusters_config",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/comparative-charts",
+  "endpoint": "ai_mode.get_comparative_charts_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/competitors",
+  "endpoint": "ai_mode.get_project_competitors",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/competitors",
+  "endpoint": "ai_mode.update_project_competitors",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/competitors-charts",
+  "endpoint": "ai_mode.get_competitors_charts_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/download-excel",
+  "endpoint": "ai_mode.download_manual_ai_excel",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/export",
+  "endpoint": "ai_mode.export_project_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/global-domains-ranking",
+  "endpoint": "ai_mode.get_global_domains_ranking",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/keywords",
+  "endpoint": "ai_mode.add_keywords_to_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/keywords",
+  "endpoint": "ai_mode.get_project_keywords",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/keywords/<int:keyword_id>",
+  "endpoint": "ai_mode.delete_project_keyword",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/keywords/<int:keyword_id>",
+  "endpoint": "ai_mode.update_project_keyword",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/pause",
+  "endpoint": "ai_mode.pause_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/results",
+  "endpoint": "ai_mode.get_project_results",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/resume",
+  "endpoint": "ai_mode.resume_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/stats",
+  "endpoint": "ai_mode.get_project_stats",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/stats-latest",
+  "endpoint": "ai_mode.get_project_stats_latest",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/top-domains",
+  "endpoint": "ai_mode.get_top_domains",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/urls-ranking",
+  "endpoint": "ai_mode.get_urls_ranking",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-summary/",
+  "endpoint": "ai_summary.ai_summary_dashboard",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands",
+  "endpoint": "ai_summary.create_brand",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands",
+  "endpoint": "ai_summary.get_brands",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands/<int:brand_id>",
+  "endpoint": "ai_summary.delete_brand",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands/<int:brand_id>",
+  "endpoint": "ai_summary.update_brand",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands/<int:brand_id>/export/pdf",
+  "endpoint": "ai_summary.export_brand_pdf",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands/<int:brand_id>/score-history",
+  "endpoint": "ai_summary.get_brand_score_history",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands/<int:brand_id>/summary",
+  "endpoint": "ai_summary.get_brand_summary",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/brands/scores",
+  "endpoint": "ai_summary.get_brand_scores",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/ai-summary/api/cron/daily-snapshots",
+  "endpoint": "ai_summary.cron_daily_snapshots",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/ai-overview-history",
+  "endpoint": "get_ai_overview_history_route",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/ai-overview-stats",
+  "endpoint": "get_ai_overview_stats_route",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/ai-overview-typology",
+  "endpoint": "get_ai_overview_typology_route",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/ai-recommendations",
+  "endpoint": "ai_recommendations_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/analyze-ai-overview",
+  "endpoint": "analyze_ai_overview_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/billing/verify-activation",
+  "endpoint": "verify_plan_activation",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/cache-management",
+  "endpoint": "cache_management_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/cron/quota-health-check",
+  "endpoint": "cron.quota_health_check_endpoint",
+  "methods": [
+   "GET",
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/cron/quota-reset",
+  "endpoint": "cron.trigger_quota_reset",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/cron/alert",
+  "endpoint": "llm_monitoring.cron_alert",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/cron/daily-analysis",
+  "endpoint": "llm_monitoring.trigger_daily_analysis",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/cron/model-discovery",
+  "endpoint": "llm_monitoring.cron_model_discovery",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/cron/watchdog",
+  "endpoint": "llm_monitoring.cron_watchdog",
+  "methods": [
+   "GET",
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/health",
+  "endpoint": "llm_monitoring.health_check",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/models",
+  "endpoint": "llm_monitoring.get_models",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/models/<int:model_id>",
+  "endpoint": "llm_monitoring.update_model",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/models/approve",
+  "endpoint": "llm_monitoring.approve_model_by_token",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/models/changelog",
+  "endpoint": "llm_monitoring.get_model_changelog",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/models/current",
+  "endpoint": "llm_monitoring.get_current_models",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/models/reject",
+  "endpoint": "llm_monitoring.reject_model_by_token",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects",
+  "endpoint": "llm_monitoring.create_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects",
+  "endpoint": "llm_monitoring.get_projects",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>",
+  "endpoint": "llm_monitoring.delete_project",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>",
+  "endpoint": "llm_monitoring.get_project",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>",
+  "endpoint": "llm_monitoring.update_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/activate",
+  "endpoint": "llm_monitoring.activate_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/clusters",
+  "endpoint": "llm_monitoring.get_project_clusters",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/clusters",
+  "endpoint": "llm_monitoring.update_project_clusters",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/clusters/metrics",
+  "endpoint": "llm_monitoring.get_clusters_metrics",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/clusters/rename",
+  "endpoint": "llm_monitoring.rename_project_cluster",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/comparison",
+  "endpoint": "llm_monitoring.get_llm_comparison",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/deactivate",
+  "endpoint": "llm_monitoring.deactivate_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/export/excel",
+  "endpoint": "llm_monitoring.export_project_excel",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/export/pdf",
+  "endpoint": "llm_monitoring.export_project_pdf",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/fanout",
+  "endpoint": "llm_monitoring.get_project_fanout",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/metrics",
+  "endpoint": "llm_monitoring.get_project_metrics",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries",
+  "endpoint": "llm_monitoring.add_queries_to_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries",
+  "endpoint": "llm_monitoring.get_project_queries",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id>",
+  "endpoint": "llm_monitoring.delete_query",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id>/cluster",
+  "endpoint": "llm_monitoring.assign_query_cluster",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id>/history",
+  "endpoint": "llm_monitoring.get_query_history",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/<int:query_id>/set",
+  "endpoint": "llm_monitoring.assign_query_set",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/bulk-cluster",
+  "endpoint": "llm_monitoring.bulk_assign_cluster",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/bulk-set",
+  "endpoint": "llm_monitoring.bulk_assign_set",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/suggest",
+  "endpoint": "llm_monitoring.suggest_queries",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/queries/suggest-variations",
+  "endpoint": "llm_monitoring.suggest_query_variations",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/responses",
+  "endpoint": "llm_monitoring.get_project_responses",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/run-initial-analysis",
+  "endpoint": "llm_monitoring.run_initial_analysis",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/sets",
+  "endpoint": "llm_monitoring.get_project_sets",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/sets",
+  "endpoint": "llm_monitoring.update_project_sets",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/sets/rename",
+  "endpoint": "llm_monitoring.rename_project_set",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/share-of-voice-history",
+  "endpoint": "llm_monitoring.get_share_of_voice_history",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/url-content-analysis",
+  "endpoint": "llm_monitoring.get_url_content_analysis",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/url-content-analysis",
+  "endpoint": "llm_monitoring.start_url_content_analysis",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/projects/<int:project_id>/urls-ranking",
+  "endpoint": "llm_monitoring.get_urls_ranking",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/llm-monitoring/usage",
+  "endpoint": "llm_monitoring.get_usage",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/project-access/invitations/<int:invitation_id>",
+  "endpoint": "project_access.revoke_invitation",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/api/project-access/invitations/accept",
+  "endpoint": "project_access.accept_invitation",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/project-access/my-invitations",
+  "endpoint": "project_access.my_invitations",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/project-access/my-invitations/<int:invitation_id>/resend",
+  "endpoint": "project_access.resend_my_invitation",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/project-access/projects/<module_name>/<int:project_id>/invitations",
+  "endpoint": "project_access.create_invitation",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/project-access/projects/<module_name>/<int:project_id>/invitations",
+  "endpoint": "project_access.get_invitations",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/project-access/projects/<module_name>/<int:project_id>/members",
+  "endpoint": "project_access.get_project_members",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/project-access/projects/<module_name>/<int:project_id>/members/<int:member_user_id>",
+  "endpoint": "project_access.remove_member",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/api/project-access/projects/<module_name>/<int:project_id>/permissions",
+  "endpoint": "project_access.get_permissions",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/quota/status",
+  "endpoint": "get_quota_status",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/serp",
+  "endpoint": "get_serp_raw_json",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/serp/position",
+  "endpoint": "get_serp_position",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/serp/screenshot",
+  "endpoint": "get_serp_screenshot_route",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/api/test-url-matching",
+  "endpoint": "test_url_matching_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/api/url-keywords",
+  "endpoint": "get_url_keywords",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/app",
+  "endpoint": "app_main",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/auth/callback",
+  "endpoint": "auth_callback",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/auth/check-email",
+  "endpoint": "check_email_route",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/auth/email/login",
+  "endpoint": "email_login_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/auth/email/signup",
+  "endpoint": "email_signup_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/auth/forgot-password",
+  "endpoint": "forgot_password_request",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/auth/keepalive",
+  "endpoint": "auth_keepalive",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/auth/login",
+  "endpoint": "auth_login",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/auth/logout",
+  "endpoint": "auth_logout",
+  "methods": [
+   "GET",
+   "POST"
+  ]
+ },
+ {
+  "rule": "/auth/reset-password",
+  "endpoint": "reset_password_process",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/auth/signup",
+  "endpoint": "auth_signup",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/auth/status",
+  "endpoint": "auth_status",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/auth/user",
+  "endpoint": "auth_user",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/billing",
+  "endpoint": "billing_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/billing/cancel",
+  "endpoint": "billing_cancel",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/billing/checkout/<plan>",
+  "endpoint": "billing_checkout",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/billing/portal",
+  "endpoint": "billing_portal",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/billing/success",
+  "endpoint": "billing_success",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/connections",
+  "endpoint": "list_connections_route",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/connections/<int:connection_id>",
+  "endpoint": "delete_connection_route",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/connections/<int:connection_id>/refresh",
+  "endpoint": "refresh_connection_route",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/connections/google/start",
+  "endpoint": "start_google_link",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/dashboard",
+  "endpoint": "dashboard",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/debug-ai-detection",
+  "endpoint": "debug_ai_detection",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/debug-serp-params",
+  "endpoint": "debug_serp_params",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/diagnostic/imports",
+  "endpoint": "diagnostic.check_imports",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/download-excel",
+  "endpoint": "download_excel",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/forgot-password",
+  "endpoint": "forgot_password_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/get-available-countries",
+  "endpoint": "get_available_countries",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/get-data",
+  "endpoint": "get_data",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/get-properties",
+  "endpoint": "get_properties",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/gsc/properties",
+  "endpoint": "list_aggregated_properties",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/llm-monitoring",
+  "endpoint": "llm_monitoring_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/login",
+  "endpoint": "login_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/",
+  "endpoint": "manual_ai.manual_ai_dashboard",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/cron/daily-analysis",
+  "endpoint": "manual_ai.trigger_daily_analysis",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/health",
+  "endpoint": "manual_ai.manual_ai_health",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects",
+  "endpoint": "manual_ai.create_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects",
+  "endpoint": "manual_ai.get_projects",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>",
+  "endpoint": "manual_ai.delete_project",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>",
+  "endpoint": "manual_ai.get_project_details",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>",
+  "endpoint": "manual_ai.update_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/ai-overview-historical",
+  "endpoint": "manual_ai.get_ai_overview_historical",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/ai-overview-table",
+  "endpoint": "manual_ai.get_ai_overview_table_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/ai-overview-table-latest",
+  "endpoint": "manual_ai.get_ai_overview_table_latest",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/aio-vs-organic",
+  "endpoint": "manual_ai.get_aio_vs_organic_comparison",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/analyze",
+  "endpoint": "manual_ai.analyze_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/clusters",
+  "endpoint": "manual_ai.get_project_clusters",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/clusters",
+  "endpoint": "manual_ai.update_project_clusters",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/clusters/statistics",
+  "endpoint": "manual_ai.get_clusters_statistics",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/clusters/test",
+  "endpoint": "manual_ai.test_cluster_classification",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/clusters/validate",
+  "endpoint": "manual_ai.validate_clusters_config",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/comparative-charts",
+  "endpoint": "manual_ai.get_comparative_charts_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/competitors",
+  "endpoint": "manual_ai.get_project_competitors",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/competitors",
+  "endpoint": "manual_ai.update_project_competitors",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/competitors-charts",
+  "endpoint": "manual_ai.get_competitors_charts_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/download-excel",
+  "endpoint": "manual_ai.download_manual_ai_excel",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/export",
+  "endpoint": "manual_ai.export_project_data",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/export/pdf",
+  "endpoint": "manual_ai.download_manual_ai_pdf",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/global-domains-ranking",
+  "endpoint": "manual_ai.get_global_domains_ranking",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/keywords",
+  "endpoint": "manual_ai.add_keywords_to_project",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/keywords",
+  "endpoint": "manual_ai.get_project_keywords",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/keywords/<int:keyword_id>",
+  "endpoint": "manual_ai.delete_project_keyword",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/keywords/<int:keyword_id>",
+  "endpoint": "manual_ai.update_project_keyword",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/pause",
+  "endpoint": "manual_ai.pause_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/results",
+  "endpoint": "manual_ai.get_project_results",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/resume",
+  "endpoint": "manual_ai.resume_project",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/stats",
+  "endpoint": "manual_ai.get_project_stats",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/stats-latest",
+  "endpoint": "manual_ai.get_project_stats_latest",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/top-domains",
+  "endpoint": "manual_ai.get_top_domains",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/urls-ranking",
+  "endpoint": "manual_ai.get_urls_ranking",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/mobile-not-supported",
+  "endpoint": "mobile_not_supported",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/profile",
+  "endpoint": "user_profile",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/profile/change-password",
+  "endpoint": "change_user_password",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/profile/update",
+  "endpoint": "update_profile",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/project-access",
+  "endpoint": "project_access_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/project-invitations/accept",
+  "endpoint": "accept_project_invitation_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/reset-password",
+  "endpoint": "reset_password_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/signup",
+  "endpoint": "signup_page",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/static/<path:filename>",
+  "endpoint": "static",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "rule": "/webhooks/stripe",
+  "endpoint": "stripe_webhook",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "rule": "/webhooks/stripe",
+  "endpoint": "stripe_webhook_health",
+  "methods": [
+   "GET"
+  ]
+ }
+]
