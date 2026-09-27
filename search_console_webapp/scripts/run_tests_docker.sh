@@ -32,10 +32,17 @@ cleanup
 docker network create --internal "$NET" >/dev/null
 docker run -d --name "$DB" --network "$NET" --network-alias "$DB_ALIAS" \
   -e POSTGRES_PASSWORD=test -e POSTGRES_DB=clicandseo_test \
-  --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null
+  --tmpfs /var/lib/postgresql/data postgres:16-alpine \
+  postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off \
+           -c wal_level=minimal -c max_wal_senders=0 -c max_wal_size=64MB \
+           -c checkpoint_timeout=30s >/dev/null
+# Opciones solo para esta base desechable en RAM: la matriz de permisos la vacía
+# cientos de veces y, con los valores por defecto, el WAL llenaba el tmpfs.
 
+# Por TCP: durante la inicialización Postgres arranca un servidor temporal solo
+# por socket y lo reinicia; pg_isready sin -h lo daba por listo antes de tiempo.
 for _ in $(seq 1 60); do
-  docker exec "$DB" pg_isready -U postgres -q && break
+  docker exec "$DB" pg_isready -h 127.0.0.1 -U postgres -q && break
   sleep 1
 done
 docker exec -i "$DB" psql -U postgres -d clicandseo_test -v ON_ERROR_STOP=1 -q \
