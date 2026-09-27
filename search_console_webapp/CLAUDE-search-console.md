@@ -96,7 +96,7 @@
 | Archivo | Líneas | Rol |
 |---|---:|---|
 | `app.js` | 1801 | Orquestador del front. |
-| `data.js` / `data-validator.js` | — | POST a `/get-data`. |
+| `data.js` | — | POST a `/get-data`. (`data-validator.js` no se cargaba y se eliminó el 2026-09-27.) |
 | `ui-render.js` | 2560 | Render principal; también llama `/api/url-keywords`. |
 | `ui-keywords-gridjs.js` | 1527 | Tabla keywords. |
 | `ui-urls-gridjs.js`, `ui-url-keywords-gridjs.js` | — | Otras tablas Grid.js. |
@@ -110,7 +110,7 @@
 | `gsc-connect-modal.js` | — | Modal "conecta tu Google Search Console". |
 | `quota-ui.js`, `paywall.js`, `ai-reset-manager.js`, `sidebar-navigation.js`, `onboarding-popups.js`, `tooltips-fix.js` | — | UX. |
 
-> El usuario antiguamente hablaba de `api-handler.js` y `state-manager.js`: **no existen** con esos nombres. Sus equivalentes son `data.js`/`data-validator.js` (handler de `/get-data`) y partes de `app.js` + `ui-render.js` para estado.
+> El usuario antiguamente hablaba de `api-handler.js` y `state-manager.js`: **no existen** con esos nombres. Su equivalente es `data.js` (handler de `/get-data`) y partes de `app.js` + `ui-render.js` para estado.
 
 ---
 
