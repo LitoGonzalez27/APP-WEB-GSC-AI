@@ -101,9 +101,35 @@ def main():
     resume_fail = 0
 
     skipped_stripe_active = 0
+    skipped_stripe_not_paying = 0
 
     for user in users:
         user_id = user['id']
+
+        # ─────────────────────────────────────────────────────────────────
+        # Estado real en Stripe (fix 2026-09-28):
+        # Si la BD dice active/trialing pero en Stripe la suscripción está
+        # impagada o cancelada (p. ej. se perdió el webhook), NO se da cuota
+        # nueva. Una sola llamada a Stripe por usuario, que también sirve para
+        # el periodo de abajo. Si Stripe no responde, se sigue como antes
+        # (reset) para no castigar a un cliente que paga por una caída ajena.
+        # Usuarios beta y sin suscripción: sin cambios.
+        # ─────────────────────────────────────────────────────────────────
+        sub_id = user.get('subscription_id')
+        live_sub = None
+        live_error = None
+        if sub_id and user.get('billing_status') in ('active', 'trialing'):
+            try:
+                live_sub = _fetch_live_stripe_subscription(sub_id)
+            except Exception as e:
+                live_error = e
+            if live_sub and live_sub.get('status') in _STRIPE_STATUS_SIN_RESET:
+                logger.warning(
+                    f"⛔ User {user_id}: Stripe dice '{live_sub.get('status')}' para {sub_id} "
+                    f"(BD: {user.get('billing_status')}); no se resetea la cuota"
+                )
+                skipped_stripe_not_paying += 1
+                continue
 
         # ─────────────────────────────────────────────────────────────────
         # Live Stripe lookup (reescrito 2026-08-07):
@@ -121,11 +147,15 @@ def main():
         #     al próximo ciclo (compute_..., 30d cap period_end) SIN resetear
         #     — está a mitad de periodo y no le toca todavía.
         # ─────────────────────────────────────────────────────────────────
-        sub_id = user.get('subscription_id')
         period_end_db = user.get('current_period_end')
         if sub_id and period_end_db is None:
             try:
-                live_period_end = _fetch_live_stripe_period_end(sub_id)
+                if live_error is not None:
+                    raise live_error
+                if live_sub is not None:
+                    live_period_end = live_sub.get('period_end')
+                else:
+                    live_period_end = _fetch_live_stripe_period_end(sub_id)
                 if live_period_end is not None:
                     user = dict(user)
                     user['current_period_end'] = live_period_end
@@ -248,8 +278,38 @@ def main():
     logger.info(
         f"✅ QUOTA RESET CRON FINISHED | ok={reset_ok} "
         f"reset_fail={reset_fail} resume_fail={resume_fail} "
-        f"skipped_stripe_active={skipped_stripe_active}"
+        f"skipped_stripe_active={skipped_stripe_active} "
+        f"skipped_stripe_not_paying={skipped_stripe_not_paying}"
     )
+
+
+# Estados de suscripción en Stripe con los que NO se renueva la cuota.
+_STRIPE_STATUS_SIN_RESET = ('past_due', 'unpaid', 'canceled', 'incomplete', 'incomplete_expired', 'paused')
+
+
+def _fetch_live_stripe_subscription(subscription_id):
+    """Estado y fin de periodo de una suscripción, leídos en vivo de Stripe.
+
+    Devuelve {'status': str | None, 'period_end': datetime UTC con zona | None}.
+    Lanza excepción si Stripe no responde o no hay clave (el cron sigue como antes).
+    """
+    import stripe
+    api_key = os.getenv('STRIPE_SECRET_KEY')
+    if not api_key:
+        raise RuntimeError("STRIPE_SECRET_KEY not configured")
+    stripe.api_key = api_key
+
+    sub = stripe.Subscription.retrieve(subscription_id)
+    period_end_ts = sub.get('current_period_end')
+    if not period_end_ts:
+        items = (sub.get('items') or {}).get('data') or []
+        if items:
+            period_end_ts = items[0].get('current_period_end')
+    from datetime import datetime as _dt, timezone as _tz
+    return {
+        'status': sub.get('status'),
+        'period_end': _dt.fromtimestamp(period_end_ts, tz=_tz.utc) if period_end_ts else None,
+    }
 
 
 def _fetch_live_stripe_period_end(subscription_id):

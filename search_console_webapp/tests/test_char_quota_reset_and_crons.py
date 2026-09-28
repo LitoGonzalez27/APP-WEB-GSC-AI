@@ -399,25 +399,27 @@ def _escenarios_reset(T0):
         ("free_no_vencido", dict(plan="free", billing_status="active", quota_limit=0, quota_used=3,
                                  quota_reset_date=d(5)), None, None),
         # Pago mensual con periodo Stripe vigente cacheado en BD: se resetea y la
-        # próxima fecha se recorta a current_period_end. Stripe no se consulta.
+        # próxima fecha se recorta a current_period_end. Desde el 2026-09-28 se
+        # consulta el estado en Stripe (active => sigue igual).
         ("mensual_periodo_vigente", dict(plan="basic", billing_status="active", quota_limit=1225,
                                          quota_used=1225, quota_reset_date=d(-1),
                                          current_period_start=d(-20), current_period_end=d(10),
                                          subscription_id="sub_mensual", stripe_customer_id="cus_mensual",
                                          **pausa_vigente),
-         None, reset(d(10))),
+         {"id": "sub_mensual", "status": "active", "current_period_end": ts(10)}, reset(d(10))),
         # Anual a mitad de periodo (caso user 665719): reset mensual, +30 días desde el último.
         ("anual_mitad_periodo", dict(plan="premium", billing_status="active", quota_limit=2950,
                                      quota_used=2950, quota_reset_date=d(-2),
                                      current_period_start=d(-100), current_period_end=d(265),
                                      subscription_id="sub_anual", **pausa_vencida),
-         None, reset(d(28))),
-        # Periodo en BD ya vencido: se ignora el periodo (no hay recorte) y no se pregunta a Stripe.
+         {"id": "sub_anual", "status": "active", "current_period_end": ts(265)}, reset(d(28))),
+        # Periodo en BD ya vencido: se ignora el periodo (no hay recorte). Stripe se
+        # consulta solo por el estado (active => reset como siempre).
         ("periodo_vencido_en_bd", dict(plan="business", billing_status="active", quota_limit=15000,
                                        quota_used=100, quota_reset_date=d(-3),
                                        current_period_start=d(-33), current_period_end=d(-3),
                                        subscription_id="sub_vencido"),
-         None, reset(d(27))),
+         {"id": "sub_vencido", "status": "active", "current_period_end": ts(27)}, reset(d(27))),
         # Muy atrasado (45 días): un solo reset, la fecha avanza de 30 en 30 hasta el futuro.
         ("muy_atrasado", dict(plan="basic", billing_status="active", quota_limit=1225, quota_used=50,
                               quota_reset_date=d(-45)),
@@ -459,17 +461,16 @@ def _escenarios_reset(T0):
                                      quota_reset_date=d(-1), subscription_id="sub_vivo_vencido"),
          {"id": "sub_vivo_vencido", "status": "active", "items": {"data": [{"current_period_end": ts(20)}]}},
          reset(d(20), current_period_end=d(20))),
-        # COMPORTAMIENTO ACTUAL (posible defecto): el cron no mira el status de la suscripción
-        # en Stripe. Cancelada o past_due en Stripe pero 'active' en BD => se cachea el
-        # periodo (ya pasado) y se resetea la cuota igualmente.
+        # ARREGLADO (2026-09-28): cancelada o past_due en Stripe pero 'active' en BD
+        # => NO se da cuota nueva ni se toca la fila (antes se reseteaba igualmente).
         ("stripe_cancelado", dict(plan="basic", billing_status="active", quota_limit=1225, quota_used=600,
                                   quota_reset_date=d(-1), subscription_id="sub_cancelado_stripe"),
          {"id": "sub_cancelado_stripe", "status": "canceled", "current_period_end": ts(-5)},
-         reset(d(29), current_period_end=d(-5))),
+         None),
         ("stripe_past_due", dict(plan="basic", billing_status="active", quota_limit=1225, quota_used=400,
                                  quota_reset_date=d(-1), subscription_id="sub_past_due_stripe"),
          {"id": "sub_past_due_stripe", "status": "past_due", "current_period_end": ts(-2)},
-         reset(d(29), current_period_end=d(-2))),
+         None),
         # Stripe falla: se sigue con el reset normal y el periodo sigue NULL.
         ("stripe_error", dict(plan="basic", billing_status="active", quota_limit=1225, quota_used=70,
                               quota_reset_date=d(-1), subscription_id="sub_error"),
@@ -485,8 +486,10 @@ def _escenarios_reset(T0):
     ]
 
 
-# Suscripciones que el cron debe consultar en Stripe (una vez cada una).
+# Suscripciones que el cron debe consultar en Stripe (una vez cada una): desde el
+# 2026-09-28, todas las de usuarios con reset vencido y billing_status active/trialing.
 SUBS_CONSULTADAS = {
+    "sub_mensual", "sub_anual", "sub_vencido",
     "sub_vivo_sin_fecha", "sub_vivo_vencido", "sub_cancelado_stripe",
     "sub_past_due_stripe", "sub_error", "sub_sin_periodo",
 }
@@ -578,8 +581,8 @@ def test_reset_directo_fija_quien_se_resetea_y_que_cambia(entorno, escenario_res
 
     _comprobar_estado_tras_reset(entorno, escenario_reset)
 
-    # Stripe solo se consulta para usuarios seleccionados con subscription_id y
-    # current_period_end NULL, una vez cada uno.
+    # Stripe se consulta una vez por cada usuario seleccionado con subscription_id y
+    # billing_status active/trialing (estado real antes de resetear).
     assert sorted(escenario_reset.llamadas_stripe) == sorted(SUBS_CONSULTADAS)
     # Efecto lateral: fija la clave global del SDK de Stripe con STRIPE_SECRET_KEY.
     assert escenario_reset.stripe.api_key == "sk_test_notreal0000000000000000"
@@ -601,8 +604,10 @@ def test_reset_segunda_ejecucion_no_cambia_nada(entorno, escenario_reset):
     escenario_reset.modulo.main()
 
     assert _estado_usuarios(entorno.db) == tras_primera
-    # Tras cachear el periodo, la segunda pasada ya no pregunta a Stripe.
-    assert escenario_reset.llamadas_stripe == llamadas_primera
+    # La segunda pasada solo vuelve a preguntar por los que Stripe dejó sin reset
+    # (siguen pendientes hasta que Stripe o el webhook lo resuelvan).
+    assert sorted(escenario_reset.llamadas_stripe[len(llamadas_primera):]) == \
+        ["sub_cancelado_stripe", "sub_past_due_stripe"]
 
 
 def test_reset_si_stripe_no_tiene_clave_resetea_sin_consultar(entorno, escenario_reset, monkeypatch):
@@ -614,9 +619,14 @@ def test_reset_si_stripe_no_tiene_clave_resetea_sin_consultar(entorno, escenario
     T0 = escenario_reset.T0
     ids = escenario_reset.ids
     esperado = escenario_reset.esperado
-    for clave, fecha in (("stripe_vivo_vencido", 29), ("stripe_cancelado", 29), ("stripe_past_due", 29)):
-        esperado[ids[clave]]["current_period_end"] = None
-        esperado[ids[clave]]["quota_reset_date"] = T0 + timedelta(days=fecha)
+    esperado[ids["stripe_vivo_vencido"]]["current_period_end"] = None
+    esperado[ids["stripe_vivo_vencido"]]["quota_reset_date"] = T0 + timedelta(days=29)
+    # Sin clave no se puede consultar el estado en Stripe: se resetea como antes.
+    for clave in ("stripe_cancelado", "stripe_past_due"):
+        esperado[ids[clave]].update({
+            "quota_used": 0, "quota_reset_date": T0 + timedelta(days=29), "current_period_end": None,
+            "ai_overview_paused_until": None, "ai_overview_paused_at": None, "ai_overview_paused_reason": None,
+        })
     # COMPORTAMIENTO ACTUAL (posible defecto): sin clave de Stripe, un usuario de pago a
     # mitad de periodo sin quota_reset_date recibe un reset completo de cuota.
     esperado[ids["stripe_vivo_sin_fecha"]].update({
@@ -636,16 +646,20 @@ def test_reset_si_stripe_no_tiene_clave_resetea_sin_consultar(entorno, escenario
 def _comprobar_health_check(ent, esc, health):
     congelado = esc.ids["anual_congelado"]
     assert health["ok"] is False
-    assert health["stuck_count"] == 1
-    assert len(health["stuck_users"]) == 1
-    atascado = health["stuck_users"][0]
+    # Desde el 2026-09-28 los usuarios que Stripe da por cancelados/impagados no se
+    # resetean y quedan con la fecha vencida: el health-check los señala junto al
+    # congelado a +300 días (aviso de desajuste entre BD y Stripe).
+    assert health["stuck_count"] == 3
+    assert {u["id"] for u in health["stuck_users"]} == {
+        congelado, esc.ids["stripe_cancelado"], esc.ids["stripe_past_due"]}
+    atascado = next(u for u in health["stuck_users"] if u["id"] == congelado)
     assert atascado["id"] == congelado
     assert atascado["email"] == "anual.congelado@example.invalid"
     assert atascado["plan"] == "premium"
     assert (atascado["quota_used"], atascado["quota_limit"]) == (2950, 2950)
     assert atascado["reset"] == (esc.T0 + timedelta(days=300)).date().isoformat()
     # Un correo de alerta al destinatario por defecto (sin APP_ENV => UNKNOWN).
-    assert ent.correos == [{"to": DESTINO_POR_DEFECTO, "subject": "[UNKNOWN] Quota reset stuck — 1 user(s)"}]
+    assert ent.correos == [{"to": DESTINO_POR_DEFECTO, "subject": "[UNKNOWN] Quota reset stuck — 3 user(s)"}]
 
 
 def test_reset_via_endpoint_sincrono(entorno, escenario_reset):
@@ -685,7 +699,7 @@ def test_reset_via_endpoint_asincrono_lanza_hilo_que_hace_lo_mismo(entorno, esce
     hilo.target()
 
     _comprobar_estado_tras_reset(entorno, escenario_reset)
-    assert entorno.correos == [{"to": DESTINO_POR_DEFECTO, "subject": "[UNKNOWN] Quota reset stuck — 1 user(s)"}]
+    assert entorno.correos == [{"to": DESTINO_POR_DEFECTO, "subject": "[UNKNOWN] Quota reset stuck — 3 user(s)"}]
 
 
 def test_health_check_endpoint_no_modifica_usuarios(entorno, escenario_reset):
