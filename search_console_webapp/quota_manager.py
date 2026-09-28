@@ -12,7 +12,7 @@ Maneja toda la lógica de quotas incluyendo:
 
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from database import get_db_connection, resume_quota_pauses_for_user
 
 logger = logging.getLogger(__name__)
@@ -50,13 +50,29 @@ def compute_next_quota_reset_date(period_start=None, period_end=None, last_reset
     the function NEVER returns a non-future datetime.
     """
     interval_days = int(os.getenv('QUOTA_RESET_INTERVAL_DAYS', '30'))
-    now = now or datetime.utcnow()
+
+    # Zonas horarias (fix 2026-09-28): las fechas de BD (timestamptz) llegan con
+    # zona horaria y utcnow() no, y compararlas lanzaba TypeError (el reset
+    # manual del panel de admin fallaba con cualquier usuario con periodo o
+    # fecha de reset). Si alguna fecha llega con zona, todo se normaliza a UTC
+    # con zona; si ninguna la trae (webhooks de Stripe), el cálculo es el de
+    # siempre, sin zona. La elección de la fecha base no cambia.
     base = last_reset or period_start or now
     if isinstance(base, str):
         try:
             base = datetime.fromisoformat(base)
         except Exception:
-            base = now
+            base = None  # como antes: se parte de "ahora"
+    con_zona = any(isinstance(v, datetime) and v.tzinfo is not None for v in (base, period_end, now))
+
+    def _norm(value):
+        if con_zona and isinstance(value, datetime):
+            return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+        return value
+
+    base, period_end, now = _norm(base), _norm(period_end), _norm(now)
+    now = now or (datetime.now(timezone.utc) if con_zona else datetime.utcnow())
+    base = base or now
     next_reset = base + timedelta(days=interval_days)
 
     # Si hay periodo Stripe vigente (en el futuro), no pasar de period_end.
