@@ -1114,6 +1114,14 @@ class TestResets:
         u = db.user(3)
         assert (u["quota_used"], u["quota_reset_date"]) == (0, previsto)
 
+    def test_reset_manual_admin_informa_de_la_fecha_guardada(self, db):
+        ahora = datetime.now(timezone.utc)
+        previsto = (ahora + timedelta(days=10)).replace(microsecond=0)
+        db.set_user(3, quota_used=500, current_period_start=ahora - timedelta(days=50),
+                    current_period_end=ahora + timedelta(days=315), quota_reset_date=previsto)
+        res = admin_billing_panel.reset_user_quota_manual(3, 2)
+        assert datetime.fromisoformat(res["next_reset"]) == previsto
+
     @pytest.mark.parametrize("resetear", [
         pytest.param(lambda: quota_manager.reset_user_quota(3), id="reset_user_quota"),
         pytest.param(lambda: admin_billing_panel.reset_user_quota_manual(3, 2)["success"], id="panel_admin"),
