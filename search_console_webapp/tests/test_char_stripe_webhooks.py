@@ -230,14 +230,14 @@ def suscripcion(customer=CUSTOMER_PAGO, sub_id=SUB_PAGO, price="price_test_premi
 
 
 def factura(customer=CUSTOMER_PAGO, sub_id=SUB_PAGO, periodo_lines=(OCT_INICIO, OCT_FIN),
-            periodo_raiz=(SEP_INICIO, SEP_FIN)):
-    """Objeto invoice de renovación (billing_reason=subscription_cycle), API basil:
-    la suscripción va en parent.subscription_details."""
+            periodo_raiz=(SEP_INICIO, SEP_FIN), billing_reason="subscription_cycle"):
+    """Objeto invoice, por defecto de renovación (billing_reason=subscription_cycle),
+    API basil: la suscripción va en parent.subscription_details."""
     datos = {
         "id": "in_char_1",
         "object": "invoice",
         "customer": customer,
-        "billing_reason": "subscription_cycle",
+        "billing_reason": billing_reason,
         "parent": {
             "type": "subscription_details",
             "subscription_details": {"subscription": sub_id},
@@ -854,6 +854,24 @@ def test_deleted_por_email_no_pisa_el_customer_de_otro_usuario(ctx):
         assert [f["is_active"] for f in filas] == [True], tabla
 
 
+def test_fallback_por_email_de_una_suscripcion_no_vigente_se_ignora_sin_alerta(ctx):
+    consultar(ctx.db, "UPDATE users SET subscription_id = 'sub_char_suya' WHERE id = %s", (ID_GRATUITO,))
+    antes = todos_los_usuarios(ctx.db)
+    ctx.customer_retrieve.side_effect = None
+    ctx.customer_retrieve.return_value = {"id": "cus_char_desconocido", "object": "customer",
+                                          "email": SEED_USER_EMAIL}
+
+    resp = enviar(ctx, evento("customer.subscription.updated",
+                              suscripcion(customer="cus_char_desconocido", sub_id="sub_char_x",
+                                          status="past_due")))
+
+    # Mismo trato que el camino principal: 200 sin tocar al usuario ni alertar.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True, "message": "Subscription is not the current one; ignored"}
+    assert todos_los_usuarios(ctx.db) == antes
+    ctx.email_alerta.assert_not_called()
+
+
 def test_fallo_al_desactivar_una_tabla_no_deshace_la_cancelacion(ctx):
     crear_proyectos(ctx.db, ID_PAGO)
     antes = usuario(ctx.db, ID_PAGO)
@@ -1024,6 +1042,26 @@ def test_primer_cobro_de_una_suscripcion_nueva_con_la_antigua_en_past_due(ctx):
 
     # Con la antigua en past_due el checkout deja contratar otra y su primer
     # cobro suele llegar antes que el checkout: no se ignora.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True, "message": "Payment succeeded processed"}
+    assert usuario(ctx.db, ID_PAGO) == dict(
+        antes, quota_used=0, billing_status="active",
+        current_period_start=utc(OCT_INICIO), current_period_end=utc(OCT_FIN),
+        quota_reset_date=utc(OCT_INICIO) + timedelta(days=30))
+
+
+def test_primera_factura_de_suscripcion_nueva_se_aplica_aunque_la_guardada_figure_activa(ctx):
+    # Usuario bajado a free desde el admin: conserva billing_status 'active' y
+    # el subscription_id antiguo, y el checkout le deja contratar de nuevo.
+    consultar(ctx.db, "UPDATE users SET plan = 'free', current_plan = 'free', quota_used = 900"
+                      " WHERE id = %s", (ID_PAGO,))
+    antes = usuario(ctx.db, ID_PAGO)
+
+    resp = enviar(ctx, evento("invoice.payment_succeeded",
+                              factura(sub_id="sub_char_nueva", billing_reason="subscription_create")))
+
+    # La primera factura de una suscripción nueva nunca es un reintento de la
+    # antigua: se aplica aunque llegue antes que el checkout.
     assert resp.status_code == 200
     assert resp.get_json() == {"success": True, "message": "Payment succeeded processed"}
     assert usuario(ctx.db, ID_PAGO) == dict(

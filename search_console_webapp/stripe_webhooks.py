@@ -434,6 +434,20 @@ class StripeWebhookHandler:
                                           period_start, period_end, is_trialing, customer_id, cust_email,
                                           status in ('active', 'trialing'), subscription_id))
                                 users_updated = cur.rowcount if action != 'deleted' else len(cancelados)
+                                if users_updated == 0 and action != 'deleted' and \
+                                        status not in ('active', 'trialing'):
+                                    cur.execute('''
+                                        SELECT 1 FROM users
+                                        WHERE lower(email) = lower(%s)
+                                          AND subscription_id IS NOT NULL AND subscription_id <> %s
+                                        LIMIT 1
+                                    ''', (cust_email, subscription_id))
+                                    if cur.fetchone():
+                                        logger.info(
+                                            f"ℹ️ subscription.{action} {subscription_id} ({status}) ignorado: "
+                                            f"el usuario de {customer_id} tiene otra suscripción vigente"
+                                        )
+                                        return {'success': True, 'message': 'Subscription is not the current one; ignored'}
                             except Exception as _e_fb3:
                                 logger.warning(f"Fallback by customer email failed: {_e_fb3}")
 
@@ -572,7 +586,12 @@ class StripeWebhookHandler:
                     return {'success': False, 'error': 'Database connection failed'}
                 
                 cur = conn.cursor()
-                if _otra_suscripcion_vigente(cur, customer_id, subscription_id, solo_si_pagando=True):
+                # La primera factura de una suscripción (subscription_create) nunca
+                # es un reintento de la antigua: se aplica siempre. El billing_status
+                # de BD no basta para saberlo (un usuario bajado a free desde el
+                # admin conserva 'active' y su subscription_id antiguo).
+                if invoice.get('billing_reason') != 'subscription_create' and \
+                        _otra_suscripcion_vigente(cur, customer_id, subscription_id, solo_si_pagando=True):
                     logger.info(
                         f"ℹ️ invoice.payment_succeeded de {subscription_id} ignorado: el cliente "
                         f"{customer_id} tiene otra suscripción vigente"
@@ -800,8 +819,8 @@ def _ensure_webhook_events_table(cur):
     aunque el índice exista y dos claims simultáneos podían acabar en deadlock.
     Ahora se comprueba antes con to_regclass, que no bloquea."""
     cur.execute('''
-        SELECT to_regclass('public.stripe_webhook_events') IS NOT NULL AS tabla,
-               to_regclass('public.idx_stripe_webhook_events_received') IS NOT NULL AS indice
+        SELECT to_regclass('stripe_webhook_events') IS NOT NULL AS tabla,
+               to_regclass('idx_stripe_webhook_events_received') IS NOT NULL AS indice
     ''')
     existe = cur.fetchone() or {}
     if existe.get('tabla') and existe.get('indice'):
@@ -947,8 +966,8 @@ def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: st
         if conn:
             cur = conn.cursor()
             cur.execute('''
-                SELECT to_regclass('public.stripe_webhook_alerts_sent') IS NOT NULL AS tabla,
-                       to_regclass('public.idx_stripe_webhook_alerts_key') IS NOT NULL AS indice
+                SELECT to_regclass('stripe_webhook_alerts_sent') IS NOT NULL AS tabla,
+                       to_regclass('idx_stripe_webhook_alerts_key') IS NOT NULL AS indice
             ''')
             _existe = cur.fetchone() or {}
             # Solo DDL si falta algo: CREATE ... IF NOT EXISTS bloquea aunque exista.

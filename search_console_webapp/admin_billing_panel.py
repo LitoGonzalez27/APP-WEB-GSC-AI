@@ -1263,7 +1263,11 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
                                         THEN quota_reset_date ELSE %s END,
                 updated_at = NOW()
             WHERE id = %s
+            RETURNING quota_reset_date
         ''', (next_reset, user_id))
+        _guardada = cur.fetchone()
+        if _guardada:
+            next_reset = _guardada['quota_reset_date']  # la que queda en BD, no la calculada
         
         # Registrar evento de reset en quota_usage_events (si la tabla existe)
         # ✅ FIX: Usar SAVEPOINT para que un fallo del INSERT (e.g. CHECK constraint)
