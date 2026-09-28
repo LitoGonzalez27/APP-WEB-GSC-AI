@@ -118,6 +118,7 @@ class StripeWebhookHandler:
 
     def _handle_checkout_completed(self, session: dict) -> dict:
         """Maneja checkout.session.completed"""
+        conn = None
         try:
             customer_id = session.get('customer')
             subscription_id = session.get('subscription')
@@ -135,10 +136,7 @@ class StripeWebhookHandler:
                 return {'success': False, 'error': 'Database connection failed'}
             
             cur = conn.cursor()
-            try:
-                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_used BOOLEAN DEFAULT FALSE")
-            except Exception as _e_addcol:
-                logger.warning(f"No se pudo asegurar columna trial_used: {_e_addcol}")
+            _ensure_users_column(conn, cur, 'trial_used', 'BOOLEAN DEFAULT FALSE')
             cur.execute('''
                 UPDATE users 
                 SET 
@@ -153,7 +151,6 @@ class StripeWebhookHandler:
                 return {'success': False, 'error': 'User not found'}
             
             conn.commit()
-            conn.close()
             
             logger.info(f"✅ User {client_reference_id} updated with Stripe customer {customer_id}")
             return {'success': True, 'message': 'Checkout completed successfully'}
@@ -161,6 +158,11 @@ class StripeWebhookHandler:
         except Exception as e:
             logger.error(f"❌ Error handling checkout completion: {e}")
             return {'success': False, 'error': 'internal_error'}
+        finally:
+            # Cerrar SIEMPRE: antes, con un usuario inexistente o un error, la
+            # conexión quedaba abierta con la transacción viva (y con el bloqueo
+            # del ALTER TABLE sobre users) hasta el timeout de 15 minutos.
+            _close_quietly(conn)
     
     def _handle_subscription_created(self, subscription: dict) -> dict:
         """Maneja customer.subscription.created"""
@@ -234,182 +236,225 @@ class StripeWebhookHandler:
             conn = get_db_connection()
             if not conn:
                 return {'success': False, 'error': 'Database connection failed'}
-            
-            cur = conn.cursor()
-            
-            if action == 'deleted':
-                # Cancelación: volver a free
-                cur.execute('''
-                    UPDATE users 
-                    SET 
-                        plan = 'free',
-                        current_plan = 'free',
-                        billing_status = 'canceled',
-                        quota_limit = 0,
-                        subscription_id = NULL,
-                        current_period_start = NULL,
-                        current_period_end = NULL,
-                        updated_at = NOW()
-                    WHERE stripe_customer_id = %s
-                ''', (customer_id,))
 
-                # Desactivar los proyectos del usuario en los TRES sistemas para
-                # evitar que sus crons sigan corriendo tras cancelar. (Los crons
-                # ya excluyen a usuarios canceled/free, pero esto es defensa en
-                # profundidad y mantiene el estado coherente entre los 3.)
-                for _tbl in ('manual_ai_projects', 'ai_mode_projects', 'llm_monitoring_projects'):
-                    try:
-                        cur.execute(f'''
-                            UPDATE {_tbl}
-                            SET is_active = false, updated_at = NOW()
-                            WHERE user_id = (SELECT id FROM users WHERE stripe_customer_id = %s)
-                        ''', (customer_id,))
-                    except Exception as _e:
-                        logger.warning(f"⚠️ Could not deactivate user's {_tbl} on cancellation: {_e}")
-            else:
-                # Crear/actualizar suscripción
-                quota_limit = self.config.get_plan_limits().get(plan, 0)
-                billing_status = 'active' if status == 'active' else status
-                
-                # Si es trialing, marcar explícitamente plan y estado
-                is_trialing = status == 'trialing'
-                from quota_manager import compute_next_quota_reset_date
-                next_reset = compute_next_quota_reset_date(
-                    period_start=period_start,
-                    period_end=period_end,
-                    last_reset=None
-                )
-                cur.execute('''
-                    UPDATE users 
-                    SET 
-                        plan = %s,
-                        current_plan = %s,
-                        billing_status = %s,
-                        quota_limit = %s,
-                        subscription_id = %s,
-                        current_period_start = %s,
-                        current_period_end = %s,
-                        quota_reset_date = COALESCE(quota_reset_date, %s),
-                        trial_used = CASE WHEN %s THEN true ELSE trial_used END,
-                        updated_at = NOW()
-                    WHERE stripe_customer_id = %s
-                ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                      period_start, period_end, next_reset, is_trialing, customer_id))
-            
-            if cur.rowcount == 0:
-                logger.warning(f"⚠️ Customer {customer_id} not found for subscription {action}. Trying fallbacks...")
-                # Fallback 1: intentar por subscription_id
-                try:
-                    if action == 'deleted':
-                        cur.execute('''
-                            UPDATE users 
-                            SET 
-                                plan = 'free',
-                                current_plan = 'free',
-                                billing_status = 'canceled',
-                                quota_limit = 0,
-                                subscription_id = NULL,
-                                current_period_start = NULL,
-                                current_period_end = NULL,
-                                updated_at = NOW()
-                            WHERE subscription_id = %s
-                        ''', (subscription_id,))
-                    else:
-                        cur.execute('''
-                            UPDATE users 
-                            SET 
-                                plan = %s,
-                                current_plan = %s,
-                                billing_status = %s,
-                                quota_limit = %s,
-                                subscription_id = %s,
-                                current_period_start = %s,
-                                current_period_end = %s,
-                                trial_used = CASE WHEN %s THEN true ELSE trial_used END,
-                                updated_at = NOW()
-                            WHERE subscription_id = %s
-                        ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                              period_start, period_end, is_trialing, subscription_id))
-                except Exception as _e_fb1:
-                    logger.warning(f"Fallback by subscription_id failed: {_e_fb1}")
+            try:
+                cur = conn.cursor()
+                # Filas de USERS afectadas. Antes se miraba cur.rowcount al final,
+                # que en una cancelación era el del último UPDATE de proyectos
+                # (llm_monitoring_projects): sin proyectos LLM daba 0 y se
+                # respondía 503 + alerta de "customer no encontrado" aunque la
+                # cancelación ya estuviera hecha.
+                users_updated = 0
 
-                # Fallback 2: intentar por email del Customer en Stripe
-                if cur.rowcount == 0:
-                    cust_email = None
-                    try:
-                        cust = stripe.Customer.retrieve(customer_id)
-                        cust_email = getattr(cust, 'email', None) or (cust.get('email') if isinstance(cust, dict) else None)
-                    except Exception as _e_fb2:
-                        logger.warning(f"Could not retrieve customer {customer_id} from Stripe: {_e_fb2}")
-                    if cust_email:
-                        try:
-                            if action == 'deleted':
-                                cur.execute('''
-                                    UPDATE users 
-                                    SET 
-                                        plan = 'free',
-                                        current_plan = 'free',
-                                        billing_status = 'canceled',
-                                        quota_limit = 0,
-                                        subscription_id = NULL,
-                                        current_period_start = NULL,
-                                        current_period_end = NULL,
-                                        stripe_customer_id = %s,
-                                        updated_at = NOW()
-                                    WHERE lower(email) = lower(%s)
-                                ''', (customer_id, cust_email))
-                            else:
-                                cur.execute('''
-                                    UPDATE users 
-                                    SET 
-                                        plan = %s,
-                                        current_plan = %s,
-                                        billing_status = %s,
-                                        quota_limit = %s,
-                                        subscription_id = %s,
-                                        current_period_start = %s,
-                                        current_period_end = %s,
-                                        trial_used = CASE WHEN %s THEN true ELSE trial_used END,
-                                        stripe_customer_id = %s,
-                                        updated_at = NOW()
-                                    WHERE lower(email) = lower(%s)
-                                ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                                      period_start, period_end, is_trialing, customer_id, cust_email))
-                        except Exception as _e_fb3:
-                            logger.warning(f"Fallback by customer email failed: {_e_fb3}")
+                if action == 'deleted':
+                    # Solo se cancela si la suscripción borrada es la VIGENTE del
+                    # usuario (o si no tiene ninguna registrada). Antes se filtraba
+                    # solo por cliente: al borrarse una suscripción antigua (p. ej.
+                    # tras contratar otro plan con un checkout nuevo) el usuario
+                    # pasaba a free aunque tuviera otra suscripción activa.
+                    cur.execute('''
+                        SELECT id FROM users
+                        WHERE stripe_customer_id = %s
+                          AND subscription_id IS NOT NULL AND subscription_id <> %s
+                    ''', (customer_id, subscription_id))
+                    otra_vigente = cur.fetchone()
+                    cur.execute('''
+                        SELECT id FROM users
+                        WHERE stripe_customer_id = %s
+                          AND (subscription_id IS NULL OR subscription_id = %s)
+                    ''', (customer_id, subscription_id))
+                    a_cancelar = cur.fetchone()
+                    if otra_vigente and not a_cancelar:
+                        logger.info(
+                            f"ℹ️ subscription.deleted {subscription_id} ignorado: el cliente "
+                            f"{customer_id} tiene otra suscripción vigente"
+                        )
+                        return {'success': True, 'message': 'Deleted subscription is not the current one; ignored'}
 
-                if cur.rowcount == 0:
-                    # Could not find the user via customer_id, subscription_id, or
-                    # Stripe-customer-email lookup. Possible causes:
-                    #   - Race during signup: webhook arrived before our user row was inserted.
-                    #   - Customer was deleted from our DB but Stripe still has them.
-                    # We return success=False with a recognizable error code; the route
-                    # layer translates this to HTTP 503 so Stripe retries with backoff.
-                    # Also email an alert so we don't lose visibility on persistent mismatches.
-                    logger.error(
-                        f"❌ Webhook customer_not_found: customer_id={customer_id} "
-                        f"subscription_id={subscription_id} action={action}"
+                    # Cancelación: volver a free
+                    cur.execute('''
+                        UPDATE users 
+                        SET 
+                            plan = 'free',
+                            current_plan = 'free',
+                            billing_status = 'canceled',
+                            quota_limit = 0,
+                            subscription_id = NULL,
+                            current_period_start = NULL,
+                            current_period_end = NULL,
+                            updated_at = NOW()
+                        WHERE stripe_customer_id = %s
+                          AND (subscription_id IS NULL OR subscription_id = %s)
+                        RETURNING id
+                    ''', (customer_id, subscription_id))
+                    cancelados = [r['id'] for r in (cur.fetchall() or [])]
+                    users_updated = len(cancelados)
+
+                    # Desactivar los proyectos del usuario en los TRES sistemas para
+                    # evitar que sus crons sigan corriendo tras cancelar. (Los crons
+                    # ya excluyen a usuarios canceled/free, pero esto es defensa en
+                    # profundidad y mantiene el estado coherente entre los 3.)
+                    if cancelados:
+                        for _tbl in ('manual_ai_projects', 'ai_mode_projects', 'llm_monitoring_projects'):
+                            try:
+                                cur.execute(f'''
+                                    UPDATE {_tbl}
+                                    SET is_active = false, updated_at = NOW()
+                                    WHERE user_id = ANY(%s)
+                                ''', (cancelados,))
+                            except Exception as _e:
+                                logger.warning(f"⚠️ Could not deactivate user's {_tbl} on cancellation: {_e}")
+                else:
+                    # Crear/actualizar suscripción
+                    quota_limit = self.config.get_plan_limits().get(plan, 0)
+                    billing_status = 'active' if status == 'active' else status
+                    
+                    # Si es trialing, marcar explícitamente plan y estado
+                    is_trialing = status == 'trialing'
+                    from quota_manager import compute_next_quota_reset_date
+                    next_reset = compute_next_quota_reset_date(
+                        period_start=period_start,
+                        period_end=period_end,
+                        last_reset=None
                     )
-                    conn.commit()
-                    conn.close()
+                    # COALESCE en el periodo: si el evento llega sin periodo y la API
+                    # de Stripe tampoco responde, se conserva el que había en vez de
+                    # escribir NULL encima.
+                    cur.execute('''
+                        UPDATE users 
+                        SET 
+                            plan = %s,
+                            current_plan = %s,
+                            billing_status = %s,
+                            quota_limit = %s,
+                            subscription_id = %s,
+                            current_period_start = COALESCE(%s, current_period_start),
+                            current_period_end = COALESCE(%s, current_period_end),
+                            quota_reset_date = COALESCE(quota_reset_date, %s),
+                            trial_used = CASE WHEN %s THEN true ELSE trial_used END,
+                            updated_at = NOW()
+                        WHERE stripe_customer_id = %s
+                    ''', (plan, plan, billing_status, quota_limit, subscription_id, 
+                          period_start, period_end, next_reset, is_trialing, customer_id))
+                    users_updated = cur.rowcount
+                
+                if users_updated == 0:
+                    logger.warning(f"⚠️ Customer {customer_id} not found for subscription {action}. Trying fallbacks...")
+                    # Fallback 1: intentar por subscription_id
                     try:
-                        _alert_unmatched_customer(customer_id, subscription_id, action)
-                    except Exception as _alert_err:
-                        logger.warning(f"Could not send unmatched-customer alert: {_alert_err}")
-                    return {
-                        'success': False,
-                        'error': 'customer_not_found',
-                        'customer_id': customer_id,
-                        'subscription_id': subscription_id,
-                        'message': (
-                            'No user found for this Stripe customer/subscription. '
-                            'Returning 5xx so Stripe retries with backoff in case of '
-                            'a signup race condition.'
-                        ),
-                    }
-            
-            conn.commit()
-            conn.close()
+                        if action == 'deleted':
+                            cur.execute('''
+                                UPDATE users 
+                                SET 
+                                    plan = 'free',
+                                    current_plan = 'free',
+                                    billing_status = 'canceled',
+                                    quota_limit = 0,
+                                    subscription_id = NULL,
+                                    current_period_start = NULL,
+                                    current_period_end = NULL,
+                                    updated_at = NOW()
+                                WHERE subscription_id = %s
+                            ''', (subscription_id,))
+                        else:
+                            cur.execute('''
+                                UPDATE users 
+                                SET 
+                                    plan = %s,
+                                    current_plan = %s,
+                                    billing_status = %s,
+                                    quota_limit = %s,
+                                    subscription_id = %s,
+                                    current_period_start = COALESCE(%s, current_period_start),
+                                    current_period_end = COALESCE(%s, current_period_end),
+                                    trial_used = CASE WHEN %s THEN true ELSE trial_used END,
+                                    updated_at = NOW()
+                                WHERE subscription_id = %s
+                            ''', (plan, plan, billing_status, quota_limit, subscription_id, 
+                                  period_start, period_end, is_trialing, subscription_id))
+                        users_updated = cur.rowcount
+                    except Exception as _e_fb1:
+                        logger.warning(f"Fallback by subscription_id failed: {_e_fb1}")
+
+                    # Fallback 2: intentar por email del Customer en Stripe
+                    if users_updated == 0:
+                        cust_email = None
+                        try:
+                            cust = stripe.Customer.retrieve(customer_id)
+                            cust_email = getattr(cust, 'email', None) or (cust.get('email') if isinstance(cust, dict) else None)
+                        except Exception as _e_fb2:
+                            logger.warning(f"Could not retrieve customer {customer_id} from Stripe: {_e_fb2}")
+                        if cust_email:
+                            try:
+                                if action == 'deleted':
+                                    cur.execute('''
+                                        UPDATE users 
+                                        SET 
+                                            plan = 'free',
+                                            current_plan = 'free',
+                                            billing_status = 'canceled',
+                                            quota_limit = 0,
+                                            subscription_id = NULL,
+                                            current_period_start = NULL,
+                                            current_period_end = NULL,
+                                            stripe_customer_id = %s,
+                                            updated_at = NOW()
+                                        WHERE lower(email) = lower(%s)
+                                          AND (subscription_id IS NULL OR subscription_id = %s)
+                                    ''', (customer_id, cust_email, subscription_id))
+                                else:
+                                    cur.execute('''
+                                        UPDATE users 
+                                        SET 
+                                            plan = %s,
+                                            current_plan = %s,
+                                            billing_status = %s,
+                                            quota_limit = %s,
+                                            subscription_id = %s,
+                                            current_period_start = COALESCE(%s, current_period_start),
+                                            current_period_end = COALESCE(%s, current_period_end),
+                                            trial_used = CASE WHEN %s THEN true ELSE trial_used END,
+                                            stripe_customer_id = %s,
+                                            updated_at = NOW()
+                                        WHERE lower(email) = lower(%s)
+                                    ''', (plan, plan, billing_status, quota_limit, subscription_id, 
+                                          period_start, period_end, is_trialing, customer_id, cust_email))
+                                users_updated = cur.rowcount
+                            except Exception as _e_fb3:
+                                logger.warning(f"Fallback by customer email failed: {_e_fb3}")
+
+                    if users_updated == 0:
+                        # Could not find the user via customer_id, subscription_id, or
+                        # Stripe-customer-email lookup. Possible causes:
+                        #   - Race during signup: webhook arrived before our user row was inserted.
+                        #   - Customer was deleted from our DB but Stripe still has them.
+                        # We return success=False with a recognizable error code; the route
+                        # layer translates this to HTTP 503 so Stripe retries with backoff.
+                        # Also email an alert so we don't lose visibility on persistent mismatches.
+                        logger.error(
+                            f"❌ Webhook customer_not_found: customer_id={customer_id} "
+                            f"subscription_id={subscription_id} action={action}"
+                        )
+                        conn.commit()
+                        try:
+                            _alert_unmatched_customer(customer_id, subscription_id, action)
+                        except Exception as _alert_err:
+                            logger.warning(f"Could not send unmatched-customer alert: {_alert_err}")
+                        return {
+                            'success': False,
+                            'error': 'customer_not_found',
+                            'customer_id': customer_id,
+                            'subscription_id': subscription_id,
+                            'message': (
+                                'No user found for this Stripe customer/subscription. '
+                                'Returning 5xx so Stripe retries with backoff in case of '
+                                'a signup race condition.'
+                            ),
+                        }
+                
+                conn.commit()
+            finally:
+                _close_quietly(conn)
             
             logger.info(f"✅ Subscription {action} processed successfully for customer {customer_id}")
             
@@ -421,11 +466,8 @@ class StripeWebhookHandler:
                     conn2 = get_db_connection()
                     if conn2:
                         cur2 = conn2.cursor()
-                        # Asegurar columna para idempotencia
-                        try:
-                            cur2.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_email_sent_at TIMESTAMPTZ")
-                        except Exception:
-                            pass
+                        # Asegurar columna para idempotencia (sin bloquear users si ya existe)
+                        _ensure_users_column(conn2, cur2, 'trial_started_email_sent_at', 'TIMESTAMPTZ')
                         cur2.execute('SELECT email, name, trial_started_email_sent_at FROM users WHERE stripe_customer_id = %s LIMIT 1', (customer_id,))
                         row = cur2.fetchone()
                         if row and (not row.get('trial_started_email_sent_at')):
@@ -454,6 +496,7 @@ class StripeWebhookHandler:
     
     def _handle_payment_succeeded(self, invoice: dict) -> dict:
         """Maneja invoice.payment_succeeded"""
+        conn = None
         try:
             customer_id = invoice.get('customer')
             # En la API 2025-06-30.basil el invoice ya no trae `subscription`
@@ -559,7 +602,6 @@ class StripeWebhookHandler:
                         f"stripe_customer_id={customer_id} (sub={subscription_id}): "
                         f"cuota NO reseteada. Revisar reconciliación de cliente."
                     )
-                conn.close()
             else:
                 # No se pudo resolver el período de facturación por ninguna vía
                 # (top-level, lines.data, ni la API live de Stripe). Devolvemos
@@ -576,9 +618,12 @@ class StripeWebhookHandler:
         except Exception as e:
             logger.error(f"❌ Error handling payment succeeded: {e}")
             return {'success': False, 'error': 'internal_error'}
+        finally:
+            _close_quietly(conn)
     
     def _handle_payment_failed(self, invoice: dict) -> dict:
         """Maneja invoice.payment_failed"""
+        conn = None
         try:
             customer_id = invoice.get('customer')
             subscription_id = invoice.get('subscription')
@@ -600,7 +645,6 @@ class StripeWebhookHandler:
             ''', (customer_id,))
             
             conn.commit()
-            conn.close()
             
             logger.info(f"⚠️ Customer {customer_id} marked as past_due")
             return {'success': True, 'message': 'Payment failed processed'}
@@ -608,6 +652,8 @@ class StripeWebhookHandler:
         except Exception as e:
             logger.error(f"❌ Error handling payment failed: {e}")
             return {'success': False, 'error': 'internal_error'}
+        finally:
+            _close_quietly(conn)
     
     def _get_plan_from_price_id(self, price_id: str, product_id: str) -> str:
         """Determina el plan basado en price_id o product_id"""
@@ -640,6 +686,38 @@ class StripeWebhookHandler:
 #  infrastructure used both by the class and the route layer.)
 # ---------------------------------------------------------------------------
 
+def _close_quietly(conn):
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def _ensure_users_column(conn, cur, column: str, ddl_type: str):
+    """Añade la columna a users solo si falta.
+
+    `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` toma un bloqueo exclusivo sobre
+    users aunque la columna ya exista; hacerlo en cada webhook bloqueaba la
+    tabla (logins, pagos) mientras durase la transacción. Se consulta antes
+    information_schema, que no bloquea.
+    """
+    try:
+        cur.execute('''
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = %s
+        ''', (column,))
+        if cur.fetchone():
+            return
+        cur.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column} {ddl_type}")
+    except Exception as e:
+        logger.warning(f"No se pudo asegurar la columna users.{column}: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
 def _ensure_webhook_events_table(cur):
     """Idempotente: crea la tabla la primera vez que se llama."""
     cur.execute('''
@@ -658,13 +736,27 @@ def _ensure_webhook_events_table(cur):
     ''')
 
 
+# Errores de un intento anterior que pueden resolverse en un reintento de Stripe
+# (el usuario aún no existía, la BD falló...). Un evento que falló por uno de
+# ellos se vuelve a procesar; los errores permanentes (payload sin usuario, sin
+# items...) se siguen confirmando sin reprocesar.
+_REPROCESSABLE_ERRORS = ('customer_not_found', 'internal_error', 'Database connection failed')
+# Un evento 'in_progress' más antiguo que esto se considera abandonado (el
+# proceso murió a mitad) y se puede reclamar de nuevo.
+_STALE_IN_PROGRESS_MINUTES = 10
+
+
 def _claim_webhook_event(event_id: str, event_type: str):
     """Intenta reclamar la propiedad del evento. Devuelve (already_processed, claim_ok).
 
     Returns:
       (True, True)  → ya estaba procesado, no hay que hacer nada
-      (False, True) → reclamado con éxito, procede a procesar
-      (False, False)→ no se pudo reclamar (BD inaccesible) — devolver 5xx a Stripe
+      (False, True) → reclamado con éxito (nuevo, o reintento de un fallo pasajero), procede a procesar
+      (False, False)→ no se pudo reclamar (BD inaccesible, u otro proceso lo está tratando ahora) — 5xx para que Stripe reintente
+
+    Antes, cualquier fila existente contaba como "ya procesado": el reintento que
+    Stripe hace tras un 503 (p. ej. customer_not_found por una carrera en el alta)
+    recibía 200 y el evento no se procesaba nunca.
     """
     conn = None
     try:
@@ -681,11 +773,37 @@ def _claim_webhook_event(event_id: str, event_type: str):
             RETURNING event_id
         ''', (event_id, event_type))
         row = cur.fetchone()
+        if row is not None:
+            conn.commit()
+            return False, True
+
+        # Ya existía: se reclama (de forma atómica) si el intento anterior falló
+        # por un error pasajero o se quedó colgado en 'in_progress'.
+        cur.execute('''
+            UPDATE stripe_webhook_events
+               SET status = 'in_progress', received_at = NOW(), processed_at = NULL
+             WHERE event_id = %s
+               AND (
+                    (status = 'failed' AND error_message = ANY(%s))
+                    OR (status = 'in_progress'
+                        AND received_at < NOW() - (%s * INTERVAL '1 minute'))
+               )
+            RETURNING event_id
+        ''', (event_id, list(_REPROCESSABLE_ERRORS), _STALE_IN_PROGRESS_MINUTES))
+        reclaimed = cur.fetchone()
         conn.commit()
-        if row is None:
-            # Existía → ya procesado (o en proceso)
-            return True, True
-        return False, True
+        if reclaimed is not None:
+            logger.info(f"🔁 Webhook event {event_id}: reintento de un intento anterior fallido — se reprocesa")
+            return False, True
+
+        cur.execute('SELECT status FROM stripe_webhook_events WHERE event_id = %s', (event_id,))
+        current = cur.fetchone() or {}
+        if current.get('status') == 'in_progress':
+            # Otro proceso lo está tratando ahora mismo: que Stripe reintente más tarde.
+            logger.info(f"⏳ Webhook event {event_id} en curso en otro proceso — se pide reintento")
+            return False, False
+        # 'processed', o 'failed' por un error permanente: confirmar sin reprocesar.
+        return True, True
     except Exception as e:
         logger.error(f"Error claiming webhook event {event_id}: {e}")
         if conn:
