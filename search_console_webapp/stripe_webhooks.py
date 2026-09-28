@@ -252,22 +252,24 @@ class StripeWebhookHandler:
                     # solo por cliente: al borrarse una suscripción antigua (p. ej.
                     # tras contratar otro plan con un checkout nuevo) el usuario
                     # pasaba a free aunque tuviera otra suscripción activa.
+                    # Los usuarios beta sin suscripción tampoco se cancelan: su
+                    # acceso no depende de Stripe. Si el cliente existe pero no hay
+                    # nada que cancelar, se responde 200 (no es un cliente perdido).
+                    cur.execute('''
+                        SELECT id FROM users WHERE stripe_customer_id = %s LIMIT 1
+                    ''', (customer_id,))
+                    cliente_conocido = cur.fetchone()
                     cur.execute('''
                         SELECT id FROM users
                         WHERE stripe_customer_id = %s
-                          AND subscription_id IS NOT NULL AND subscription_id <> %s
-                    ''', (customer_id, subscription_id))
-                    otra_vigente = cur.fetchone()
-                    cur.execute('''
-                        SELECT id FROM users
-                        WHERE stripe_customer_id = %s
-                          AND (subscription_id IS NULL OR subscription_id = %s)
+                          AND (subscription_id = %s
+                               OR (subscription_id IS NULL AND COALESCE(billing_status, '') <> 'beta'))
                     ''', (customer_id, subscription_id))
                     a_cancelar = cur.fetchone()
-                    if otra_vigente and not a_cancelar:
+                    if cliente_conocido and not a_cancelar:
                         logger.info(
-                            f"ℹ️ subscription.deleted {subscription_id} ignorado: el cliente "
-                            f"{customer_id} tiene otra suscripción vigente"
+                            f"ℹ️ subscription.deleted {subscription_id} ignorado: no es la "
+                            f"suscripción vigente del cliente {customer_id}"
                         )
                         return {'success': True, 'message': 'Deleted subscription is not the current one; ignored'}
 
@@ -284,7 +286,8 @@ class StripeWebhookHandler:
                             current_period_end = NULL,
                             updated_at = NOW()
                         WHERE stripe_customer_id = %s
-                          AND (subscription_id IS NULL OR subscription_id = %s)
+                          AND (subscription_id = %s
+                               OR (subscription_id IS NULL AND COALESCE(billing_status, '') <> 'beta'))
                         RETURNING id
                     ''', (customer_id, subscription_id))
                     cancelados = [r['id'] for r in (cur.fetchall() or [])]
@@ -294,17 +297,18 @@ class StripeWebhookHandler:
                     # evitar que sus crons sigan corriendo tras cancelar. (Los crons
                     # ya excluyen a usuarios canceled/free, pero esto es defensa en
                     # profundidad y mantiene el estado coherente entre los 3.)
-                    if cancelados:
-                        for _tbl in ('manual_ai_projects', 'ai_mode_projects', 'llm_monitoring_projects'):
-                            try:
-                                cur.execute(f'''
-                                    UPDATE {_tbl}
-                                    SET is_active = false, updated_at = NOW()
-                                    WHERE user_id = ANY(%s)
-                                ''', (cancelados,))
-                            except Exception as _e:
-                                logger.warning(f"⚠️ Could not deactivate user's {_tbl} on cancellation: {_e}")
+                    _desactivar_proyectos(cur, cancelados)
                 else:
+                    # Evento de una suscripción que no es la vigente del cliente y
+                    # que no está activa (p. ej. la antigua que Stripe sigue
+                    # intentando cobrar tras contratar otra): no pisa la vigente.
+                    if status not in ('active', 'trialing') and \
+                            _otra_suscripcion_vigente(cur, customer_id, subscription_id):
+                        logger.info(
+                            f"ℹ️ subscription.{action} {subscription_id} ({status}) ignorado: el cliente "
+                            f"{customer_id} tiene otra suscripción vigente"
+                        )
+                        return {'success': True, 'message': 'Subscription is not the current one; ignored'}
                     # Crear/actualizar suscripción
                     quota_limit = self.config.get_plan_limits().get(plan, 0)
                     billing_status = 'active' if status == 'active' else status
@@ -355,7 +359,10 @@ class StripeWebhookHandler:
                                     current_period_end = NULL,
                                     updated_at = NOW()
                                 WHERE subscription_id = %s
+                                RETURNING id
                             ''', (subscription_id,))
+                            cancelados = [r['id'] for r in (cur.fetchall() or [])]
+                            _desactivar_proyectos(cur, cancelados)
                         else:
                             cur.execute('''
                                 UPDATE users 
@@ -372,7 +379,7 @@ class StripeWebhookHandler:
                                 WHERE subscription_id = %s
                             ''', (plan, plan, billing_status, quota_limit, subscription_id, 
                                   period_start, period_end, is_trialing, subscription_id))
-                        users_updated = cur.rowcount
+                        users_updated = cur.rowcount if action != 'deleted' else len(cancelados)
                     except Exception as _e_fb1:
                         logger.warning(f"Fallback by subscription_id failed: {_e_fb1}")
 
@@ -400,8 +407,13 @@ class StripeWebhookHandler:
                                             stripe_customer_id = %s,
                                             updated_at = NOW()
                                         WHERE lower(email) = lower(%s)
-                                          AND (subscription_id IS NULL OR subscription_id = %s)
-                                    ''', (customer_id, cust_email, subscription_id))
+                                          AND (stripe_customer_id IS NULL OR stripe_customer_id = %s)
+                                          AND (subscription_id = %s
+                                               OR (subscription_id IS NULL AND COALESCE(billing_status, '') <> 'beta'))
+                                        RETURNING id
+                                    ''', (customer_id, cust_email, customer_id, subscription_id))
+                                    cancelados = [r['id'] for r in (cur.fetchall() or [])]
+                                    _desactivar_proyectos(cur, cancelados)
                                 else:
                                     cur.execute('''
                                         UPDATE users 
@@ -417,9 +429,11 @@ class StripeWebhookHandler:
                                             stripe_customer_id = %s,
                                             updated_at = NOW()
                                         WHERE lower(email) = lower(%s)
+                                          AND (%s OR subscription_id IS NULL OR subscription_id = %s)
                                     ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                                          period_start, period_end, is_trialing, customer_id, cust_email))
-                                users_updated = cur.rowcount
+                                          period_start, period_end, is_trialing, customer_id, cust_email,
+                                          status in ('active', 'trialing'), subscription_id))
+                                users_updated = cur.rowcount if action != 'deleted' else len(cancelados)
                             except Exception as _e_fb3:
                                 logger.warning(f"Fallback by customer email failed: {_e_fb3}")
 
@@ -501,11 +515,7 @@ class StripeWebhookHandler:
             customer_id = invoice.get('customer')
             # En la API 2025-06-30.basil el invoice ya no trae `subscription`
             # en la raíz: vive en parent.subscription_details.subscription.
-            subscription_id = invoice.get('subscription')
-            if not subscription_id:
-                _parent = invoice.get('parent') or {}
-                _sub_details = _parent.get('subscription_details') or {}
-                subscription_id = _sub_details.get('subscription')
+            subscription_id = _subscription_id_de_factura(invoice)
 
             # Robust period extraction (fixed 2026-08-07):
             # lines.data[0].period PRIMERO. En una renovación
@@ -562,6 +572,12 @@ class StripeWebhookHandler:
                     return {'success': False, 'error': 'Database connection failed'}
                 
                 cur = conn.cursor()
+                if _otra_suscripcion_vigente(cur, customer_id, subscription_id, solo_si_pagando=True):
+                    logger.info(
+                        f"ℹ️ invoice.payment_succeeded de {subscription_id} ignorado: el cliente "
+                        f"{customer_id} tiene otra suscripción vigente"
+                    )
+                    return {'success': True, 'message': 'Invoice is not for the current subscription; ignored'}
                 period_start_dt = datetime.fromtimestamp(period_start)
                 period_end_dt = datetime.fromtimestamp(period_end)
                 from quota_manager import compute_next_quota_reset_date
@@ -626,7 +642,7 @@ class StripeWebhookHandler:
         conn = None
         try:
             customer_id = invoice.get('customer')
-            subscription_id = invoice.get('subscription')
+            subscription_id = _subscription_id_de_factura(invoice)
             
             logger.warning(f"💳 Payment failed - Customer: {customer_id}, Subscription: {subscription_id}")
             
@@ -636,6 +652,12 @@ class StripeWebhookHandler:
                 return {'success': False, 'error': 'Database connection failed'}
             
             cur = conn.cursor()
+            if _otra_suscripcion_vigente(cur, customer_id, subscription_id):
+                logger.info(
+                    f"ℹ️ invoice.payment_failed de {subscription_id} ignorado: el cliente "
+                    f"{customer_id} tiene otra suscripción vigente"
+                )
+                return {'success': True, 'message': 'Invoice is not for the current subscription; ignored'}
             cur.execute('''
                 UPDATE users 
                 SET 
@@ -694,6 +716,59 @@ def _close_quietly(conn):
             pass
 
 
+def _otra_suscripcion_vigente(cur, customer_id, subscription_id, solo_si_pagando=False) -> bool:
+    """True si el cliente tiene guardada OTRA suscripción distinta de la del evento.
+
+    Un cliente puede tener dos suscripciones a la vez: con la antigua en
+    past_due el checkout deja contratar otra, y Stripe sigue reintentando
+    cobrar la antigua. Los eventos de la antigua no deben pisar la vigente.
+
+    solo_si_pagando: cuenta solo si la guardada está active/trialing. Lo usa el
+    pago correcto: el primer cobro de la suscripción nueva llega a menudo antes
+    que el checkout, con la antigua (past_due) aún guardada, y no debe perderse."""
+    if not subscription_id or not customer_id:
+        return False
+    cur.execute(f'''
+        SELECT 1 FROM users
+        WHERE stripe_customer_id = %s
+          AND subscription_id IS NOT NULL AND subscription_id <> %s
+          {"AND billing_status IN ('active', 'trialing')" if solo_si_pagando else ""}
+        LIMIT 1
+    ''', (customer_id, subscription_id))
+    return cur.fetchone() is not None
+
+
+def _subscription_id_de_factura(invoice: dict):
+    """En la API 2025-06-30.basil la factura ya no trae `subscription` en la raíz."""
+    return (invoice.get('subscription')
+            or ((invoice.get('parent') or {}).get('subscription_details') or {}).get('subscription'))
+
+
+def _desactivar_proyectos(cur, user_ids):
+    """Desactiva los proyectos de los usuarios en los tres módulos.
+
+    Un SAVEPOINT por tabla: en Postgres un error dentro de la transacción la
+    aborta entera y el commit posterior deshace también la cancelación del
+    usuario sin avisar; así un fallo en una tabla solo pierde esa tabla."""
+    if not user_ids:
+        return
+    for _tbl in ('manual_ai_projects', 'ai_mode_projects', 'llm_monitoring_projects'):
+        try:
+            cur.execute('SAVEPOINT desactivar_proyectos')
+            cur.execute(f'''
+                UPDATE {_tbl}
+                SET is_active = false, updated_at = NOW()
+                WHERE user_id = ANY(%s)
+            ''', (list(user_ids),))
+            cur.execute('RELEASE SAVEPOINT desactivar_proyectos')
+        except Exception as _e:
+            logger.warning(f"⚠️ Could not deactivate user's {_tbl} on cancellation: {_e}")
+            try:
+                cur.execute('ROLLBACK TO SAVEPOINT desactivar_proyectos')
+            except Exception:
+                pass
+
+
 def _ensure_users_column(conn, cur, column: str, ddl_type: str):
     """Añade la columna a users solo si falta.
 
@@ -719,7 +794,18 @@ def _ensure_users_column(conn, cur, column: str, ddl_type: str):
 
 
 def _ensure_webhook_events_table(cur):
-    """Idempotente: crea la tabla la primera vez que se llama."""
+    """Idempotente: crea la tabla la primera vez que se llama.
+
+    Antes lanzaba CREATE INDEX IF NOT EXISTS en cada webhook: toma un bloqueo
+    aunque el índice exista y dos claims simultáneos podían acabar en deadlock.
+    Ahora se comprueba antes con to_regclass, que no bloquea."""
+    cur.execute('''
+        SELECT to_regclass('public.stripe_webhook_events') IS NOT NULL AS tabla,
+               to_regclass('public.idx_stripe_webhook_events_received') IS NOT NULL AS indice
+    ''')
+    existe = cur.fetchone() or {}
+    if existe.get('tabla') and existe.get('indice'):
+        return
     cur.execute('''
         CREATE TABLE IF NOT EXISTS stripe_webhook_events (
             event_id VARCHAR(120) PRIMARY KEY,
@@ -861,16 +947,23 @@ def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: st
         if conn:
             cur = conn.cursor()
             cur.execute('''
-                CREATE TABLE IF NOT EXISTS stripe_webhook_alerts_sent (
-                    id SERIAL PRIMARY KEY,
-                    alert_key VARCHAR(200) NOT NULL,
-                    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
+                SELECT to_regclass('public.stripe_webhook_alerts_sent') IS NOT NULL AS tabla,
+                       to_regclass('public.idx_stripe_webhook_alerts_key') IS NOT NULL AS indice
             ''')
-            cur.execute('''
-                CREATE INDEX IF NOT EXISTS idx_stripe_webhook_alerts_key
-                ON stripe_webhook_alerts_sent(alert_key, sent_at DESC)
-            ''')
+            _existe = cur.fetchone() or {}
+            # Solo DDL si falta algo: CREATE ... IF NOT EXISTS bloquea aunque exista.
+            if not (_existe.get('tabla') and _existe.get('indice')):
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS stripe_webhook_alerts_sent (
+                        id SERIAL PRIMARY KEY,
+                        alert_key VARCHAR(200) NOT NULL,
+                        sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                ''')
+                cur.execute('''
+                    CREATE INDEX IF NOT EXISTS idx_stripe_webhook_alerts_key
+                    ON stripe_webhook_alerts_sent(alert_key, sent_at DESC)
+                ''')
             cur.execute('''
                 SELECT 1 FROM stripe_webhook_alerts_sent
                 WHERE alert_key = %s AND sent_at > NOW() - INTERVAL '1 hour'
@@ -976,6 +1069,8 @@ def create_webhook_route(app):
 
             # Failed: decide retryable vs permanent based on error code
             err_code = result.get('error', '')
+            # Nota: 'internal_error' sale como 400, pero Stripe reintenta cualquier
+            # respuesta que no sea 2xx y _claim_webhook_event lo reprocesa.
             transient_errors = {
                 'customer_not_found',     # signup race condition
                 'cannot_claim_event',     # DB transient failure

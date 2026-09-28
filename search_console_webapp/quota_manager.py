@@ -568,11 +568,13 @@ def reset_user_quota(user_id, admin_id=None):
             last_reset=row.get('quota_reset_date')
         )
 
-        # Resetear quota_used a 0
+        # Resetear quota_used a 0 conservando el próximo reset automático si ya
+        # está en el futuro (ver admin_billing_panel.reset_user_quota_manual).
         cur.execute('''
             UPDATE users 
             SET quota_used = 0,
-                quota_reset_date = %s,
+                quota_reset_date = CASE WHEN quota_reset_date > NOW()
+                                        THEN quota_reset_date ELSE %s END,
                 updated_at = NOW()
             WHERE id = %s
         ''', (next_reset, user_id))
