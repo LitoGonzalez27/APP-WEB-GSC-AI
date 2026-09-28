@@ -984,19 +984,34 @@ class TestProximoReset:
         assert r.tzinfo is None
         assert antes + timedelta(days=30) <= r <= despues + timedelta(days=30)
 
-    @pytest.mark.parametrize("kwargs", [
-        pytest.param({"last_reset": datetime(2026, 9, 1, tzinfo=UTC)}, id="last_reset-aware"),
-        pytest.param({"period_end": datetime(2026, 12, 1, tzinfo=UTC)}, id="period_end-aware"),
-        pytest.param({"period_start": datetime(2026, 9, 1, tzinfo=UTC),
-                      "period_end": datetime(2026, 10, 1, tzinfo=UTC)}, id="periodo-aware"),
+    @pytest.mark.parametrize("kwargs_de, dias_esperados", [
+        # last_reset hace 5 días -> +30 desde él = dentro de 25 días
+        pytest.param(lambda ahora: {"last_reset": ahora - timedelta(days=5)}, 25, id="last_reset-aware"),
+        # sin base: ahora + 30 (el period_end a 60 días no recorta)
+        pytest.param(lambda ahora: {"period_end": ahora + timedelta(days=60)}, 30, id="period_end-aware"),
+        # base = inicio de periodo (hace 10 días) + 30 = dentro de 20 = period_end
+        pytest.param(lambda ahora: {"period_start": ahora - timedelta(days=10),
+                                    "period_end": ahora + timedelta(days=20)}, 20, id="periodo-aware"),
     ])
-    def test_fechas_aware_sin_now_lanzan_typeerror(self, kwargs):
-        # COMPORTAMIENTO ACTUAL (posible defecto): con now=None se usa
-        # datetime.utcnow() (naive) y comparar con fechas de BD (timestamptz,
-        # aware) lanza TypeError. Es el caso de reset_user_quota y del reset
-        # manual del panel admin.
-        with pytest.raises(TypeError):
-            quota_manager.compute_next_quota_reset_date(**kwargs)
+    def test_fechas_aware_sin_now_devuelven_fecha_aware(self, kwargs_de, dias_esperados):
+        # ARREGLADO (2026-09-28): antes, con now=None se comparaba utcnow() (sin
+        # zona) con fechas de BD (timestamptz, con zona) y saltaba TypeError: es el
+        # caso de reset_user_quota y del reset manual del panel admin.
+        ahora = datetime.now(UTC)
+        r = quota_manager.compute_next_quota_reset_date(**kwargs_de(ahora))
+        assert r.tzinfo is not None
+        esperado = ahora + timedelta(days=dias_esperados)
+        assert abs(r - esperado) <= timedelta(minutes=2)
+
+    def test_fechas_mezcladas_con_y_sin_zona(self):
+        # Una fecha sin zona se interpreta como UTC si alguna otra la trae.
+        ahora = datetime.now(UTC)
+        r = quota_manager.compute_next_quota_reset_date(
+            last_reset=(ahora - timedelta(days=5)).replace(tzinfo=None),
+            period_end=ahora + timedelta(days=60),
+        )
+        assert r.tzinfo is not None
+        assert abs(r - (ahora + timedelta(days=25))) <= timedelta(minutes=2)
 
 
 class TestVentanaDeCuota:
@@ -1049,14 +1064,19 @@ class TestResets:
         }]
         assert db.all("SELECT is_paused_by_quota FROM manual_ai_projects") == [{"is_paused_by_quota": False}]
 
-    def test_reset_user_quota_con_fechas_falla(self, db):
-        # COMPORTAMIENTO ACTUAL (posible defecto): con quota_reset_date o periodo
-        # en BD (aware) compute_next_quota_reset_date lanza TypeError; la función
-        # devuelve False y no resetea nada.
+    def test_reset_user_quota_con_fechas_resetea(self, db):
+        # ARREGLADO (2026-09-28): con quota_reset_date o periodo en BD (con zona)
+        # antes saltaba TypeError y la función devolvía False sin resetear.
         db.set_user(3, quota_used=500)
-        assert quota_manager.reset_user_quota(3) is False
-        assert db.user(3)["quota_used"] == 500
-        assert db.events() == []
+        periodo_fin = db.user(3)["current_period_end"]
+        assert quota_manager.reset_user_quota(3) is True
+        u = db.user(3)
+        assert u["quota_used"] == 0
+        # +30 días desde el último reset, recortado al fin del periodo Stripe
+        assert u["quota_reset_date"] == periodo_fin
+        [evento] = db.events(3)
+        assert (evento["ru_consumed"], evento["source"]) == (0, "quota_reset")
+        assert evento["metadata"]["previous_usage"] == 500
 
     def test_reset_manual_admin_sin_fechas(self, db):
         db.set_user(1, quota_used=40)
@@ -1067,14 +1087,53 @@ class TestResets:
         [evento] = db.events(1)
         assert (evento["ru_consumed"], evento["source"], evento["keyword"]) == (0, "manual_ai", "admin_quota_reset")
 
-    def test_reset_manual_admin_con_fechas_falla(self, db):
-        # COMPORTAMIENTO ACTUAL (posible defecto): mismo TypeError que arriba en
-        # el reset manual del panel admin (admin_billing_panel.py).
+    def test_reset_manual_admin_con_fechas_resetea(self, db):
+        # ARREGLADO (2026-09-28): mismo fallo que arriba en el reset manual del
+        # panel admin (admin_billing_panel.py); con usuarios de pago no funcionaba.
         db.set_user(3, quota_used=500)
+        periodo_fin = db.user(3)["current_period_end"]
         res = admin_billing_panel.reset_user_quota_manual(3, 2)
-        assert res["success"] is False
-        assert res["error"].startswith("Database error: can't compare offset-naive and offset-aware datetimes")
-        assert db.user(3)["quota_used"] == 500
+        assert (res["success"], res["previous_usage"], res["new_usage"]) == (True, 500, 0)
+        u = db.user(3)
+        assert u["quota_used"] == 0
+        assert u["quota_reset_date"] == periodo_fin
+
+    @pytest.mark.parametrize("resetear", [
+        pytest.param(lambda: quota_manager.reset_user_quota(3), id="reset_user_quota"),
+        pytest.param(lambda: admin_billing_panel.reset_user_quota_manual(3, 2)["success"], id="panel_admin"),
+    ])
+    def test_reset_manual_conserva_el_proximo_reset_automatico(self, db, resetear):
+        # ARREGLADO (2026-09-28): el reset manual recalculaba la fecha desde el
+        # próximo reset previsto (+30 días); en un plan anual el ciclo se movía
+        # un mes y el usuario perdía el reset que le tocaba.
+        ahora = datetime.now(timezone.utc)
+        previsto = (ahora + timedelta(days=10)).replace(microsecond=0)
+        db.set_user(3, quota_used=500, current_period_start=ahora - timedelta(days=50),
+                    current_period_end=ahora + timedelta(days=315), quota_reset_date=previsto)
+        assert resetear() is True
+        u = db.user(3)
+        assert (u["quota_used"], u["quota_reset_date"]) == (0, previsto)
+
+    def test_reset_manual_admin_informa_de_la_fecha_guardada(self, db):
+        ahora = datetime.now(timezone.utc)
+        previsto = (ahora + timedelta(days=10)).replace(microsecond=0)
+        db.set_user(3, quota_used=500, current_period_start=ahora - timedelta(days=50),
+                    current_period_end=ahora + timedelta(days=315), quota_reset_date=previsto)
+        res = admin_billing_panel.reset_user_quota_manual(3, 2)
+        assert datetime.fromisoformat(res["next_reset"]) == previsto
+
+    @pytest.mark.parametrize("resetear", [
+        pytest.param(lambda: quota_manager.reset_user_quota(3), id="reset_user_quota"),
+        pytest.param(lambda: admin_billing_panel.reset_user_quota_manual(3, 2)["success"], id="panel_admin"),
+    ])
+    def test_reset_manual_con_reset_vencido_calcula_el_siguiente(self, db, resetear):
+        ahora = datetime.now(timezone.utc)
+        vencido = (ahora - timedelta(days=2)).replace(microsecond=0)
+        db.set_user(3, quota_used=500, current_period_start=ahora - timedelta(days=50),
+                    current_period_end=ahora + timedelta(days=315), quota_reset_date=vencido)
+        assert resetear() is True
+        u = db.user(3)
+        assert (u["quota_used"], u["quota_reset_date"]) == (0, vencido + timedelta(days=30))
 
     def test_reset_manual_exige_admin(self, db):
         assert admin_billing_panel.reset_user_quota_manual(1, 3) == {
