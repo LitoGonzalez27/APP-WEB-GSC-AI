@@ -1253,11 +1253,14 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
             last_reset=user_info.get('quota_reset_date')
         )
 
-        # Resetear quota_used a 0 y alinear próximo reset
+        # Resetear quota_used a 0. Si ya hay un reset automático previsto en el
+        # futuro se conserva: recalcularlo desde esa fecha lo desplazaba 30 días
+        # (en planes anuales el usuario perdía el reset que le tocaba).
         cur.execute('''
             UPDATE users 
             SET quota_used = 0,
-                quota_reset_date = %s,
+                quota_reset_date = CASE WHEN quota_reset_date > NOW()
+                                        THEN quota_reset_date ELSE %s END,
                 updated_at = NOW()
             WHERE id = %s
         ''', (next_reset, user_id))

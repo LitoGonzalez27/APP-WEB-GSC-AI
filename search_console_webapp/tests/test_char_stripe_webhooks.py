@@ -774,6 +774,146 @@ def test_deleted_de_una_suscripcion_antigua_no_toca_la_vigente(ctx):
     ctx.email_alerta.assert_not_called()
 
 
+def test_deleted_no_cancela_a_un_usuario_beta_sin_suscripcion(ctx):
+    consultar(ctx.db, "UPDATE users SET billing_status = 'beta', subscription_id = NULL WHERE id = %s",
+              (ID_PAGO,))
+    crear_proyectos(ctx.db, ID_PAGO)
+    antes = todos_los_usuarios(ctx.db)
+    proyectos_antes = estado_proyectos(ctx.db, ID_PAGO)
+
+    resp = enviar(ctx, evento("customer.subscription.deleted",
+                              suscripcion(price="price_test_business_monthly", status="canceled")))
+
+    # ARREGLADO (2026-09-28): la cancelación alcanzaba a cualquier usuario del
+    # cliente sin suscripción, también a los beta, cuyo acceso no viene de Stripe.
+    # El cliente es conocido: 200 sin alerta, no "customer no encontrado".
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True, "message": "Deleted subscription is not the current one; ignored"}
+    assert todos_los_usuarios(ctx.db) == antes
+    assert estado_proyectos(ctx.db, ID_PAGO) == proyectos_antes
+    ctx.email_alerta.assert_not_called()
+
+
+def test_deleted_encontrado_por_subscription_id_desactiva_proyectos(ctx):
+    crear_proyectos(ctx.db, ID_PAGO)
+    antes = usuario(ctx.db, ID_PAGO)
+
+    resp = enviar(ctx, evento("customer.subscription.deleted",
+                              suscripcion(customer="cus_char_otro", status="canceled")))
+
+    # ARREGLADO (2026-09-28): los fallbacks cancelaban al usuario pero dejaban
+    # sus proyectos activos.
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO) == dict(
+        antes, plan="free", current_plan="free", billing_status="canceled", quota_limit=0,
+        subscription_id=None, current_period_start=None, current_period_end=None)
+    for tabla, filas in estado_proyectos(ctx.db, ID_PAGO).items():
+        assert [f["is_active"] for f in filas] == [False], tabla
+    ctx.customer_retrieve.assert_not_called()
+    ctx.email_alerta.assert_not_called()
+
+
+def test_deleted_encontrado_por_email_desactiva_proyectos(ctx):
+    crear_proyectos(ctx.db, ID_GRATUITO)
+    antes = usuario(ctx.db, ID_GRATUITO)
+    ctx.customer_retrieve.side_effect = None
+    ctx.customer_retrieve.return_value = {"id": "cus_char_desconocido", "object": "customer",
+                                          "email": SEED_USER_EMAIL}
+
+    resp = enviar(ctx, evento("customer.subscription.deleted",
+                              suscripcion(customer="cus_char_desconocido", sub_id="sub_char_x",
+                                          status="canceled")))
+
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_GRATUITO) == dict(
+        antes, plan="free", current_plan="free", billing_status="canceled", quota_limit=0,
+        subscription_id=None, current_period_start=None, current_period_end=None,
+        stripe_customer_id="cus_char_desconocido")
+    for tabla, filas in estado_proyectos(ctx.db, ID_GRATUITO).items():
+        assert [f["is_active"] for f in filas] == [False], tabla
+
+
+def test_deleted_por_email_no_pisa_el_customer_de_otro_usuario(ctx):
+    consultar(ctx.db, "UPDATE users SET stripe_customer_id = 'cus_char_suyo' WHERE id = %s", (ID_GRATUITO,))
+    crear_proyectos(ctx.db, ID_GRATUITO)
+    antes = todos_los_usuarios(ctx.db)
+    ctx.customer_retrieve.side_effect = None
+    ctx.customer_retrieve.return_value = {"id": "cus_char_desconocido", "object": "customer",
+                                          "email": SEED_USER_EMAIL}
+
+    resp = enviar(ctx, evento("customer.subscription.deleted",
+                              suscripcion(customer="cus_char_desconocido", sub_id="sub_char_x",
+                                          status="canceled")))
+
+    # ARREGLADO (2026-09-28): el fallback por email reescribía el
+    # stripe_customer_id de un usuario que ya tenía otro cliente de Stripe.
+    assert resp.status_code == 503
+    assert resp.get_json()["error"] == "customer_not_found"
+    assert todos_los_usuarios(ctx.db) == antes
+    for tabla, filas in estado_proyectos(ctx.db, ID_GRATUITO).items():
+        assert [f["is_active"] for f in filas] == [True], tabla
+
+
+def test_fallo_al_desactivar_una_tabla_no_deshace_la_cancelacion(ctx):
+    crear_proyectos(ctx.db, ID_PAGO)
+    antes = usuario(ctx.db, ID_PAGO)
+    consultar(ctx.db, """
+        CREATE FUNCTION test_char_fallo_simulado() RETURNS trigger AS $$
+        BEGIN RAISE EXCEPTION 'fallo simulado'; END $$ LANGUAGE plpgsql;
+        CREATE TRIGGER test_char_fallo_simulado BEFORE UPDATE ON ai_mode_projects
+            FOR EACH ROW EXECUTE FUNCTION test_char_fallo_simulado();
+    """)
+    try:
+        resp = enviar(ctx, evento("customer.subscription.deleted",
+                                  suscripcion(price="price_test_business_monthly", status="canceled")))
+    finally:
+        consultar(ctx.db, "DROP TRIGGER IF EXISTS test_char_fallo_simulado ON ai_mode_projects;"
+                          " DROP FUNCTION IF EXISTS test_char_fallo_simulado()")
+
+    # ARREGLADO (2026-09-28): el error abortaba la transacción y el commit
+    # deshacía en silencio también la cancelación (el usuario seguía de pago).
+    # Con un SAVEPOINT por tabla solo se pierde la tabla que falla.
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO) == dict(
+        antes, plan="free", current_plan="free", billing_status="canceled", quota_limit=0,
+        subscription_id=None, current_period_start=None, current_period_end=None)
+    activos = {tabla: [f["is_active"] for f in filas] for tabla, filas in estado_proyectos(ctx.db, ID_PAGO).items()}
+    assert activos == {"manual_ai_projects": [False], "ai_mode_projects": [True],
+                       "llm_monitoring_projects": [False]}
+
+
+@pytest.mark.parametrize("tipo,status", [
+    ("customer.subscription.updated", "past_due"),
+    ("customer.subscription.updated", "unpaid"),
+    ("customer.subscription.created", "incomplete"),
+])
+def test_evento_no_activo_de_una_suscripcion_antigua_no_pisa_la_vigente(ctx, tipo, status):
+    antes = todos_los_usuarios(ctx.db)
+
+    resp = enviar(ctx, evento(tipo, suscripcion(sub_id="sub_char_antigua", price="price_test_basic_monthly",
+                                                product="prod_test_basic", status=status)))
+
+    # ARREGLADO (2026-09-28): el UPDATE filtraba solo por cliente y el estado de
+    # la suscripción antigua (o de un checkout a medias) pisaba el de la vigente.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True, "message": "Subscription is not the current one; ignored"}
+    assert todos_los_usuarios(ctx.db) == antes
+
+
+def test_suscripcion_nueva_activa_sustituye_a_la_guardada(ctx):
+    antes = usuario(ctx.db, ID_PAGO)
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id="sub_char_nueva")))
+
+    # Un estado activo de otra suscripción sí se aplica: así se cambia de plan
+    # (p. ej. contratar otro tras quedar en past_due).
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO) == dict(
+        antes, plan="premium", current_plan="premium", quota_limit=2950, billing_status="active",
+        subscription_id="sub_char_nueva",
+        current_period_start=utc(OCT_INICIO), current_period_end=utc(OCT_FIN))
+
+
 # ===========================================================================
 # 4. invoice.payment_succeeded / invoice.payment_failed
 # ===========================================================================
@@ -859,6 +999,37 @@ def test_payment_failed_marca_past_due(ctx):
     assert usuario(ctx.db, ID_PAGO) == dict(antes[ID_PAGO], billing_status="past_due")
     assert todos_los_usuarios(ctx.db)[ID_GRATUITO] == antes[ID_GRATUITO]
     assert resumen_eventos(ctx.db) == [("evt_char_0001", "invoice.payment_failed", "processed", "", True)]
+
+
+@pytest.mark.parametrize("tipo", ["invoice.payment_succeeded", "invoice.payment_failed"])
+def test_factura_de_una_suscripcion_antigua_no_toca_la_vigente(ctx, tipo):
+    consultar(ctx.db, "UPDATE users SET quota_used = 900 WHERE id = %s", (ID_PAGO,))
+    antes = todos_los_usuarios(ctx.db)
+
+    resp = enviar(ctx, evento(tipo, factura(sub_id="sub_char_antigua")))
+
+    # ARREGLADO (2026-09-28): la factura de otra suscripción del cliente (p. ej.
+    # un reintento de cobro de la antigua) reseteaba la cuota o marcaba past_due
+    # al usuario que paga la vigente.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True, "message": "Invoice is not for the current subscription; ignored"}
+    assert todos_los_usuarios(ctx.db) == antes
+
+
+def test_primer_cobro_de_una_suscripcion_nueva_con_la_antigua_en_past_due(ctx):
+    consultar(ctx.db, "UPDATE users SET quota_used = 900, billing_status = 'past_due' WHERE id = %s", (ID_PAGO,))
+    antes = usuario(ctx.db, ID_PAGO)
+
+    resp = enviar(ctx, evento("invoice.payment_succeeded", factura(sub_id="sub_char_nueva")))
+
+    # Con la antigua en past_due el checkout deja contratar otra y su primer
+    # cobro suele llegar antes que el checkout: no se ignora.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True, "message": "Payment succeeded processed"}
+    assert usuario(ctx.db, ID_PAGO) == dict(
+        antes, quota_used=0, billing_status="active",
+        current_period_start=utc(OCT_INICIO), current_period_end=utc(OCT_FIN),
+        quota_reset_date=utc(OCT_INICIO) + timedelta(days=30))
 
 
 # ===========================================================================
@@ -1058,6 +1229,33 @@ def test_evento_abandonado_en_curso_se_reprocesa(ctx):
     assert resp.status_code == 200
     assert usuario(ctx.db, ID_PAGO)["billing_status"] == "past_due"
     assert resumen_eventos(ctx.db) == [("evt_char_0001", "invoice.payment_failed", "processed", "", True)]
+
+
+def test_reclamar_un_evento_no_espera_a_otra_transaccion_sobre_la_tabla(ctx):
+    import threading
+
+    # Otra transacción con un claim sin confirmar (ROW EXCLUSIVE sobre la tabla).
+    bloqueo = psycopg2.connect(ctx.db, connect_timeout=5)
+    resultado = {}
+    hilo = threading.Thread(target=lambda: resultado.update(
+        resp=enviar(ctx, evento("invoice.payment_failed", factura(), event_id="evt_char_concurrente"))))
+    try:
+        with bloqueo.cursor() as cur:
+            cur.execute("INSERT INTO stripe_webhook_events (event_id, event_type)"
+                        " VALUES ('evt_char_ajeno', 'invoice.payment_failed')")
+        hilo.start()
+        hilo.join(10)
+        esperaba = hilo.is_alive()
+    finally:
+        bloqueo.rollback()
+        bloqueo.close()
+    hilo.join(30)
+
+    # ARREGLADO (2026-09-28): cada claim lanzaba CREATE INDEX IF NOT EXISTS, que
+    # pide un bloqueo SHARE aunque el índice exista; esperaba a cualquier claim
+    # sin confirmar y dos webhooks simultáneos podían quedar en deadlock.
+    assert not esperaba, "El claim esperó al bloqueo de otra transacción"
+    assert resultado["resp"].status_code == 200
 
 
 def test_bd_no_disponible_al_reclamar_el_evento_responde_503(ctx):
