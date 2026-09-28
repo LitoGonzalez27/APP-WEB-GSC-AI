@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict LVe2enD77mkgaAEuQY1eDHPFNJJRUPRnrbbLtmavCSrCwFdzBGybqPibbsNcFeF
+\restrict f3qYsLGL55ZTp5XjliFrz385eXN5VhaedV6av7gVVAHqvXc71xwLIpFpIwmjkXu
 
 -- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
 -- Dumped by pg_dump version 16.15
@@ -200,6 +200,50 @@ CREATE SEQUENCE public.ai_mode_events_id_seq
 --
 
 ALTER SEQUENCE public.ai_mode_events_id_seq OWNED BY public.ai_mode_events.id;
+
+
+--
+-- Name: ai_mode_global_domains; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ai_mode_global_domains (
+    id integer NOT NULL,
+    project_id integer,
+    keyword_id integer,
+    analysis_date date NOT NULL,
+    keyword character varying(500) NOT NULL,
+    project_domain character varying(255) NOT NULL,
+    detected_domain character varying(255) NOT NULL,
+    domain_position integer NOT NULL,
+    domain_title text,
+    domain_source_url text,
+    country_code character varying(3) DEFAULT 'US'::character varying,
+    is_project_domain boolean DEFAULT false,
+    is_selected_competitor boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT ai_mode_global_domains_detected_domain_check CHECK ((char_length((detected_domain)::text) >= 3)),
+    CONSTRAINT ai_mode_global_domains_domain_position_check CHECK ((domain_position > 0))
+);
+
+
+--
+-- Name: ai_mode_global_domains_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.ai_mode_global_domains_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: ai_mode_global_domains_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.ai_mode_global_domains_id_seq OWNED BY public.ai_mode_global_domains.id;
 
 
 --
@@ -1661,6 +1705,13 @@ ALTER TABLE ONLY public.ai_mode_events ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
+-- Name: ai_mode_global_domains id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_mode_global_domains ALTER COLUMN id SET DEFAULT nextval('public.ai_mode_global_domains_id_seq'::regclass);
+
+
+--
 -- Name: ai_mode_keywords id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1932,6 +1983,22 @@ ALTER TABLE ONLY public.ai_brand_score_snapshots
 
 ALTER TABLE ONLY public.ai_mode_events
     ADD CONSTRAINT ai_mode_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ai_mode_global_domains ai_mode_global_domains_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_mode_global_domains
+    ADD CONSTRAINT ai_mode_global_domains_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ai_mode_global_domains ai_mode_global_domains_project_id_keyword_id_analysis_date__key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_mode_global_domains
+    ADD CONSTRAINT ai_mode_global_domains_project_id_keyword_id_analysis_date__key UNIQUE (project_id, keyword_id, analysis_date, detected_domain);
 
 
 --
@@ -2480,6 +2547,27 @@ CREATE INDEX idx_ai_mode_events_project_date ON public.ai_mode_events USING btre
 --
 
 CREATE INDEX idx_ai_mode_events_type ON public.ai_mode_events USING btree (event_type);
+
+
+--
+-- Name: idx_ai_mode_global_domains_competitor_flag; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ai_mode_global_domains_competitor_flag ON public.ai_mode_global_domains USING btree (project_id, is_selected_competitor, analysis_date);
+
+
+--
+-- Name: idx_ai_mode_global_domains_domain; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ai_mode_global_domains_domain ON public.ai_mode_global_domains USING btree (detected_domain);
+
+
+--
+-- Name: idx_ai_mode_global_domains_project_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ai_mode_global_domains_project_date ON public.ai_mode_global_domains USING btree (project_id, analysis_date);
 
 
 --
@@ -3114,6 +3202,22 @@ ALTER TABLE ONLY public.ai_mode_events
 
 
 --
+-- Name: ai_mode_global_domains ai_mode_global_domains_keyword_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_mode_global_domains
+    ADD CONSTRAINT ai_mode_global_domains_keyword_id_fkey FOREIGN KEY (keyword_id) REFERENCES public.ai_mode_keywords(id) ON DELETE CASCADE;
+
+
+--
+-- Name: ai_mode_global_domains ai_mode_global_domains_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_mode_global_domains
+    ADD CONSTRAINT ai_mode_global_domains_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.ai_mode_projects(id) ON DELETE CASCADE;
+
+
+--
 -- Name: ai_mode_keywords ai_mode_keywords_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3397,5 +3501,5 @@ ALTER TABLE ONLY public.user_llm_api_keys
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LVe2enD77mkgaAEuQY1eDHPFNJJRUPRnrbbLtmavCSrCwFdzBGybqPibbsNcFeF
+\unrestrict f3qYsLGL55ZTp5XjliFrz385eXN5VhaedV6av7gVVAHqvXc71xwLIpFpIwmjkXu
 
