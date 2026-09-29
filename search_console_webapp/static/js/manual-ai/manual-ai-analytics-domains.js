@@ -75,7 +75,7 @@ export function renderTopDomains(domains) {
         const logoUrl = getDomainLogoUrl(domain.domain);
         
         const safeDomain = escapeHtml(domain.domain);
-        const safeDomainInitial = escapeHtml((domain.domain || '').charAt(0).toUpperCase());
+        const safeDomainInitial = escapeHtml((domain.domain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${index + 1}</td>
             <td class="domain-cell" title="${safeDomain}">
@@ -200,7 +200,7 @@ export function renderGlobalDomainsRanking(domains) {
         }
         
         const safeDetectedDomain = escapeHtml(domain.detected_domain);
-        const safeDetectedInitial = escapeHtml((domain.detected_domain || '').charAt(0).toUpperCase());
+        const safeDetectedInitial = escapeHtml((domain.detected_domain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${domain.rank}</td>
             <td class="domain-cell">

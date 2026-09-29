@@ -8,11 +8,14 @@ static/js/html-escape.js es la única implementación. Estos tests fallan si:
 - una plantilla usa window.ClicandseoHtml (en un script clásico o en línea)
   sin cargar antes html-escape.js;
 - un fichero con import/export se carga como script clásico (error de sintaxis);
-- un dato se mete en una cadena JS dentro de un manejador en línea
-  (onclick="f('${x}')"): ahí el navegador decodifica las entidades antes de
-  ejecutar el JS, así que hay que usar ClicandseoHtml.jsArg(x);
+- un dato va dentro de un manejador en línea (onclick="...${x}...") sin
+  ClicandseoHtml.jsArg(x): ahí el navegador decodifica las entidades antes de
+  ejecutar el JS (se exceptúan números y constantes, listados por fichero);
 - reaparecen los parches que no protegen: escapeHtml(x).replace(/'/g, "\\'"),
   JSON.stringify(x).replace(/"/g, '&quot;') o un escapado parcial de < >.
+
+No ve manejadores montados concatenando cadenas con + ni con setAttribute
+('onclick', ...): hoy no hay ninguno con datos (revisado a mano, sep-2026).
 
 Las escapeForAttribute de las tablas Grid.js se quedan como estaban a
 propósito: no escapan & (un dato que trae &amp; se sigue viendo igual) y ya
@@ -37,15 +40,70 @@ PERMITIDAS = {  # fichero -> motivo
 TRUCO_DOM = re.compile(r"textContent\s*=\s*[^;\n]+;?\s*(?:\n[^\n]*){0,2}?return\s+\w+\.innerHTML", re.M)
 CADENA_REPLACE = re.compile(r"""replace\(/&/g,\s*['"]&amp;['"]\)|['"]&['"]\s*:\s*['"]&amp;['"]|replace\(/</g,\s*['"]&lt;['"]\)""")
 PARCHES = re.compile(r"""escape\w*\([^)]*\)\.replace\(/'/g|JSON\.stringify\([^)]*\)\.replace\(/"/g""")
-CADENA_EN_MANEJADOR = re.compile(r"""\bon[a-z]+=\\?"[^"]*?'\$\{([^}]+)\}'""")
-# Valores que no vienen del usuario (constantes del código) o ya preparados para JS.
+INICIO_MANEJADOR = re.compile(r"""\bon[a-z]+\s*=\s*(\\?["'])""")
+EXPRESION_SEGURA = re.compile(r"^(?:(?:window|globalThis)\.)?ClicandseoHtml\.jsArg\(|^Number\(|^[\w.]+\.id$|^(?:index|i|idx)$")
+# (fichero, expresión) -> por qué es seguro dentro de on*="..."
 EN_MANEJADOR_PERMITIDOS = {
-    "plan",                          # quota-ui.js: 'basic' / 'premium'
-    "range",                         # ui-render.js: rango de fechas fijo
-    "moduleKey",                     # admin_simple.html: clave de módulo fija
-    "on ? 'off' : 'auto'",           # admin_simple.html
-    "websiteUrl",                    # manual-ai/ai-mode projects: sanitizeUrlForJsString
+    ("static/js/quota-ui.js", "plan"): "constante del código ('basic' / 'premium')",
+    ("static/js/ui-render.js", "range"): "rango de fechas fijo",
+    ("templates/admin_simple.html", "moduleKey"): "clave de módulo fija",
+    ("templates/admin_simple.html", "on ? 'off' : 'auto'"): "constante",
+    ("templates/project_access.html", "member.user_id"): "id numérico",
+    ("static/js/llm_monitoring/llm-monitoring-fanout.js", "page - 1"): "número de página",
+    ("static/js/llm_monitoring/llm-monitoring-fanout.js", "page + 1"): "número de página",
+    ("static/js/llm_monitoring/llm-monitoring-responses.js", "globalIndex"): "índice numérico",
+    ("static/js/topic-clusters.js", "clusterIndex"): "índice numérico",
+    ("static/js/topic-clusters.js", "termIndex"): "índice numérico",
+    ("static/js/llm_monitoring/llm-monitoring-projects.js", "configuredQueries"): "Number(...)",
+    ("static/js/llm_monitoring/llm-monitoring-projects.js", "safeProjectName"): "resultado de jsArg",
+    ("static/js/manual-ai/manual-ai-projects.js", "safeName"): "resultado de jsArg",
+    ("static/js/ai-mode-projects/ai-mode-projects.js", "safeName"): "resultado de jsArg",
+    ("static/js/manual-ai/manual-ai-analytics-domains.js", "safeDomainInitial"): "una letra o número",
+    ("static/js/manual-ai/manual-ai-analytics-domains.js", "safeDetectedInitial"): "una letra o número",
+    ("static/js/manual-ai/manual-ai-analytics-urls.js", "safeUrlDomainInitial"): "una letra o número",
+    ("static/js/ai-mode-projects/ai-mode-analytics-domains.js", "safeDomainInitial"): "una letra o número",
+    ("static/js/ai-mode-projects/ai-mode-analytics-domains.js", "safeDetectedInitial"): "una letra o número",
+    ("static/js/ai-mode-projects/ai-mode-analytics-urls.js", "safeUrlDomainInitial"): "una letra o número",
 }
+
+
+def _valor_atributo(texto, pos, comilla):
+    """Valor de un atributo desde `pos` (tras la comilla) hasta su cierre, sin
+    cortar dentro de ${...} (que puede llevar comillas y llaves)."""
+    i, prof, n = pos, 0, len(texto)
+    while i < n:
+        c = texto[i]
+        if prof == 0:
+            if texto.startswith(comilla, i):
+                return texto[pos:i]
+            if texto.startswith("${", i):
+                prof, i = 1, i + 2
+                continue
+            if c == "`":
+                return None
+        elif c == "{":
+            prof += 1
+        elif c == "}":
+            prof -= 1
+        elif c in "\"'`":
+            j = i + 1
+            while j < n and texto[j] != c:
+                j += 2 if texto[j] == "\\" else 1
+            i = j
+        i += 1
+    return None
+
+
+def _expresiones(valor):
+    out, i = [], 0
+    while (k := valor.find("${", i)) >= 0:
+        prof, j = 1, k + 2
+        while j < len(valor) and prof:
+            prof += {"{": 1, "}": -1}.get(valor[j], 0)
+            j += 1
+        out.append(valor[k + 2:j - 1].strip())
+        i = j
+    return out + [m.strip() for m in re.findall(r"\{\{(.*?)\}\}", valor)]
 
 
 def _js():
@@ -125,15 +183,24 @@ def test_el_compartido_no_usa_sintaxis_de_modulo():
     assert not _es_modulo(COMPARTIDO.read_text(encoding="utf-8"))
 
 
-def test_ningun_dato_va_en_una_cadena_js_de_un_manejador_en_linea():
-    fallos = []
+def test_los_datos_en_manejadores_en_linea_van_con_jsarg():
+    # Dentro de on*="..." el navegador decodifica las entidades antes de ejecutar
+    # el JS: un dato solo es seguro con jsArg (o si es un número o una constante).
+    fallos, usados = [], set()
     for p in _js() + _plantillas():
         texto = p.read_text(encoding="utf-8", errors="replace")
-        for m in CADENA_EN_MANEJADOR.finditer(texto):
-            if m.group(1).strip() not in EN_MANEJADOR_PERMITIDOS:
-                linea = texto.count("\n", 0, m.start()) + 1
-                fallos.append(f"{_rel(p)}:{linea} '${{{m.group(1)}}}'")
-    assert not fallos, f"Usa f(${{ClicandseoHtml.jsArg(x)}}) en vez de f('${{x}}'): {fallos}"
+        for m in INICIO_MANEJADOR.finditer(texto):
+            valor = _valor_atributo(texto, m.end(), m.group(1))
+            for expr in _expresiones(valor or ""):
+                clave = (_rel(p), expr)
+                if EXPRESION_SEGURA.search(expr):
+                    continue
+                if clave in EN_MANEJADOR_PERMITIDOS:
+                    usados.add(clave)
+                    continue
+                fallos.append(f"{_rel(p)}:{texto.count(chr(10), 0, m.start()) + 1} ${{{expr}}}")
+    assert not fallos, f"Pasa los datos con ClicandseoHtml.jsArg(x): {fallos}"
+    assert not set(EN_MANEJADOR_PERMITIDOS) - usados, set(EN_MANEJADOR_PERMITIDOS) - usados
 
 
 def test_no_reaparecen_parches_que_no_protegen():

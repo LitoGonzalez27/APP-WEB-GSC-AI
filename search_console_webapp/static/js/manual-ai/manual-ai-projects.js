@@ -4,7 +4,7 @@
  */
 
 import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
-import { escapeHtml, sanitizeUrlForJsString, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './manual-ai-utils.js';
+import { escapeHtml, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './manual-ai-utils.js';
 
 // ================================
 // PROJECTS MANAGEMENT
@@ -138,7 +138,7 @@ export function renderProjects() {
             </div>
             <div class="project-details">
                 <div class="project-meta">
-                    <span class="project-domain clickable-domain" title="Click to visit ${escapeHtml(project.domain)}" onclick="event.stopPropagation(); window.open('https://${sanitizeUrlForJsString(project.domain)}', '_blank')" style="cursor: pointer;">
+                    <span class="project-domain clickable-domain" title="Click to visit ${escapeHtml(project.domain)}" onclick="event.stopPropagation(); window.open(${globalThis.ClicandseoHtml.jsArg('https://' + (project.domain || ''))}, '_blank')" style="cursor: pointer;">
                         <i class="fas fa-globe"></i>
                         <span class="user-domain-underline">${escapeHtml(project.domain)}</span>
                     </span>
@@ -334,11 +334,11 @@ export function renderProjectCompetitorsHorizontal(project) {
         const firstLetter = escapeHtml(domain.charAt(0).toUpperCase());
         const safeDomain = escapeHtml(domain);
         const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
-        // sanitize: se interpola dentro del string JS del onclick (escapeHtml no protege ahí)
-        const websiteUrl = sanitizeUrlForJsString(domain.startsWith('http') ? domain : `https://${domain}`);
+        // Se pasa al onclick con jsArg (literal JS escapado para el atributo).
+        const websiteUrl = domain.startsWith('http') ? domain : `https://${domain}`;
         
         return `
-            <div class="competitor-horizontal-item" title="Click to visit ${safeDomain}" onclick="window.open('${websiteUrl}', '_blank')" style="cursor: pointer;">
+            <div class="competitor-horizontal-item" title="Click to visit ${safeDomain}" onclick="window.open(${globalThis.ClicandseoHtml.jsArg(websiteUrl)}, '_blank')" style="cursor: pointer;">
                 <img id="${logoId}" 
                      src="${logoUrl}" 
                      alt="${safeDomain} logo" 

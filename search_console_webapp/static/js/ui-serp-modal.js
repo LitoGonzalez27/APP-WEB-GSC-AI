@@ -405,7 +405,7 @@ async function loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty) {
       const controls = document.createElement('div');
       controls.className = 'screenshot-controls';
       controls.innerHTML = `
-        <button class="btn btn-sm btn-outline-secondary" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(keyword)}', '_blank')">
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.open(${globalThis.ClicandseoHtml.jsArg('https://www.google.com/search?q=' + encodeURIComponent(keyword))}, '_blank')">
           <i class="fas fa-external-link-alt"></i> Open in Google
         </button>
         <button class="btn btn-sm btn-outline-info refresh-screenshot">

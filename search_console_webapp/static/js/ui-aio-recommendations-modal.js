@@ -1,6 +1,8 @@
 // static/js/ui-aio-recommendations-modal.js
 // Standalone AI Recommendations modal — triggered from Grid.js table
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
+
 // ── HTML escaping ───────────────────────────────────────────────────
 // All recommendation fields (summary, cited_sources_analysis, title,
 // description, category) come from LLM (Gemini) output and are interpolated
@@ -14,7 +16,6 @@ function escapeHtml(unsafe) {
 // ── Session-level cache ─────────────────────────────────────────────
 window._aioRecommendationsCache = window._aioRecommendationsCache || {};
 
-import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 export function hasRecommendationsCache(keyword) {
   if (!keyword) return false;
   return !!window._aioRecommendationsCache[keyword.toLowerCase().trim()];
