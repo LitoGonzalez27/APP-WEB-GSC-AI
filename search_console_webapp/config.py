@@ -38,10 +38,11 @@ def entorno_railway():
 
 
 def desplegado():
-    """True en cualquier entorno de Railway salvo uno llamado 'development'
-    (barreras de seguridad). Antes solo production y staging: un entorno con
-    otro nombre (una preview) quedaba con la clave de sesión de desarrollo."""
-    return entorno_railway() not in ('', 'development')
+    """True en cualquier entorno de Railway (barreras de seguridad). Antes solo
+    production y staging: un entorno con otro nombre (una preview, o uno
+    llamado 'development') quedaba con la clave de sesión de desarrollo, el
+    modo depuración y los tokens sin cifrar."""
+    return bool(entorno_railway())
 
 
 def entorno_app():
@@ -99,6 +100,11 @@ def alertas_cron_activas():
 
 def email_alertas():
     return os.getenv('CRON_ALERTS_EMAIL', EMAIL_ALERTAS_POR_DEFECTO)
+
+
+def email_modelo_activado():
+    """Destinatario del aviso de «modelo activado» de LLM Monitoring."""
+    return os.getenv('MODEL_DISCOVERY_EMAIL', EMAIL_ALERTAS_POR_DEFECTO)
 
 
 def email_alertas_llm():

@@ -32,7 +32,7 @@
   - Técnica Railway: `https://clicandseo.up.railway.app`.
   - Dominio custom: `https://app.clicandseo.com`.
   - Ambas aparecen como hardcoded fallback en distintos sitios — la mezcla es deuda técnica conocida.
-- **Separación staging / producción**: vía env var `RAILWAY_ENVIRONMENT` (`staging` | `production`). En `app.py:101-104` se calcula `is_production` / `is_staging` / `is_development`. Activa ProxyFix, security headers y HSTS solo en prod/staging.
+- **Separación staging / producción**: vía env var `RAILWAY_ENVIRONMENT` (`staging` | `production`). `app.py` usa `config.desplegado()` (cualquier entorno de Railway) para ProxyFix, cookies seguras y cabeceras de seguridad; HSTS solo en producción (`RAILWAY_ENVIRONMENT=production`).
 - **Bases de datos separadas**:
   - Staging: `caboose.proxy.rlwy.net:13631`.
   - Producción: `switchyard.proxy.rlwy.net:18167`.
@@ -206,12 +206,12 @@ Las variables que deciden el entorno, los secretos de cron, el destinatario de a
 
 | Función | Fuente | Para qué |
 |---|---|---|
-| `entorno_railway()`, `desplegado()` | `RAILWAY_ENVIRONMENT` (la pone Railway) | Barreras de seguridad: clave de sesión obligatoria, cookies seguras, modo depuración, cabeceras de seguridad, ProxyFix, cifrado de tokens, HTTP en OAuth, SerpAPI sin usuario, datos de ejemplo. Cualquier entorno de Railway salvo uno llamado `development` (antes solo production y staging). `APP_ENV` no las abre ni las cierra. |
+| `entorno_railway()`, `desplegado()` | `RAILWAY_ENVIRONMENT` (la pone Railway) | Barreras de seguridad: clave de sesión obligatoria, cookies seguras, modo depuración, cabeceras de seguridad, ProxyFix, cifrado de tokens, HTTP en OAuth, SerpAPI sin usuario, datos de ejemplo. Cualquier entorno de Railway (antes solo production y staging). `APP_ENV` no las abre ni las cierra. |
 | `entorno_app()`, `es_produccion()` | `APP_ENV`, si no `RAILWAY_ENVIRONMENT_NAME`, si no `RAILWAY_ENVIRONMENT`, si no `development` | Detalles en los errores de checkout y avisos de claves de Stripe en el log (el modo de Stripe lo marcan las claves). Hoy: producción tiene `APP_ENV=production`; staging no tiene `APP_ENV` y sale `staging` por Railway. |
 | `etiqueta_entorno()` | `APP_ENV` o `RAILWAY_ENVIRONMENT_NAME` o `unknown` | Asunto de las alertas (`[PRODUCTION] ...`). |
 | `aviso_de_entorno()` | — | Aviso en el arranque si `APP_ENV` contradice a Railway. |
 | `token_cron()`, `cabecera_cron_valida(cabecera)` | `CRON_TOKEN` (o `CRON_SECRET`) | Una sola comprobación de `Authorization: Bearer ...` para todos los crons. Un token no ASCII es inválido (antes daba 500 en `/api/cron/quota-reset` y en el cron de LLM con sesión de admin). Con token válido, un error del endpoint es 500 (antes los decoradores de `auth.py` lo convertían en 401 y, con sesión de admin, podían ejecutarlo dos veces). |
-| `alertas_cron_activas()`, `email_alertas()`, `email_alertas_llm()` | `CRON_ALERTS_ENABLED`, `CRON_ALERTS_EMAIL` (LLM: también `CRON_ALERT_EMAIL` y `MODEL_DISCOVERY_EMAIL`) | Interruptor y destinatario de las alertas. |
+| `alertas_cron_activas()`, `email_alertas()`, `email_alertas_llm()`, `email_modelo_activado()` | `CRON_ALERTS_ENABLED`, `CRON_ALERTS_EMAIL` (LLM: también `CRON_ALERT_EMAIL` y `MODEL_DISCOVERY_EMAIL`) | Interruptor y destinatario de las alertas. |
 | `url_publica()` | `PUBLIC_BASE_URL` o `https://app.clicandseo.com` | Enlaces en emails. No está definida en ningún entorno: staging también enlaza a producción en sus emails. |
 | `cuotas_forzadas()` | `ENFORCE_QUOTAS` | Control de cuota del middleware de SerpAPI. Staging `true`, producción `false` (AI Overview descuenta la cuota por su cuenta). |
 

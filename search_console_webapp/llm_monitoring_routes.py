@@ -10624,7 +10624,7 @@ def approve_model_by_token():
         # Enviar email de confirmación
         try:
             from email_service import send_email
-            notify_email = os.getenv('MODEL_DISCOVERY_EMAIL', 'info@soycarlosgonzalez.com')
+            notify_email = config.email_modelo_activado()
             old_name = old_model['model_id'] if old_model else 'N/A'
             send_email(notify_email,
                       f"✅ Modelo activado: {model['llm_provider'].upper()} → {model['model_id']}",
