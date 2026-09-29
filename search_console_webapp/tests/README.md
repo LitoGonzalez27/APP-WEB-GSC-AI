@@ -45,6 +45,8 @@ Varios tests antiguos comprueban texto del código (`read_text`/`getsource`); la
 
 `test_fiabilidad_billing_details.py` prueba el flujo real (decorador + ruta + consultas) contra la base desechable, con fallos provocados de verdad: consulta cancelada por `statement_timeout` (transitorio), tabla inexistente (programación) y pool agotado. Cubre 200/404/503/500, sesión conservada ante fallos técnicos, métricas no disponibles marcadas como tales, cursores y conexiones devueltos siempre y la clasificación de errores transitorios por SQLSTATE (`is_transient_db_error`). Contrato en `CLAUDE-base-de-datos.md` §2.
 
+`test_fiabilidad_sesion.py`: el mismo contrato en los decoradores de sesión (`auth_required`, keepalive) y en `/auth/status`: un fallo de la base de datos no cierra la sesión; un usuario borrado sí. `tests/js/session-status.test.cjs` prueba que el gestor de sesión del frontend no la cierra ante un 5xx.
+
 ## Barreras (tests/conftest.py)
 
 - **Base de datos**: si `DATABASE_URL` apunta a algo que no sea local o el Postgres de Docker, la suite se detiene sin ejecutar nada. Varios tests escriben y borran filas. Los tests de integración pensados para staging (`LLM_SETS_IT_PROJECT_ID`) solo corren si se exporta `ALLOW_REMOTE_DB_TESTS=1` a propósito.

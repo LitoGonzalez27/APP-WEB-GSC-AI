@@ -902,12 +902,19 @@ function resetPrimaryBusinessCountry() {
 // ✅ NUEVA función para verificar si el usuario está autenticado
 async function checkUserAuthentication() {
     try {
-        const response = await fetch('/auth/status');
-        const data = await response.json();
-        return data.authenticated || false;
+        const response = await fetch('/auth/status', { headers: { 'Accept': 'application/json' } });
+        let data = null;
+        try { data = await response.json(); } catch (_) { data = null; }
+        // Solo "no autenticado" si el servidor lo dice; un 5xx o un error de red no
+        // (las siguientes peticiones mostrarán su propio error).
+        const estado = (window.SessionStatus && window.SessionStatus.interpretarEstadoSesion)
+            ? window.SessionStatus.interpretarEstadoSesion(response.status, data)
+            : (response.ok && data && data.authenticated === true ? 'activa'
+                : (response.ok && data && data.authenticated === false ? 'terminada' : 'desconocida'));
+        return estado !== 'terminada';
     } catch (error) {
         console.error('Error verificando autenticación:', error);
-        return false;
+        return true;
     }
 }
 
