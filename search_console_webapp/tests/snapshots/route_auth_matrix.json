@@ -68,9 +68,9 @@
  },
  "GET /admin/api/costs [admin_costs.admin_costs_api]": {
   "admin": "200",
-  "anon": "302 -> /login",
-  "paid": "302 -> /dashboard",
-  "user": "302 -> /dashboard"
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
  },
  "GET /admin/audit-log [admin_audit_log]": {
   "admin": "200",
@@ -134,9 +134,9 @@
  },
  "GET /agent/api/access/list [agent_scanner.access_list]": {
   "admin": "200",
-  "anon": "302 -> /login",
-  "paid": "302 -> /dashboard",
-  "user": "302 -> /dashboard"
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
  },
  "GET /agent/api/agents/<job_id>/status [agent_scanner.agents_status]": {
   "admin": "404",
@@ -152,9 +152,9 @@
  },
  "GET /agent/api/diag [agent_scanner.diag]": {
   "admin": "200",
-  "anon": "302 -> /login",
-  "paid": "302 -> /dashboard",
-  "user": "302 -> /dashboard"
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
  },
  "GET /agent/api/historial [agent_scanner.historial]": {
   "admin": "200",
