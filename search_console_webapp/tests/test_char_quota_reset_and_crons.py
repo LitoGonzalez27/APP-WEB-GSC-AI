@@ -789,20 +789,18 @@ def test_token_correcto_acepta(entorno, endpoint):
 
 
 @pytest.mark.parametrize("url", [URL_MANUAL_AI + "?async=1", URL_AI_MODE + "?async=1"])
-def test_cron_or_admin_sin_cabeceras_json_redirige(entorno, url):
-    """cron_or_admin_required (Manual AI / AI Mode) cae en admin_required, que solo
-    responde JSON si la petición es JSON; sin Content-Type redirige."""
+def test_cron_or_admin_sin_cabeceras_json_responde_json(entorno, url):
+    """cron_or_admin_required (Manual AI / AI Mode) cae en admin_required.
+    CAMBIADO (29-sep-2026, fase de fiabilidad): admin_required detecta JSON como
+    auth_required (Accept, XHR o ruta /api/); antes, sin Content-Type redirigía
+    al login o al dashboard con HTML que el JS no podía leer."""
     anonimo = _cliente(entorno.app).post(url)
-    assert anonimo.status_code == 302
-    destino = urlparse(anonimo.headers["Location"])
-    assert destino.path == "/login"
-    assert parse_qs(destino.query) == {"auth_required": ["true"]}
+    assert anonimo.status_code == 401
+    assert anonimo.get_json()["auth_required"] is True
 
     usuario = _cliente(entorno.app, entorno.gratuito).post(url)
-    assert usuario.status_code == 302
-    destino = urlparse(usuario.headers["Location"])
-    assert destino.path == "/dashboard"
-    assert parse_qs(destino.query) == {"admin_required": ["true"]}
+    assert usuario.status_code == 403
+    assert usuario.get_json()["admin_required"] is True
     _sin_efectos(entorno)
 
 

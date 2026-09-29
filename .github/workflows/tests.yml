@@ -1,0 +1,44 @@
+# Suite aislada de la app: Postgres desechable en Docker, red interna sin salida
+# a internet y variables ficticias (search_console_webapp/tests/docker/test.env).
+# Sin secretos ni despliegues. Mismo comando que en local:
+#   search_console_webapp/scripts/run_tests_docker.sh
+name: tests
+
+on:
+  pull_request:
+    branches: [staging, main]
+  push:
+    branches: [staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  # Solo en PR: los pushes a staging/main se prueban siempre completos.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # El repo se monta en el contenedor de tests: sin token guardado.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Tests de JavaScript (sin dependencias)
+        working-directory: search_console_webapp
+        run: node --test tests/js/*.test.cjs
+
+      - name: Suite de Python aislada (Docker)
+        working-directory: search_console_webapp
+        env:
+          TEST_RUN_ID: ci
+        run: scripts/run_tests_docker.sh -q -rs

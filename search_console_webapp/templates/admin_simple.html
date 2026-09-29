@@ -425,6 +425,8 @@
         }
         .detail-section--full { grid-column: 1 / -1; }
         .detail-section[hidden] { display: none; }
+        /* El CSS de la página (display:flex, .btn) anula el [hidden] del navegador */
+        #detailBillingError[hidden], #detailBillingRetry[hidden] { display: none !important; }
         .detail-section h4 {
             font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
             color: var(--color-text-tertiary); margin-bottom: 1rem;
@@ -1215,6 +1217,11 @@
                 <button class="modal-close" onclick="closeModal('userModal')" aria-label="Cerrar">&times;</button>
             </div>
             <div class="modal-body user-detail-body">
+                <div id="detailBillingError" role="alert" hidden
+                     style="margin-bottom:1rem;padding:.75rem 1rem;border-radius:8px;border:1px solid rgba(245,158,11,.6);background:rgba(245,158,11,.1);display:flex;gap:.75rem;align-items:center;justify-content:space-between">
+                    <span id="detailBillingErrorText"></span>
+                    <button type="button" class="btn btn-secondary btn-sm" id="detailBillingRetry" hidden>Reintentar</button>
+                </div>
                 <div class="detail-sections">
                     <section class="detail-section ">
                         <h4><i data-lucide="user"></i> Información básica</h4>
@@ -1556,6 +1563,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/admin-billing-details.js') }}"></script>
     <script>
         // ========== FUNCIONES BÁSICAS Y DIRECTAS ==========
         
@@ -1579,14 +1587,26 @@
             // 🎯 Límite y ciclo por proyecto (independiente del fetch de billing)
             loadUserProjectLimits(id);
 
+            const reintentar = () => showUserDetails(id, name, email, role, status, created, authType);
+            mostrarAvisoDetalles('', null);
+            const valorMetrica = AdminBillingDetails.valorMetrica;
+            let resultado;
             try {
-                // 🚀 NUEVO: Cargar detalles completos de billing
-                console.log('🔄 Cargando datos de billing...');
-                const response = await fetch(`/admin/users/${id}/billing-details`);
-                const result = await response.json();
-                
-                if (result.success && result.user) {
-                    const user = result.user;
+                const response = await fetch(`/admin/users/${id}/billing-details`, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                resultado = await AdminBillingDetails.leerRespuesta(response);
+            } catch (error) {
+                console.error('❌ Error de red cargando detalles de billing:', error);
+                resultado = { tipo: 'red', reintentable: true, mensaje: 'No se pudo contactar con el servidor. Reintenta.' };
+            }
+
+            try {
+                if (resultado.tipo === 'ok') {
+                    const user = resultado.user;
+                    if (resultado.metricasNoDisponibles.length) {
+                        mostrarAvisoDetalles('Algunas métricas no están disponibles ahora mismo; el resto de datos es correcto.', reintentar);
+                    }
                     console.log('✅ Datos de billing cargados:', user);
                     
                     // Plan y Facturación
@@ -1638,30 +1658,23 @@
                     }
 
                     // Uso SERP & LLM (mes actual)
-                    const serpRuMonth = user.serp_ru_month || 0;
-                    const llmUnitsMonth = user.llm_units_month || 0;
-                    const llmCostMonth = parseFloat(user.llm_cost_month || 0);
-                    const llmProjects = user.llm_active_projects || 0;
-
-                    document.getElementById('detailSerpRuMonth').textContent = `${serpRuMonth} RU`;
-                    document.getElementById('detailLlmUnitsMonth').textContent = `${llmUnitsMonth} u`;
-                    document.getElementById('detailLlmCostMonth').textContent = `$${llmCostMonth.toFixed(2)}`;
-                    document.getElementById('detailLlmProjects').textContent = llmProjects;
+                    document.getElementById('detailSerpRuMonth').textContent = valorMetrica(user.serp_ru_month, (v) => `${v} RU`);
+                    document.getElementById('detailLlmUnitsMonth').textContent = valorMetrica(user.llm_units_month, (v) => `${v} u`);
+                    document.getElementById('detailLlmCostMonth').textContent = valorMetrica(user.llm_cost_month, (v) => `$${parseFloat(v).toFixed(2)}`);
+                    document.getElementById('detailLlmProjects').textContent = valorMetrica(user.llm_active_projects);
 
                     // Pausas por cuota
                     const aioPausedUntil = user.ai_overview_paused_until ? new Date(user.ai_overview_paused_until) : null;
                     const aioPausedActive = aioPausedUntil && aioPausedUntil > new Date();
                     const aioPausedReason = user.ai_overview_paused_reason || 'N/A';
-                    const aiModePaused = user.ai_mode_paused_projects || 0;
-                    const llmPaused = user.llm_paused_projects || 0;
 
                     document.getElementById('detailAiOverviewPaused').textContent = aioPausedActive ? 'Sí' : 'No';
                     document.getElementById('detailAiOverviewPausedUntil').textContent = aioPausedUntil
                         ? aioPausedUntil.toLocaleString('es-ES')
                         : 'N/A';
                     document.getElementById('detailAiOverviewPausedReason').textContent = aioPausedReason;
-                    document.getElementById('detailAiModePausedProjects').textContent = aiModePaused;
-                    document.getElementById('detailLlmPausedProjects').textContent = llmPaused;
+                    document.getElementById('detailAiModePausedProjects').textContent = valorMetrica(user.ai_mode_paused_projects);
+                    document.getElementById('detailLlmPausedProjects').textContent = valorMetrica(user.llm_paused_projects);
                     
                     // Reset de cuota
                     if (user.quota_reset_date) {
@@ -1721,24 +1734,20 @@
                     }
 
                     // Proyectos por módulo
-                    const aioTotal = user.aio_total || 0;
-                    const aioActive = user.aio_active || 0;
-                    const aimTotal = user.aim_total || 0;
-                    const aimActive = user.aim_active || 0;
-                    const llmTotal = user.llm_total || 0;
-                    const llmActive = user.llm_active || 0;
-
-                    document.getElementById('detailAioProjects').textContent = `${aioActive} activos / ${aioTotal} total`;
-                    document.getElementById('detailAimProjects').textContent = `${aimActive} activos / ${aimTotal} total`;
-                    document.getElementById('detailLlmProjectsDetail').textContent = `${llmActive} activos / ${llmTotal} total`;
+                    const proyectos = (activos, total) => (total === null || total === undefined)
+                        ? 'No disponible' : `${activos || 0} activos / ${total} total`;
+                    document.getElementById('detailAioProjects').textContent = proyectos(user.aio_active, user.aio_total);
+                    document.getElementById('detailAimProjects').textContent = proyectos(user.aim_active, user.aim_total);
+                    document.getElementById('detailLlmProjectsDetail').textContent = proyectos(user.llm_active, user.llm_total);
 
                     // Invitaciones
-                    document.getElementById('detailInvSent').textContent = user.invitations_sent || 0;
-                    document.getElementById('detailInvAccepted').textContent = user.invitations_accepted || 0;
-                    document.getElementById('detailInvPending').textContent = user.invitations_pending || 0;
+                    document.getElementById('detailInvSent').textContent = valorMetrica(user.invitations_sent);
+                    document.getElementById('detailInvAccepted').textContent = valorMetrica(user.invitations_accepted);
+                    document.getElementById('detailInvPending').textContent = valorMetrica(user.invitations_pending);
 
                 } else {
-                    console.warn('⚠️ No se pudieron cargar los detalles de billing:', result.error);
+                    console.warn('⚠️ No se pudieron cargar los detalles de billing:', resultado.tipo);
+                    mostrarAvisoDetalles(resultado.mensaje, resultado.reintentable ? reintentar : null);
                     // Mantener solo la información básica visible
                     document.getElementById('detailPlan').textContent = 'No disponible';
                     document.getElementById('detailBillingStatus').textContent = 'No disponible';
@@ -1769,9 +1778,21 @@
                 }
                 
             } catch (error) {
-                console.error('❌ Error cargando detalles de billing:', error);
-                // En caso de error, mantener la funcionalidad básica
+                console.error('❌ Error mostrando detalles de billing:', error);
+                mostrarAvisoDetalles('Error al mostrar los datos del usuario.', reintentar);
             }
+        }
+
+        // Aviso visible del modal "Ver". Mensaje vacío: lo oculta.
+        function mostrarAvisoDetalles(mensaje, reintentar) {
+            const caja = document.getElementById('detailBillingError');
+            const texto = document.getElementById('detailBillingErrorText');
+            const boton = document.getElementById('detailBillingRetry');
+            if (!caja || !texto || !boton) return;
+            texto.textContent = mensaje || '';
+            caja.hidden = !mensaje;
+            boton.hidden = !reintentar;
+            boton.onclick = reintentar ? () => reintentar() : null;
         }
         
         // 🚀 NUEVAS: Funciones helper para el modal
@@ -2292,10 +2313,22 @@
             // Precargar los valores actuales del usuario: "Assign" SOBRESCRIBE todos los
             // campos, así que un campo vacío al guardar significa "sin límite". Sin esta
             // precarga, editar solo la cuota RU borraría los topes por módulo.
-            fetch(`/admin/users/${userId}/billing-details`)
-                .then((r) => r.json())
-                .then((data) => {
-                    const u = data && data.user;
+            // Guardar queda bloqueado hasta tener los límites actuales: con los
+            // campos vacíos, "Assign" borraría los topes. Solo cuenta la
+            // respuesta de esta apertura (una tardía de otra se ignora).
+            const turno = ++secuenciaPrecargaCustomQuota;
+            avisoPrecargaCustomQuota('Cargando los límites actuales…', true);
+            fetch(`/admin/users/${userId}/billing-details`, { headers: { 'Accept': 'application/json' } })
+                .then(AdminBillingDetails.leerRespuesta)
+                .then((resultado) => {
+                    if (turno !== secuenciaPrecargaCustomQuota) return;
+                    if (resultado.tipo !== 'ok') {
+                        // Guardar con los campos vacíos borraría los topes actuales: se bloquea.
+                        avisoPrecargaCustomQuota(`No se pudieron cargar los límites actuales: ${resultado.mensaje} Cierra y vuelve a abrir antes de guardar.`);
+                        return;
+                    }
+                    avisoPrecargaCustomQuota('');
+                    const u = resultado.user;
                     if (!u || !u.custom_quota_limit) return;
                     const setIf = (id, v) => { const el = document.getElementById(id); if (el && v !== null && v !== undefined) el.value = v; };
                     setIf('customQuotaLimit', u.custom_quota_limit);
@@ -2304,7 +2337,11 @@
                     setIf('customLlmMonthlyUnits', u.custom_llm_monthly_units_limit);
                     Object.keys(CUSTOM_MODULE_LIMIT_INPUTS).forEach((field) => setIf(CUSTOM_MODULE_LIMIT_INPUTS[field], u[field]));
                 })
-                .catch((e) => console.warn('No se pudieron precargar los límites actuales:', e));
+                .catch((e) => {
+                    if (turno !== secuenciaPrecargaCustomQuota) return;
+                    console.warn('No se pudieron precargar los límites actuales:', e);
+                    avisoPrecargaCustomQuota('No se pudieron cargar los límites actuales (sin conexión con el servidor). Cierra y vuelve a abrir antes de guardar.');
+                });
 
             // Remove previous event listeners
             const oldBtn = document.getElementById('confirmCustomQuotaBtn');
@@ -2315,6 +2352,28 @@
             newBtn.addEventListener('click', () => assignCustomQuota(userId, userName));
 
             document.getElementById('customQuotaModal').style.display = 'flex';
+        }
+
+        let secuenciaPrecargaCustomQuota = 0;
+
+        // Aviso de la precarga del modal "Custom Quota". bloquear: deshabilita guardar
+        // (por defecto, siempre que haya mensaje).
+        function avisoPrecargaCustomQuota(mensaje, bloquear = !!mensaje) {
+            let aviso = document.getElementById('customQuotaPrefillError');
+            const pie = document.querySelector('#customQuotaModal .modal-footer');
+            if (!aviso && pie) {
+                aviso = document.createElement('p');
+                aviso.id = 'customQuotaPrefillError';
+                aviso.setAttribute('role', 'alert');
+                aviso.style.cssText = 'margin:0 1rem 0 0;flex:1;color:#b45309;font-size:.9rem';
+                pie.insertBefore(aviso, pie.firstChild);
+            }
+            if (aviso) {
+                aviso.textContent = mensaje || '';
+                aviso.hidden = !mensaje;
+            }
+            const boton = document.getElementById('confirmCustomQuotaBtn');
+            if (boton) boton.disabled = bloquear;
         }
 
         async function changePlan(userId, userName) {

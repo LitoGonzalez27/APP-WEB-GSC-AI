@@ -327,6 +327,85 @@ def db_conn():
             except Exception as e:
                 logger.warning(f"db_conn(): error closing connection: {e}")
 
+# ---------------------------------------------------------------------------
+# Contrato de errores explícito (fase de fiabilidad, sep-2026)
+# ---------------------------------------------------------------------------
+# Las funciones *_strict distinguen tres resultados que las antiguas mezclan
+# en un None:
+#   - datos:  la consulta fue bien y hay resultado;
+#   - None:   la consulta fue bien y no hay resultado (no existe);
+#   - DatabaseUnavailableError: no se pudo consultar por un problema
+#     transitorio (sin conexión, pool agotado, conexión perdida, consulta
+#     cancelada). Reintentable.
+# Cualquier otra excepción (SQL mal formado, columna inexistente, transacción
+# abortada, error de Python) es un fallo interno y se propaga tal cual.
+# No hay reintentos propios: get_db_connection() ya espera al pool.
+# ---------------------------------------------------------------------------
+
+class DatabaseUnavailableError(Exception):
+    """No se pudo consultar la base de datos por un problema transitorio."""
+
+
+# Clases SQLSTATE que indican indisponibilidad transitoria: 08 conexión,
+# 40 conflicto (deadlock, serialización), 53 recursos insuficientes,
+# 57 intervención del operador (consulta cancelada, apagado del servidor).
+_CLASES_SQLSTATE_TRANSITORIAS = ('08', '40', '53', '57')
+
+
+def is_transient_db_error(exc):
+    """True si el error de psycopg2 indica que no se pudo consultar por un
+    problema transitorio (reintentable). Los de programación (SQL mal formado,
+    tabla o columna inexistente, límites del programa, transacción abortada...)
+    no lo son aunque psycopg2 los clasifique como OperationalError."""
+    if isinstance(exc, psycopg2.InterfaceError):
+        return True  # conexión cerrada o perdida en el cliente
+    if not isinstance(exc, psycopg2.DatabaseError):
+        return False
+    codigo = getattr(exc, 'pgcode', None)
+    if codigo:
+        return codigo[:2] in _CLASES_SQLSTATE_TRANSITORIAS
+    # Sin SQLSTATE: fallo de la conexión o de libpq (p. ej. caída de SSL).
+    return isinstance(exc, psycopg2.OperationalError) or type(exc) is psycopg2.DatabaseError
+
+_SQL_USUARIO_POR_ID = 'SELECT * FROM users WHERE id = %s'
+
+
+def return_db_connection(conn):
+    """Devuelve la conexión al pool sin que un fallo al hacerlo oculte la
+    excepción original de quien la usaba."""
+    if conn is None:
+        return
+    try:
+        conn.close()
+    except Exception as e:
+        logger.warning(f"No se pudo devolver la conexión al pool: {e}")
+
+
+def get_user_by_id_strict(user_id):
+    """Usuario por id con contrato explícito (ver arriba): dict, None si no
+    existe, DatabaseUnavailableError si no se pudo consultar; cualquier otra
+    excepción se propaga. Libera cursor y conexión también al fallar."""
+    conn = get_db_connection()
+    if conn is None:
+        raise DatabaseUnavailableError('sin conexión a la base de datos')
+    try:
+        with conn.cursor() as cur:
+            cur.execute(_SQL_USUARIO_POR_ID, (user_id,))
+            row = cur.fetchone()
+    except psycopg2.Error as e:
+        if is_transient_db_error(e):
+            raise DatabaseUnavailableError(f'consulta de usuario interrumpida ({type(e).__name__})') from e
+        raise
+    finally:
+        return_db_connection(conn)
+    if row is None:
+        return None
+    user = dict(row)
+    if user.get('is_active') is None:
+        user['is_active'] = True
+    return user
+
+
 def init_database():
     """Inicializa la base de datos creando las tablas necesarias"""
     try:
@@ -1202,44 +1281,29 @@ def get_user_by_google_id(google_id):
 def get_user_by_id(user_id):
     """Obtiene un usuario por su ID.
 
+    CONTRATO ANTIGUO: devuelve None tanto si el usuario no existe como si la
+    consulta falla. Se mantiene para sus consumidores actuales; el código nuevo
+    debe usar get_user_by_id_strict(), que distingue los dos casos.
+
     `get_db_connection()` already has internal retry/backoff up to
     DB_POOL_WAIT_SECONDS, so we do NOT add another retry layer on top — that
     multiplied the user-visible latency by the number of attempts and made
     the dashboard hang for ~30s when the pool was exhausted (observed
-    2026-05-25 09:12-14:28 UTC after the initial fix). A single attempt is
-    enough; on failure return None as before.
+    2026-05-25 09:12-14:28 UTC after the initial fix).
 
     Returning None on DB error remains compatible with the auth_required
     change that no longer clears the session on None — the user stays logged
     in and the frontend can retry transparently via the 401/503 interceptor.
     """
-    conn = None
     try:
-        conn = get_db_connection()
-        if not conn:
-            logger.error(f"get_user_by_id({user_id}): no connection from pool")
-            return None
-
-        cur = conn.cursor()
-        cur.execute('SELECT * FROM users WHERE id = %s', (user_id,))
-        user = cur.fetchone()
-
-        if not user:
-            return None
-        user_dict = dict(user)
-        if user_dict.get('is_active') is None:
-            user_dict['is_active'] = True
-        return user_dict
-
+        return get_user_by_id_strict(user_id)
+    except DatabaseUnavailableError as e:
+        causa = f": {e.__cause__}" if e.__cause__ else ""
+        logger.error(f"get_user_by_id({user_id}): {e}{causa}")
+        return None
     except Exception as e:
         logger.error(f"get_user_by_id({user_id}) failed: {e}")
         return None
-    finally:
-        if conn:
-            try:
-                conn.close()
-            except Exception:
-                pass
 
 def update_user_activity(user_id, is_active=True):
     """Actualiza el estado de actividad de un usuario"""

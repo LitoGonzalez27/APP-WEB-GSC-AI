@@ -121,6 +121,51 @@ Casos donde se aplica:
 
 ---
 
+### Contrato de errores explícito (fase de fiabilidad, sep-2026)
+
+Las funciones antiguas devuelven `None` tanto si el dato no existe como si la consulta falla, y quien llama no puede distinguirlo (así una caída de la BD acababa en "Usuario no encontrado" o en un cierre de sesión). Las funciones nuevas `*_strict` separan los casos:
+
+| Resultado | Significado | HTTP en la frontera |
+|---|---|---|
+| datos | la consulta fue bien y hay resultado | 200 |
+| `None` | la consulta fue bien y no existe | 404 |
+| `DatabaseUnavailableError` | no se pudo consultar: sin conexión, pool agotado, conexión perdida, consulta cancelada (`is_transient_db_error`: `InterfaceError`, o SQLSTATE de clase 08, 40, 53 o 57, o error de conexión sin SQLSTATE) | 503 + `retry: true` |
+| otra excepción | fallo interno: SQL mal formado, columna o tabla inexistente, transacción abortada, error de Python | 500 |
+
+- `database.DatabaseUnavailableError`, `database.is_transient_db_error(exc)` y `database.return_db_connection(conn)` (devuelve la conexión sin que un fallo al hacerlo oculte la excepción original).
+- `database.get_user_by_id_strict(user_id)`, `auth.get_current_user_strict()`, `admin_billing_panel.get_user_billing_details_strict(user_id)`.
+- Sin reintentos propios: `get_db_connection()` ya espera al pool (`DB_POOL_WAIT_SECONDS`).
+- La frontera HTTP registra el error una vez, con traza e identificador de petición (`request_id`, también en la respuesta), y responde con `code` estable: `user_not_found`, `database_unavailable`, `internal_error`. Nunca SQL ni trazas al navegador.
+- Métricas complementarias degradables (ficha del admin): cada una en su `SAVEPOINT`; si falla por un error de la BD que no es de conexión, sus campos valen `None` (nunca 0) y su nombre va en `metrics_unavailable`.
+
+Patrón para código nuevo:
+
+```python
+conn = get_db_connection()
+if conn is None:
+    raise DatabaseUnavailableError('sin conexión a la base de datos')
+try:
+    with conn.cursor() as cur:          # el cursor se cierra siempre
+        cur.execute(SQL, params)
+        fila = cur.fetchone()
+except psycopg2.Error as e:
+    if is_transient_db_error(e):
+        raise DatabaseUnavailableError('...') from e
+    raise
+finally:
+    return_db_connection(conn)          # la conexión vuelve siempre al pool
+```
+
+**Consumidores pendientes del contrato antiguo** (se migran por módulos):
+- `get_user_by_id()` (~20 llamadas) y `get_current_user()` (~167): mantienen el `None` ambiguo. `get_user_by_id` ahora se apoya en la variante estricta (misma respuesta, cursor cerrado).
+- `auth_required`: trata cualquier `None` como fallo técnico (conserva la sesión y responde 503 en JSON o redirige al login en HTML); un usuario borrado conserva la sesión.
+- `ai_user_required` (deprecado): sigue cerrando la sesión si falla la BD.
+- `admin_billing_panel.get_users_with_billing()` y `get_admin_dashboard_stats()`: usan los helpers `_get_*` que tragan errores sin recuperar la transacción.
+- ~378 llamadas a `get_db_connection()` con cierre manual.
+- Ficha del admin (pendiente, helpers compartidos): un error de Python que un helper `_get_*` atrapa tras una consulta correcta, o una tabla ausente detectada con `to_regclass`, siguen dando 0 en vez de "no disponible"; y una consulta cancelada dentro de una métrica devuelve 503 para toda la ficha (hoy la app no fija `statement_timeout`).
+
+---
+
 ## 3. Esquema completo de la BD
 
 ### Tablas ya documentadas en otros manuales

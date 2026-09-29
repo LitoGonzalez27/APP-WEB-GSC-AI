@@ -18,6 +18,33 @@ El script lo monta todo en Docker (Colima vale):
 
 No hace falta ninguna credencial. La app usa variables **ficticias** de `tests/docker/test.env`.
 
+Tests de JavaScript (funciones puras del frontend, sin dependencias, Node 18+):
+
+```bash
+node --test tests/js/*.test.cjs
+```
+
+## CI
+
+`.github/workflows/tests.yml` (raíz del repo) ejecuta en cada PR y push a `staging` y `main` los tests de JavaScript y `scripts/run_tests_docker.sh -q -rs`: el mismo comando que en local, con el Postgres desechable y la red interna sin salida. Sin secretos ni despliegues; permisos de solo lectura.
+
+## Clasificación (sep-2026)
+
+| Tipo | Ficheros | Qué necesitan |
+|---|---:|---|
+| Aislados | 16 | Nada: ni BD ni red (lógica pura, mocks de proveedores). |
+| Integración con Postgres desechable | 25 | La base de Docker del script. Incluye las fotos de rutas y permisos y los de caracterización. |
+| Dependientes de staging | 2 | `test_llm_prompt_sets_integration.py` y parte de `test_llm_prompt_readd_regression.py`: solo con `LLM_SETS_IT_PROJECT_ID` y `ALLOW_REMOTE_DB_TESTS=1`; si no, se saltan (42 tests). |
+| Scripts manuales | 14 | `scripts/manual_checks/`: comprobaciones contra servicios reales; pytest no los recoge (`testpaths = tests`). |
+
+Línea base (29-sep-2026, rama `staging`): **1163 passed, 49 skipped, 30 xfailed**. Los 49 saltados: 42 dependientes de staging y 7 de `test_llm_monitoring_e2e.py`, que se saltan si la base no tiene usuarios. Los 30 xfailed son los fallos previos de `known_failures.txt`. No usar `-p no:logging`: desactiva el fixture `caplog` y 4 tests dan error.
+
+Varios tests antiguos comprueban texto del código (`read_text`/`getsource`); las garantías nuevas se prueban por comportamiento (respuestas, estado de la BD, sesión, conexiones devueltas).
+
+## Fiabilidad: `GET /admin/users/<id>/billing-details`
+
+`test_fiabilidad_billing_details.py` prueba el flujo real (decorador + ruta + consultas) contra la base desechable, con fallos provocados de verdad: consulta cancelada por `statement_timeout` (transitorio), tabla inexistente (programación) y pool agotado. Cubre 200/404/503/500, sesión conservada ante fallos técnicos, métricas no disponibles marcadas como tales, cursores y conexiones devueltos siempre y la clasificación de errores transitorios por SQLSTATE (`is_transient_db_error`). Contrato en `CLAUDE-base-de-datos.md` §2.
+
 ## Barreras (tests/conftest.py)
 
 - **Base de datos**: si `DATABASE_URL` apunta a algo que no sea local o el Postgres de Docker, la suite se detiene sin ejecutar nada. Varios tests escriben y borran filas. Los tests de integración pensados para staging (`LLM_SETS_IT_PROJECT_ID`) solo corren si se exporta `ALLOW_REMOTE_DB_TESTS=1` a propósito.
