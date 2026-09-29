@@ -409,17 +409,22 @@ class Navbar {
     // Verificar estado de autenticación
     async checkAuthStatus() {
         try {
-            const response = await fetch('/auth/status');
-            const data = await response.json();
-            
-            if (data.authenticated) {
+            const response = await fetch('/auth/status', { headers: { 'Accept': 'application/json' } });
+            let data = null;
+            try { data = await response.json(); } catch (_) { data = null; }
+            // Un fallo del servidor (5xx) no es "no autenticado": se deja la barra como está.
+            const estado = (window.SessionStatus && window.SessionStatus.interpretarEstadoSesion)
+                ? window.SessionStatus.interpretarEstadoSesion(response.status, data)
+                : (response.ok && data && data.authenticated === true ? 'activa'
+                    : (response.ok && data && data.authenticated === false ? 'terminada' : 'desconocida'));
+            if (estado === 'activa') {
                 this.setLoginStatus(true, data.user);
-            } else {
+            } else if (estado === 'terminada') {
                 this.setLoginStatus(false, null);
             }
         } catch (error) {
+            // Error de red: estado desconocido, no se cambia la barra.
             console.error('Error checking auth status:', error);
-            this.setLoginStatus(false, null);
         }
     }
 

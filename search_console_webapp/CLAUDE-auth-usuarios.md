@@ -261,12 +261,12 @@ Todos en `auth.py`:
 
 | Decorador | Línea | Qué hace |
 |---|---:|---|
-| `auth_required(f)` | 230 | Authenticated + session not expired + user exists in DB + `is_active=True`. Llama `update_last_activity()`. Devuelve 401 JSON o redirect a `/login?...` según `Content-Type`. |
+| `auth_required(f)` | 230 | Authenticated + session not expired + user exists in DB + `is_active=True`. Llama `update_last_activity()`. Desde sep-2026 usa `_comprobar_sesion()`: un fallo de la BD responde 503 (`database_unavailable`, `retry`) o 500 **sin cerrar la sesión** (en HTML, página con "Reintentar" en vez de mandar al login); si el usuario ya no existe cierra la sesión (401 `user_not_found` o `/login?user_not_found=true`). JSON detectado con `_wants_json_response()`. |
 | `login_required` | 399 | Alias de `auth_required` (compatibilidad). |
 | `cron_or_auth_required(f)` | 284 | Si header `Authorization: Bearer <CRON_TOKEN>` válido (`secrets.compare_digest`), pasa. Si no, fallback a `auth_required`. |
 | `admin_required(f)` | 306 | Igual que `auth_required` + chequea `user['role'] == 'admin'`. Devuelve 403 si no admin. Desde sep-2026 usa `get_current_user_strict()`: si no puede comprobar al usuario por un fallo de la BD responde 503 (`database_unavailable`, `retry`) o 500 (`internal_error`) **sin cerrar la sesión** y sin ejecutar la ruta; solo cierra la sesión si la consulta fue bien y el usuario ya no existe (401 `user_not_found`). Detecta JSON con `_wants_json_response()` (Accept, XHR o ruta `/api/`), no solo por `Content-Type`. |
 | `ai_user_required(f)` | 353 | **Deprecated** (rol AI eliminado). Solo loggea warning y aplica auth normal. |
-| `auth_required_no_activity_update(f)` | 403 | Como `auth_required` pero NO actualiza `last_activity`. Para `/auth/keepalive`, `/auth/status`. |
+| `auth_required_no_activity_update(f)` | 403 | Como `auth_required` pero NO actualiza `last_activity`. Lo usa `/auth/keepalive` (el gestor de sesión lo llama cada 5 minutos). Desde sep-2026 un fallo de la BD ya no cierra la sesión. `/auth/status` no lleva decorador: ante un fallo de la BD responde 503 (nunca `authenticated: false`) y `static/js/session-status.js` hace que el gestor no cierre la sesión por un 5xx. |
 
 ### Hooks `before_request` adicionales
 
