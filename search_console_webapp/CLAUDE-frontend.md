@@ -90,12 +90,11 @@ static/                     # Frontend
 
 ## 3. Plantillas Jinja2
 
-Total: **20 plantillas** (todas en root, sin subcarpetas). **No hay `/templates/email/` ni `/templates/admin/`** — los emails se construyen en código Python.
+Total: **17 plantillas** en `templates/` más las piezas de `templates/partials/`. **No hay `/templates/email/` ni `/templates/admin/`** — los emails se construyen en código Python.
 
 | Plantilla | Tamaño | Para qué sirve |
 |---|---|---|
 | `index.html` | 63 KB | Página `/app`: dashboard principal (GSC + AI Overview) con sidebar interno. Carga DataTables + Chart.js + Grid.js. |
-| `index_tooltips_fixed.html` | 45 KB | Variante (probablemente legacy). |
 | `dashboard.html` | 35 KB | Renderizado por `/dashboard` (tras login). Página puente. |
 | `landing.html` | 8 KB | Marketing landing pública. |
 | `login.html` | 21 KB | Login (Google OAuth + email/password + reCAPTCHA). |
@@ -112,7 +111,15 @@ Total: **20 plantillas** (todas en root, sin subcarpetas). **No hay `/templates/
 | `project_access.html` | 17 KB | Gestión de acceso compartido a proyectos. |
 | `mobile_error.html` | 7 KB | Bloqueo en móvil (la app no soporta móvil). |
 
-**`email_preview.html`** (en root, no `/templates/`) es solo un mockup HTML estático — no es Jinja real.
+### Piezas comunes (`templates/partials/`, sep-2026)
+
+- `favicons.html`: favicons y manifest (13 páginas).
+- `gtm_head.html` / `gtm_body.html`: Google Tag Manager `GTM-NXJS74ZQ` en el `<head>` y justo tras abrir `<body>` (12 páginas).
+- Se incluyen con `{% include 'partials/...' %}`. Al extraerlas se comprobó que cada plantilla produce el mismo HTML que antes; login y signup ganan el comentario de cierre de GTM que les faltaba.
+- `tests/test_plantillas_comunes.py` impide volver a copiarlas y exige que una página con GTM en el `<head>` lo lleve también tras `<body>`.
+- **Sin GTM**: `billing_success.html` (página de éxito del checkout), `admin_simple.html`, `admin_billing.html`, `project_access.html` y `mobile_error.html`.
+- La barra de navegación no se ha unificado: hay 8 variantes distintas en 9 páginas.
+- `panel_brand_assets.html` y `panel_brand_fonts.html` ya eran parciales.
 
 ---
 
