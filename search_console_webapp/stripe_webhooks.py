@@ -490,7 +490,10 @@ class StripeWebhookHandler:
             # se cancela la antigua en Stripe cuando esta queda activa. Nunca
             # rompe el webhook: los fallos se avisan por email.
             if action in ('created', 'updated') and status in _ESTADOS_PAGANDO:
-                _cancelar_suscripcion_sustituida(subscription)
+                try:
+                    _cancelar_suscripcion_sustituida(subscription)
+                except Exception as _e_sust:
+                    logger.error(f"❌ Error inesperado al revisar la suscripción sustituida: {_e_sust}", exc_info=True)
             
             # Enviar email de inicio de trial (una sola vez) - en inglés usando helpers
             # Refactor 2026-05-25: try/finally to GUARANTEE conn2.close().
@@ -1000,9 +1003,20 @@ def _cancelar_suscripcion_sustituida(subscription):
         return
     if nueva.get('status') not in _ESTADOS_PAGANDO:
         return  # evento antiguo o reenviado: la nueva ya no está activa
+    # La marca vale la de Stripe ahora, no la del evento: un evento viejo
+    # reenviado no reabre una decisión ya tomada.
+    antigua_id = (nueva.get('metadata') or {}).get('replaces_subscription')
+    if not antigua_id:
+        return
 
     try:
         antigua = stripe.Subscription.retrieve(antigua_id)
+    except stripe.error.InvalidRequestError as e:
+        # No existe en esta cuenta: no se arreglará solo. Se avisa una vez.
+        logger.error(f"❌ La suscripción sustituida {antigua_id} no existe: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'no existe en Stripe: {e}')])
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
     except Exception as e:
         logger.error(f"❌ No se pudo consultar la suscripción sustituida {antigua_id}: {e}")
         _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'no se pudo consultar: {e}')])
@@ -1015,13 +1029,7 @@ def _cancelar_suscripcion_sustituida(subscription):
         _quitar_marca_de_sustitucion(nueva_id, antigua_id)
         return
     if estado == 'canceled':
-        # Si la canceló otra suscripción nueva (dos checkouts), el cliente puede
-        # estar pagando dos: se avisa. Si la canceló esta misma, no hay nada que hacer.
-        comentario = ((antigua.get('cancellation_details') or {}).get('comment') or '')
-        if comentario.startswith('Sustituida por ') and nueva_id not in comentario:
-            otra = comentario[len('Sustituida por '):].split(':')[0]
-            _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [(otra, f'también sustituye a {antigua_id}')], [])
-        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        _antigua_ya_cancelada(antigua, antigua_id, nueva_id, customer_id)
         return
     if estado not in _ESTADOS_ANTIGUA_A_CANCELAR:
         _quitar_marca_de_sustitucion(nueva_id, antigua_id)  # caducada o sin completar
@@ -1039,8 +1047,9 @@ def _cancelar_suscripcion_sustituida(subscription):
     except Exception as e:
         # ¿La canceló a la vez otro evento de la nueva (created y updated en paralelo)?
         try:
-            if stripe.Subscription.retrieve(antigua_id).get('status') == 'canceled':
-                _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+            ahora = stripe.Subscription.retrieve(antigua_id)
+            if ahora.get('status') == 'canceled':
+                _antigua_ya_cancelada(ahora, antigua_id, nueva_id, customer_id)
                 return
         except Exception:
             pass
@@ -1050,6 +1059,17 @@ def _cancelar_suscripcion_sustituida(subscription):
 
     logger.warning(f"🧹 Suscripción {antigua_id} ({estado}) cancelada: sustituida por {nueva_id}")
     _alertar_suscripciones_antiguas(customer_id, nueva_id, [(antigua_id, estado)], [], [])
+    _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+
+
+def _antigua_ya_cancelada(antigua, antigua_id, nueva_id, customer_id):
+    """La antigua ya está cancelada. Si la canceló otra suscripción nueva (dos
+    checkouts), el cliente puede estar pagando dos: se avisa. Si la canceló esta
+    misma o se canceló por otra vía, no hay nada que hacer."""
+    comentario = ((antigua.get('cancellation_details') or {}).get('comment') or '')
+    if comentario.startswith('Sustituida por ') and nueva_id not in comentario:
+        otra = comentario[len('Sustituida por '):].split(':')[0]
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [(otra, f'también sustituye a {antigua_id}')], [])
     _quitar_marca_de_sustitucion(nueva_id, antigua_id)
 
 

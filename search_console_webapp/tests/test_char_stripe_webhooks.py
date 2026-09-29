@@ -1360,7 +1360,8 @@ MARCA_QUITADA = {"replaces_subscription": "", "replaced_subscription": SUB_PAGO}
 
 def _en_stripe(**subs):
     """Subscription.retrieve simulado: {id: (status, created[, comentario de cancelación])}.
-    Los valores pueden cambiarse después en el dict devuelto como `.estado`."""
+    La nueva lleva en Stripe la marca de sustitución (retrieve.marca; None = ya quitada).
+    Los estados pueden cambiarse después en `.estado`."""
     import stripe
 
     def retrieve(sid, *args, **kwargs):
@@ -1368,8 +1369,10 @@ def _en_stripe(**subs):
             raise stripe.error.InvalidRequestError(f"No such subscription: '{sid}'", "id")
         status, created, *resto = retrieve.estado[sid]
         return {"id": sid, "object": "subscription", "status": status, "created": created,
+                "metadata": (retrieve.marca or {}) if sid == NUEVA else {},
                 "cancellation_details": {"comment": resto[0] if resto else None}}
     retrieve.estado = dict(subs)
+    retrieve.marca = dict(MARCA)
     return retrieve
 
 
@@ -1518,16 +1521,43 @@ def test_si_la_marcada_es_mas_reciente_que_la_nueva_no_se_cancela_y_se_avisa(ctx
     assert "más reciente" in ctx.email_alerta.call_args[0][2]
 
 
-def test_si_la_antigua_no_existe_en_stripe_se_avisa_y_se_conserva_la_marca(ctx):
+def test_si_la_antigua_no_existe_en_stripe_se_avisa_una_vez(ctx):
     ctx.subscription_retrieve.side_effect = _en_stripe(**{NUEVA: ("active", 200)})
 
     resp = _activar_nueva(ctx)
 
     assert resp.status_code == 200
     ctx.subscription_cancel.assert_not_called()
-    ctx.subscription_modify.assert_not_called()
     ctx.email_alerta.assert_called_once()
     assert "fallo al cancelar" in _asunto_alerta(ctx)
+    # No se arreglará solo: se quita la marca para no repetir el aviso.
+    ctx.subscription_modify.assert_called_once_with(NUEVA, metadata=MARCA_QUITADA)
+
+
+def test_evento_viejo_con_marca_ya_quitada_en_stripe_no_hace_nada(ctx):
+    # Tercera revisión: la marca vale la de Stripe ahora, no la del evento.
+    en_stripe = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
+    en_stripe.marca = None
+    ctx.subscription_retrieve.side_effect = en_stripe
+
+    resp = _activar_nueva(ctx)
+
+    assert resp.status_code == 200
+    ctx.subscription_cancel.assert_not_called()
+    ctx.subscription_modify.assert_not_called()
+    ctx.email_alerta.assert_not_called()
+
+
+def test_un_error_inesperado_al_revisar_la_sustitucion_no_rompe_el_webhook(ctx, monkeypatch):
+    def explota(subscription):
+        raise RuntimeError("fallo inesperado")
+    monkeypatch.setattr(ctx.modulo, "_cancelar_suscripcion_sustituida", explota)
+
+    resp = _activar_nueva(ctx)
+
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
+    assert resumen_eventos(ctx.db) == [("evt_char_0001", "customer.subscription.updated", "processed", "", True)]
 
 
 @pytest.mark.parametrize("falla", ["consulta_nueva", "cancelacion"])
@@ -1579,6 +1609,26 @@ def test_cancelacion_en_paralelo_no_da_falso_aviso_de_fallo(ctx):
     assert resp.status_code == 200
     ctx.email_alerta.assert_not_called()
     ctx.subscription_modify.assert_called_once_with(NUEVA, metadata=MARCA_QUITADA)
+
+
+def test_dos_checkouts_activados_a_la_vez_avisan_de_posible_doble_cobro(ctx):
+    # La otra nueva cancela la antigua justo antes: el cancel de esta falla y la
+    # nueva consulta muestra que la canceló otra suscripción.
+    import stripe
+    en_stripe = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
+    ctx.subscription_retrieve.side_effect = en_stripe
+
+    def cancel(sid, **kwargs):
+        en_stripe.estado[SUB_PAGO] = ("canceled", 100, "Sustituida por sub_char_otra: cancelación automática")
+        raise stripe.error.InvalidRequestError("This subscription is already canceled", "id")
+    ctx.subscription_cancel.side_effect = cancel
+
+    resp = _activar_nueva(ctx)
+
+    assert resp.status_code == 200
+    ctx.email_alerta.assert_called_once()
+    assert "posible doble cobro" in _asunto_alerta(ctx)
+    assert "sub_char_otra" in ctx.email_alerta.call_args[0][2]
 
 
 def test_si_no_se_puede_quitar_la_marca_el_webhook_sigue_bien(ctx):
