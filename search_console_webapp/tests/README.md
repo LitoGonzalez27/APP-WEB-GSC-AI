@@ -43,7 +43,7 @@ Varios tests antiguos comprueban texto del código (`read_text`/`getsource`); la
 
 ## Fiabilidad: `GET /admin/users/<id>/billing-details`
 
-`test_fiabilidad_billing_details.py` prueba el flujo real (decorador + ruta + consultas) contra la base desechable, con fallos provocados de verdad: consulta cancelada por `statement_timeout` (transitorio), tabla inexistente (programación) y pool agotado. Cubre 200/404/503/500, sesión conservada ante fallos técnicos, métricas no disponibles marcadas como tales y cursores y conexiones devueltos siempre. Contrato en `CLAUDE-base-de-datos.md` §2.
+`test_fiabilidad_billing_details.py` prueba el flujo real (decorador + ruta + consultas) contra la base desechable, con fallos provocados de verdad: consulta cancelada por `statement_timeout` (transitorio), tabla inexistente (programación) y pool agotado. Cubre 200/404/503/500, sesión conservada ante fallos técnicos, métricas no disponibles marcadas como tales, cursores y conexiones devueltos siempre y la clasificación de errores transitorios por SQLSTATE (`is_transient_db_error`). Contrato en `CLAUDE-base-de-datos.md` §2.
 
 ## Barreras (tests/conftest.py)
 

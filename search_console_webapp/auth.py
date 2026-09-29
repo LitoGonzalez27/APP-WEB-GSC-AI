@@ -242,7 +242,9 @@ def _respuesta_fallo_tecnico(estado, codigo, mensaje, reintentable, forzar_json=
             cuerpo['retry'] = True
         return jsonify(cuerpo), estado
     destino = request.path + (('?' + request.query_string.decode('utf-8', 'replace')) if request.query_string else '')
-    reintentar = f'<p><a href="{escape(destino)}">Reintentar</a></p>' if reintentable else ''
+    # El enlace repite la petición con GET: solo tiene sentido si ya era GET.
+    reintentar = (f'<p><a href="{escape(destino)}">Reintentar</a></p>'
+                  if reintentable and request.method in ('GET', 'HEAD') else '')
     html = (
         '<!doctype html><html lang="es"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -1984,6 +1986,7 @@ def setup_auth_routes(app):
         503 (retry) si no se pudo consultar; 500 ante un fallo interno. Los
         errores llevan 'code' estable y 'request_id' para buscar en el log."""
         from admin_billing_panel import get_user_billing_details_strict
+        _id_peticion()  # también para los logs de métricas no disponibles
         try:
             detalles = get_user_billing_details_strict(user_id)
         except DatabaseUnavailableError:

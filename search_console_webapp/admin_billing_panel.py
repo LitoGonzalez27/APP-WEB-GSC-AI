@@ -15,7 +15,7 @@ import psycopg2
 import psycopg2.extensions
 from database import (
     get_db_connection, resume_quota_pauses_for_user,
-    DatabaseUnavailableError, TRANSIENT_DB_ERRORS, return_db_connection,
+    DatabaseUnavailableError, is_transient_db_error, return_db_connection,
 )
 
 logger = logging.getLogger(__name__)
@@ -714,13 +714,29 @@ def _metrica_opcional(conn, cur, nombre, calcular, no_disponibles, user_id):
             raise _MetricaConErrorTragado(nombre)
         cur.execute('RELEASE SAVEPOINT metrica_ficha')
         return valor
-    except TRANSIENT_DB_ERRORS:
-        raise
-    except (psycopg2.Error, _MetricaConErrorTragado):
-        logger.error(f"Ficha del usuario {user_id}: métrica '{nombre}' no disponible", exc_info=True)
+    except (psycopg2.Error, _MetricaConErrorTragado) as e:
+        if isinstance(e, psycopg2.Error) and is_transient_db_error(e):
+            raise
+        # Primero se recupera la transacción: si eso falla, el error se propaga
+        # (503 o 500) y no se registra una "métrica no disponible" engañosa.
         cur.execute('ROLLBACK TO SAVEPOINT metrica_ficha')
+        cur.execute('RELEASE SAVEPOINT metrica_ficha')
+        logger.error(f"Ficha del usuario {user_id}: métrica '{nombre}' no disponible"
+                     f"{_sufijo_peticion()}", exc_info=True)
         no_disponibles.append(nombre)
         return None
+
+
+def _sufijo_peticion():
+    """' (petición <id>)' si hay una petición HTTP en curso con identificador."""
+    try:
+        from flask import has_request_context, g
+        if has_request_context() and getattr(g, 'id_peticion', None):
+            return f" (petición {g.id_peticion})"
+    except Exception:
+        pass
+    return ''
+
 
 
 def get_user_billing_details_strict(user_id):
@@ -750,8 +766,10 @@ def get_user_billing_details_strict(user_id):
             llm_pausados = metrica('llm_paused', lambda: _get_llm_paused_projects_by_user(cur))
             invitaciones = metrica('invitations', lambda: _get_invitations_by_user(cur))
             proyectos = metrica('project_counts', lambda: _get_project_counts_by_user(cur))
-    except TRANSIENT_DB_ERRORS as e:
-        raise DatabaseUnavailableError(f'consulta de la ficha interrumpida ({type(e).__name__})') from e
+    except psycopg2.Error as e:
+        if is_transient_db_error(e):
+            raise DatabaseUnavailableError(f'consulta de la ficha interrumpida ({type(e).__name__})') from e
+        raise
     finally:
         return_db_connection(conn)
 

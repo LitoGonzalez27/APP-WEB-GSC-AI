@@ -7,6 +7,7 @@
  *                                               lista las métricas no disponibles)
  *   404 {code: 'user_not_found'}             -> el usuario no existe
  *   503 {code: 'database_unavailable', retry} -> no se pudo consultar: reintentar
+ *   502 / 504 / 429 (proxy o límite)         -> transitorio: reintentar
  *   500 {code: 'internal_error'}             -> fallo interno
  *   401 / 403                                -> sesión o permisos
  * Un 503 no es "usuario no encontrado" ni cierra la sesión.
@@ -34,7 +35,7 @@
         if (status === 404) {
             return { tipo: 'no_existe', reintentable: false, mensaje: 'Este usuario no existe (puede haberse eliminado).' };
         }
-        if (status === 503) {
+        if (status === 503 || status === 502 || status === 504 || status === 429) {
             return {
                 tipo: 'no_disponible',
                 reintentable: true,
@@ -45,7 +46,7 @@
             return { tipo: 'sesion', reintentable: false, mensaje: 'Tu sesión ha caducado. Vuelve a iniciar sesión.' };
         }
         if (status === 403) {
-            return { tipo: 'permisos', reintentable: false, mensaje: 'No tienes permisos para ver este usuario.' };
+            return { tipo: 'permisos', reintentable: false, mensaje: 'No tienes permisos para ver este usuario o tu cuenta está suspendida.' };
         }
         return { tipo: 'error', reintentable: false, mensaje: 'Error interno al cargar los datos del usuario.' + referencia(c) };
     }

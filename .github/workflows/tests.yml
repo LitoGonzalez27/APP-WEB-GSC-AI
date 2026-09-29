@@ -16,7 +16,8 @@ permissions:
 
 concurrency:
   group: tests-${{ github.ref }}
-  cancel-in-progress: true
+  # Solo en PR: los pushes a staging/main se prueban siempre completos.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   suite:
@@ -24,6 +25,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          # El repo se monta en el contenedor de tests: sin token guardado.
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:

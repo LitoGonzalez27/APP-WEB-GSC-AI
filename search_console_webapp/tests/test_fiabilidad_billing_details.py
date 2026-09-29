@@ -118,6 +118,7 @@ def ent(flask_app, clean_db, monkeypatch):
     user, admin, paid = seed_users()
     client = flask_app.app.test_client()
     _login(client, admin)
+    prestadas_al_empezar = _conexiones_prestadas()
     espia_admin = _Espia(database.get_db_connection)
     espia_ficha = _Espia(admin_billing_panel.get_db_connection)
     monkeypatch.setattr(database, "get_db_connection", espia_admin)
@@ -125,8 +126,9 @@ def ent(flask_app, clean_db, monkeypatch):
     yield SimpleNamespace(client=client, db=clean_db, user=user, admin=admin, paid=paid,
                           espia_admin=espia_admin, espia_ficha=espia_ficha,
                           database=database, panel=admin_billing_panel)
-    # Ninguna prueba puede dejar conexiones prestadas.
-    assert _conexiones_prestadas() == 0
+    # Ninguna prueba puede dejar conexiones prestadas (relativo al inicio: una
+    # fuga de otro fichero de la sesión no debe romper estos tests).
+    assert _conexiones_prestadas() == prestadas_al_empezar
 
 
 # ===========================================================================
@@ -209,6 +211,17 @@ def test_bd_no_disponible_en_navegacion_html_503_con_reintentar(ent, monkeypatch
     assert r.mimetype == "text/html"
     html = r.get_data(as_text=True)
     assert "Reintentar" in html and "no disponible" in html
+    assert _sesion(ent.client)["user_id"] == ent.admin["id"]
+
+
+def test_bd_no_disponible_en_un_post_html_sin_enlace_de_reintentar(ent, monkeypatch):
+    # "Reintentar" repetiría la petición con GET: solo se ofrece en GET.
+    monkeypatch.setattr(ent.database, "get_db_connection", lambda: None)
+
+    r = ent.client.post(f"/admin/users/{ent.paid['id']}/reset-quota", headers=HTML)
+
+    assert r.status_code == 503
+    assert "Reintentar" not in r.get_data(as_text=True)
     assert _sesion(ent.client)["user_id"] == ent.admin["id"]
 
 
@@ -344,6 +357,19 @@ def test_error_sql_en_la_ficha_500_nunca_404(ent, monkeypatch):
     assert ent.espia_ficha.todo_liberado()
 
 
+def test_error_de_limite_del_programa_es_500_no_503(ent, monkeypatch):
+    # SQLSTATE 54000: psycopg2 lo clasifica como OperationalError, pero
+    # reintentar no lo arregla. No debe responderse 503 con retry.
+    monkeypatch.setattr(ent.panel, "_SQL_FICHA_USUARIO",
+                        "SELECT array_fill(1, ARRAY[2000000000]) AS x, u.* FROM users u WHERE u.id = %s")
+
+    r = ent.client.get(_url(ent.paid["id"]), headers=JSON)
+
+    assert r.status_code == 500
+    assert r.get_json()["code"] == "internal_error"
+    assert ent.espia_ficha.todo_liberado()
+
+
 def test_error_de_python_en_la_ficha_500(ent, monkeypatch):
     monkeypatch.setattr(ent.panel, "_get_project_counts_by_user", mock.Mock(side_effect=TypeError("fallo")))
 
@@ -447,3 +473,30 @@ def test_get_user_billing_details_antiguo_sigue_devolviendo_none_ante_fallos(ent
     assert ent.panel.get_user_billing_details(ent.paid["id"])["id"] == ent.paid["id"]
     monkeypatch.setattr(ent.panel, "_SQL_FICHA_USUARIO", SQL_ROTO)
     assert ent.panel.get_user_billing_details(ent.paid["id"]) is None
+
+
+# ===========================================================================
+# E. Clasificación de errores de la base de datos
+# ===========================================================================
+
+def _error_con_sqlstate(base, codigo):
+    return type("ErrorPrueba", (base,), {"pgcode": codigo})("error de prueba")
+
+
+@pytest.mark.parametrize("error,transitorio", [
+    (psycopg2.InterfaceError("connection already closed"), True),
+    (_error_con_sqlstate(psycopg2.OperationalError, "08006"), True),   # conexión
+    (_error_con_sqlstate(psycopg2.OperationalError, "40P01"), True),   # deadlock
+    (_error_con_sqlstate(psycopg2.OperationalError, "53300"), True),   # demasiadas conexiones
+    (_error_con_sqlstate(psycopg2.OperationalError, "57014"), True),   # consulta cancelada
+    (_error_con_sqlstate(psycopg2.OperationalError, None), True),      # libpq sin SQLSTATE
+    (psycopg2.DatabaseError("error with status PGRES_TUPLES_OK"), True),
+    (_error_con_sqlstate(psycopg2.OperationalError, "54000"), False),  # límite del programa
+    (_error_con_sqlstate(psycopg2.OperationalError, "55P02"), False),
+    (_error_con_sqlstate(psycopg2.ProgrammingError, "42P01"), False),  # tabla inexistente
+    (_error_con_sqlstate(psycopg2.InternalError, "25P02"), False),     # transacción abortada
+    (ValueError("no es de la BD"), False),
+])
+def test_is_transient_db_error(error, transitorio):
+    import database
+    assert database.is_transient_db_error(error) is transitorio

@@ -425,6 +425,8 @@
         }
         .detail-section--full { grid-column: 1 / -1; }
         .detail-section[hidden] { display: none; }
+        /* El CSS de la página (display:flex, .btn) anula el [hidden] del navegador */
+        #detailBillingError[hidden], #detailBillingRetry[hidden] { display: none !important; }
         .detail-section h4 {
             font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
             color: var(--color-text-tertiary); margin-bottom: 1rem;
@@ -2311,15 +2313,21 @@
             // Precargar los valores actuales del usuario: "Assign" SOBRESCRIBE todos los
             // campos, así que un campo vacío al guardar significa "sin límite". Sin esta
             // precarga, editar solo la cuota RU borraría los topes por módulo.
-            avisoPrecargaCustomQuota('');
+            // Guardar queda bloqueado hasta tener los límites actuales: con los
+            // campos vacíos, "Assign" borraría los topes. Solo cuenta la
+            // respuesta de esta apertura (una tardía de otra se ignora).
+            const turno = ++secuenciaPrecargaCustomQuota;
+            avisoPrecargaCustomQuota('Cargando los límites actuales…', true);
             fetch(`/admin/users/${userId}/billing-details`, { headers: { 'Accept': 'application/json' } })
                 .then(AdminBillingDetails.leerRespuesta)
                 .then((resultado) => {
+                    if (turno !== secuenciaPrecargaCustomQuota) return;
                     if (resultado.tipo !== 'ok') {
                         // Guardar con los campos vacíos borraría los topes actuales: se bloquea.
                         avisoPrecargaCustomQuota(`No se pudieron cargar los límites actuales: ${resultado.mensaje} Cierra y vuelve a abrir antes de guardar.`);
                         return;
                     }
+                    avisoPrecargaCustomQuota('');
                     const u = resultado.user;
                     if (!u || !u.custom_quota_limit) return;
                     const setIf = (id, v) => { const el = document.getElementById(id); if (el && v !== null && v !== undefined) el.value = v; };
@@ -2330,6 +2338,7 @@
                     Object.keys(CUSTOM_MODULE_LIMIT_INPUTS).forEach((field) => setIf(CUSTOM_MODULE_LIMIT_INPUTS[field], u[field]));
                 })
                 .catch((e) => {
+                    if (turno !== secuenciaPrecargaCustomQuota) return;
                     console.warn('No se pudieron precargar los límites actuales:', e);
                     avisoPrecargaCustomQuota('No se pudieron cargar los límites actuales (sin conexión con el servidor). Cierra y vuelve a abrir antes de guardar.');
                 });
@@ -2345,8 +2354,11 @@
             document.getElementById('customQuotaModal').style.display = 'flex';
         }
 
-        // Aviso de la precarga del modal "Custom Quota": con mensaje, deshabilita guardar.
-        function avisoPrecargaCustomQuota(mensaje) {
+        let secuenciaPrecargaCustomQuota = 0;
+
+        // Aviso de la precarga del modal "Custom Quota". bloquear: deshabilita guardar
+        // (por defecto, siempre que haya mensaje).
+        function avisoPrecargaCustomQuota(mensaje, bloquear = !!mensaje) {
             let aviso = document.getElementById('customQuotaPrefillError');
             const pie = document.querySelector('#customQuotaModal .modal-footer');
             if (!aviso && pie) {
@@ -2361,7 +2373,7 @@
                 aviso.hidden = !mensaje;
             }
             const boton = document.getElementById('confirmCustomQuotaBtn');
-            if (boton) boton.disabled = !!mensaje;
+            if (boton) boton.disabled = bloquear;
         }
 
         async function changePlan(userId, userName) {
