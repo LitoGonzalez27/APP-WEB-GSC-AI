@@ -26,6 +26,14 @@ from services.log_seguro import FiltroSecretosEnUrl, MARCA, instalar_filtro_secr
     ("/api/llm-monitoring/models/approve?token=abc&x=1", f"/api/llm-monitoring/models/approve?token={MARCA}&x=1"),
     ("/x?TOKEN=abc", f"/x?TOKEN={MARCA}"),
     ("/x?api_key=abc&key=def", f"/x?api_key={MARCA}&key={MARCA}"),
+    ("/auth/check-email?email=ana%40x.com", f"/auth/check-email?email={MARCA}"),
+    # El login lleva el token de la invitación dentro de next, codificado; Werkzeug
+    # deja %3D sin decodificar.
+    ("/auth/login?next=/project-invitations/accept?token%3DT123&x=1",
+     f"/auth/login?next=/project-invitations/accept?token={MARCA}&x=1"),
+    ("/signup?next=%2Fproject-invitations%2Faccept%3Ftoken%3DT9",
+     f"/signup?next=/project-invitations/accept?token={MARCA}"),
+    ("/x?next=%252Freset-password%253Ftoken%253DDD", f"/x?next=/reset-password?token={MARCA}"),
 ])
 def test_oculta_los_parametros_secretos(url, esperado):
     assert ocultar_secretos_en_url(url) == esperado
@@ -36,6 +44,7 @@ def test_oculta_los_parametros_secretos(url, esperado):
     "/x?monkey=1&codes=2&statement=3",   # nombres que solo se parecen
     "/login?user_not_found=true",
     "/dashboard",
+    "/search?q=caf%C3%A9&page=2",       # codificado pero sin secretos: se deja igual
 ])
 def test_no_toca_lo_que_no_es_secreto(url):
     assert ocultar_secretos_en_url(url) == url
@@ -86,3 +95,31 @@ def test_servidor_real_no_escribe_el_token_en_el_log(flask_app, clean_db, caplog
     lineas = [r.getMessage() for r in caplog.records if r.name == "werkzeug"]
     assert any(f"/reset-password?token={MARCA}" in linea for linea in lineas), lineas
     assert "SECRETO-DE-PRUEBA-123" not in caplog.text
+
+
+def test_oculta_secretos_en_la_traza_de_una_excepcion():
+    filtro = FiltroSecretosEnUrl()
+    try:
+        raise ValueError("fallo al pedir https://api.example.invalid/x?api_key=CLAVE-SECRETA&q=1")
+    except ValueError:
+        import sys
+        registro = logging.LogRecord("x", logging.ERROR, __file__, 1, "error", (), sys.exc_info())
+
+    assert filtro.filter(registro) is True
+    texto = logging.Formatter().format(registro)
+    assert "CLAVE-SECRETA" not in texto
+    assert f"api_key={MARCA}&q=1" in texto
+
+
+def test_importar_la_app_instala_el_filtro(flask_app):
+    # En un proceso nuevo, sin que ningún test lo haya instalado antes.
+    import os
+    import subprocess
+    import sys
+    codigo = ("import logging, app; from services.log_seguro import FiltroSecretosEnUrl as F; "
+              "w = logging.getLogger('werkzeug').filters; r = [h.filters for h in logging.getLogger().handlers]; "
+              "assert any(isinstance(f, F) for f in w), 'werkzeug sin filtro'; "
+              "assert r and all(any(isinstance(f, F) for f in fs) for fs in r), 'handlers raíz sin filtro'")
+    resultado = subprocess.run([sys.executable, "-c", codigo], cwd=os.path.dirname(os.path.dirname(__file__)),
+                               env=dict(os.environ), capture_output=True, text=True, timeout=120)
+    assert resultado.returncode == 0, resultado.stderr[-2000:]

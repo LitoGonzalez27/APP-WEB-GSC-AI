@@ -392,7 +392,7 @@ def test_before_request_de_llm_decorador_y_ruta_comparten_la_lectura(ent, monkey
 
     r = ent.client.get("/api/llm-monitoring/projects", headers=JSON)
 
-    assert r.status_code < 500
+    assert r.status_code == 200  # la ruta se ejecuta: no se queda en el before_request
     assert lecturas == [ent.paid["id"]]
 
 
