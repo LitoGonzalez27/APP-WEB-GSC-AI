@@ -304,8 +304,59 @@ def _wants_json_response():
     return False
 
 
+def _comprobar_sesion(quiere_json, exigir_admin=False):
+    """Comprobación común de los decoradores de sesión (fase de fiabilidad, sep-2026).
+
+    Devuelve (usuario, None) si la petición puede seguir o (None, respuesta).
+    Contrato: si no se puede consultar al usuario por un fallo de la base de
+    datos se responde 503 (500 si es un fallo interno) y la sesión se CONSERVA;
+    nunca se deja pasar sin comprobar. Solo se cierra la sesión si expiró por
+    inactividad o si la consulta fue bien y el usuario ya no existe."""
+    if is_session_expired():
+        session.clear()
+        logger.info("Sesión expirada por inactividad")
+        if quiere_json:
+            return None, (jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401)
+        return None, redirect(url_for('login_page') + '?session_expired=true')
+
+    try:
+        user = get_current_user_strict()
+    except DatabaseUnavailableError:
+        logger.warning(
+            f"Sesión: no se pudo comprobar al usuario {session.get('user_id')} "
+            f"({request.method} {request.path}, petición {_id_peticion()})", exc_info=True)
+        return None, _respuesta_fallo_tecnico(
+            503, 'database_unavailable', 'Servicio no disponible temporalmente. Reintenta en unos segundos.', True,
+            forzar_json=quiere_json)
+    except Exception:
+        logger.exception(
+            f"Sesión: fallo interno al comprobar al usuario {session.get('user_id')} "
+            f"({request.method} {request.path}, petición {_id_peticion()})")
+        return None, _respuesta_fallo_tecnico(
+            500, 'internal_error', 'Error interno al comprobar la sesión.', False, forzar_json=quiere_json)
+
+    if user is None:
+        session.clear()
+        logger.warning("Usuario de la sesión no encontrado en base de datos")
+        if quiere_json:
+            return None, (jsonify({'error': 'User not found', 'auth_required': True, 'code': 'user_not_found'}), 401)
+        return None, redirect(url_for('login_page') + '?user_not_found=true')
+
+    if not user['is_active']:
+        if quiere_json:
+            return None, (jsonify({'error': 'Account suspended', 'account_suspended': True}), 403)
+        return None, redirect(url_for('login_page') + '?account_suspended=true')
+
+    if exigir_admin and user['role'] != 'admin':
+        if quiere_json:
+            return None, (jsonify({'error': 'Admin privileges required', 'admin_required': True}), 403)
+        return None, redirect(url_for('dashboard') + '?admin_required=true')
+
+    return user, None
+
+
 def auth_required(f):
-    """Decorador que requiere autenticación"""
+    """Decorador que requiere autenticación (ver _comprobar_sesion)."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Verificar autenticación básica
@@ -327,45 +378,9 @@ def auth_required(f):
             except Exception:
                 return redirect(url_for('login_page') + '?auth_required=true')
 
-        # Verificar expiración por inactividad
-        if is_session_expired():
-            session.clear()
-            logger.info("Sesión expirada por inactividad")
-
-            if _wants_json_response():
-                return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
-            return redirect(url_for('login_page') + '?session_expired=true')
-
-        # Verificar si el usuario está en la base de datos.
-        #
-        # IMPORTANTE: NO limpiamos la sesión aquí. Antes lo hacíamos, pero
-        # `get_current_user()` devuelve None tanto si el usuario realmente no
-        # existe (caso raro) como si la consulta a la BD falla por agotamiento
-        # del pool (caso frecuente, observado 2026-05-24). Tratar el segundo
-        # caso como "user not found" provocaba un logout instantáneo y los 302
-        # en cascada que rompían el dashboard. `get_user_by_id` ya tiene retry
-        # interno; si aun así devuelve None preferimos devolver 503 (servicio
-        # temporalmente no disponible) sin tocar la sesión, para que el
-        # interceptor del frontend pueda reintentar y el usuario no pierda
-        # estado.
-        user = get_current_user()
-        if not user:
-            logger.warning(
-                "get_current_user() returned None for session user_id="
-                f"{session.get('user_id')} — keeping session, returning 503"
-            )
-            if _wants_json_response():
-                return jsonify({
-                    'error': 'User lookup temporarily unavailable',
-                    'retry': True
-                }), 503
-            return redirect(url_for('login_page') + '?auth_error=user_lookup_failed')
-
-        # Verificar si el usuario está activo
-        if not user['is_active']:
-            if _wants_json_response():
-                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
-            return redirect(url_for('login_page') + '?account_suspended=true')
+        _user, respuesta = _comprobar_sesion(_wants_json_response())
+        if respuesta is not None:
+            return respuesta
 
         # Actualizar última actividad
         update_last_activity()
@@ -437,47 +452,9 @@ def admin_required(f):
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
             return redirect(url_for('login_page') + '?auth_required=true')
 
-        # Verificar expiración por inactividad
-        if is_session_expired():
-            session.clear()
-            logger.info("Sesión expirada por inactividad")
-            if quiere_json:
-                return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
-            return redirect(url_for('login_page') + '?session_expired=true')
-
-        # Comprobar al usuario en la base de datos
-        try:
-            user = get_current_user_strict()
-        except DatabaseUnavailableError:
-            logger.warning(
-                f"admin_required: no se pudo comprobar al usuario {session.get('user_id')} "
-                f"({request.method} {request.path}, petición {_id_peticion()})", exc_info=True)
-            return _respuesta_fallo_tecnico(
-                503, 'database_unavailable', 'Servicio no disponible temporalmente. Reintenta en unos segundos.', True)
-        except Exception:
-            logger.exception(
-                f"admin_required: fallo interno al comprobar al usuario {session.get('user_id')} "
-                f"({request.method} {request.path}, petición {_id_peticion()})")
-            return _respuesta_fallo_tecnico(500, 'internal_error', 'Error interno al comprobar la sesión.', False)
-
-        if user is None:
-            session.clear()
-            logger.warning("Usuario de la sesión no encontrado en base de datos")
-            if quiere_json:
-                return jsonify({'error': 'User not found', 'auth_required': True, 'code': 'user_not_found'}), 401
-            return redirect(url_for('login_page') + '?user_not_found=true')
-
-        # Verificar si el usuario está activo
-        if not user['is_active']:
-            if quiere_json:
-                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
-            return redirect(url_for('login_page') + '?account_suspended=true')
-
-        # Verificar si el usuario es administrador
-        if not user['role'] == 'admin':
-            if quiere_json:
-                return jsonify({'error': 'Admin privileges required', 'admin_required': True}), 403
-            return redirect(url_for('dashboard') + '?admin_required=true')
+        _user, respuesta = _comprobar_sesion(quiere_json, exigir_admin=True)
+        if respuesta is not None:
+            return respuesta
 
         # Actualizar última actividad
         update_last_activity()
@@ -486,47 +463,20 @@ def admin_required(f):
     return decorated_function
 
 def ai_user_required(f):
-    """Decorador que requiere privilegios de AI User (admin o AI User)"""
+    """DEPRECATED: el rol AI se eliminó; las funcionalidades AI se controlan por
+    plan en cada endpoint. Equivale a auth_required. Ninguna ruta lo usa."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Verificar autenticación básica
+        quiere_json = _wants_json_response()
         if not is_user_authenticated():
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if quiere_json:
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
             return redirect(url_for('login_page') + '?auth_required=true')
-        
-        # Verificar expiración por inactividad
-        if is_session_expired():
-            session.clear()
-            logger.info("Sesión expirada por inactividad")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
-            return redirect(url_for('login_page') + '?session_expired=true')
-        
-        # Verificar si el usuario está en la base de datos
-        user = get_current_user()
-        if not user:
-            session.clear()
-            logger.warning("Usuario no encontrado en base de datos")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'User not found', 'auth_required': True}), 401
-            return redirect(url_for('login_page') + '?user_not_found=true')
-        
-        # Verificar si el usuario está activo
-        if not user['is_active']:
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
-            return redirect(url_for('login_page') + '?account_suspended=true')
-        
-        # ✅ NUEVO: AI User role eliminado - solo verificar autenticación
-        # Las funcionalidades AI ahora se controlan por plan en cada endpoint
+        _user, respuesta = _comprobar_sesion(quiere_json)
+        if respuesta is not None:
+            return respuesta
         logger.warning("@ai_user_required está deprecated. Las funcionalidades AI se controlan por plan.")
-        
-        # Actualizar última actividad
         update_last_activity()
-        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -538,43 +488,22 @@ def login_required(f):
 def auth_required_no_activity_update(f):
     """
     Decorador que requiere autenticación pero NO actualiza la última actividad.
-    Usado para endpoints que solo consultan estado sin representar actividad real del usuario.
+    Usado para endpoints que solo consultan estado sin representar actividad real
+    del usuario (/auth/keepalive, que el gestor de sesión llama cada 5 minutos).
+    Fase de fiabilidad (sep-2026): un fallo de la base de datos ya no cierra la
+    sesión (503); antes, un fallo en el keepalive echaba al usuario de la app.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Verificar autenticación básica
+        quiere_json = _wants_json_response()
         if not is_user_authenticated():
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if quiere_json:
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
             return redirect(url_for('login_page') + '?auth_required=true')
-        
-        # Verificar expiración por inactividad
-        if is_session_expired():
-            session.clear()
-            logger.info("Sesión expirada por inactividad")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
-            return redirect(url_for('login_page') + '?session_expired=true')
-        
-        # Verificar si el usuario está en la base de datos
-        user = get_current_user()
-        if not user:
-            session.clear()
-            logger.warning("Usuario no encontrado en base de datos")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'User not found', 'auth_required': True}), 401
-            return redirect(url_for('login_page') + '?auth_error=user_not_found')
-        
-        # Verificar si el usuario está activo
-        if not user['is_active']:
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
-            return redirect(url_for('login_page') + '?account_suspended=true')
-        
+        _user, respuesta = _comprobar_sesion(quiere_json)
+        if respuesta is not None:
+            return respuesta
         # ⚠️ NO actualizar última actividad - solo verificar autenticación
-        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -1823,8 +1752,17 @@ def setup_auth_routes(app):
                     'time_remaining': 0
                 })
             
-            # ✅ NUEVO: Obtener usuario sin side effects
-            user = get_user_by_id(session['user_id'])
+            # Obtener usuario sin side effects. Un fallo de la base de datos NO es
+            # "no autenticado": el gestor de sesión del frontend cerraba la sesión
+            # al recibir authenticated=False (fase de fiabilidad, sep-2026).
+            try:
+                user = get_user_by_id_strict(session['user_id'])
+            except DatabaseUnavailableError:
+                logger.warning(f"/auth/status: no se pudo comprobar al usuario {session.get('user_id')} "
+                               f"(petición {_id_peticion()})", exc_info=True)
+                return _respuesta_fallo_tecnico(
+                    503, 'database_unavailable', 'Servicio no disponible temporalmente. Reintenta en unos segundos.',
+                    True, forzar_json=True)
             if not user:
                 return jsonify({
                     'authenticated': False,
@@ -1860,12 +1798,11 @@ def setup_auth_routes(app):
                 }
             })
             
-        except Exception as e:
-            logger.error(f"Error obteniendo estado de autenticación: {e}")
-            return jsonify({
-                'authenticated': False,
-                'error': 'Internal server error'
-            }), 500
+        except Exception:
+            # Un fallo interno tampoco es "no autenticado" (el frontend cerraba la sesión).
+            logger.exception(f"Error obteniendo estado de autenticación (petición {_id_peticion()})")
+            return _respuesta_fallo_tecnico(
+                500, 'internal_error', 'Error interno al comprobar la sesión.', False, forzar_json=True)
 
     @app.route('/auth/keepalive', methods=['POST'])
     @auth_required_no_activity_update
