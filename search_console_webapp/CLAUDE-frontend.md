@@ -186,6 +186,16 @@ Cargado como **script clásico** (no `type="module"`) en `llm_monitoring.html:17
 
 ---
 
+### 4.x Escapado de HTML único (`static/js/html-escape.js`, sep-2026)
+
+Una sola implementación: `ClicandseoHtml.escapeHtml(valor)` escapa `& < > " '`; `null`/`undefined` dan `''` y lo demás se convierte con `String()`. Sustituye a ~25 copias; las basadas en el truco del DOM (`textContent` → `innerHTML`) no escapaban comillas, y los nombres de cluster de Manual AI y AI Mode iban a `title="..."` escapando solo `< >` (XSS al ver un proyecto, también para invitados).
+
+- **Módulos ES**: `import './html-escape.js';` (o `../html-escape.js`) solo por efecto, y `globalThis.ClicandseoHtml.escapeHtml(...)`. Los que exportaban `escapeHtml` (`manual-ai-utils.js`, `ai-mode-utils.js`, `ui-ai-overview-utils.js`, `number-utils.js`) lo siguen exportando y delegan.
+- **Scripts clásicos y JS en línea**: `window.ClicandseoHtml.escapeHtml(...)`, con `<script src=".../js/html-escape.js?v={{ ASSET_V }}">` en la plantilla antes de usarlo (`index.html`, `llm_monitoring.html`, `admin_simple.html`, `project_access.html`, `dashboard.html`, `ai_mode_dashboard.html`, `ai_summary.html`, `manual_ai_dashboard.html`).
+- Cada fichero conserva su función local con su comportamiento: las que devolvían `''` para lo que no es texto mantienen esa comprobación.
+- **Excepción**: las `escapeForAttribute` de las tablas Grid.js (`ui-keywords-gridjs.js`, `ui-urls-gridjs.js`, `ui-url-keywords-gridjs.js`, `ui-detailed-results-gridjs.js`) no escapan `&` a propósito (un dato que ya trae `&amp;` se sigue viendo igual) y ya escapan comillas; no se tocan.
+- Tests: `tests/js/html-escape.test.cjs` extrae el código real de cada función y comprueba que el texto visible es el mismo que antes y que nada rompe un atributo; `tests/test_html_escape_estatico.py` falla si aparece una copia nueva, si un módulo usa el global sin importarlo o si una plantilla no carga el script antes de usarlo.
+
 ## 5. Librerías externas (CDN)
 
 Cargadas vía `<script src="https://…">` directamente en cada plantilla. **No hay bundler.**
@@ -508,7 +518,7 @@ En `manual_ai_dashboard.html` (y `ai_mode_dashboard.html`) se setea `window.DISA
 
 ### Sin framework JS de testing
 
-> ⚠️ **No hay** Jest, Mocha, Vitest, ni Playwright. **No hay `package.json`**. Tests funcionales del frontend = manuales.
+> Sin Jest, Mocha, Vitest ni Playwright y sin `package.json`. Desde sep-2026 hay tests de JS con el runner de Node, sin dependencias: `node --test tests/js/*.test.cjs` (lo ejecuta la CI). Los scripts que se prueban así exportan con `module.exports` cuando corren en Node (`session-status.js`, `admin-billing-details.js`, `html-escape.js`). El resto de pruebas del frontend siguen siendo manuales.
 
 `tests/` (carpeta) — solo tests de servicios Python LLM (`test_llm_monitoring_e2e.py`, `…performance.py`, `…service.py`, `…providers.py`).
 

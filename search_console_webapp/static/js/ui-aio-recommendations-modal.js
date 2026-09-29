@@ -7,18 +7,14 @@
 // into an innerHTML string, so they MUST be escaped to prevent stored XSS.
 // Escapes quotes too, so it is safe inside double-quoted attributes.
 function escapeHtml(unsafe) {
-  if (typeof unsafe !== 'string') return '';
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  // Conserva su comportamiento: lo que no es texto da ''.
+  return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 // ── Session-level cache ─────────────────────────────────────────────
 window._aioRecommendationsCache = window._aioRecommendationsCache || {};
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 export function hasRecommendationsCache(keyword) {
   if (!keyword) return false;
   return !!window._aioRecommendationsCache[keyword.toLowerCase().trim()];

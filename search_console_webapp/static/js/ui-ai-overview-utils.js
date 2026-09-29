@@ -1,13 +1,8 @@
 // static/js/ui-ai-overview-utils.js - Funciones auxiliares y utilidades
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 export function escapeHtml(text) {
-  if (text == null) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return globalThis.ClicandseoHtml.escapeHtml(text);
 }
 
 export function formatNumber(num) {

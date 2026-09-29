@@ -27,6 +27,7 @@ const ES_DECIMAL_FORMAT_OPTIONS = {
  * @param {number|string} value - Valor a formatear
  * @returns {string} - Número formateado (ej: "14.789")
  */
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 export function formatInteger(value) {
   if (value == null || value === '' || isNaN(value)) return '0';
   const num = typeof value === 'string' ? parseFloat(value) : value;
@@ -508,9 +509,7 @@ export function getStandardKeywordTableConfig(analysisType = 'comparison') {
  * @returns {string} - Texto escapado
  */
 export function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return globalThis.ClicandseoHtml.escapeHtml(text);
 }
 
 /**

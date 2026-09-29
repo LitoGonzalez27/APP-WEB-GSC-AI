@@ -373,7 +373,7 @@ export function renderProjectClustersHorizontal(project) {
     const moreCount = clustersCount > 3 ? clustersCount - 3 : 0;
     
     const clustersBadges = displayClusters.map(cluster => {
-        const escapedName = cluster.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const escapedName = escapeHtml(cluster.name);  // también comillas: va en title="..."
         return `
             <span class="cluster-badge" title="${escapedName}">
                 <i class="fas fa-layer-group"></i>
