@@ -2,6 +2,7 @@
 
 import requests
 import os
+import config
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 FROM_EMAIL = os.getenv('FROM_EMAIL', 'info@clicandseo.com')
 FROM_NAME = os.getenv('FROM_NAME', 'ClicandSEO')
-PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'https://app.clicandseo.com')
+PUBLIC_BASE_URL = config.url_publica()
 LOGO_URL = f"{PUBLIC_BASE_URL}/static/images/logos/logo-clicandseo-light.svg"
 
 def send_email_via_api(to_email: str, subject: str, html_body: str) -> bool:

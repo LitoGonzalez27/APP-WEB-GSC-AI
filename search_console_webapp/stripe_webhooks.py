@@ -8,6 +8,7 @@ con nuestra base de datos local.
 """
 
 import os
+import config
 import json
 import logging
 import stripe
@@ -1115,8 +1116,8 @@ def _alertar_suscripciones_antiguas(customer_id, subscription_id, canceladas, pa
         )
         return f'<h3>{titulo}</h3><table style="border-collapse:collapse;font-size:14px">{filas}</table>'
 
-    to = os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com')
-    env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+    to = config.email_alertas()
+    env_name = config.etiqueta_entorno()
     html = f"""
     <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
         <h2 style="margin-top:0">{escape(asunto)}</h2>
@@ -1143,7 +1144,7 @@ def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: st
     Gated by CRON_ALERTS_ENABLED so it can be silenced. Also rate-limited
     to avoid spam: at most one alert per (customer_id, hour).
     """
-    if os.getenv('CRON_ALERTS_ENABLED', 'true').lower() != 'true':
+    if not config.alertas_cron_activas():
         return
 
     # Lightweight rate-limit via DB: insert a row, only send if it's the first
@@ -1203,8 +1204,8 @@ def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: st
         logger.warning(f"Cannot import email_service for unmatched-customer alert: {e}")
         return
 
-    to = os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com')
-    env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+    to = config.email_alertas()
+    env_name = config.etiqueta_entorno()
 
     html = f"""
     <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">

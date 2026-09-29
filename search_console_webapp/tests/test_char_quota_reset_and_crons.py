@@ -876,11 +876,13 @@ def test_variantes_de_token_aceptadas(entorno, endpoint, variante):
 
 
 def test_token_con_caracteres_no_ascii(entorno):
-    """secrets.compare_digest lanza TypeError con cadenas str no ASCII."""
+    """secrets.compare_digest lanza TypeError con cadenas str no ASCII;
+    config.cabecera_cron_valida() lo trata como token inválido."""
     autorizacion = "Bearer test-cron-tokeñ"
 
-    # COMPORTAMIENTO ACTUAL (posible defecto): quota-reset no captura la excepción y responde 500 en vez de 403.
-    assert _post(entorno, LLAMADAS_BUN["quota-reset"], autorizacion=autorizacion).status_code == 500
+    # CAMBIADO (config único, sep-2026): antes quota-reset no capturaba la
+    # excepción y respondía 500; ahora es un token inválido más (403).
+    assert _post(entorno, LLAMADAS_BUN["quota-reset"], autorizacion=autorizacion).status_code == 403
 
     # Los decoradores de auth.py capturan la excepción y caen a la autenticación normal.
     for endpoint in ("llm-daily", "llm-watchdog", "llm-model-discovery", "manual-ai", "ai-mode"):
@@ -888,11 +890,11 @@ def test_token_con_caracteres_no_ascii(entorno):
         assert (endpoint, resp.status_code) == (endpoint, 401)
     _sin_efectos(entorno)
 
-    # COMPORTAMIENTO ACTUAL (posible defecto): con sesión de admin, el endpoint LLM
-    # vuelve a comparar en _ensure_cron_token_or_admin, que convierte el TypeError en 500.
+    # CAMBIADO (config único, sep-2026): antes, con sesión de admin, el endpoint LLM
+    # volvía a comparar en _ensure_cron_token_or_admin y el TypeError daba 500; ahora
+    # el token no vale y pasa por ser admin, como en Manual AI.
     resp = _post(entorno, LLAMADAS_BUN["llm-watchdog"], usuario=entorno.admin, autorizacion=autorizacion)
-    assert resp.status_code == 500
-    assert resp.get_json() == {"success": False, "error": "Error validando permisos"}
+    assert resp.status_code == CODIGO_ACEPTADO["llm-watchdog"]
     # En Manual AI el mismo admin pasa (cron_or_admin_required no vuelve a comparar).
     resp = _post(entorno, LLAMADAS_BUN["manual-ai"], usuario=entorno.admin, autorizacion=autorizacion)
     assert resp.status_code == 202

@@ -19,6 +19,7 @@ Design notes:
 """
 
 import os
+import config
 import logging
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -33,14 +34,14 @@ logger = logging.getLogger(__name__)
 def _get_config() -> Dict:
     """Read alert configuration from environment variables on every call."""
     return {
-        'enabled': os.getenv('CRON_ALERTS_ENABLED', 'true').lower() == 'true',
-        'email': os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com'),
+        'enabled': config.alertas_cron_activas(),
+        'email': config.email_alertas(),
         'duration_min_threshold': float(os.getenv('CRON_ALERT_DURATION_MIN', '90')),
         'error_rate_threshold': float(os.getenv('CRON_ALERT_ERROR_RATE', '0.20')),
         'cost_multiplier_threshold': float(os.getenv('CRON_ALERT_COST_MULTIPLIER', '2.0')),
         # Mínimo de respuestas de OpenAI servidas en flex (si el cron pide flex)
         'flex_min_share': float(os.getenv('CRON_ALERT_FLEX_MIN_SHARE', '0.7')),
-        'environment': os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown')),
+        'environment': config.etiqueta_entorno(),
     }
 
 
