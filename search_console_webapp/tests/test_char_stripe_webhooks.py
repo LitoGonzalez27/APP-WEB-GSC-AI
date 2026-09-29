@@ -332,10 +332,14 @@ def ctx(flask_app, clean_db, monkeypatch):
     # Alertas activas y destinatario por defecto, sin depender de la shell.
     monkeypatch.setenv("CRON_ALERTS_ENABLED", "true")
     monkeypatch.delenv("CRON_ALERTS_EMAIL", raising=False)
+    # Cancelación automática de suscripciones antiguas activada (valor por defecto).
+    monkeypatch.delenv("STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS", raising=False)
 
     sin_red = stripe.error.APIConnectionError("API de Stripe no disponible en tests")
     with mock.patch.object(stripe.Customer, "retrieve", side_effect=sin_red) as customer_retrieve, \
             mock.patch.object(stripe.Subscription, "retrieve", side_effect=sin_red) as subscription_retrieve, \
+            mock.patch.object(stripe.Subscription, "list", return_value={"object": "list", "data": []}) as subscription_list, \
+            mock.patch.object(stripe.Subscription, "cancel") as subscription_cancel, \
             mock.patch.object(stripe_webhooks, "send_trial_started_email", return_value=True) as email_trial, \
             mock.patch.object(stripe_webhooks, "send_email", return_value=True) as email_modulo, \
             mock.patch.object(email_service, "send_email", return_value=True) as email_alerta:
@@ -345,6 +349,8 @@ def ctx(flask_app, clean_db, monkeypatch):
             modulo=stripe_webhooks,
             customer_retrieve=customer_retrieve,
             subscription_retrieve=subscription_retrieve,
+            subscription_list=subscription_list,
+            subscription_cancel=subscription_cancel,
             email_trial=email_trial,
             email_modulo=email_modulo,
             email_alerta=email_alerta,
@@ -1339,3 +1345,142 @@ def test_tipo_no_manejado_responde_200_y_queda_registrado(ctx, tipo):
     assert resumen_eventos(ctx.db) == [("evt_char_0001", tipo, "processed", "", True)]
     ctx.customer_retrieve.assert_not_called()
     ctx.subscription_retrieve.assert_not_called()
+
+
+# ===========================================================================
+# 8. Cancelación automática de la suscripción antigua (orden de Carlos, 29-sep-2026)
+# ===========================================================================
+
+NUEVA = "sub_char_nueva"
+
+
+def _lista(*subs):
+    return {"object": "list", "data": [{"id": sid, "object": "subscription", "status": st} for sid, st in subs]}
+
+
+def _asunto_alerta(ctx):
+    return ctx.email_alerta.call_args[0][1]
+
+
+@pytest.mark.parametrize("estado_nueva", ["active", "trialing"])
+@pytest.mark.parametrize("estado_antigua", ["past_due", "unpaid", "incomplete", "paused"])
+def test_al_activarse_una_suscripcion_nueva_se_cancela_la_antigua_que_no_paga(ctx, estado_antigua, estado_nueva):
+    consultar(ctx.db, "UPDATE users SET billing_status = 'past_due' WHERE id = %s", (ID_PAGO,))
+    ctx.subscription_list.return_value = _lista((SUB_PAGO, estado_antigua), (NUEVA, estado_nueva))
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, status=estado_nueva)))
+
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
+    ctx.subscription_list.assert_called_once_with(customer=CUSTOMER_PAGO, status="all", limit=100)
+    args, kwargs = ctx.subscription_cancel.call_args
+    assert ctx.subscription_cancel.call_count == 1
+    assert args == (SUB_PAGO,)
+    assert NUEVA in kwargs["cancellation_details"]["comment"]
+    # Cada cancelación automática se avisa por email.
+    ctx.email_alerta.assert_called_once()
+    assert "cancelada automáticamente" in _asunto_alerta(ctx)
+    assert SUB_PAGO in ctx.email_alerta.call_args[0][2]
+
+
+@pytest.mark.parametrize("estado_otra", ["active", "trialing"])
+def test_otra_suscripcion_que_sigue_pagando_no_se_cancela_y_se_avisa(ctx, estado_otra):
+    ctx.subscription_list.return_value = _lista((SUB_PAGO, estado_otra), (NUEVA, "active"))
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+
+    assert resp.status_code == 200
+    ctx.subscription_cancel.assert_not_called()
+    ctx.email_alerta.assert_called_once()
+    assert "posible doble cobro" in _asunto_alerta(ctx)
+
+
+def test_suscripciones_ya_terminadas_no_se_tocan_ni_se_avisa(ctx):
+    ctx.subscription_list.return_value = _lista(
+        (SUB_PAGO, "canceled"), ("sub_char_caducada", "incomplete_expired"), (NUEVA, "active"))
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+
+    assert resp.status_code == 200
+    ctx.subscription_cancel.assert_not_called()
+    ctx.email_alerta.assert_not_called()
+
+
+def test_si_falla_una_cancelacion_se_intentan_las_demas_y_se_avisa(ctx):
+    import stripe
+    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), ("sub_char_otra", "unpaid"), (NUEVA, "active"))
+    ctx.subscription_cancel.side_effect = [stripe.error.APIConnectionError("sin red"), mock.DEFAULT]
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+
+    # El webhook ya está aplicado: sigue respondiendo 200.
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
+    assert [c.args[0] for c in ctx.subscription_cancel.call_args_list] == [SUB_PAGO, "sub_char_otra"]
+    ctx.email_alerta.assert_called_once()
+    assert "fallo al cancelar" in _asunto_alerta(ctx)
+    cuerpo = ctx.email_alerta.call_args[0][2]
+    assert SUB_PAGO in cuerpo and "sub_char_otra" in cuerpo
+
+
+def test_si_stripe_no_responde_al_listar_se_avisa_y_el_webhook_sigue_bien(ctx):
+    import stripe
+    ctx.subscription_list.side_effect = stripe.error.APIConnectionError("sin red")
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
+    ctx.subscription_cancel.assert_not_called()
+    ctx.email_alerta.assert_called_once()
+    assert "fallo al cancelar" in _asunto_alerta(ctx)
+
+
+def test_con_el_interruptor_apagado_no_se_cancela_nada(ctx, monkeypatch):
+    monkeypatch.setenv("STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS", "false")
+    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), (NUEVA, "active"))
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+
+    assert resp.status_code == 200
+    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
+    ctx.subscription_list.assert_not_called()
+    ctx.subscription_cancel.assert_not_called()
+
+
+def test_con_los_avisos_apagados_se_cancela_sin_email(ctx, monkeypatch):
+    monkeypatch.setenv("CRON_ALERTS_ENABLED", "false")
+    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), (NUEVA, "active"))
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+
+    assert resp.status_code == 200
+    ctx.subscription_cancel.assert_called_once()
+    ctx.email_alerta.assert_not_called()
+
+
+@pytest.mark.parametrize("tipo,datos", [
+    ("customer.subscription.updated", {"status": "past_due"}),
+    ("customer.subscription.updated", {"status": "incomplete"}),
+    ("customer.subscription.deleted", {"status": "canceled"}),
+    ("customer.subscription.updated", {"sub_id": "sub_char_antigua", "status": "unpaid"}),  # ignorado
+    ("customer.subscription.updated", {"customer": "cus_char_fantasma", "sub_id": "sub_char_fantasma"}),  # 503
+])
+def test_eventos_que_no_dejan_activa_una_suscripcion_del_usuario_no_cancelan_nada(ctx, tipo, datos):
+    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), ("sub_char_otra", "past_due"))
+
+    enviar(ctx, evento(tipo, suscripcion(**datos)))
+
+    ctx.subscription_list.assert_not_called()
+    ctx.subscription_cancel.assert_not_called()
+
+
+def test_evento_repetido_no_vuelve_a_cancelar(ctx):
+    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), (NUEVA, "active"))
+    datos = evento("customer.subscription.updated", suscripcion(sub_id=NUEVA), event_id="evt_char_repetido")
+
+    assert enviar(ctx, datos).status_code == 200
+    assert enviar(ctx, datos).status_code == 200
+
+    # El segundo envío es idempotente (no se reprocesa).
+    assert ctx.subscription_cancel.call_count == 1
