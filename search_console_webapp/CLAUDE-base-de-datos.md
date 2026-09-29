@@ -158,7 +158,7 @@ finally:
 
 **Consumidores pendientes del contrato antiguo** (se migran por módulos):
 - `get_user_by_id()` (~20 llamadas) y `get_current_user()` (~167): mantienen el `None` ambiguo. `get_user_by_id` ahora se apoya en la variante estricta (misma respuesta, cursor cerrado).
-- ~~`auth_required`, `auth_required_no_activity_update`, `ai_user_required`, `/auth/status`~~: migrados en la fase de sesión (sep-2026) a `auth._comprobar_sesion()` (contrato estricto común a los cuatro decoradores).
+- ~~`auth_required`, `auth_required_no_activity_update`, `ai_user_required`~~: migrados en la fase de sesión (sep-2026) a `auth._comprobar_sesion()`; `/auth/status`, `agent_access_required` y el `before_request` de LLM Monitoring usan `get_user_by_id_strict`/`get_current_user_strict` directamente. Pendiente: `validate_project_ownership` (LLM) y el resto de llamadas a `get_current_user()` dentro de rutas.
 - `admin_billing_panel.get_users_with_billing()` y `get_admin_dashboard_stats()`: usan los helpers `_get_*` que tragan errores sin recuperar la transacción.
 - ~378 llamadas a `get_db_connection()` con cierre manual.
 - Ficha del admin (pendiente, helpers compartidos): un error de Python que un helper `_get_*` atrapa tras una consulta correcta, o una tabla ausente detectada con `to_regclass`, siguen dando 0 en vez de "no disponible"; y una consulta cancelada dentro de una métrica devuelve 503 para toda la ficha (hoy la app no fija `statement_timeout`).

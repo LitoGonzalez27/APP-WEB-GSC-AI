@@ -278,3 +278,53 @@ def test_status_usuario_borrado_no_autenticado(ent):
 
     assert r.status_code == 200
     assert r.get_json() == {"authenticated": False, "user_not_found": True, "time_remaining": 0}
+
+
+def test_keepalive_con_actividad_real_alarga_la_sesion(ent):
+    # CAMBIADO: antes se ignoraba user_active y el botón "Keep session active"
+    # no alargaba la sesión (el usuario acababa expulsado igualmente).
+    hace_diez_minutos = datetime.now() - timedelta(minutes=10)
+    _login(ent.client, ent.user, ultima_actividad=hace_diez_minutos)
+
+    r = ent.client.post("/auth/keepalive", json={"user_active": True})
+
+    assert r.status_code == 200
+    assert r.get_json()["user_active"] is True
+    assert datetime.fromisoformat(_sesion(ent.client)["last_activity"]) > hace_diez_minutos + timedelta(minutes=9)
+
+
+# ===========================================================================
+# E. Otras entradas con su propia comprobación de sesión
+# ===========================================================================
+
+def test_scanner_bd_caida_503_sin_cerrar_la_sesion(ent, monkeypatch):
+    # agent_access_required (panel /agent) cerraba la sesión ante un fallo de la BD.
+    _login(ent.client, ent.admin)
+    _bd_caida(monkeypatch, ent)
+
+    r = ent.client.get("/agent/api/status/inexistente", headers=JSON)
+
+    assert r.status_code == 503
+    assert r.get_json()["code"] == "database_unavailable"
+    assert _sesion(ent.client)["user_id"] == ent.admin["id"]
+
+
+def test_scanner_usuario_borrado_401_y_cierra(ent):
+    with ent.client.session_transaction() as sess:
+        sess["user_id"] = 999999
+
+    r = ent.client.get("/agent/api/status/inexistente", headers=JSON)
+
+    assert r.status_code == 401
+    assert "user_id" not in _sesion(ent.client)
+
+
+def test_llm_monitoring_bd_caida_503_no_401(ent, monkeypatch):
+    # El before_request de LLM Monitoring respondía 401 "Authentication required".
+    _bd_caida(monkeypatch, ent)
+
+    r = ent.client.get("/api/llm-monitoring/projects", headers=JSON)
+
+    assert r.status_code == 503
+    assert r.get_json()["code"] == "database_unavailable"
+    assert _sesion(ent.client)["user_id"] == ent.user["id"]

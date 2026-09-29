@@ -46,7 +46,9 @@ from flask import Blueprint, request, jsonify
 from functools import wraps
 
 # Importar sistema de autenticación
-from auth import login_required, admin_required, get_current_user, cron_or_auth_required
+from auth import (login_required, admin_required, get_current_user, cron_or_auth_required,
+                  get_current_user_strict, respuesta_fallo_tecnico)
+from database import DatabaseUnavailableError
 from llm_monitoring_limits import (
     can_access_llm_monitoring,
     get_llm_plan_limits,
@@ -152,7 +154,15 @@ def enforce_llm_access():
         # devolvía un 401 JSON en vez de procesar el clic.
         if path.endswith("/models/approve") or path.endswith("/models/reject"):
             return None
-        user = get_current_user()
+        # Fase de fiabilidad (sep-2026): un fallo de la base de datos es 503, no
+        # "inicia sesión" (401).
+        try:
+            user = get_current_user_strict()
+        except DatabaseUnavailableError:
+            logger.warning("enforce_llm_access: base de datos no disponible", exc_info=True)
+            return respuesta_fallo_tecnico(
+                503, 'database_unavailable', 'Servicio no disponible temporalmente. Reintenta en unos segundos.',
+                True, forzar_json=True)
         if not user:
             return jsonify({'error': 'Authentication required. Please sign in.'}), 401
         if not can_access_llm_monitoring(user):

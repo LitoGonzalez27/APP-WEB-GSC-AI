@@ -257,6 +257,10 @@ def _respuesta_fallo_tecnico(estado, codigo, mensaje, reintentable, forzar_json=
     return Response(html, status=estado, mimetype='text/html')
 
 
+# Nombre público para otros módulos (agent_routes, llm_monitoring_routes).
+respuesta_fallo_tecnico = _respuesta_fallo_tecnico
+
+
 def is_user_authenticated():
     """Verifica si el usuario está autenticado"""
     return 'user_id' in session and session['user_id'] is not None
@@ -1807,10 +1811,21 @@ def setup_auth_routes(app):
     @app.route('/auth/keepalive', methods=['POST'])
     @auth_required_no_activity_update
     def auth_keepalive():
-        """Mantener sesión activa"""
+        """Mantener sesión activa.
+
+        El gestor de sesión lo llama cada 5 minutos con user_active=True si el
+        usuario ha interactuado con la página, y el botón "Keep session active"
+        del aviso también. Solo entonces cuenta como actividad (antes se
+        ignoraba y el usuario acababa expulsado aunque estuviera usando la app)."""
         try:
+            datos = request.get_json(silent=True) or {}
+            activo = datos.get('user_active') is True
+            if activo:
+                update_last_activity()
             return jsonify({
                 'success': True,
+                'user_active': activo,
+                'remaining_seconds': get_session_time_remaining(),
                 'time_remaining': get_session_time_remaining(),
                 'session_timeout_minutes': SESSION_TIMEOUT_MINUTES,
                 'warning_minutes': WARNING_MINUTES

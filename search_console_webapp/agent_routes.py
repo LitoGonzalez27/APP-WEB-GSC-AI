@@ -21,7 +21,9 @@ from urllib.parse import urlparse
 from flask import (Blueprint, jsonify, redirect, request, send_from_directory,
                    session, url_for)
 
-from auth import admin_required, get_current_user, is_user_authenticated
+from auth import (admin_required, get_current_user, get_current_user_strict, is_user_authenticated,
+                  respuesta_fallo_tecnico)
+from database import DatabaseUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,19 @@ def agent_access_required(f):
             if wants_json:
                 return jsonify({"error": "Authentication required", "auth_required": True}), 401
             return redirect(url_for("login_page") + "?auth_required=true")
-        user = get_current_user()
+        # Fase de fiabilidad (sep-2026): un fallo de la base de datos no cierra la
+        # sesión (503/500); solo se cierra si el usuario ya no existe o está inactivo.
+        try:
+            user = get_current_user_strict()
+        except DatabaseUnavailableError:
+            logger.warning("agent_access_required: base de datos no disponible", exc_info=True)
+            return respuesta_fallo_tecnico(
+                503, "database_unavailable", "Servicio no disponible temporalmente. Reintenta en unos segundos.",
+                True, forzar_json=wants_json)
+        except Exception:
+            logger.exception("agent_access_required: fallo interno al comprobar al usuario")
+            return respuesta_fallo_tecnico(
+                500, "internal_error", "Error interno al comprobar la sesión.", False, forzar_json=wants_json)
         if not user or not user.get("is_active"):
             session.clear()
             if wants_json:

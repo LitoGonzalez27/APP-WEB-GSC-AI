@@ -1864,7 +1864,7 @@
     </style>
 
     <!-- Scripts de sesión -->
-    <script src="{{ url_for('static', filename='js/session-status.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/session-status.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/session-manager.js') }}?v={{ ASSET_V }}"></script>
 </body>
 </html> 
