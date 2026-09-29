@@ -100,12 +100,7 @@ def _safe_notify_email(candidate):
     Solo se acepta el destinatario si pertenece a un dominio interno de confianza;
     en cualquier otro caso se usa el destinatario configurado por entorno.
     """
-    default = (
-        os.getenv('CRON_ALERTS_EMAIL')
-        or os.getenv('CRON_ALERT_EMAIL')
-        or os.getenv('MODEL_DISCOVERY_EMAIL')
-        or 'info@soycarlosgonzalez.com'
-    )
+    default = config.email_alertas_llm()
     allowed_domains = ('clicandseo.com', 'soycarlosgonzalez.com')
     val = (candidate or '').strip()
     if val and '@' in val and val.rsplit('@', 1)[-1].lower() in allowed_domains:

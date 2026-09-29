@@ -14,11 +14,13 @@ Dos nociones de entorno, a propósito:
   obligatoria, cookies seguras, modo depuración, cifrado de tokens, HTTP en
   OAuth, llamadas a SerpAPI sin usuario).
 - entorno_app() / es_produccion(): APP_ENV si está definida; si no, el entorno
-  de Railway; si no, 'development'. Decide comportamiento de negocio (modo de
-  Stripe, detalles en errores de checkout).
+  de Railway; si no, 'development'. Decide detalles en los errores de checkout
+  y los avisos de claves de Stripe en el log (el modo lo marcan las claves).
 
-Todo se lee al llamar, no al importar, igual que antes: los tests pueden
-cambiar las variables con monkeypatch.
+Las funciones leen el entorno cada vez que se llaman. Algunos módulos guardan
+el valor al importarse, igual que antes (quota_middleware._IS_DEPLOYED, la URL
+pública de los emails, la instancia de StripeConfig, railway_env en app.py y
+database.py): cambiar la variable después no les afecta.
 """
 
 import os
@@ -36,8 +38,10 @@ def entorno_railway():
 
 
 def desplegado():
-    """True en production y staging de Railway (barreras de seguridad)."""
-    return entorno_railway() in ('production', 'staging')
+    """True en cualquier entorno de Railway salvo uno llamado 'development'
+    (barreras de seguridad). Antes solo production y staging: un entorno con
+    otro nombre (una preview) quedaba con la clave de sesión de desarrollo."""
+    return entorno_railway() not in ('', 'development')
 
 
 def entorno_app():
@@ -95,6 +99,15 @@ def alertas_cron_activas():
 
 def email_alertas():
     return os.getenv('CRON_ALERTS_EMAIL', EMAIL_ALERTAS_POR_DEFECTO)
+
+
+def email_alertas_llm():
+    """Destinatario por defecto de los avisos de LLM Monitoring (watchdog y
+    modelos): CRON_ALERTS_EMAIL, CRON_ALERT_EMAIL, MODEL_DISCOVERY_EMAIL o el
+    de siempre. Igual que antes; hoy CRON_ALERTS_EMAIL está definida en los dos
+    entornos, así que coincide con email_alertas()."""
+    return (os.getenv('CRON_ALERTS_EMAIL') or os.getenv('CRON_ALERT_EMAIL')
+            or os.getenv('MODEL_DISCOVERY_EMAIL') or EMAIL_ALERTAS_POR_DEFECTO)
 
 
 # --- Otros ---------------------------------------------------------------------

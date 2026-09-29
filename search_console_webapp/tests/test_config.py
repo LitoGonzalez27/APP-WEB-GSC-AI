@@ -16,9 +16,9 @@ import config
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 VARIABLES = ("APP_ENV", "RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "CRON_TOKEN", "CRON_SECRET",
-             "CRON_ALERTS_ENABLED", "ENFORCE_QUOTAS")
-LECTURAS_PERMITIDAS = {  # (fichero, variable) -> motivo
-    ("diagnostic_endpoint.py", "ENFORCE_QUOTAS"): "muestra el valor tal cual ('not set' si falta)",
+             "CRON_ALERTS_ENABLED", "ENFORCE_QUOTAS", "CRON_ALERTS_EMAIL", "PUBLIC_BASE_URL")
+LECTURAS_PERMITIDAS = {  # (fichero, variable) -> (veces que aparece el nombre, motivo)
+    ("diagnostic_endpoint.py", "ENFORCE_QUOTAS"): (2, "muestra el valor tal cual ('not set' si falta)"),
 }
 
 
@@ -48,7 +48,9 @@ def test_entorno_app(entorno, app_env, railway_name, railway, esperado):
 
 
 @pytest.mark.parametrize("railway, desplegado", [
-    (None, False), ("production", True), ("staging", True), ("development", False), ("", False)])
+    (None, False), ("production", True), ("staging", True), ("development", False), ("", False),
+    ("pr-12", True),  # CAMBIADO: antes un entorno de Railway con otro nombre no se protegía
+])
 def test_desplegado_solo_depende_de_railway(entorno, railway, desplegado):
     entorno.setenv("APP_ENV", "production")  # APP_ENV no abre ni cierra barreras de seguridad
     if railway is not None:
@@ -112,6 +114,7 @@ def test_alertas_email_url_y_cuotas(entorno):
     assert config.email_alertas() == config.EMAIL_ALERTAS_POR_DEFECTO
     entorno.setenv("CRON_ALERTS_EMAIL", "alertas@example.invalid")
     assert config.email_alertas() == "alertas@example.invalid"
+    assert config.email_alertas_llm() == "alertas@example.invalid"
     assert config.url_publica() == "https://app.clicandseo.com"
     entorno.setenv("PUBLIC_BASE_URL", "https://staging.example.invalid/")
     assert config.url_publica() == "https://staging.example.invalid"
@@ -122,7 +125,10 @@ def test_alertas_email_url_y_cuotas(entorno):
 
 # --- guardia -----------------------------------------------------------------------
 
-def _lecturas_de_entorno():
+def _usos_de_nombres():
+    """Cualquier cadena literal igual a una variable vigilada fuera de config.py
+    (os.getenv('X'), os.environ['X'], constantes, 'X' in os.environ...). Las
+    docstrings no cuentan."""
     excluir = {"tests", "scripts", ".venv", "venv", "node_modules", "__pycache__", ".claude"}
     for p in sorted(RAIZ.rglob("*.py")):
         rel = p.relative_to(RAIZ)
@@ -132,18 +138,44 @@ def _lecturas_de_entorno():
             arbol = ast.parse(p.read_text(encoding="utf-8", errors="replace"))
         except SyntaxError:
             continue
+        docstrings = set()
         for nodo in ast.walk(arbol):
-            nombre = None
-            if isinstance(nodo, ast.Call) and ast.unparse(nodo.func) in ("os.getenv", "os.environ.get", "getenv", "environ.get"):
-                if nodo.args and isinstance(nodo.args[0], ast.Constant):
-                    nombre = nodo.args[0].value
-            elif isinstance(nodo, ast.Subscript) and ast.unparse(nodo.value) in ("os.environ", "environ"):
-                if isinstance(nodo.slice, ast.Constant):
-                    nombre = nodo.slice.value
-            if nombre in VARIABLES:
-                yield rel.as_posix(), nombre, nodo.lineno
+            if isinstance(nodo, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and nodo.body:
+                primero = nodo.body[0]
+                if isinstance(primero, ast.Expr) and isinstance(primero.value, ast.Constant):
+                    docstrings.add(id(primero.value))
+        for nodo in ast.walk(arbol):
+            if (isinstance(nodo, ast.Constant) and nodo.value in VARIABLES and id(nodo) not in docstrings):
+                yield rel.as_posix(), nodo.value, nodo.lineno
 
 
 def test_las_variables_de_entorno_solo_se_leen_en_config():
-    fuera = [f"{f}:{l} {v}" for f, v, l in _lecturas_de_entorno() if (f, v) not in LECTURAS_PERMITIDAS]
+    import collections
+    usos = collections.Counter((f, v) for f, v, _ in _usos_de_nombres())
+    fuera = sorted(f"{f} {v} ({n})" for (f, v), n in usos.items()
+                   if n != LECTURAS_PERMITIDAS.get((f, v), (0,))[0])
     assert not fuera, f"Lee estas variables con config.py (entorno_app, desplegado, cabecera_cron_valida...): {fuera}"
+
+
+@pytest.mark.parametrize("decorador", ["cron_or_auth_required", "cron_or_admin_required"])
+def test_con_token_valido_un_error_del_endpoint_es_500_y_se_ejecuta_una_vez(flask_app, monkeypatch, decorador):
+    # CAMBIADO: el try de los decoradores envolvía también al endpoint; un error
+    # suyo acababa en 401 "Authentication required" (y con sesión de admin, en
+    # cron_or_admin_required, se ejecutaba otra vez).
+    import auth
+    from flask import Flask
+
+    monkeypatch.setenv("CRON_TOKEN", "secreto-cron")
+    llamadas = []
+    app = Flask("prueba_cron")
+    app.config["PROPAGATE_EXCEPTIONS"] = False
+
+    @app.route("/x", methods=["POST"])
+    @getattr(auth, decorador)
+    def _endpoint():
+        llamadas.append(1)
+        raise RuntimeError("fallo del endpoint")
+
+    r = app.test_client().post("/x", headers={"Authorization": "Bearer secreto-cron", "Accept": "application/json"})
+    assert r.status_code == 500
+    assert llamadas == [1]

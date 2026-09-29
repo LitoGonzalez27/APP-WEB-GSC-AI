@@ -1851,7 +1851,7 @@ def ensure_sample_data():
                                si falta, se genera una aleatoria por arranque.
     """
     # 🔒 Nunca sembrar datos de prueba en entornos desplegados.
-    if is_production or is_staging:
+    if config.desplegado():
         logger.info("ensure_sample_data: entorno desplegado — no se crean datos de prueba")
         return True
 
