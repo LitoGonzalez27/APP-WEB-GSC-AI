@@ -282,6 +282,7 @@
             }
 
             if (urlParams.get('session_expired') === 'true')   showNotification('Tu sesión ha caducado. Inicia sesión de nuevo.', 'warning');
+            if (urlParams.get('user_not_found') === 'true')    showNotification('Tu cuenta ya no existe o se ha eliminado. Si crees que es un error, contacta con soporte.', 'warning');
             if (urlParams.get('auth_required') === 'true')     showNotification('Necesitas iniciar sesión para acceder.', 'info');
             if (urlParams.get('signup_success') === 'true')    showNotification('¡Cuenta creada! Ya puedes iniciar sesión.', 'success');
             if (urlParams.get('password_reset') === 'success') showNotification('Contraseña restablecida. Ya puedes iniciar sesión con la nueva.', 'success');
