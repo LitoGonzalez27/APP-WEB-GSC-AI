@@ -16,7 +16,8 @@ import config
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 VARIABLES = ("APP_ENV", "RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "CRON_TOKEN", "CRON_SECRET",
-             "CRON_ALERTS_ENABLED", "ENFORCE_QUOTAS", "CRON_ALERTS_EMAIL", "PUBLIC_BASE_URL")
+             "CRON_ALERTS_ENABLED", "ENFORCE_QUOTAS", "CRON_ALERTS_EMAIL", "PUBLIC_BASE_URL",
+             "CRON_ALERT_EMAIL", "MODEL_DISCOVERY_EMAIL")
 LECTURAS_PERMITIDAS = {  # (fichero, variable) -> (veces que aparece el nombre, motivo)
     ("diagnostic_endpoint.py", "ENFORCE_QUOTAS"): (2, "muestra el valor tal cual ('not set' si falta)"),
 }
@@ -48,8 +49,8 @@ def test_entorno_app(entorno, app_env, railway_name, railway, esperado):
 
 
 @pytest.mark.parametrize("railway, desplegado", [
-    (None, False), ("production", True), ("staging", True), ("development", False), ("", False),
-    ("pr-12", True),  # CAMBIADO: antes un entorno de Railway con otro nombre no se protegía
+    (None, False), ("production", True), ("staging", True), ("", False),
+    ("pr-12", True), ("development", True),  # CAMBIADO: antes un entorno de Railway con otro nombre no se protegía
 ])
 def test_desplegado_solo_depende_de_railway(entorno, railway, desplegado):
     entorno.setenv("APP_ENV", "production")  # APP_ENV no abre ni cierra barreras de seguridad
@@ -115,6 +116,9 @@ def test_alertas_email_url_y_cuotas(entorno):
     entorno.setenv("CRON_ALERTS_EMAIL", "alertas@example.invalid")
     assert config.email_alertas() == "alertas@example.invalid"
     assert config.email_alertas_llm() == "alertas@example.invalid"
+    assert config.email_modelo_activado() == config.EMAIL_ALERTAS_POR_DEFECTO
+    entorno.setenv("MODEL_DISCOVERY_EMAIL", "modelos@example.invalid")
+    assert config.email_modelo_activado() == "modelos@example.invalid"
     assert config.url_publica() == "https://app.clicandseo.com"
     entorno.setenv("PUBLIC_BASE_URL", "https://staging.example.invalid/")
     assert config.url_publica() == "https://staging.example.invalid"

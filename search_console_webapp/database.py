@@ -33,12 +33,7 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está configurada en el entorno")
 
-# Detectar si estamos en producción
-# Detección de entorno mejorada
-railway_env = config.entorno_railway()
-is_production = railway_env == 'production'
-is_staging = railway_env == 'staging'
-is_development = not railway_env or railway_env == 'development'
+# El entorno se decide en config.py (config.desplegado() para las barreras).
 
 
 # ============================================================================
