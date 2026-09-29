@@ -46,7 +46,7 @@ Este directorio contiene los módulos refactorizados del sistema Manual AI.
 ### manual-ai-utils.js (~200 líneas)
 ```javascript
 export const htmlLegendPlugin = { ... }
-export function escapeHtml(text) { ... }
+export function escapeHtml(text) { ... }   // delega en static/js/html-escape.js
 export function debounce(func, wait) { ... }
 export function getDomainLogoUrl(domain) { ... }
 export function isValidDomain(domain) { ... }

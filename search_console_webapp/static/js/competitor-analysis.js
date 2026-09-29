@@ -9,13 +9,8 @@
  * parsed AIO output and must never be interpolated raw into innerHTML.
  */
 function escapeHtmlAttr(unsafe) {
-    if (typeof unsafe !== 'string') return '';
-    return unsafe
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    // Conserva su comportamiento: lo que no es texto da ''.
+    return typeof unsafe === 'string' ? window.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 /**

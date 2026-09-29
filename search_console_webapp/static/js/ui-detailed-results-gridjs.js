@@ -3,6 +3,7 @@
    Tabla Grid.js para resultados detallados por keyword
    ============================================== */
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { openSerpModal } from './ui-serp-modal.js';
 
 /**
@@ -94,7 +95,7 @@ function processDetailedDataForGrid(keywordResults) {
                 const keyword = row.cells[1].data; // Keyword está en la segunda columna
                 return gridjs.html(`
                     <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
-                        <button class="serp-view-btn" onclick="window.openSerpModalFromGrid('${escapeForAttribute(keyword)}')">
+                        <button class="serp-view-btn" onclick="window.openSerpModalFromGrid(${globalThis.ClicandseoHtml.jsArg(keyword || '')})">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>

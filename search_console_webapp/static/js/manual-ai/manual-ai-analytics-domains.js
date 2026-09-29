@@ -4,6 +4,7 @@
  * Extraído verbatim de manual-ai-analytics.js (refactor Fase 4).
  */
 
+import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { getDomainLogoUrl } from './manual-ai-utils.js';
 
 // Local HTML escaper that also escapes quotes, safe for use inside
@@ -11,13 +12,8 @@ import { getDomainLogoUrl } from './manual-ai-utils.js';
 // escapeHtml in manual-ai-utils.js uses textContent→innerHTML and does NOT
 // escape quotes, so it is unsafe for attribute interpolation.
 function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return '';
-    return unsafe
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    // Conserva su comportamiento: lo que no es texto da ''.
+    return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 // ================================
@@ -79,7 +75,7 @@ export function renderTopDomains(domains) {
         const logoUrl = getDomainLogoUrl(domain.domain);
         
         const safeDomain = escapeHtml(domain.domain);
-        const safeDomainInitial = escapeHtml((domain.domain || '').charAt(0).toUpperCase());
+        const safeDomainInitial = escapeHtml((domain.domain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${index + 1}</td>
             <td class="domain-cell" title="${safeDomain}">
@@ -204,7 +200,7 @@ export function renderGlobalDomainsRanking(domains) {
         }
         
         const safeDetectedDomain = escapeHtml(domain.detected_domain);
-        const safeDetectedInitial = escapeHtml((domain.detected_domain || '').charAt(0).toUpperCase());
+        const safeDetectedInitial = escapeHtml((domain.detected_domain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${domain.rank}</td>
             <td class="domain-cell">

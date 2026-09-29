@@ -1,4 +1,5 @@
 // ui-render.js - ACTUALIZADO para manejar períodos específicos en lugar de meses
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { elems } from './utils.js';
 import {
   formatInteger,
@@ -1633,10 +1634,8 @@ export function updateGlobalKeywordData(keywordData) {
 
 // ✅ NUEVO: Función auxiliar para escapar HTML
 function escapeHtml(text) {
-  if (typeof text !== 'string') return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  // Conserva su comportamiento: lo que no es texto da ''.
+  return typeof text === 'string' ? globalThis.ClicandseoHtml.escapeHtml(text) : '';
 }
 
 // ✅ NUEVO: Hacer las funciones globales para que puedan ser llamadas desde onclick
@@ -1929,7 +1928,7 @@ function renderErrorState(modalBody, error) {
           </ul>
         </div>
         <div class="error-actions">
-          <button onclick="setTimeout(() => { openUrlKeywordsModal('${escapeHtml(error.url || '')}'); closeKeywordModal('url'); }, 60000);" class="btn btn-primary" style="margin-right: 0.5em;">
+          <button onclick="setTimeout(() => { openUrlKeywordsModal(${globalThis.ClicandseoHtml.jsArg(error.url || '')}); closeKeywordModal('url'); }, 60000);" class="btn btn-primary" style="margin-right: 0.5em;">
             <i class="fas fa-clock"></i> Retry in 1 minute
           </button>
           <button onclick="closeKeywordModal('url')" class="btn btn-secondary">
@@ -1955,7 +1954,7 @@ function renderErrorState(modalBody, error) {
           <pre style="background: #f8f9fa; padding: 1em; margin-top: 0.5em; border-radius: 3px; font-size: 0.85em; overflow: auto;">${error.message}</pre>
         </details>
         <div class="error-actions">
-          <button onclick="closeKeywordModal('url'); openUrlKeywordsModal('${escapeHtml(error.url || '')}');" class="btn btn-primary" style="margin-right: 0.5em;">
+          <button onclick="closeKeywordModal('url'); openUrlKeywordsModal(${globalThis.ClicandseoHtml.jsArg(error.url || '')});" class="btn btn-primary" style="margin-right: 0.5em;">
             <i class="fas fa-redo"></i> Try Again
           </button>
           <button onclick="closeKeywordModal('url')" class="btn btn-secondary">

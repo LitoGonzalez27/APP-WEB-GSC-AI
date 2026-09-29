@@ -1,5 +1,6 @@
 // ui-serp-modal.js — Código optimizado sin CSS inline (usa styles/serp-and-table.css)
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { MobileModalManager, isMobileDevice } from './utils.js';
 
 // Instancia global del gestor de modal robusto
@@ -30,13 +31,8 @@ window._serpShowToast = _serpShowToast;
 
 // --- Funciones auxiliares ---
 function escapeHtml(unsafe) {
-  if (typeof unsafe !== 'string') return '';
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  // Conserva su comportamiento: lo que no es texto da ''.
+  return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 function extractDomainJS(url) {
@@ -409,7 +405,7 @@ async function loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty) {
       const controls = document.createElement('div');
       controls.className = 'screenshot-controls';
       controls.innerHTML = `
-        <button class="btn btn-sm btn-outline-secondary" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(keyword)}', '_blank')">
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.open(${globalThis.ClicandseoHtml.jsArg('https://www.google.com/search?q=' + encodeURIComponent(keyword))}, '_blank')">
           <i class="fas fa-external-link-alt"></i> Open in Google
         </button>
         <button class="btn btn-sm btn-outline-info refresh-screenshot">
@@ -509,7 +505,6 @@ function _renderAIOPreviewTab(result) {
 
   // --- Domain status banner ---
   const keyword = result.keyword || '';
-  const safeKeyword = keyword.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
   html += `
     <div class="saio-status-banner ${isDomainSource ? 'saio-status-banner--cited' : 'saio-status-banner--not-cited'}">
@@ -526,7 +521,7 @@ function _renderAIOPreviewTab(result) {
     : 'Get recommendations to appear in AI Overview';
   html += `
     <div class="saio-cta-wrapper">
-      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { if(window._serpShowToast){window._serpShowToast('AI Recommendations not available. Run the AI Overview analysis first.','warning');}else{console.warn('AI Recommendations not available.');} }">
+      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal(${globalThis.ClicandseoHtml.jsArg(keyword)}); } else { if(window._serpShowToast){window._serpShowToast('AI Recommendations not available. Run the AI Overview analysis first.','warning');}else{console.warn('AI Recommendations not available.');} }">
         <i class="fas fa-lightbulb"></i>
         <span>${ctaText}</span>
         <i class="fas fa-arrow-right saio-cta-arrow"></i>
