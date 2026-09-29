@@ -163,6 +163,19 @@ Esto es lo que arregló el bug de los 7 usuarios atascados con `current_period_e
 
 Ambos quedan en logs como **🚨** para detectar clientes que pagaron pero podrían quedarse sin servicio.
 
+### Cancelación automática de la suscripción sustituida (desde 29-sep-2026)
+
+Orden de Carlos: con la suscripción en `past_due` el checkout deja contratar otra, y Stripe seguiría intentando cobrar la antigua (doble cobro).
+
+1. **Checkout** (`billing_routes.py`): si el usuario tiene `subscription_id`, la suscripción nueva se crea con `metadata.replaces_subscription = <la antigua>`.
+2. **Webhook** (`_cancelar_suscripcion_sustituida` en `stripe_webhooks.py`): cuando un `customer.subscription.created/updated` de la nueva queda `active`/`trialing` y ya está aplicado en BD, se consultan en vivo la nueva (debe estar activa y conservar la marca) y la antigua. La antigua se cancela solo si está en `past_due`, `unpaid` o `paused` y es anterior a la nueva. Al cancelar, Stripe deja de cobrar automáticamente sus facturas.
+3. **Nunca toca otras suscripciones** del cliente: solo la marcada. Renovaciones y cambios en el portal no llevan marca.
+4. **Se decide una vez**: después se quita la marca de la nueva y queda `metadata.replaced_subscription` como rastro.
+5. **Emails a `CRON_ALERTS_EMAIL`** (siempre, aunque `CRON_ALERTS_ENABLED=false`): cada cancelación; si la antigua sigue pagando (no se cancela: posible doble cobro); si otra suscripción nueva ya la había sustituido (dos checkouts); y cada fallo (se conserva la marca y se reintenta con el siguiente evento de la nueva). Nunca rompe el webhook ni pide reintento a Stripe.
+6. **Interruptor**: `STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS=false` la desactiva sin desplegar.
+
+Tests: `tests/test_char_stripe_webhooks.py` (sección 8) y `tests/test_checkout_sustitucion.py`.
+
 ---
 
 ## 5. Sistema de cuotas
