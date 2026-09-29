@@ -19,9 +19,7 @@
     var DISMISS_KEY = 'pendingInvitationsBannerDismissed';
 
     function esc(value) {
-        var div = document.createElement('div');
-        div.textContent = String(value == null ? '' : value);
-        return div.innerHTML;
+        return window.ClicandseoHtml.escapeHtml(value);
     }
 
     function injectStyles() {

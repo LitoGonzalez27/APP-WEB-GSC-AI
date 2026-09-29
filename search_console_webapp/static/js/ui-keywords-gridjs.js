@@ -1,5 +1,6 @@
 // static/js/ui-keywords-gridjs.js - Tabla Grid.js para Keywords del panel principal
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
 // =============================
@@ -1251,15 +1252,7 @@ function displayErrorMessage(container) {
  * Escapa HTML para prevenir XSS
  */
 function escapeHtmlLocal(text) {
-    const safeText = String(text || '');
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return safeText.replace(/[&<>"']/g, m => map[m]);
+    return globalThis.ClicandseoHtml.escapeHtml(text || '');
 }
 
 /**

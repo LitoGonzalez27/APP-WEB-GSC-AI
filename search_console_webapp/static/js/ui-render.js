@@ -1,4 +1,5 @@
 // ui-render.js - ACTUALIZADO para manejar períodos específicos en lugar de meses
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { elems } from './utils.js';
 import {
   formatInteger,
@@ -1633,10 +1634,8 @@ export function updateGlobalKeywordData(keywordData) {
 
 // ✅ NUEVO: Función auxiliar para escapar HTML
 function escapeHtml(text) {
-  if (typeof text !== 'string') return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  // Conserva su comportamiento: lo que no es texto da ''.
+  return typeof text === 'string' ? globalThis.ClicandseoHtml.escapeHtml(text) : '';
 }
 
 // ✅ NUEVO: Hacer las funciones globales para que puedan ser llamadas desde onclick

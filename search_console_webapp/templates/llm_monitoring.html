@@ -1880,6 +1880,7 @@
          Orden: la clase base PRIMERO, luego los mixins (Object.assign al prototipo). Todos cargan
          de forma síncrona antes del DOMContentLoaded que instancia window.llmMonitoring. -->
     <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/html-escape.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-core.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-projects.js') }}?v={{ ASSET_V }}"></script>
     <script src="{{ url_for('static', filename='js/llm_monitoring/llm-monitoring-prompts.js') }}?v={{ ASSET_V }}"></script>

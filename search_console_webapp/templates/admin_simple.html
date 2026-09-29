@@ -511,6 +511,7 @@
             .revenue-plans { margin-left: 0; }
         }
     </style>
+    <script src="{{ url_for('static', filename='js/html-escape.js') }}?v={{ ASSET_V }}"></script>
 </head>
 
 <body>
@@ -2411,9 +2412,7 @@
         const PROJECT_LIMIT_MODULE_ORDER = ['manual_ai', 'ai_mode', 'llm_monitoring'];
 
         function escapeHtmlAdmin(value) {
-            return String(value ?? '').replace(/[&<>"']/g, (c) => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[c]));
+            return window.ClicandseoHtml.escapeHtml(value);
         }
 
         // Búsqueda web por proyecto LLM (services/llm_monitoring/search_settings.py)
@@ -2731,7 +2730,7 @@
             const fmtUsd = (v, dec) => '$' + Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec ?? 2, maximumFractionDigits: dec ?? 2 });
             const fmtEur = (v, dec) => Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec ?? 2, maximumFractionDigits: dec ?? 2 }) + ' €';
             const fmtInt = (v) => Number(v || 0).toLocaleString('es-ES');
-            const esc = (t) => { const d = document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; };
+            const esc = (t) => window.ClicandseoHtml.escapeHtml(t);
 
             let COSTS = null;
 

@@ -1,5 +1,6 @@
 // ui-serp-modal.js — Código optimizado sin CSS inline (usa styles/serp-and-table.css)
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { MobileModalManager, isMobileDevice } from './utils.js';
 
 // Instancia global del gestor de modal robusto
@@ -30,13 +31,8 @@ window._serpShowToast = _serpShowToast;
 
 // --- Funciones auxiliares ---
 function escapeHtml(unsafe) {
-  if (typeof unsafe !== 'string') return '';
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  // Conserva su comportamiento: lo que no es texto da ''.
+  return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 function extractDomainJS(url) {

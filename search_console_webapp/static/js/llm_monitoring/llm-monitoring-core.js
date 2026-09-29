@@ -1425,17 +1425,12 @@ formatDate(dateStr) {
     },
 
 escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return window.ClicandseoHtml.escapeHtml(text);
     },
 
 escapeAttr(text) {
-        // escapeHtml (textContent trick) does NOT escape quotes, which can break
-        // out of an HTML attribute. Escape quotes too for attribute-value contexts.
-        return this.escapeHtml(text)
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        // escapeHtml ya escapa comillas (html-escape.js): vale para atributos.
+        return this.escapeHtml(text);
     },
 
 showError(message) {
