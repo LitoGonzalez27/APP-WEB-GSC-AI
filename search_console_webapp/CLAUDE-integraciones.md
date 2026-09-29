@@ -270,14 +270,16 @@ Scopes en `auth.py:117-121`. Multi-cuenta soportado.
 
 ### Container ID
 
-**`GTM-NXJS74ZQ`** (hardcoded en plantillas).
+**`GTM-NXJS74ZQ`**, en una sola copia: `templates/partials/gtm_head.html` y `gtm_body.html` (sep-2026).
 
 ### Para qué
 
-Contenedor único de GTM cargado en TODAS las páginas relevantes:
-- `index.html`, `dashboard.html`, `landing.html`.
+Contenedor único de GTM, incluido en 12 páginas (lista vigilada por `tests/test_plantillas_comunes.py`):
+- `index.html`, `dashboard.html`, `landing.html`, `user_profile.html`, `ai_summary.html`.
 - `login.html`, `signup.html`, `forgot_password.html`, `reset_password.html`.
 - `manual_ai_dashboard.html`, `ai_mode_dashboard.html`, `llm_monitoring.html`.
+
+Sin GTM: `billing_success.html` (éxito del checkout: si la conversión se mide por GTM, esa página no la registra), `admin_simple.html`, `admin_billing.html`, `project_access.html` y `mobile_error.html`.
 
 Carga `gtm.js` y noscript-iframe `ns.html` estándar.
 
@@ -285,7 +287,7 @@ Carga `gtm.js` y noscript-iframe `ns.html` estándar.
 
 Tracking front-end. Lo que se haga dentro (GA4, Hotjar, etc.) está configurado **dentro de GTM**, no en código. La app **no envía `dataLayer.push` específicos** detectables; es GTM "vanilla loader" en cada template.
 
-> ⚠️ **El ID está hardcoded en 10 templates**. Si se cambia el container, hay que tocar todos los archivos. Podría centralizarse en una variable de Flask context processor.
+> Para cambiar de contenedor basta con tocar las dos piezas de `templates/partials/`.
 
 ---
 
@@ -604,7 +606,7 @@ Lo que existe es indirecto vía mocks.
 2. **Sin wrapper HTTP común**: cada integración tiene su propio retry/timeout. SerpAPI y LLMs los más sofisticados (5 capas).
 3. **Solo Stripe es webhook entrante.** La app no recibe callbacks de ningún otro servicio.
 4. **No hay API pública**: todos los endpoints están detrás de sesión Flask o Bearer `CRON_TOKEN`.
-5. **GTM `GTM-NXJS74ZQ` hardcoded en 10 plantillas** — deuda.
+5. **GTM `GTM-NXJS74ZQ` en una sola copia** (`templates/partials/`, 12 páginas); `billing_success.html` no lo carga.
 6. **AI Mode salta el quota middleware** de SerpAPI (lee `SERPAPI_API_KEY` directo) — verificar si es intencional.
 7. **Brevo, Jina, reCAPTCHA, GSC sin reintentos** — fallo único = error definitivo.
 8. **Copia local de variables de staging con secretos en plano** (nunca commiteada) — movida al vault el 27-sep-2026. Pendiente rotar SerpAPI y el client secret de Google tras desplegar la fase 0.
