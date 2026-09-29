@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import config
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -411,8 +412,7 @@ def _build_invitation_link(raw_token: str) -> str:
     base_url = (
         _get_request_base_url()
         or os.getenv("PROJECT_INVITATION_BASE_URL")
-        or os.getenv("PUBLIC_BASE_URL")
-        or "https://app.clicandseo.com"
+        or config.url_publica()
     ).rstrip("/")
     return f"{base_url}/project-invitations/accept?token={raw_token}"
 

@@ -107,8 +107,8 @@ def user_has_access(user):
 
 
 def _agent_url():
-    import os
-    base = (os.getenv("PUBLIC_BASE_URL") or "https://app.clicandseo.com").rstrip("/")
+    import config
+    base = config.url_publica()
     return f"{base}/agent/"
 
 

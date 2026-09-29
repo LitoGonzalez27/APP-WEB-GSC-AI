@@ -2,6 +2,7 @@
 
 import copy
 import os
+import config
 import json
 import urllib.request
 import urllib.parse
@@ -75,7 +76,7 @@ load_dotenv()
 # Relajar validación de scopes en todos los entornos
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 # Permitir HTTP solo en desarrollo local (NUNCA en producción/staging)
-if not os.getenv('RAILWAY_ENVIRONMENT'):
+if not config.entorno_railway():
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 logger = logging.getLogger(__name__)
@@ -452,16 +453,10 @@ def cron_or_auth_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # 1) Intentar autenticar por token de cron
-        try:
-            auth_header = request.headers.get('Authorization', '') or ''
-            token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
-            cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
-            if cron_secret and token and secrets.compare_digest(token, cron_secret):
-                return f(*args, **kwargs)
-        except Exception:
-            # En caso de cualquier problema con el header, continuar con auth normal
-            pass
+        # 1) Token de cron. cabecera_cron_valida() nunca lanza; el try que había
+        #    envolvía también al endpoint, y un error suyo acababa en un 401 falso.
+        if config.cabecera_cron_valida(request.headers.get('Authorization')):
+            return f(*args, **kwargs)
 
         # 2) Fallback a autenticación habitual
         return auth_required(f)(*args, **kwargs)
@@ -478,15 +473,10 @@ def cron_or_admin_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # 1) Intentar autenticar por token de cron (comparación en tiempo constante)
-        try:
-            auth_header = request.headers.get('Authorization', '') or ''
-            token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
-            cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
-            if cron_secret and token and secrets.compare_digest(token, cron_secret):
-                return f(*args, **kwargs)
-        except Exception:
-            pass
+        # 1) Token de cron (comparación en tiempo constante; nunca lanza). Sin try:
+        #    un error del endpoint no debe convertirse en 401 ni repetir la ejecución.
+        if config.cabecera_cron_valida(request.headers.get('Authorization')):
+            return f(*args, **kwargs)
 
         # 2) Fallback: exigir privilegios de administrador (no basta con estar logueado)
         return admin_required(f)(*args, **kwargs)
