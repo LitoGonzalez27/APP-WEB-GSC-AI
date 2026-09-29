@@ -124,6 +124,16 @@ class TestSchemaCheck:
         assert fanout_store.fanout_schema_available(get_conn)
         assert get_conn.call_count == 2
 
+    def test_first_check_happens_on_a_freshly_booted_machine(self):
+        # time.monotonic() cuenta desde el arranque: en una máquina recién
+        # arrancada (CI, contenedor nuevo) vale menos que SCHEMA_RECHECK_SECONDS.
+        # La primera comprobación debe hacerse igualmente (antes se daba por
+        # ausente sin consultar durante 5 minutos).
+        get_conn = MagicMock(return_value=self._conn(True))
+        with patch('services.llm_monitoring.schema_check.time.monotonic', return_value=12.0):
+            assert fanout_store.fanout_schema_available(get_conn)
+        assert get_conn.call_count == 1
+
     def test_query_error_counts_as_missing(self):
         conn = MagicMock()
         conn.cursor.return_value.execute.side_effect = RuntimeError('boom')
