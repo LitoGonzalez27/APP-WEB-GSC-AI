@@ -196,7 +196,7 @@ Dos funciones, una sola implementación:
 Sustituye a ~25 copias de `escapeHtml`. Fallos cerrados:
 - Las copias del truco del DOM (`textContent` → `innerHTML`) no escapaban comillas.
 - Los nombres de cluster de Manual AI y AI Mode iban a `title="..."` escapando solo `< >`.
-- En `onclick`, los botones de SERP (palabras clave y URLs de Search Console), las recomendaciones de AI Overview, "Reintentar" de URLs, los chips de sugerencias de LLM Monitoring y pausar/reanudar/borrar/editar proyectos. Todos se rompían con un apóstrofo (por ejemplo «mcdonald's menu» o las sugerencias en francés) o permitían inyectar código con comillas o `&quot;`.
+- En `onclick`, los botones de SERP (palabras clave y URLs de Search Console), «Open in Google», las recomendaciones de AI Overview, "Reintentar" de URLs, los chips de sugerencias de LLM Monitoring, pausar/reanudar/borrar/editar proyectos y abrir el dominio del proyecto o de un competidor (`sanitizeUrlForJsString` no bastaba: `encodeURI` deja pasar `&`, `#`, `;`, `(` y `)`; se ha eliminado). Todos se rompían con un apóstrofo (por ejemplo «mcdonald's menu» o las sugerencias en francés) o permitían inyectar código con comillas o `&quot;`.
 - El panel de movimientos de Search Console metía consultas y URLs en el HTML sin escapar.
 
 - **Módulos ES**: `import './html-escape.js';` (o `../html-escape.js`) solo por efecto, y `globalThis.ClicandseoHtml...`. Los que exportaban `escapeHtml` (`manual-ai-utils.js`, `ai-mode-utils.js`, `ui-ai-overview-utils.js`, `number-utils.js`) lo siguen exportando y delegan.

@@ -107,7 +107,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
                 return gridjs.html(`
                     <button
                         class="serp-view-btn"
-                        onclick="window.aiOverviewGrid.openSerpModal(${globalThis.ClicandseoHtml.jsArg(keyword)})"
+                        onclick="window.aiOverviewGrid.openSerpModal(${globalThis.ClicandseoHtml.jsArg(keyword || '')})"
                         title="View SERP"
                     >
                         <i class="fas fa-search"></i>
@@ -127,7 +127,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
                     <button
                         class="aio-rec-trigger-btn ${cached ? 'aio-rec-trigger-btn--cached' : ''}"
                         data-keyword="${globalThis.ClicandseoHtml.escapeHtml(keyword)}"
-                        onclick="window.aiOverviewGrid.openRecommendationsModal(${globalThis.ClicandseoHtml.jsArg(keyword)})"
+                        onclick="window.aiOverviewGrid.openRecommendationsModal(${globalThis.ClicandseoHtml.jsArg(keyword || '')})"
                         title="Get AI Recommendations"
                     >
                         <i class="fas fa-lightbulb"></i>

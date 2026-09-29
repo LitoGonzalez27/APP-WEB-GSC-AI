@@ -332,7 +332,7 @@ export function renderTopUrlsRanking(urls) {
         const safeFullUrl = escapeHtml(urlData.url);
         const safeDisplayUrl = escapeHtml(displayUrl);
         const safeUrlDomain = escapeHtml(urlDomain);
-        const safeUrlDomainInitial = escapeHtml((urlDomain || '').charAt(0).toUpperCase());
+        const safeUrlDomainInitial = escapeHtml((urlDomain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${urlData.rank}</td>
             <td class="url-cell">
