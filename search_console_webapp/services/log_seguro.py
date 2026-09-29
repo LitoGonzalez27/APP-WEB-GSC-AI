@@ -28,7 +28,10 @@ PARAMETROS_SECRETOS = (
     'client_secret', 'password', 'secret', 'api_key', 'key', 'email',
 )
 MARCA = '[oculto]'
-_NIVELES_DE_CODIFICACION = 3
+_NIVELES_DE_CODIFICACION = 10
+# Werkzeug deja %0A, %1B... sin decodificar a propósito: al decodificar hay que
+# volver a escaparlos o una URL podría meter líneas falsas (o colores ANSI) en el log.
+_CONTROL = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 
 _PATRON = re.compile(
     r'([?&](?:%s)=)[^&\s"\']+' % '|'.join(PARAMETROS_SECRETOS), re.IGNORECASE)
@@ -36,6 +39,10 @@ _PATRON = re.compile(
 
 def _ocultar(texto):
     return _PATRON.sub(lambda m: m.group(1) + MARCA, texto)
+
+
+def _sin_controles(texto):
+    return _CONTROL.sub(lambda m: '\\x%02x' % ord(m.group()), texto)
 
 
 def ocultar_secretos_en_url(texto):
@@ -51,7 +58,7 @@ def ocultar_secretos_en_url(texto):
             break
         limpio = _ocultar(decodificado)
         if limpio != decodificado:
-            resultado = limpio
+            resultado = _sin_controles(limpio)
         actual = limpio
     return resultado
 

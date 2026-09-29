@@ -13,10 +13,11 @@ Heurística (por nombre de función, en todo el código vivo):
   o llama, a cualquier profundidad, a una función que lo hace;
 - lee el usuario de la sesión: llama a una de las funciones de arriba o, a
   cualquier profundidad, a una función que lo hace;
-- "después": más abajo en la función, o dentro de un bucle que también escribe.
-Las rutas (@...route) no cuentan como destino de llamada: nadie las llama por su
-nombre, y así un método homónimo (service.analyze_project) no se confunde con la
-ruta analyze_project.
+- "después": más abajo en la función, o dentro de un bucle que también escribe;
+  el SQL escrito en la propia función cuenta como escritura en su línea.
+En las llamadas por atributo (service.analyze_project) las rutas no cuentan como
+destino, para no confundir un método con una ruta homónima; en las llamadas por
+nombre simple, sí.
 """
 
 import ast
@@ -35,8 +36,8 @@ PERMITIDAS = {
     "app.py:analyze_ai_overview_route": "solo usa el id para guardar el análisis y registrar la cuota",
     "auth.py:toggle_user_status": "solo usa el id del admin para el registro de auditoría",
     "auth.py:update_user_role_route": "solo usa el id del admin para el registro de auditoría",
-    "auth.py:admin_users": "la escritura son datos de ejemplo (no el admin); la plantilla usa su nombre y rol",
-    "auth.py:auth_callback": "create_user va en la rama de login; la lectura, en la de vincular, y solo usa el id",
+    "auth.py:admin_users": "la escritura son usuarios de ejemplo (desactivada en Railway); la plantilla solo usa el id",
+    "auth.py:auth_callback": "create_user y los UPDATE van en la rama de registro; la lectura, en la de vincular, y solo usa el id",
     "billing_routes.py:billing_checkout": "escribe stripe_customer_id; después solo mira el rol (is_user_admin)",
     "manual_ai/services/cron_service.py:_process_projects":
         "cron sin petición: run_project_analysis recibe user_id y lee con get_user_by_id",
@@ -75,42 +76,58 @@ def _propios(funcion):
 def _analizar():
     datos = []
     for ruta, f in _funciones():
-        llamadas, textos = [], []
+        llamadas, sql = [], []
         for nodo, bucles in _propios(f):
             if isinstance(nodo, ast.Call):
                 fn = nodo.func
                 nombre = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", None)
                 if nombre:
-                    llamadas.append((nombre, nodo.lineno, bucles))
+                    llamadas.append((nombre, nodo.lineno, bucles, isinstance(fn, ast.Attribute)))
             elif isinstance(nodo, ast.Constant) and isinstance(nodo.value, str):
-                textos.append(nodo.value)
-        escribe = any(SQL_ESCRIBE_USERS.search(" ".join(t.split())) for t in textos)
+                if SQL_ESCRIBE_USERS.search(" ".join(nodo.value.split())):
+                    sql.append((nodo.lineno, bucles))
         es_ruta = any("route(" in ast.unparse(d) for d in f.decorator_list)
-        datos.append((ruta, f.name, llamadas, escribe, es_ruta))
+        datos.append((ruta, f.name, llamadas, sql, es_ruta))
     return datos
 
 
 def _cierre(datos, semilla):
-    conjunto = set(semilla)
+    """Nombres de las funciones que cumplen la propiedad (directamente o a
+    través de otras). Devuelve (todas, sin_rutas): por nombre simple se usa la
+    primera; por atributo, la segunda."""
+    base = {(nombre, es_ruta) for _, nombre, _, _, es_ruta in datos if nombre in semilla}
+    todas = set(semilla) | {n for n, _ in base}
+    sin_rutas = set(semilla) | {n for n, es_ruta in base if not es_ruta}
     while True:
-        nuevas = {nombre for _, nombre, llamadas, _, es_ruta in datos
-                  if not es_ruta and nombre not in conjunto and any(n in conjunto for n, *_ in llamadas)}
+        nuevas = [(nombre, es_ruta) for _, nombre, llamadas, _, es_ruta in datos
+                  if (nombre not in todas or (not es_ruta and nombre not in sin_rutas))
+                  and any(_llama_a(c, todas, sin_rutas) for c in llamadas)]
         if not nuevas:
-            return conjunto
-        conjunto |= nuevas
+            return todas, sin_rutas
+        for nombre, es_ruta in nuevas:
+            todas.add(nombre)
+            if not es_ruta:
+                sin_rutas.add(nombre)
+
+
+def _llama_a(llamada, todas, sin_rutas):
+    nombre, _linea, _bucles, por_atributo = llamada
+    return nombre in (sin_rutas if por_atributo else todas)
 
 
 def _sospechosas():
     datos = _analizar()
-    escritoras = _cierre(datos, {nombre for _, nombre, _, escribe, es_ruta in datos if escribe and not es_ruta})
+    escritoras = _cierre(datos, {nombre for _, nombre, _, sql, _ in datos if sql})
     lectoras = _cierre(datos, LECTORAS_BASE)
     resultado = {}
-    for ruta, nombre, llamadas, _, _ in datos:
-        escrituras = [(l, set(b)) for n, l, b in llamadas if n in escritoras]
-        for n, l, b in llamadas:
-            if n in lectoras and any(le < l or (set(b) & be) for le, be in escrituras):
+    for ruta, nombre, llamadas, sql, _ in datos:
+        escrituras = [(l, set(b)) for l, b in sql]
+        escrituras += [(c[1], set(c[2])) for c in llamadas if _llama_a(c, *escritoras)]
+        for c in llamadas:
+            _n, l, b, _a = c
+            if _llama_a(c, *lectoras) and any(le < l or (set(b) & be) for le, be in escrituras):
                 resultado.setdefault(f"{ruta}:{nombre}", l)
-    return resultado, escritoras, lectoras
+    return resultado, escritoras[0], lectoras[0]
 
 
 def test_la_heuristica_ve_lo_que_debe():

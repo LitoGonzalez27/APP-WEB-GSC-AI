@@ -123,3 +123,22 @@ def test_importar_la_app_instala_el_filtro(flask_app):
     resultado = subprocess.run([sys.executable, "-c", codigo], cwd=os.path.dirname(os.path.dirname(__file__)),
                                env=dict(os.environ), capture_output=True, text=True, timeout=120)
     assert resultado.returncode == 0, resultado.stderr[-2000:]
+
+
+@pytest.mark.parametrize("control", ["%0A", "%0D%0A", "%1B%5B31m", "%00", "%C2%85"])
+def test_al_decodificar_no_se_pueden_meter_lineas_ni_colores(control):
+    # Werkzeug deja estos caracteres codificados; al decodificar para buscar el
+    # secreto hay que volver a escaparlos (antes de esta corrección, una URL con
+    # %0A y un token codificado metía una línea falsa en el log).
+    linea = f"GET /login?a={control}2026-09-29 00:00:00,000 - auth - WARNING - falsa&next=%2Fx%3Ftoken%3DZ HTTP/1.1"
+    resultado = ocultar_secretos_en_url(linea)
+    assert f"token={MARCA}" in resultado
+    assert not any(ord(c) < 0x20 or 0x7f <= ord(c) <= 0x9f for c in resultado), repr(resultado)
+
+
+def test_muchos_niveles_de_codificacion():
+    from urllib.parse import quote
+    url = "/reset-password?token=SECRETO"
+    for _ in range(6):
+        url = quote(url, safe="")
+    assert "SECRETO" not in ocultar_secretos_en_url(f"GET /x?next={url} HTTP/1.1")
