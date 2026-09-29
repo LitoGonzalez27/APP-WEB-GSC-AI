@@ -2199,9 +2199,6 @@
             let total = 0;
             let active = 0;
             let inactive = 0;
-            let today = 0;
-
-            const todayDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
             userRows.forEach(row => {
                 // Ignorar si es la row de "no users"
@@ -2213,21 +2210,16 @@
                 const statusBadge = row.querySelector('.status-container .badge');
                 if (statusBadge.classList.contains('active')) active++;
                 else inactive++;
-
-                // Fecha: columna de Registro (índice 5 visual), tomar primera línea
-                const dateTd = row.querySelectorAll('td')[5];
-                const dateText = dateTd.textContent.trim().split('\n')[0].trim();
-
-                if (dateText === todayDate) today++;
             });
 
-            // Actualizar stats cards (en orden: total, active, inactive, today)
+            // Actualizar stats cards (en orden: total, active, inactive). La cuarta
+            // tarjeta es "De pago" y la calcula el servidor: antes este script la
+            // sobrescribía con los registros de hoy (era la tarjeta "Hoy").
             const statNumbers = document.querySelectorAll('.stat-number');
-            if (statNumbers.length >= 4) {
+            if (statNumbers.length >= 3) {
                 statNumbers[0].textContent = total;
                 statNumbers[1].textContent = active;
                 statNumbers[2].textContent = inactive;
-                statNumbers[3].textContent = today;
             }
         });
 

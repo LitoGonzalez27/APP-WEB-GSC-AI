@@ -697,9 +697,13 @@ def get_user_billing_details(user_id):
         except:
             user_dict['usage_history'] = []
         
-        # Calcular estadísticas
-        if user_dict['quota_limit'] > 0:
-            user_dict['quota_percentage'] = round((user_dict['quota_used'] / user_dict['quota_limit']) * 100, 1)
+        # Calcular estadísticas. quota_limit y quota_used pueden ser NULL (p. ej.
+        # enterprise con cuota a medida): antes saltaba TypeError y el modal "Ver"
+        # respondía "Usuario no encontrado".
+        _limite = user_dict.get('quota_limit') or 0
+        _usado = user_dict.get('quota_used') or 0
+        if _limite > 0:
+            user_dict['quota_percentage'] = round((_usado / _limite) * 100, 1)
         else:
             user_dict['quota_percentage'] = 0
 
