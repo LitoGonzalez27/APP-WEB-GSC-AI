@@ -1,5 +1,6 @@
 // static/js/ui-urls-gridjs.js - Tabla Grid.js para URLs del panel principal
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
 /**
@@ -104,7 +105,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
                     <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
                         <button 
                             class="serp-view-btn" 
-                            onclick="window.urlsGrid.openKeywordsModal('${escapeForAttribute(url)}')"
+                            onclick="window.urlsGrid.openKeywordsModal(${globalThis.ClicandseoHtml.jsArg(url || '')})"
                             title="Ver keywords para esta URL"
                         >
                             <i class="fas fa-list"></i>

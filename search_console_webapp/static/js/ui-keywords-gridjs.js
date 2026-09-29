@@ -1014,7 +1014,7 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
                 const keyword = row.cells[1].data; // Obtener keyword de la columna siguiente
                 return gridjs.html(`
                     <button class="serp-btn" 
-                            onclick="window.keywordsGrid.openSerpModal('${escapeForAttribute(keyword)}')"
+                            onclick="window.keywordsGrid.openSerpModal(${globalThis.ClicandseoHtml.jsArg(keyword || '')})"
                             title="View SERP for: ${escapeForAttribute(keyword)}">
                         <i class="fas fa-search"></i>
                     </button>

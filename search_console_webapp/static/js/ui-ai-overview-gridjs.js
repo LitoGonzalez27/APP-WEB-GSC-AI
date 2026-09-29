@@ -1,5 +1,6 @@
 // static/js/ui-ai-overview-gridjs.js - Tabla Grid.js para análisis detallado de AI Overview
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { openSerpModal } from './ui-serp-modal.js';
 import { openRecommendationsModal, hasRecommendationsCache } from './ui-aio-recommendations-modal.js';
 
@@ -106,7 +107,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
                 return gridjs.html(`
                     <button
                         class="serp-view-btn"
-                        onclick="window.aiOverviewGrid.openSerpModal('${keyword.replace(/'/g, "\\'")}')"
+                        onclick="window.aiOverviewGrid.openSerpModal(${globalThis.ClicandseoHtml.jsArg(keyword)})"
                         title="View SERP"
                     >
                         <i class="fas fa-search"></i>
@@ -125,8 +126,8 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
                 return gridjs.html(`
                     <button
                         class="aio-rec-trigger-btn ${cached ? 'aio-rec-trigger-btn--cached' : ''}"
-                        data-keyword="${keyword}"
-                        onclick="window.aiOverviewGrid.openRecommendationsModal('${keyword.replace(/'/g, "\\'")}')"
+                        data-keyword="${globalThis.ClicandseoHtml.escapeHtml(keyword)}"
+                        onclick="window.aiOverviewGrid.openRecommendationsModal(${globalThis.ClicandseoHtml.jsArg(keyword)})"
                         title="Get AI Recommendations"
                     >
                         <i class="fas fa-lightbulb"></i>

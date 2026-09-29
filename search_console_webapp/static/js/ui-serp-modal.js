@@ -505,7 +505,6 @@ function _renderAIOPreviewTab(result) {
 
   // --- Domain status banner ---
   const keyword = result.keyword || '';
-  const safeKeyword = keyword.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
   html += `
     <div class="saio-status-banner ${isDomainSource ? 'saio-status-banner--cited' : 'saio-status-banner--not-cited'}">
@@ -522,7 +521,7 @@ function _renderAIOPreviewTab(result) {
     : 'Get recommendations to appear in AI Overview';
   html += `
     <div class="saio-cta-wrapper">
-      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { if(window._serpShowToast){window._serpShowToast('AI Recommendations not available. Run the AI Overview analysis first.','warning');}else{console.warn('AI Recommendations not available.');} }">
+      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal(${globalThis.ClicandseoHtml.jsArg(keyword)}); } else { if(window._serpShowToast){window._serpShowToast('AI Recommendations not available. Run the AI Overview analysis first.','warning');}else{console.warn('AI Recommendations not available.');} }">
         <i class="fas fa-lightbulb"></i>
         <span>${ctaText}</span>
         <i class="fas fa-arrow-right saio-cta-arrow"></i>

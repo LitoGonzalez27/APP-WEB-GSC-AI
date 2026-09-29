@@ -470,7 +470,7 @@ renderQuickSuggestions(suggestions) {
         uniqueSuggestions.forEach((suggestion, idx) => {
             const truncated = suggestion.length > 50 ? suggestion.substring(0, 47) + '...' : suggestion;
             html += `
-                <div class="suggestion-chip" onclick="window.llmMonitoring.addSuggestionToTextarea('${this.escapeHtml(suggestion).replace(/'/g, "\\'")}')">
+                <div class="suggestion-chip" onclick="window.llmMonitoring.addSuggestionToTextarea(${window.ClicandseoHtml.jsArg(suggestion)})">
                     <span class="chip-text" title="${this.escapeHtml(suggestion)}">${this.escapeHtml(truncated)}</span>
                     <i class="fas fa-plus chip-add-icon"></i>
                 </div>

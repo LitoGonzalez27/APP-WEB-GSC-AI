@@ -6,9 +6,8 @@
 import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { getDomainLogoUrl, isValidDomain } from './manual-ai-utils.js';
 
-// Local HTML escaper that also escapes quotes, safe for use inside
-// double-quoted HTML attributes (mirrors ui-serp-modal.js). The shared
-// escapeHtml in manual-ai-utils.js does NOT escape quotes.
+// Escape local: delega en html-escape.js (escapa también comillas, válido en
+// atributos) y conserva su comportamiento con lo que no es texto ('').
 function escapeHtml(unsafe) {
     // Conserva su comportamiento: lo que no es texto da ''.
     return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';

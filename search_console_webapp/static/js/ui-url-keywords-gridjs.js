@@ -1,5 +1,6 @@
 // static/js/ui-url-keywords-gridjs.js - Grid.js para modal de keywords por URL
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { openSerpModal } from './ui-serp-modal.js';
 import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
@@ -133,7 +134,7 @@ function processKeywordsDataForGrid(keywordsData, hasComparison) {
                     <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
                         <button 
                             class="serp-view-btn" 
-                            onclick="window.urlKeywordsGrid.openSerpModal('${escapeForAttribute(keyword)}')"
+                            onclick="window.urlKeywordsGrid.openSerpModal(${globalThis.ClicandseoHtml.jsArg(keyword || '')})"
                             title="View SERP"
                         >
                             <i class="fas fa-search"></i>

@@ -126,7 +126,7 @@ async loadProjects() {
 renderProjectCard(project, container) {
         const card = document.createElement('div');
         card.className = 'project-card';
-        const safeProjectName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
+        const safeProjectName = window.ClicandseoHtml.jsArg(project.name || '');  // también escapa &
         const competitorCount = Array.isArray(project.selected_competitors)
             ? project.selected_competitors.length
             : (project.competitors?.length || 0);
@@ -184,11 +184,11 @@ renderProjectCard(project, container) {
                     View Metrics
                 </button>
                 ${canEdit ? `
-                    <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                    <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${window.ClicandseoHtml.jsArg(project)})">
                         <i class="fas fa-list"></i>
                         View/Edit Prompts
                     </button>
-                    <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                    <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${window.ClicandseoHtml.jsArg(project)})">
                         <i class="fas fa-edit"></i>
                         Edit
                     </button>
