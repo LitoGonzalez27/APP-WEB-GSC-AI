@@ -2193,34 +2193,10 @@
             if (statusEl) statusEl.addEventListener('change', applyTableFilters);
             if (sortEl) sortEl.addEventListener('change', applyTableFilters);
 
-            // Recalcular contadores con la clase de estado real
-            const userRows = document.querySelectorAll('#usersTbody tr');
-
-            let total = 0;
-            let active = 0;
-            let inactive = 0;
-
-            userRows.forEach(row => {
-                // Ignorar si es la row de "no users"
-                if (row.querySelector('td[colspan]')) return;
-
-                total++;
-
-                // Estado: usar selector robusto
-                const statusBadge = row.querySelector('.status-container .badge');
-                if (statusBadge.classList.contains('active')) active++;
-                else inactive++;
-            });
-
-            // Actualizar stats cards (en orden: total, active, inactive). La cuarta
-            // tarjeta es "De pago" y la calcula el servidor: antes este script la
-            // sobrescribía con los registros de hoy (era la tarjeta "Hoy").
-            const statNumbers = document.querySelectorAll('.stat-number');
-            if (statNumbers.length >= 3) {
-                statNumbers[0].textContent = total;
-                statNumbers[1].textContent = active;
-                statNumbers[2].textContent = inactive;
-            }
+            // Las tarjetas del resumen (total, activos, inactivos, de pago) las
+            // calcula el servidor sobre todos los usuarios. Antes un script las
+            // recontaba con las filas de la página visible (paginada) y escribía
+            // en "De pago" los registros de hoy.
         });
 
         document.getElementById('clearCacheBtn').addEventListener('click', function() {
