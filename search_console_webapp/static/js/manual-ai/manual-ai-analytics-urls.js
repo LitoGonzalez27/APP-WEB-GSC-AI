@@ -4,20 +4,14 @@
  * Extraído verbatim de manual-ai-analytics.js (refactor Fase 4).
  */
 
+import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { getDomainLogoUrl } from './manual-ai-utils.js';
 
-// Local HTML escaper that also escapes quotes, safe for use inside
-// double-quoted HTML attributes (mirrors ui-serp-modal.js). The shared
-// escapeHtml in manual-ai-utils.js does NOT escape quotes, so it is unsafe
-// for attribute interpolation.
+// Escape local: delega en html-escape.js (escapa también comillas, válido en
+// atributos) y conserva su comportamiento con lo que no es texto ('').
 function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return '';
-    return unsafe
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    // Conserva su comportamiento: lo que no es texto da ''.
+    return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 // Return url only if it uses an http(s) scheme; otherwise '#'. Rejects
@@ -308,7 +302,7 @@ export function renderTopUrlsRanking(urls) {
         const safeFullUrl = escapeHtml(urlData.url);
         const safeDisplayUrl = escapeHtml(displayUrl);
         const safeUrlDomain = escapeHtml(urlDomain);
-        const safeUrlDomainInitial = escapeHtml((urlDomain || '').charAt(0).toUpperCase());
+        const safeUrlDomainInitial = escapeHtml((urlDomain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${urlData.rank}</td>
             <td class="url-cell">

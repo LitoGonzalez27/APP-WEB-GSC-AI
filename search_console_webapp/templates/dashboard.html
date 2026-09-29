@@ -5,20 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clicandseo</title>
 
-  <!-- Google Tag Manager -->
-  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
-  <!-- End Google Tag Manager -->
+  {% include 'partials/gtm_head.html' %}
 
   <!-- Favicon y Apple Touch Icons -->
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
-  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  {% include 'partials/favicons.html' %}
 
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -31,10 +21,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='ai-typology-chart.css') }}">
 </head>
 <body>
-    <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
-    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
+    {% include 'partials/gtm_body.html' %}
     
     <!-- Navbar -->
     <nav class="navbar">
@@ -990,6 +977,7 @@
         }
     </style>
     <!-- Banner de invitaciones pendientes (compartido) -->
-    <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v=1"></script>
+    <script src="{{ url_for('static', filename='js/html-escape.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v={{ ASSET_V }}"></script>
 </body>
 </html> 

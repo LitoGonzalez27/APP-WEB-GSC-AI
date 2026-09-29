@@ -28,6 +28,7 @@ Endpoints:
 
 import logging
 import os
+import config
 import json
 import re
 import html
@@ -99,12 +100,7 @@ def _safe_notify_email(candidate):
     Solo se acepta el destinatario si pertenece a un dominio interno de confianza;
     en cualquier otro caso se usa el destinatario configurado por entorno.
     """
-    default = (
-        os.getenv('CRON_ALERTS_EMAIL')
-        or os.getenv('CRON_ALERT_EMAIL')
-        or os.getenv('MODEL_DISCOVERY_EMAIL')
-        or 'info@soycarlosgonzalez.com'
-    )
+    default = config.email_alertas_llm()
     allowed_domains = ('clicandseo.com', 'soycarlosgonzalez.com')
     val = (candidate or '').strip()
     if val and '@' in val and val.rsplit('@', 1)[-1].lower() in allowed_domains:
@@ -237,11 +233,7 @@ def _ensure_cron_token_or_admin():
     - Bloquea usuarios autenticados no-admin
     """
     try:
-        auth_header = request.headers.get('Authorization', '') or ''
-        token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
-        cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
-
-        if cron_secret and token and secrets.compare_digest(token, cron_secret):
+        if config.cabecera_cron_valida(request.headers.get('Authorization')):
             return None
 
         user = get_current_user()
@@ -6659,7 +6651,7 @@ def cron_watchdog():
             payload = request.get_json(silent=True) or {}
             notify_email = _safe_notify_email(payload.get('notify_email'))
             from email_service import send_email
-            env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+            env_name = config.etiqueta_entorno()
             last_info = ''
             if last_dict:
                 last_info = (
@@ -10253,7 +10245,7 @@ def cron_model_discovery():
         models_added = []
         models_auto_approved = []
         approval_tokens_generated = []
-        public_base_url = os.getenv('PUBLIC_BASE_URL', 'https://app.clicandseo.com')
+        public_base_url = config.url_publica()
 
         for model in newer_chat_models:
             try:
@@ -10632,7 +10624,7 @@ def approve_model_by_token():
         # Enviar email de confirmación
         try:
             from email_service import send_email
-            notify_email = os.getenv('MODEL_DISCOVERY_EMAIL', 'info@soycarlosgonzalez.com')
+            notify_email = config.email_modelo_activado()
             old_name = old_model['model_id'] if old_model else 'N/A'
             send_email(notify_email,
                       f"✅ Modelo activado: {model['llm_provider'].upper()} → {model['model_id']}",

@@ -1,5 +1,6 @@
 // static/js/ui-keywords-gridjs.js - Tabla Grid.js para Keywords del panel principal
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
 // =============================
@@ -1013,7 +1014,7 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
                 const keyword = row.cells[1].data; // Obtener keyword de la columna siguiente
                 return gridjs.html(`
                     <button class="serp-btn" 
-                            onclick="window.keywordsGrid.openSerpModal('${escapeForAttribute(keyword)}')"
+                            onclick="window.keywordsGrid.openSerpModal(${globalThis.ClicandseoHtml.jsArg(keyword || '')})"
                             title="View SERP for: ${escapeForAttribute(keyword)}">
                         <i class="fas fa-search"></i>
                     </button>
@@ -1251,15 +1252,7 @@ function displayErrorMessage(container) {
  * Escapa HTML para prevenir XSS
  */
 function escapeHtmlLocal(text) {
-    const safeText = String(text || '');
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return safeText.replace(/[&<>"']/g, m => map[m]);
+    return globalThis.ClicandseoHtml.escapeHtml(text || '');
 }
 
 /**

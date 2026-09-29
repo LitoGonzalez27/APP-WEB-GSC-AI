@@ -32,7 +32,7 @@
   - Técnica Railway: `https://clicandseo.up.railway.app`.
   - Dominio custom: `https://app.clicandseo.com`.
   - Ambas aparecen como hardcoded fallback en distintos sitios — la mezcla es deuda técnica conocida.
-- **Separación staging / producción**: vía env var `RAILWAY_ENVIRONMENT` (`staging` | `production`). En `app.py:101-104` se calcula `is_production` / `is_staging` / `is_development`. Activa ProxyFix, security headers y HSTS solo en prod/staging.
+- **Separación staging / producción**: vía env var `RAILWAY_ENVIRONMENT` (`staging` | `production`). `app.py` usa `config.desplegado()` (cualquier entorno de Railway) para ProxyFix, cookies seguras y cabeceras de seguridad; HSTS solo en producción (`RAILWAY_ENVIRONMENT=production`).
 - **Bases de datos separadas**:
   - Staging: `caboose.proxy.rlwy.net:13631`.
   - Producción: `switchyard.proxy.rlwy.net:18167`.
@@ -200,6 +200,21 @@ Confirmado con `find`. Deuda técnica documentada en `CLAUDE-manual-ai.md`.
 
 Lista exhaustiva extraída con `grep` sobre todos los `.py` + las variables de staging (hoy en `api-vault/clicandseo/railway-staging-variables.txt`) + Bun functions.
 
+### `config.py`: el entorno se decide en un solo sitio (sep-2026)
+
+Las variables que deciden el entorno, los secretos de cron, el destinatario de alertas y la URL pública se leen solo en `config.py` (lo vigila `tests/test_config.py`; el módulo se llama `config` y hay variables locales `config` en algunas funciones: no usarlas a la vez). Antes cada módulo decidía por su cuenta, y `stripe_config` y `billing_routes` tomaban `APP_ENV` con `'staging'` por defecto: sin `APP_ENV` en producción, la app se creía staging y enseñaba detalles de depuración en los errores de checkout.
+
+| Función | Fuente | Para qué |
+|---|---|---|
+| `entorno_railway()`, `desplegado()` | `RAILWAY_ENVIRONMENT` (la pone Railway) | Barreras de seguridad: clave de sesión obligatoria, cookies seguras, modo depuración, cabeceras de seguridad, ProxyFix, cifrado de tokens, HTTP en OAuth, SerpAPI sin usuario, datos de ejemplo. Cualquier entorno de Railway (antes solo production y staging). `APP_ENV` no las abre ni las cierra. |
+| `entorno_app()`, `es_produccion()` | `APP_ENV`, si no `RAILWAY_ENVIRONMENT_NAME`, si no `RAILWAY_ENVIRONMENT`, si no `development` | Detalles en los errores de checkout y avisos de claves de Stripe en el log (el modo de Stripe lo marcan las claves). Hoy: producción tiene `APP_ENV=production`; staging no tiene `APP_ENV` y sale `staging` por Railway. |
+| `etiqueta_entorno()` | `APP_ENV` o `RAILWAY_ENVIRONMENT_NAME` o `unknown` | Asunto de las alertas (`[PRODUCTION] ...`). |
+| `aviso_de_entorno()` | — | Aviso en el arranque si `APP_ENV` contradice a Railway. |
+| `token_cron()`, `cabecera_cron_valida(cabecera)` | `CRON_TOKEN` (o `CRON_SECRET`) | Una sola comprobación de `Authorization: Bearer ...` para todos los crons. Un token no ASCII es inválido (antes daba 500 en `/api/cron/quota-reset` y en el cron de LLM con sesión de admin). Con token válido, un error del endpoint es 500 (antes los decoradores de `auth.py` lo convertían en 401 y, con sesión de admin, podían ejecutarlo dos veces). |
+| `alertas_cron_activas()`, `email_alertas()`, `email_alertas_llm()`, `email_modelo_activado()` | `CRON_ALERTS_ENABLED`, `CRON_ALERTS_EMAIL` (LLM: también `CRON_ALERT_EMAIL` y `MODEL_DISCOVERY_EMAIL`) | Interruptor y destinatario de las alertas. |
+| `url_publica()` | `PUBLIC_BASE_URL` o `https://app.clicandseo.com` | Enlaces en emails. No está definida en ningún entorno: staging también enlaza a producción en sus emails. |
+| `cuotas_forzadas()` | `ENFORCE_QUOTAS` | Control de cuota del middleware de SerpAPI. Staging `true`, producción `false` (AI Overview descuenta la cuota por su cuenta). |
+
 ### Críticas / obligatorias
 
 | Variable | Para qué |
@@ -208,10 +223,10 @@ Lista exhaustiva extraída con `grep` sobre todos los `.py` + las variables de s
 | `FLASK_SECRET_KEY` | Clave Flask para sesiones. **Default inseguro en código**. |
 | `SECRET_KEY` | Referenciado pero rol no claro. |
 | `RAILWAY_ENVIRONMENT` | `staging` | `production`. |
-| `RAILWAY_ENVIRONMENT_NAME` | Alternativa. |
-| `APP_ENV` | Fallback para nombre de entorno. |
+| `RAILWAY_ENVIRONMENT_NAME` | Nombre del entorno para alertas y `entorno_app()`. |
+| `APP_ENV` | Entorno de negocio (`config.entorno_app()`); producción la tiene, staging no. |
 | `PORT` | Railway lo inyecta automáticamente; default 5001. |
-| `PUBLIC_BASE_URL` | `https://app.clicandseo.com` (default en `brevo_api_service.py:17`). |
+| `PUBLIC_BASE_URL` | URL de los enlaces en emails; si falta, `https://app.clicandseo.com` (`config.url_publica()`). |
 
 ### Stripe
 
@@ -358,6 +373,7 @@ No hay scripts CI que validen el deploy. Solo scripts manuales tipo `verify_*.py
 - Vía CLI: `railway logs --service <name>`.
 - Vía dashboard.
 - **No están enviados a servicio externo**.
+- **Sin secretos de la URL** (sep-2026): `services/log_seguro.py` sustituye por `[oculto]` el valor de `code`, `state`, `token`, `access_token`, `refresh_token`, `id_token`, `client_secret`, `password`, `secret`, `api_key`, `key` y `email` en la línea de petición de Werkzeug, en el resto de mensajes y en las trazas de excepción (handlers del logger raíz). También cuando el secreto va codificado dentro de otro parámetro (`/auth/login?next=%2F...%3Ftoken%3D...`): si al decodificar aparece, se registra la versión decodificada y limpia. Antes quedaban en el log el código OAuth de `/auth/callback`, los tokens de `/reset-password`, de invitaciones a proyectos y de aprobación de modelos, y el email de `/auth/check-email`. Se instala en `app.py` justo después de `logging.basicConfig`; un handler que se añada más tarde necesita su propio filtro. Los logs HTTP del borde de Railway (panel de Railway) quedan fuera de la app.
 
 ### Sin integración con observabilidad externa
 

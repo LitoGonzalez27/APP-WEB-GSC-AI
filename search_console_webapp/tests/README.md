@@ -45,7 +45,9 @@ Varios tests antiguos comprueban texto del código (`read_text`/`getsource`); la
 
 `test_fiabilidad_billing_details.py` prueba el flujo real (decorador + ruta + consultas) contra la base desechable, con fallos provocados de verdad: consulta cancelada por `statement_timeout` (transitorio), tabla inexistente (programación) y pool agotado. Cubre 200/404/503/500, sesión conservada ante fallos técnicos, métricas no disponibles marcadas como tales, cursores y conexiones devueltos siempre y la clasificación de errores transitorios por SQLSTATE (`is_transient_db_error`). Contrato en `CLAUDE-base-de-datos.md` §2.
 
-`test_fiabilidad_sesion.py`: el mismo contrato en los decoradores de sesión (`auth_required`, keepalive) y en `/auth/status`: un fallo de la base de datos no cierra la sesión; un usuario borrado sí. `tests/js/session-status.test.cjs` prueba que el gestor de sesión del frontend no la cierra ante un 5xx.
+`test_fiabilidad_sesion.py`: el mismo contrato en los decoradores de sesión (`auth_required`, keepalive) y en `/auth/status`: un fallo de la base de datos no cierra la sesión; un usuario borrado sí. `tests/js/session-status.test.cjs` prueba que el gestor de sesión del frontend no la cierra ante un 5xx. Sus secciones F y G cubren la lectura única del usuario por petición y el keepalive con cuerpos que no son un objeto JSON.
+
+`test_guardia_usuario_peticion.py` (sin base de datos): falla si una función nueva pide el usuario de la sesión (directamente o a través de otras funciones) después de escribir en `users`, también dentro de bucles (recibiría los datos de antes); los casos seguros conocidos están justificados en `PERMITIDAS`. `test_log_seguro.py`: los logs no guardan secretos de la URL (código OAuth, tokens de contraseña, invitación y aprobación), incluida una petición real a un servidor Werkzeug.
 
 ## Barreras (tests/conftest.py)
 

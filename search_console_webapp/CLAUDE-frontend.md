@@ -90,12 +90,11 @@ static/                     # Frontend
 
 ## 3. Plantillas Jinja2
 
-Total: **20 plantillas** (todas en root, sin subcarpetas). **No hay `/templates/email/` ni `/templates/admin/`** — los emails se construyen en código Python.
+Total: **17 plantillas** en `templates/` más las piezas de `templates/partials/`. **No hay `/templates/email/` ni `/templates/admin/`** — los emails se construyen en código Python.
 
 | Plantilla | Tamaño | Para qué sirve |
 |---|---|---|
 | `index.html` | 63 KB | Página `/app`: dashboard principal (GSC + AI Overview) con sidebar interno. Carga DataTables + Chart.js + Grid.js. |
-| `index_tooltips_fixed.html` | 45 KB | Variante (probablemente legacy). |
 | `dashboard.html` | 35 KB | Renderizado por `/dashboard` (tras login). Página puente. |
 | `landing.html` | 8 KB | Marketing landing pública. |
 | `login.html` | 21 KB | Login (Google OAuth + email/password + reCAPTCHA). |
@@ -112,7 +111,15 @@ Total: **20 plantillas** (todas en root, sin subcarpetas). **No hay `/templates/
 | `project_access.html` | 17 KB | Gestión de acceso compartido a proyectos. |
 | `mobile_error.html` | 7 KB | Bloqueo en móvil (la app no soporta móvil). |
 
-**`email_preview.html`** (en root, no `/templates/`) es solo un mockup HTML estático — no es Jinja real.
+### Piezas comunes (`templates/partials/`, sep-2026)
+
+- `favicons.html`: favicons y manifest (13 páginas).
+- `gtm_head.html` / `gtm_body.html`: Google Tag Manager `GTM-NXJS74ZQ` en el `<head>` y justo tras abrir `<body>` (12 páginas).
+- Se incluyen con `{% include 'partials/...' %}`. Al extraerlas se comprobó que cada plantilla produce HTML equivalente al de antes (solo cambian espacios); login y signup ganan el comentario de cierre de GTM que les faltaba. Los comentarios `{# ... -#}` de las piezas no dejan líneas en blanco.
+- `tests/test_plantillas_comunes.py` fija qué páginas llevan cada pieza (perder GTM o los favicons hace fallar el test), impide volver a copiarlas y exige el orden: GTM en el `<head>` y su `noscript` justo tras `<body>`.
+- **Sin GTM**: `billing_success.html` (página de éxito del checkout), `admin_simple.html`, `admin_billing.html`, `project_access.html` y `mobile_error.html`.
+- La barra de navegación no se ha unificado: hay 8 variantes distintas en 9 páginas.
+- `panel_brand_assets.html` y `panel_brand_fonts.html` ya eran parciales.
 
 ---
 
@@ -185,6 +192,27 @@ Cargado como **script clásico** (no `type="module"`) en `llm_monitoring.html:17
 > ⚠️ `window.QuotaUIShared` mencionado en docs históricas **no existe** en el código. Solo `window.QuotaUI`.
 
 ---
+
+### 4.x Escapado de HTML único (`static/js/html-escape.js`, sep-2026)
+
+Dos funciones, una sola implementación:
+
+- `ClicandseoHtml.escapeHtml(valor)`: escapa `& < > " '`; `null`/`undefined` dan `''` y lo demás se convierte con `String()`. Para texto y atributos normales (`title`, `value`, `data-*`, `href`).
+- `ClicandseoHtml.jsArg(valor)`: para pasar un dato a un manejador en línea, `onclick="f(${ClicandseoHtml.jsArg(x)})"` (sin comillas alrededor). Dentro de `on*="..."` el navegador decodifica las entidades **antes** de ejecutar el JS, así que `f('${escapeHtml(x)}')` se rompe con un apóstrofo y permite inyectar código. `jsArg` convierte el valor en literal JS con JSON y lo escapa para el atributo; la función recibe exactamente el valor (cadenas, números, objetos; `undefined` llega como `null`).
+
+Sustituye a ~25 copias de `escapeHtml`. Fallos cerrados:
+- Las copias del truco del DOM (`textContent` → `innerHTML`) no escapaban comillas.
+- Los nombres de cluster de Manual AI y AI Mode iban a `title="..."` escapando solo `< >`.
+- En `onclick`, los botones de SERP (palabras clave y URLs de Search Console), «Open in Google», las recomendaciones de AI Overview, "Reintentar" de URLs, los chips de sugerencias de LLM Monitoring, pausar/reanudar/borrar/editar proyectos y abrir el dominio del proyecto o de un competidor (`sanitizeUrlForJsString` no bastaba: `encodeURI` deja pasar `&`, `#`, `;`, `(` y `)`; se ha eliminado). Todos se rompían con un apóstrofo (por ejemplo «mcdonald's menu» o las sugerencias en francés) o permitían inyectar código con comillas o `&quot;`.
+- El panel de movimientos de Search Console metía consultas y URLs en el HTML sin escapar.
+
+- **Módulos ES**: `import './html-escape.js';` (o `../html-escape.js`) solo por efecto, y `globalThis.ClicandseoHtml...`. Los que exportaban `escapeHtml` (`manual-ai-utils.js`, `ai-mode-utils.js`, `ui-ai-overview-utils.js`, `number-utils.js`) lo siguen exportando y delegan.
+- **Scripts clásicos y JS en línea**: `window.ClicandseoHtml...`, con `<script src=".../js/html-escape.js?v={{ ASSET_V }}">` en la plantilla antes de usarlo (`index.html`, `llm_monitoring.html`, `admin_simple.html`, `project_access.html`, `dashboard.html`, `ai_mode_dashboard.html`, `ai_summary.html`, `manual_ai_dashboard.html`). Si ese fichero no carga, esas páginas fallan al pintar: es un punto único a propósito.
+- Cada fichero conserva su función local con su comportamiento: las que devolvían `''` para lo que no es texto mantienen esa comprobación.
+- Las `escapeForAttribute` de las tablas Grid.js siguen igual: solo para atributos normales, no escapan `&` a propósito (un dato con `&amp;` se sigue viendo igual). Ya no se usan en `onclick`.
+- Tests:
+  - `tests/js/html-escape.test.cjs` extrae el código real de cada función y comprueba que el texto visible es el mismo que antes y que nada rompe un atributo. `jsArg` se prueba ejecutando el manejador como lo haría el navegador.
+  - `tests/test_html_escape_estatico.py` falla si aparece una copia nueva, si un módulo usa el global sin importarlo, si una plantilla no carga el script antes de usarlo, si un dato va en `'${...}'` dentro de un `on*=` o si reaparecen los parches que no protegen.
 
 ## 5. Librerías externas (CDN)
 
@@ -508,7 +536,7 @@ En `manual_ai_dashboard.html` (y `ai_mode_dashboard.html`) se setea `window.DISA
 
 ### Sin framework JS de testing
 
-> ⚠️ **No hay** Jest, Mocha, Vitest, ni Playwright. **No hay `package.json`**. Tests funcionales del frontend = manuales.
+> Sin Jest, Mocha, Vitest ni Playwright y sin `package.json`. Desde sep-2026 hay tests de JS con el runner de Node, sin dependencias: `node --test tests/js/*.test.cjs` (lo ejecuta la CI). Los scripts que se prueban así exportan con `module.exports` cuando corren en Node (`session-status.js`, `admin-billing-details.js`, `html-escape.js`). El resto de pruebas del frontend siguen siendo manuales.
 
 `tests/` (carpeta) — solo tests de servicios Python LLM (`test_llm_monitoring_e2e.py`, `…performance.py`, `…service.py`, `…providers.py`).
 

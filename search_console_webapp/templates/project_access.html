@@ -149,6 +149,7 @@
             border: 1px solid #fecaca;
         }
     </style>
+    <script src="{{ url_for('static', filename='js/html-escape.js') }}?v={{ ASSET_V }}"></script>
 </head>
 <body>
     <div class="topbar">
@@ -281,12 +282,7 @@
         }
 
         function escapeHtml(value) {
-            return String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+            return window.ClicandseoHtml.escapeHtml(value || '');
         }
 
         async function loadProjectAccess() {

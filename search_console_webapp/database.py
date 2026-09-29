@@ -1,6 +1,7 @@
 # database.py - Gestión de base de datos PostgreSQL
 
 import os
+import config
 import time
 import threading
 import psycopg2
@@ -32,12 +33,7 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está configurada en el entorno")
 
-# Detectar si estamos en producción
-# Detección de entorno mejorada
-railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
-is_production = railway_env == 'production'
-is_staging = railway_env == 'staging'
-is_development = not railway_env or railway_env == 'development'
+# El entorno se decide en config.py (config.desplegado() para las barreras).
 
 
 # ============================================================================
@@ -675,7 +671,7 @@ def _encrypt(text: Optional[str]) -> Optional[str]:
     if not f:
         # 🔒 No degradar silenciosamente a texto plano en entornos desplegados:
         # es preferible fallar de forma visible a guardar un refresh token sin cifrar.
-        if os.getenv('RAILWAY_ENVIRONMENT', '') in ('production', 'staging'):
+        if config.desplegado():
             raise RuntimeError(
                 "Clave de cifrado (TOKEN_ENCRYPTION_KEY/ENCRYPTION_KEY) ausente o inválida: "
                 "no se guardará el token sin cifrar."
@@ -1850,7 +1846,7 @@ def ensure_sample_data():
                                si falta, se genera una aleatoria por arranque.
     """
     # 🔒 Nunca sembrar datos de prueba en entornos desplegados.
-    if is_production or is_staging:
+    if config.desplegado():
         logger.info("ensure_sample_data: entorno desplegado — no se crean datos de prueba")
         return True
 

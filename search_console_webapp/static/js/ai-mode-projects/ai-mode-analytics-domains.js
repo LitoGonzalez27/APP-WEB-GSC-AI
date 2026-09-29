@@ -4,19 +4,15 @@
  * Extraído verbatim de ai-mode-analytics.js (refactor Fase 4).
  */
 
+import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { getDomainLogoUrl } from './ai-mode-utils.js';
 
 // Escape local que también escapa comillas, seguro dentro de atributos HTML.
 // Copia exacta del de manual-ai-analytics-domains.js: los dominios vienen de
 // resultados de Google AI Mode y no son de confianza.
 function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return '';
-    return unsafe
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    // Conserva su comportamiento: lo que no es texto da ''.
+    return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 // ================================
@@ -78,7 +74,7 @@ export function renderTopDomains(domains) {
         const logoUrl = getDomainLogoUrl(domain.domain);
         
         const safeDomain = escapeHtml(domain.domain);
-        const safeDomainInitial = escapeHtml((domain.domain || '').charAt(0).toUpperCase());
+        const safeDomainInitial = escapeHtml((domain.domain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${index + 1}</td>
             <td class="domain-cell" title="${safeDomain}">
@@ -202,7 +198,7 @@ export function renderGlobalDomainsRanking(domains) {
         }
         
         const safeDetectedDomain = escapeHtml(domain.detected_domain);
-        const safeDetectedInitial = escapeHtml((domain.detected_domain || '').charAt(0).toUpperCase());
+        const safeDetectedInitial = escapeHtml((domain.detected_domain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${domain.rank}</td>
             <td class="domain-cell">

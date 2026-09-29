@@ -1425,17 +1425,12 @@ formatDate(dateStr) {
     },
 
 escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return window.ClicandseoHtml.escapeHtml(text);
     },
 
 escapeAttr(text) {
-        // escapeHtml (textContent trick) does NOT escape quotes, which can break
-        // out of an HTML attribute. Escape quotes too for attribute-value contexts.
-        return this.escapeHtml(text)
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        // escapeHtml ya escapa comillas (html-escape.js): vale para atributos.
+        return this.escapeHtml(text);
     },
 
 showError(message) {
@@ -1486,8 +1481,8 @@ parseMarkdown(text) {
         // Links [text](url) - only allow http(s)/relative URLs to block javascript:, data:, etc.
         html = html.replace(/\[(.+?)\]\((.+?)\)/g, (match, label, url) => {
             if (!this.isSafeUrl(url)) return label;
-            // El texto ya viene escapado (<, >, &) pero sin comillas: se escapan aquí
-            // para que la URL no pueda salirse del atributo href (XSS).
+            // El texto ya viene escapado con comillas incluidas (html-escape.js); este
+            // replace se conserva por si el escapado cambiara: la URL no debe salirse del href.
             const safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
             return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="md-link">${label}</a>`;
         });

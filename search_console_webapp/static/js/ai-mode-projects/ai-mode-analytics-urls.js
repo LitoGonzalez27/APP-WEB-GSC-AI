@@ -4,19 +4,14 @@
  * Extraído verbatim de ai-mode-analytics.js (refactor Fase 4).
  */
 
+import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { getDomainLogoUrl } from './ai-mode-utils.js';
 
-// Escape local que también escapa comillas, seguro dentro de atributos HTML, y
-// filtro de esquema para href. Copia exacta de manual-ai-analytics-urls.js: las
-// URLs vienen de resultados de Google AI Mode y no son de confianza.
+// Escape local (delega en html-escape.js; también escapa comillas) y filtro de
+// esquema para href: las URLs vienen de resultados de Google AI Mode y no son de confianza.
 function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return '';
-    return unsafe
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    // Conserva su comportamiento: lo que no es texto da ''.
+    return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';
 }
 
 // Devuelve la url solo si es http(s); si no, '#'. Rechaza javascript:, data:, etc.
@@ -337,7 +332,7 @@ export function renderTopUrlsRanking(urls) {
         const safeFullUrl = escapeHtml(urlData.url);
         const safeDisplayUrl = escapeHtml(displayUrl);
         const safeUrlDomain = escapeHtml(urlDomain);
-        const safeUrlDomainInitial = escapeHtml((urlDomain || '').charAt(0).toUpperCase());
+        const safeUrlDomainInitial = escapeHtml((urlDomain || '').charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, ''));  // va en una cadena JS del onerror
         row.innerHTML = `
             <td class="rank-cell">${urlData.rank}</td>
             <td class="url-cell">

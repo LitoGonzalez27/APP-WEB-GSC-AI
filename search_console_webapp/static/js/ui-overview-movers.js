@@ -4,6 +4,7 @@
 //  Brandbook v2: Bio-Lime · Inter Tight · Libre Baskerville
 // ============================================================
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { processUrlsForComparison } from './data.js';
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -208,8 +209,8 @@ function renderMoversTable(containerId, rows, type, direction) {
 
     // For URLs, use a styled tooltip; for keywords, native title is fine
     const nameCell = !isKeyword
-      ? `<td class="col-name movers-url-cell" data-tooltip="${(row[nameField] || '').replace(/"/g, '&quot;')}">${name}</td>`
-      : `<td class="col-name" title="${(row[nameField] || '').replace(/"/g, '&quot;')}">${name}</td>`;
+      ? `<td class="col-name movers-url-cell" data-tooltip="${globalThis.ClicandseoHtml.escapeHtml(row[nameField] || '')}">${globalThis.ClicandseoHtml.escapeHtml(name)}</td>`
+      : `<td class="col-name" title="${globalThis.ClicandseoHtml.escapeHtml(row[nameField] || '')}">${globalThis.ClicandseoHtml.escapeHtml(name)}</td>`;
 
     html += `
         <tr>

@@ -9,6 +9,7 @@ Lee variables de entorno y proporciona configuración consistente.
 
 import json
 import os
+import config
 import logging
 from typing import Dict, Optional
 
@@ -21,7 +22,8 @@ class StripeConfig:
         """Inicializa configuración desde variables de entorno"""
         
         # Environment detection
-        self.app_env = os.getenv('APP_ENV', 'staging')
+        # Antes 'staging' por defecto: sin APP_ENV en producción se creía staging.
+        self.app_env = config.entorno_app()
         self.is_production = self.app_env == 'production'
         
         # Stripe Keys
@@ -80,7 +82,7 @@ class StripeConfig:
         
         # Control Flags
         self.billing_enabled = os.getenv('BILLING_ENABLED', 'false').lower() == 'true'
-        self.enforce_quotas = os.getenv('ENFORCE_QUOTAS', 'false').lower() == 'true'
+        self.enforce_quotas = config.cuotas_forzadas()
         self.aio_module_enabled = os.getenv('AIO_MODULE_ENABLED', 'true').lower() == 'true'
         
         # Experience Variables

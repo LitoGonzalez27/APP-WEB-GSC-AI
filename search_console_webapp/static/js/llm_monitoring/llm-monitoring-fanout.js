@@ -410,7 +410,7 @@ renderResponseSearchSection(response) {
             const lookedFor = [...patterns].map(pattern => `"${this.escapeHtml(pattern)}"`).join(', ');
             return `
                 <li>
-                    <a href="${this.escapeAttr(safeHref)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(this.truncateUrl ? this.truncateUrl(url, 90) : url)}</a>
+                    <a href="${this.escapeAttr(safeHref)}" target="_blank" rel="noopener noreferrer">${this.truncateUrl ? this.truncateUrl(url, 90) : this.escapeHtml(url)}</a>
                     ${lookedFor ? `<span class="fanout-muted">looked for ${lookedFor}</span>` : ''}
                 </li>`;
         }).join('');

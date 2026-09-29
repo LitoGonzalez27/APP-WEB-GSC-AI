@@ -22,6 +22,7 @@ const ES_DECIMAL_FORMAT_OPTIONS = {
 
 // === FUNCIONES DE FORMATEO ===
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 /**
  * Formatea un número entero usando el formato español (punto para miles)
  * @param {number|string} value - Valor a formatear
@@ -508,9 +509,7 @@ export function getStandardKeywordTableConfig(analysisType = 'comparison') {
  * @returns {string} - Texto escapado
  */
 export function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return globalThis.ClicandseoHtml.escapeHtml(text);
 }
 
 /**

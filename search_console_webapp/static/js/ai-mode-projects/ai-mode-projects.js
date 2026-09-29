@@ -3,7 +3,8 @@
  * Gestión completa de proyectos (CRUD, renderizado, validación)
  */
 
-import { escapeHtml, sanitizeUrlForJsString, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './ai-mode-utils.js';
+import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
+import { escapeHtml, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './ai-mode-utils.js';
 
 // ================================
 // PROJECTS MANAGEMENT
@@ -73,7 +74,7 @@ export function renderProjects() {
         // double quotes that would terminate the onclick="..." attribute prematurely
         // and silently kill our handler — including the event.stopPropagation() that
         // prevents the card click from firing. Same trick LLM Monitor uses.
-        const safeName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
+        const safeName = globalThis.ClicandseoHtml.jsArg(project.name || '');  // también escapa & (antes &quot; en el nombre inyectaba)
         const pausedUntilLabel = formatPauseDate(project.paused_until);
 
         // Brandbook rule: no pill-shaped badges for status indicators.
@@ -325,11 +326,11 @@ export function renderProjectCompetitorsHorizontal(project) {
         const firstLetter = escapeHtml(domain.charAt(0).toUpperCase());
         const safeDomain = escapeHtml(domain);
         const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
-        // sanitize: se interpola dentro del string JS del onclick (escapeHtml no protege ahí)
-        const websiteUrl = sanitizeUrlForJsString(domain.startsWith('http') ? domain : `https://${domain}`);
+        // Se pasa al onclick con jsArg (literal JS escapado para el atributo).
+        const websiteUrl = domain.startsWith('http') ? domain : `https://${domain}`;
         
         return `
-            <div class="competitor-horizontal-item" title="Click to visit ${safeDomain}" onclick="window.open('${websiteUrl}', '_blank')" style="cursor: pointer;">
+            <div class="competitor-horizontal-item" title="Click to visit ${safeDomain}" onclick="window.open(${globalThis.ClicandseoHtml.jsArg(websiteUrl)}, '_blank')" style="cursor: pointer;">
                 <img id="${logoId}" 
                      src="${logoUrl}" 
                      alt="${safeDomain} logo" 
@@ -373,7 +374,7 @@ export function renderProjectClustersHorizontal(project) {
     const moreCount = clustersCount > 3 ? clustersCount - 3 : 0;
     
     const clustersBadges = displayClusters.map(cluster => {
-        const escapedName = cluster.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const escapedName = escapeHtml(cluster.name);  // también comillas: va en title="..."
         return `
             <span class="cluster-badge" title="${escapedName}">
                 <i class="fas fa-layer-group"></i>

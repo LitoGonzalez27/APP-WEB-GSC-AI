@@ -268,6 +268,8 @@ Todos en `auth.py`:
 | `ai_user_required(f)` | 353 | **Deprecated** (rol AI eliminado). Solo loggea warning y aplica auth normal. |
 | `auth_required_no_activity_update(f)` | 403 | Como `auth_required` pero NO actualiza `last_activity`. Lo usa `/auth/keepalive` (el gestor de sesión lo llama cada 5 minutos). Desde sep-2026 un fallo de la BD ya no cierra la sesión. `/auth/status` no lleva decorador: ante un fallo de la BD responde 503 (nunca `authenticated: false`) y `static/js/session-status.js` hace que el gestor no cierre la sesión por un 5xx. |
 
+**Una lectura del usuario por petición (fase de fiabilidad 2, sep-2026).** `get_current_user()` y `get_current_user_strict()` reutilizan el usuario que ya leyó el decorador (o el `before_request` de LLM Monitoring) en la misma petición y devuelven una copia; la lectura se guarda en `g` atada al objeto de la petición, así que no se comparte entre peticiones aunque compartan contexto de aplicación. Antes, si la segunda lectura fallaba, la ruta respondía como si el usuario no existiera (404 en `/auth/user`, 401 en `validate_project_ownership`, análisis de AI Overview sin guardar ni descontar cuota, auditoría del admin perdida). Es el usuario tal como estaba al empezar la petición: tras escribir en `users`, leer con `get_user_by_id()`. `/auth/keepalive` trata un cuerpo que no sea un objeto JSON como sin actividad (antes, 500).
+
 ### Hooks `before_request` adicionales
 
 - **`enforce_llm_access`** (`llm_monitoring_routes.py:101`). Aplica al blueprint `llm_monitoring_bp`. Bloquea si `can_access_llm_monitoring(user)` es falso, **excepto** si el usuario tiene acceso compartido vía `user_has_any_module_access(user_id, 'llm_monitoring')`. Devuelve 402 con `{error:'paywall', upgrade_options}`.

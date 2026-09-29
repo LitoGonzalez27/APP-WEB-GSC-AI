@@ -1,4 +1,5 @@
 import os
+import config
 import sys
 import json
 import time
@@ -20,7 +21,7 @@ import threading
 # Relajar validación de scopes para evitar errores de orden en todos los entornos
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 # Permitir HTTP solo en desarrollo local (NUNCA en producción/staging)
-if not os.getenv('RAILWAY_ENVIRONMENT'):
+if not config.entorno_railway():
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # --- Servicios extraídos ---
@@ -72,8 +73,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Sin secretos de la URL en los logs (código OAuth, tokens de contraseña e invitación)
+from services.log_seguro import instalar_filtro_secretos
+instalar_filtro_secretos()
+
 # Carga variables de entorno
-if os.getenv("RAILWAY_ENVIRONMENT"):
+if config.entorno_railway():
     logger.info("Entorno Railway detectado, no se carga .env local")
 else:
     load_dotenv('serpapi.env')
@@ -114,10 +119,13 @@ limiter = Limiter(
 )
 
 # Configuración automática según entorno
-railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
+railway_env = config.entorno_railway()
 is_production = railway_env == 'production'
 is_staging = railway_env == 'staging'
-is_development = not railway_env or railway_env == 'development'
+# Barreras de seguridad: cualquier entorno de Railway (antes solo production y
+# staging; uno con otro nombre quedaba con la clave de sesión de desarrollo).
+desplegado = config.desplegado()
+is_development = not desplegado
 
 # --- NUEVO: Configuración de sesión para autenticación ---
 # 🔒 Seguridad: en producción/staging FLASK_SECRET_KEY DEBE venir del entorno.
@@ -125,7 +133,7 @@ is_development = not railway_env or railway_env == 'development'
 # suplantar a cualquier usuario/admin. Por eso fallamos al arrancar si falta.
 _flask_secret = os.getenv('FLASK_SECRET_KEY', '').strip()
 if not _flask_secret:
-    if is_production or is_staging:
+    if desplegado:
         raise RuntimeError(
             "FLASK_SECRET_KEY no está definida. Es obligatoria en producción/staging "
             "para firmar de forma segura las cookies de sesión."
@@ -137,26 +145,29 @@ app.secret_key = _flask_secret
 
 logger.info(f"🌍 Entorno detectado: {railway_env or 'development'}")
 logger.info(f"📊 Configuración: Production={is_production}, Staging={is_staging}, Development={is_development}")
+_aviso_entorno = config.aviso_de_entorno()
+if _aviso_entorno:
+    logger.warning(f"⚠️ {_aviso_entorno}")
 
 # Reducir verbosidad de logging en producción/staging
-if is_production or is_staging:
+if desplegado:
     logging.getLogger().setLevel(logging.WARNING)
     logger.setLevel(logging.WARNING)
 
 # Configurar cookies de sesión según el entorno
-app.config['SESSION_COOKIE_SECURE'] = is_production or is_staging  # HTTPS en producción y staging
+app.config['SESSION_COOKIE_SECURE'] = desplegado  # HTTPS en producción y staging
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Configuraciones adicionales para producción y staging
-if is_production or is_staging:
+if desplegado:
     app.config['PREFERRED_URL_SCHEME'] = 'https'
     logger.info("✅ Configuración HTTPS habilitada para entorno no-development")
 
 # ✅ ProxyFix: Railway (y cualquier reverse proxy) termina SSL y reenvía HTTP internamente.
 # Sin ProxyFix, request.url devuelve http:// lo que rompe OAuth (InsecureTransportError).
 # ProxyFix lee X-Forwarded-Proto/Host/For del proxy y corrige request.url automáticamente.
-if is_production or is_staging:
+if desplegado:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     logger.info("✅ ProxyFix habilitado para reverse proxy")
@@ -170,7 +181,7 @@ create_webhook_route(app)
 # --- Security headers (producción y staging) ---
 @app.after_request
 def _set_security_headers(response):
-    if is_production or is_staging:
+    if desplegado:
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-XSS-Protection'] = '1; mode=block'
@@ -184,7 +195,7 @@ def _set_security_headers(response):
 @app.after_request
 def _inject_console_silencer(response):
     try:
-        if not (is_production or is_staging):
+        if not desplegado:
             return response
         # Evitar inyección en assets o respuestas no-HTML
         if request.path.startswith('/static/'):
