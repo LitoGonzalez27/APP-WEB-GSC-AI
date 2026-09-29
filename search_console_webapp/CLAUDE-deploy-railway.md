@@ -358,6 +358,7 @@ No hay scripts CI que validen el deploy. Solo scripts manuales tipo `verify_*.py
 - Vía CLI: `railway logs --service <name>`.
 - Vía dashboard.
 - **No están enviados a servicio externo**.
+- **Sin secretos de la URL** (sep-2026): `services/log_seguro.py` sustituye por `[oculto]` el valor de `code`, `state`, `token`, `access_token`, `refresh_token`, `id_token`, `client_secret`, `password`, `secret`, `api_key` y `key` en la línea de petición de Werkzeug y en los handlers del logger raíz. Antes quedaban en el log el código OAuth de `/auth/callback` y los tokens de `/reset-password`, de invitaciones a proyectos y de aprobación de modelos. Se instala en `app.py` justo después de `logging.basicConfig`.
 
 ### Sin integración con observabilidad externa
 
