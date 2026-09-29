@@ -453,13 +453,10 @@ def cron_or_auth_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # 1) Intentar autenticar por token de cron
-        try:
-            if config.cabecera_cron_valida(request.headers.get('Authorization')):
-                return f(*args, **kwargs)
-        except Exception:
-            # En caso de cualquier problema con el header, continuar con auth normal
-            pass
+        # 1) Token de cron. cabecera_cron_valida() nunca lanza; el try que había
+        #    envolvía también al endpoint, y un error suyo acababa en un 401 falso.
+        if config.cabecera_cron_valida(request.headers.get('Authorization')):
+            return f(*args, **kwargs)
 
         # 2) Fallback a autenticación habitual
         return auth_required(f)(*args, **kwargs)
@@ -476,12 +473,10 @@ def cron_or_admin_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # 1) Intentar autenticar por token de cron (comparación en tiempo constante)
-        try:
-            if config.cabecera_cron_valida(request.headers.get('Authorization')):
-                return f(*args, **kwargs)
-        except Exception:
-            pass
+        # 1) Token de cron (comparación en tiempo constante; nunca lanza). Sin try:
+        #    un error del endpoint no debe convertirse en 401 ni repetir la ejecución.
+        if config.cabecera_cron_valida(request.headers.get('Authorization')):
+            return f(*args, **kwargs)
 
         # 2) Fallback: exigir privilegios de administrador (no basta con estar logueado)
         return admin_required(f)(*args, **kwargs)
