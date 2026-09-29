@@ -487,11 +487,10 @@ class StripeWebhookHandler:
             logger.info(f"✅ Subscription {action} processed successfully for customer {customer_id}")
 
             # Si esta suscripción sustituye a otra (marca puesta en el checkout),
-            # se cancela la antigua en Stripe cuando esta queda activa. Si Stripe
-            # no responde, se pide el reintento del evento (ya aplicado en BD).
+            # se cancela la antigua en Stripe cuando esta queda activa. Nunca
+            # rompe el webhook: los fallos se avisan por email.
             if action in ('created', 'updated') and status in _ESTADOS_PAGANDO:
-                if _cancelar_suscripcion_sustituida(subscription) == 'reintentar':
-                    return {'success': False, 'error': 'replaced_subscription_pending'}
+                _cancelar_suscripcion_sustituida(subscription)
             
             # Enviar email de inicio de trial (una sola vez) - en inglés usando helpers
             # Refactor 2026-05-25: try/finally to GUARANTEE conn2.close().
@@ -852,8 +851,7 @@ def _ensure_webhook_events_table(cur):
 # (el usuario aún no existía, la BD falló...). Un evento que falló por uno de
 # ellos se vuelve a procesar; los errores permanentes (payload sin usuario, sin
 # items...) se siguen confirmando sin reprocesar.
-_REPROCESSABLE_ERRORS = ('customer_not_found', 'internal_error', 'Database connection failed',
-                         'replaced_subscription_pending')
+_REPROCESSABLE_ERRORS = ('customer_not_found', 'internal_error', 'Database connection failed')
 # Un evento 'in_progress' más antiguo que esto se considera abandonado (el
 # proceso murió a mitad) y se puede reclamar de nuevo.
 _STALE_IN_PROGRESS_MINUTES = 10
@@ -971,63 +969,101 @@ def _cancelar_suscripcion_sustituida(subscription):
     que tenía el usuario). Cuando la nueva queda activa o en prueba, se
     comprueban las dos en vivo y se cancela la antigua solo si sigue sin pagar
     (past_due, unpaid, paused) y es anterior a la nueva. Al cancelar, Stripe
-    deja de cobrar automáticamente sus facturas. Si la antigua ha vuelto a
-    pagar, no se toca y se avisa (posible doble cobro). Solo actúa sobre la
-    suscripción marcada: nunca sobre otras del cliente.
+    deja de cobrar automáticamente sus facturas. Solo actúa sobre la marcada:
+    nunca sobre otras suscripciones del cliente.
 
-    Devuelve 'reintentar' si Stripe no respondió (error transitorio); None en
-    los demás casos. Cada cancelación y cada fallo se avisan por email.
+    Se decide una sola vez: tomada la decisión (cancelada, ya cancelada, o la
+    antigua sigue pagando y se avisa de posible doble cobro) se quita la marca
+    de la nueva y queda `replaced_subscription` como rastro. Si algo falla, la
+    marca se conserva (se vuelve a intentar con el siguiente evento de la nueva)
+    y se avisa por email. Nunca lanza ni pide reintento del webhook: repetir el
+    evento entero pisaría cambios posteriores. Los avisos se envían siempre.
     Interruptor: STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS=false.
     """
     if os.getenv('STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS', 'true').lower() == 'false':
-        return None
+        return
     nueva_id = subscription.get('id')
     antigua_id = (subscription.get('metadata') or {}).get('replaces_subscription')
-    if not antigua_id or not nueva_id or antigua_id == nueva_id:
-        return None
+    if not antigua_id or not nueva_id:
+        return
+    customer_id = subscription.get('customer')
+    if antigua_id == nueva_id:
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
 
     try:
         nueva = stripe.Subscription.retrieve(nueva_id)
-        if nueva.get('status') not in _ESTADOS_PAGANDO:
-            # Evento antiguo o reenviado: la nueva ya no está activa. No se toca nada.
-            return None
-        antigua = stripe.Subscription.retrieve(antigua_id)
-    except stripe.error.InvalidRequestError as e:
-        logger.error(f"❌ No se pudo consultar la suscripción sustituida {antigua_id}: {e}")
-        _alertar_suscripciones_antiguas(subscription.get('customer'), nueva_id, [], [], [(antigua_id, str(e))])
-        return None
     except Exception as e:
-        logger.warning(f"⚠️ Stripe no respondió al consultar {nueva_id}/{antigua_id}: {e}; se reintentará")
-        return 'reintentar'
+        logger.error(f"❌ No se pudo consultar la suscripción nueva {nueva_id}: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(
+            nueva_id, f'no se pudo consultar la suscripción nueva (la antigua {antigua_id} sigue sin revisar): {e}')])
+        return
+    if nueva.get('status') not in _ESTADOS_PAGANDO:
+        return  # evento antiguo o reenviado: la nueva ya no está activa
+
+    try:
+        antigua = stripe.Subscription.retrieve(antigua_id)
+    except Exception as e:
+        logger.error(f"❌ No se pudo consultar la suscripción sustituida {antigua_id}: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'no se pudo consultar: {e}')])
+        return
 
     estado = antigua.get('status')
-    customer_id = subscription.get('customer')
     if estado in _ESTADOS_PAGANDO:
         logger.warning(f"⚠️ {antigua_id} ({estado}) sigue pagando además de {nueva_id}: posible doble cobro")
         _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [(antigua_id, estado)], [])
-        return None
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
+    if estado == 'canceled':
+        # Si la canceló otra suscripción nueva (dos checkouts), el cliente puede
+        # estar pagando dos: se avisa. Si la canceló esta misma, no hay nada que hacer.
+        comentario = ((antigua.get('cancellation_details') or {}).get('comment') or '')
+        if comentario.startswith('Sustituida por ') and nueva_id not in comentario:
+            otra = comentario[len('Sustituida por '):].split(':')[0]
+            _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [(otra, f'también sustituye a {antigua_id}')], [])
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
     if estado not in _ESTADOS_ANTIGUA_A_CANCELAR:
-        return None  # ya cancelada o caducada
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)  # caducada o sin completar
+        return
     if (antigua.get('created') or 0) > (nueva.get('created') or 0):
         _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(
             antigua_id, f'{estado}: es más reciente que {nueva_id}; no se cancela, revisar a mano')])
-        return None
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
 
     try:
         stripe.Subscription.cancel(antigua_id, cancellation_details={
             'comment': f'Sustituida por {nueva_id}: cancelación automática de Clicandseo',
         })
-    except stripe.error.InvalidRequestError as e:
+    except Exception as e:
+        # ¿La canceló a la vez otro evento de la nueva (created y updated en paralelo)?
+        try:
+            if stripe.Subscription.retrieve(antigua_id).get('status') == 'canceled':
+                _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+                return
+        except Exception:
+            pass
         logger.error(f"❌ No se pudo cancelar la suscripción sustituida {antigua_id}: {e}")
         _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'{estado}: {e}')])
-        return None
-    except Exception as e:
-        logger.warning(f"⚠️ Stripe no respondió al cancelar {antigua_id}: {e}; se reintentará")
-        return 'reintentar'
+        return
 
     logger.warning(f"🧹 Suscripción {antigua_id} ({estado}) cancelada: sustituida por {nueva_id}")
     _alertar_suscripciones_antiguas(customer_id, nueva_id, [(antigua_id, estado)], [], [])
-    return None
+    _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+
+
+def _quitar_marca_de_sustitucion(nueva_id, antigua_id):
+    """Quita la marca de la nueva para no repetir la comprobación en cada evento;
+    deja `replaced_subscription` como rastro. Si falla, solo se repite la
+    comprobación con el siguiente evento (es idempotente)."""
+    try:
+        stripe.Subscription.modify(nueva_id, metadata={
+            'replaces_subscription': '',
+            'replaced_subscription': antigua_id,
+        })
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo quitar la marca de sustitución de {nueva_id}: {e}")
 
 
 def _alertar_suscripciones_antiguas(customer_id, subscription_id, canceladas, pagando, fallos):
@@ -1226,7 +1262,6 @@ def create_webhook_route(app):
             transient_errors = {
                 'customer_not_found',     # signup race condition
                 'cannot_claim_event',     # DB transient failure
-                'replaced_subscription_pending',  # Stripe no respondió al cancelar la sustituida
             }
             if err_code in transient_errors:
                 # 503 Service Unavailable → Stripe retries with backoff
