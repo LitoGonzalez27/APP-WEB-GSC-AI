@@ -40,8 +40,25 @@ PERMITIDAS = {  # fichero -> motivo
 TRUCO_DOM = re.compile(r"textContent\s*=\s*[^;\n]+;?\s*(?:\n[^\n]*){0,2}?return\s+\w+\.innerHTML", re.M)
 CADENA_REPLACE = re.compile(r"""replace\(/&/g,\s*['"]&amp;['"]\)|['"]&['"]\s*:\s*['"]&amp;['"]|replace\(/</g,\s*['"]&lt;['"]\)""")
 PARCHES = re.compile(r"""escape\w*\([^)]*\)\.replace\(/'/g|JSON\.stringify\([^)]*\)\.replace\(/"/g""")
-INICIO_MANEJADOR = re.compile(r"""\bon[a-z]+\s*=\s*(\\?["'])""")
-EXPRESION_SEGURA = re.compile(r"^(?:(?:window|globalThis)\.)?ClicandseoHtml\.jsArg\(|^Number\(|^[\w.]+\.id$|^(?:index|i|idx)$")
+INICIO_MANEJADOR = re.compile(r"""\bon[a-z]+\s*=\s*(\\?["'])""", re.I)
+LLAMADA_SEGURA = re.compile(r"^(?:(?:(?:window|globalThis)\.)?ClicandseoHtml\.jsArg|Number)\(")
+NOMBRE_SEGURO = re.compile(r"^(?:[\w.]+\.id|index|i|idx)$")
+
+
+def _es_segura(expr):
+    """jsArg(...) o Number(...) que abarcan TODA la expresión (no `jsArg(a) + b`),
+    o un id/índice numérico."""
+    if NOMBRE_SEGURO.match(expr):
+        return True
+    m = LLAMADA_SEGURA.match(expr)
+    if not m:
+        return False
+    prof = 0
+    for i in range(m.end() - 1, len(expr)):
+        prof += {"(": 1, ")": -1}.get(expr[i], 0)
+        if prof == 0:
+            return i == len(expr) - 1
+    return False
 # (fichero, expresión) -> por qué es seguro dentro de on*="..."
 EN_MANEJADOR_PERMITIDOS = {
     ("static/js/quota-ui.js", "plan"): "constante del código ('basic' / 'premium')",
@@ -193,7 +210,7 @@ def test_los_datos_en_manejadores_en_linea_van_con_jsarg():
             valor = _valor_atributo(texto, m.end(), m.group(1))
             for expr in _expresiones(valor or ""):
                 clave = (_rel(p), expr)
-                if EXPRESION_SEGURA.search(expr):
+                if _es_segura(expr):
                     continue
                 if clave in EN_MANEJADOR_PERMITIDOS:
                     usados.add(clave)
