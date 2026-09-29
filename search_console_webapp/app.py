@@ -72,6 +72,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Sin secretos de la URL en los logs (código OAuth, tokens de contraseña e invitación)
+from services.log_seguro import instalar_filtro_secretos
+instalar_filtro_secretos()
+
 # Carga variables de entorno
 if os.getenv("RAILWAY_ENVIRONMENT"):
     logger.info("Entorno Railway detectado, no se carga .env local")

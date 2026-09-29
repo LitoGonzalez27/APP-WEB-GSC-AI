@@ -1,5 +1,6 @@
 # auth.py - Sistema de autenticación con PostgreSQL y Google OAuth2
 
+import copy
 import os
 import json
 import urllib.request
@@ -205,19 +206,71 @@ def get_session_time_remaining():
         logger.error(f"Error calculando tiempo restante: {e}")
         return 0
 
+def _usuario_leido_en_esta_peticion(user_id):
+    """Copia del usuario de la sesión si ya se leyó en esta misma petición.
+
+    Fase de fiabilidad (sep-2026): los decoradores de sesión leen al usuario y
+    la ruta lo volvía a pedir a la BD con get_current_user(); si esa segunda
+    lectura fallaba, la ruta respondía como si el usuario no existiera (404,
+    análisis sin guardar, consumo de cuota sin registrar). Se guarda atado al
+    objeto de la petición, no solo a `g`, porque un contexto de aplicación
+    abierto (tests, tareas) puede compartir `g` entre varias peticiones. Se
+    devuelve una copia para que modificar el dict en una ruta no altere lo que
+    reciben las siguientes llamadas."""
+    guardado = g.get('_usuario_sesion')
+    if guardado is None:
+        return None
+    peticion, guardado_id, usuario = guardado
+    if peticion is not request._get_current_object() or guardado_id != user_id:
+        return None
+    return _copia_usuario(usuario)
+
+
+def _guardar_usuario_de_esta_peticion(user_id, usuario):
+    g._usuario_sesion = (request._get_current_object(), user_id, _copia_usuario(usuario))
+
+
+def _copia_usuario(usuario):
+    # Hoy todas las columnas de users son escalares; si algún día hubiera una
+    # que no se pueda copiar a fondo (bytea), basta con la copia superficial.
+    try:
+        return copy.deepcopy(usuario)
+    except Exception:
+        return dict(usuario)
+
+
 def get_current_user():
-    """Obtiene el usuario actual desde la sesión"""
+    """Usuario de la sesión. CONTRATO ANTIGUO: None si no existe o si falla la BD.
+
+    Dentro de una petición devuelve el usuario ya leído (normalmente por el
+    decorador de sesión) en vez de volver a consultar la BD: es el usuario tal
+    como estaba al empezar la petición. Quien escriba en `users` y necesite los
+    datos nuevos en la misma petición debe leerlos con get_user_by_id()."""
     if 'user_id' not in session:
         return None
-    
-    return get_user_by_id(session['user_id'])
+    user_id = session['user_id']
+    usuario = _usuario_leido_en_esta_peticion(user_id)
+    if usuario is not None:
+        return usuario
+    usuario = get_user_by_id(user_id)
+    if usuario is not None:
+        _guardar_usuario_de_esta_peticion(user_id, usuario)
+    return usuario
 
 def get_current_user_strict():
     """Usuario de la sesión con el contrato de get_user_by_id_strict(): dict,
-    None si ya no existe, DatabaseUnavailableError si no se pudo consultar."""
+    None si ya no existe, DatabaseUnavailableError si no se pudo consultar.
+    Reutiliza el usuario ya leído en esta petición (ver get_current_user)."""
     if 'user_id' not in session:
         return None
-    return get_user_by_id_strict(session['user_id'])
+    user_id = session['user_id']
+    usuario = _usuario_leido_en_esta_peticion(user_id)
+    if usuario is not None:
+        return usuario
+    usuario = get_user_by_id_strict(user_id)
+    if usuario is not None:
+        _guardar_usuario_de_esta_peticion(user_id, usuario)
+    return usuario
 
 
 def _id_peticion():
@@ -1818,8 +1871,10 @@ def setup_auth_routes(app):
         del aviso también. Solo entonces cuenta como actividad (antes se
         ignoraba y el usuario acababa expulsado aunque estuviera usando la app)."""
         try:
-            datos = request.get_json(silent=True) or {}
-            activo = datos.get('user_active') is True
+            # Un cuerpo que no sea un objeto JSON ([], "x", 5) cuenta como sin
+            # actividad; antes daba 500.
+            datos = request.get_json(silent=True)
+            activo = isinstance(datos, dict) and datos.get('user_active') is True
             if activo:
                 update_last_activity()
             return jsonify({
