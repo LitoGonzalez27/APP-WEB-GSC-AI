@@ -26,13 +26,19 @@ class SchemaFeature:
         self.migration = migration
         self._lock = threading.Lock()
         self._available = False
-        self._checked_at = 0.0
+        # None = nunca comprobado. No vale 0.0: time.monotonic() cuenta desde el
+        # arranque de la máquina y en una recién arrancada (CI, contenedor nuevo)
+        # es menor que SCHEMA_RECHECK_SECONDS, así que la primera comprobación no
+        # llegaba a hacerse y la función se daba por ausente durante 5 minutos.
+        self._checked_at = None
 
     def available(self, get_connection) -> bool:
         if self._available:
             return True
         with self._lock:
-            if self._available or time.monotonic() - self._checked_at < SCHEMA_RECHECK_SECONDS:
+            if self._available or (
+                    self._checked_at is not None
+                    and time.monotonic() - self._checked_at < SCHEMA_RECHECK_SECONDS):
                 return self._available
             self._checked_at = time.monotonic()
             conn = get_connection()
@@ -56,7 +62,7 @@ class SchemaFeature:
         """Olvida el resultado cacheado (tests)."""
         with self._lock:
             self._available = False
-            self._checked_at = 0.0
+            self._checked_at = None
 
 
 def column_exists_sql(table: str, column: str) -> str:
