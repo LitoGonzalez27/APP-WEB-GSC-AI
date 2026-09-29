@@ -11,7 +11,12 @@ import os
 import json
 import logging
 from datetime import datetime, date, timedelta
-from database import get_db_connection, resume_quota_pauses_for_user
+import psycopg2
+import psycopg2.extensions
+from database import (
+    get_db_connection, resume_quota_pauses_for_user,
+    DatabaseUnavailableError, TRANSIENT_DB_ERRORS, return_db_connection,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -645,114 +650,151 @@ def get_users_with_billing(limit=200, offset=0):
         if conn:
             conn.close()
 
-def get_user_billing_details(user_id):
-    """Obtiene detalles completos de billing para un usuario específico"""
+# ---------------------------------------------------------------------------
+# Ficha de facturación de un usuario (modal "Ver" del panel de admin)
+# ---------------------------------------------------------------------------
+# Contrato de get_user_billing_details_strict (fase de fiabilidad, sep-2026):
+#   - dict: el usuario existe;
+#   - None: la consulta fue bien y el usuario no existe;
+#   - DatabaseUnavailableError: no se pudo consultar (transitorio);
+#   - cualquier otra excepción: fallo interno, se propaga.
+# Las métricas complementarias son degradables: si una falla por un error de la
+# base de datos que no es de conexión, se marca en `metrics_unavailable` y sus
+# campos valen None (nunca 0); el resto se calcula igual. Cada métrica va en su
+# propio SAVEPOINT para que un error no deje la transacción abortada.
+
+_SQL_FICHA_USUARIO = '''
+    SELECT
+        id, email, name, picture, role, is_active, created_at,
+        plan, current_plan, billing_status, quota_limit, quota_used,
+        quota_reset_date, stripe_customer_id, subscription_id,
+        current_period_start, current_period_end, pending_plan, pending_plan_date,
+        ai_overview_paused_until, ai_overview_paused_at, ai_overview_paused_reason,
+        custom_quota_limit, custom_quota_notes, custom_quota_assigned_by, custom_quota_assigned_date,
+        custom_llm_prompts_limit, custom_llm_monthly_units_limit,
+        custom_manual_ai_max_projects, custom_manual_ai_keywords_limit,
+        custom_ai_mode_max_projects, custom_ai_mode_keywords_limit,
+        custom_llm_max_projects
+    FROM users
+    WHERE id = %s
+'''
+
+
+class _MetricaConErrorTragado(Exception):
+    """Un helper atrapó un error de la base de datos sin recuperar la transacción."""
+
+
+def _historial_de_uso(cur, user_id):
+    cur.execute('''
+        SELECT
+            DATE(timestamp) as day,
+            SUM(ru_consumed) as ru_consumed,
+            COUNT(*) as operations
+        FROM quota_usage_events
+        WHERE user_id = %s
+        AND timestamp >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY DATE(timestamp)
+        ORDER BY day DESC
+        LIMIT 10
+    ''', (user_id,))
+    return [dict(row) for row in cur.fetchall()]
+
+
+def _metrica_opcional(conn, cur, nombre, calcular, no_disponibles, user_id):
+    """Calcula una métrica complementaria aislada en un SAVEPOINT.
+
+    Errores de conexión: se propagan (toda la ficha es 503). Otros errores de
+    la base de datos, o un helper que los atrapó dejando la transacción
+    abortada: la métrica queda como no disponible (None) y se registra con traza.
+    Errores de Python: se propagan (fallo interno)."""
+    cur.execute('SAVEPOINT metrica_ficha')
     try:
-        conn = get_db_connection()
-        if not conn:
-            return None
-        
-        cur = conn.cursor()
-        
-        # Información del usuario con billing + custom quotas
-        cur.execute('''
-            SELECT 
-                id, email, name, picture, role, is_active, created_at,
-                plan, current_plan, billing_status, quota_limit, quota_used,
-                quota_reset_date, stripe_customer_id, subscription_id,
-                current_period_start, current_period_end, pending_plan, pending_plan_date,
-                ai_overview_paused_until, ai_overview_paused_at, ai_overview_paused_reason,
-                custom_quota_limit, custom_quota_notes, custom_quota_assigned_by, custom_quota_assigned_date,
-                custom_llm_prompts_limit, custom_llm_monthly_units_limit,
-                custom_manual_ai_max_projects, custom_manual_ai_keywords_limit,
-                custom_ai_mode_max_projects, custom_ai_mode_keywords_limit,
-                custom_llm_max_projects
-            FROM users
-            WHERE id = %s
-        ''', (user_id,))
-        
-        user = cur.fetchone()
-        if not user:
-            return None
-        
-        user_dict = dict(user)
-        
-        # Obtener histórico de uso reciente (si existe la tabla)
-        try:
-            cur.execute('''
-                SELECT 
-                    DATE(timestamp) as day,
-                    SUM(ru_consumed) as ru_consumed,
-                    COUNT(*) as operations
-                FROM quota_usage_events 
-                WHERE user_id = %s 
-                AND timestamp >= CURRENT_DATE - INTERVAL '30 days'
-                GROUP BY DATE(timestamp)
-                ORDER BY day DESC
-                LIMIT 10
-            ''', (user_id,))
-            
-            usage_history = [dict(row) for row in cur.fetchall()]
-            user_dict['usage_history'] = usage_history
-        except:
-            user_dict['usage_history'] = []
-        
-        # Calcular estadísticas. quota_limit y quota_used pueden ser NULL (p. ej.
-        # enterprise con cuota a medida): antes saltaba TypeError y el modal "Ver"
-        # respondía "Usuario no encontrado".
-        _limite = user_dict.get('quota_limit') or 0
-        _usado = user_dict.get('quota_used') or 0
-        if _limite > 0:
-            user_dict['quota_percentage'] = round((_usado / _limite) * 100, 1)
-        else:
-            user_dict['quota_percentage'] = 0
+        valor = calcular()
+        if conn.get_transaction_status() == psycopg2.extensions.TRANSACTION_STATUS_INERROR:
+            raise _MetricaConErrorTragado(nombre)
+        cur.execute('RELEASE SAVEPOINT metrica_ficha')
+        return valor
+    except TRANSIENT_DB_ERRORS:
+        raise
+    except (psycopg2.Error, _MetricaConErrorTragado):
+        logger.error(f"Ficha del usuario {user_id}: métrica '{nombre}' no disponible", exc_info=True)
+        cur.execute('ROLLBACK TO SAVEPOINT metrica_ficha')
+        no_disponibles.append(nombre)
+        return None
 
-        # Enriquecer con métricas SERP/LLM para el modal
-        serp_usage = _get_serp_usage_by_user(cur)
-        ru_usage = _get_ru_usage_by_user(cur)
-        llm_usage = _get_llm_usage_by_user(cur)
-        llm_projects = _get_llm_active_projects_by_user(cur)
-        ai_mode_paused = _get_ai_mode_paused_projects_by_user(cur)
-        llm_paused = _get_llm_paused_projects_by_user(cur)
-        invitations = _get_invitations_by_user(cur)
-        project_counts = _get_project_counts_by_user(cur)
 
-        serp_row = serp_usage.get(user_id, {})
-        ru_row = ru_usage.get(user_id, {})
-        llm_row = llm_usage.get(user_id, {})
-        proj_row = llm_projects.get(user_id, {})
-        ai_mode_row = ai_mode_paused.get(user_id, {})
-        llm_paused_row = llm_paused.get(user_id, {})
-        inv_row = invitations.get(user_id, {})
-        pc_row = project_counts.get(user_id, {})
+def get_user_billing_details_strict(user_id):
+    """Ficha de facturación de un usuario con contrato explícito (ver arriba)."""
+    conn = get_db_connection()
+    if conn is None:
+        raise DatabaseUnavailableError('sin conexión a la base de datos')
+    try:
+        with conn.cursor() as cur:
+            cur.execute(_SQL_FICHA_USUARIO, (user_id,))
+            user = cur.fetchone()
+            if not user:
+                return None
+            user_dict = dict(user)
 
-        user_dict['serp_ru_month'] = int(serp_row.get('serp_ru_month', 0) or 0)
-        user_dict['ru_month'] = int(ru_row.get('ru_month', 0) or 0)
-        user_dict['llm_units_month'] = int(llm_row.get('llm_units_month', 0) or 0)
-        user_dict['llm_cost_month'] = float(llm_row.get('llm_cost_month', 0) or 0)
-        user_dict['llm_active_projects'] = int(proj_row.get('active_projects', 0) or 0)
-        user_dict['ai_mode_paused_projects'] = int(ai_mode_row.get('paused_projects', 0) or 0)
-        user_dict['llm_paused_projects'] = int(llm_paused_row.get('paused_projects', 0) or 0)
-        # Invitaciones
-        user_dict['invitations_sent'] = int(inv_row.get('total_sent', 0) or 0)
-        user_dict['invitations_accepted'] = int(inv_row.get('accepted', 0) or 0)
-        user_dict['invitations_pending'] = int(inv_row.get('pending', 0) or 0)
-        # Proyectos por módulo
-        user_dict['aio_total'] = pc_row.get('aio_total', 0)
-        user_dict['aio_active'] = pc_row.get('aio_active', 0)
-        user_dict['aim_total'] = pc_row.get('aim_total', 0)
-        user_dict['aim_active'] = pc_row.get('aim_active', 0)
-        user_dict['llm_total'] = pc_row.get('llm_total', 0)
-        user_dict['llm_active'] = pc_row.get('llm_active', 0)
+            no_disponibles = []
 
-        return user_dict
-        
+            def metrica(nombre, calcular):
+                return _metrica_opcional(conn, cur, nombre, calcular, no_disponibles, user_id)
+
+            historial = metrica('usage_history', lambda: _historial_de_uso(cur, user_id))
+            serp = metrica('serp_usage', lambda: _get_serp_usage_by_user(cur))
+            ru = metrica('ru_usage', lambda: _get_ru_usage_by_user(cur))
+            llm = metrica('llm_usage', lambda: _get_llm_usage_by_user(cur))
+            llm_proyectos = metrica('llm_projects', lambda: _get_llm_active_projects_by_user(cur))
+            ai_mode_pausados = metrica('ai_mode_paused', lambda: _get_ai_mode_paused_projects_by_user(cur))
+            llm_pausados = metrica('llm_paused', lambda: _get_llm_paused_projects_by_user(cur))
+            invitaciones = metrica('invitations', lambda: _get_invitations_by_user(cur))
+            proyectos = metrica('project_counts', lambda: _get_project_counts_by_user(cur))
+    except TRANSIENT_DB_ERRORS as e:
+        raise DatabaseUnavailableError(f'consulta de la ficha interrumpida ({type(e).__name__})') from e
+    finally:
+        return_db_connection(conn)
+
+    def fila(mapa):
+        return None if mapa is None else mapa.get(user_id, {})
+
+    def entero(mapa, clave):
+        f = fila(mapa)
+        return None if f is None else int(f.get(clave, 0) or 0)
+
+    user_dict['usage_history'] = historial
+
+    # Porcentaje sobre quota_limit (lo muestra admin_billing.html junto a
+    # quota_used / quota_limit). quota_limit y quota_used pueden ser NULL.
+    _limite = user_dict.get('quota_limit') or 0
+    _usado = user_dict.get('quota_used') or 0
+    user_dict['quota_percentage'] = round((_usado / _limite) * 100, 1) if _limite > 0 else 0
+
+    user_dict['serp_ru_month'] = entero(serp, 'serp_ru_month')
+    user_dict['ru_month'] = entero(ru, 'ru_month')
+    user_dict['llm_units_month'] = entero(llm, 'llm_units_month')
+    user_dict['llm_cost_month'] = None if llm is None else float(fila(llm).get('llm_cost_month', 0) or 0)
+    user_dict['llm_active_projects'] = entero(llm_proyectos, 'active_projects')
+    user_dict['ai_mode_paused_projects'] = entero(ai_mode_pausados, 'paused_projects')
+    user_dict['llm_paused_projects'] = entero(llm_pausados, 'paused_projects')
+    user_dict['invitations_sent'] = entero(invitaciones, 'total_sent')
+    user_dict['invitations_accepted'] = entero(invitaciones, 'accepted')
+    user_dict['invitations_pending'] = entero(invitaciones, 'pending')
+    for clave in ('aio_total', 'aio_active', 'aim_total', 'aim_active', 'llm_total', 'llm_active'):
+        user_dict[clave] = entero(proyectos, clave)
+    user_dict['metrics_unavailable'] = no_disponibles
+    return user_dict
+
+
+def get_user_billing_details(user_id):
+    """CONTRATO ANTIGUO: None tanto si el usuario no existe como si falla la
+    consulta. Se mantiene para sus consumidores actuales; el código nuevo debe
+    usar get_user_billing_details_strict()."""
+    try:
+        return get_user_billing_details_strict(user_id)
     except Exception as e:
         logger.error(f"Error obteniendo detalles de billing para usuario {user_id}: {e}")
         return None
-    finally:
-        if conn:
-            conn.close()
 
 def update_user_plan_manual(user_id, new_plan, admin_id):
     """Permite al admin cambiar el plan de un usuario manualmente (para testing o soporte)"""

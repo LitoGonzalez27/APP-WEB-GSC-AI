@@ -8,7 +8,10 @@ import json
 import secrets
 from functools import wraps
 from datetime import datetime, timedelta
-from flask import session, redirect, request, jsonify, url_for, flash, render_template
+import re
+import uuid
+from html import escape
+from flask import session, redirect, request, jsonify, url_for, flash, render_template, g, Response
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -35,6 +38,8 @@ from database import (
     get_user_by_email, 
     get_user_by_google_id, 
     get_user_by_id,
+    get_user_by_id_strict,
+    DatabaseUnavailableError,
     create_user, 
     authenticate_user,
     get_all_users,
@@ -207,6 +212,49 @@ def get_current_user():
     
     return get_user_by_id(session['user_id'])
 
+def get_current_user_strict():
+    """Usuario de la sesión con el contrato de get_user_by_id_strict(): dict,
+    None si ya no existe, DatabaseUnavailableError si no se pudo consultar."""
+    if 'user_id' not in session:
+        return None
+    return get_user_by_id_strict(session['user_id'])
+
+
+def _id_peticion():
+    """Identificador corto de la petición, para cruzar el log con lo que ve el
+    usuario. Usa el X-Request-Id entrante si es válido; si no, genera uno."""
+    rid = getattr(g, 'id_peticion', None)
+    if rid is None:
+        entrante = (request.headers.get('X-Request-Id') or '').strip()
+        rid = entrante if re.fullmatch(r'[A-Za-z0-9._-]{1,64}', entrante) else uuid.uuid4().hex[:12]
+        g.id_peticion = rid
+    return rid
+
+
+def _respuesta_fallo_tecnico(estado, codigo, mensaje, reintentable, forzar_json=False):
+    """Respuesta a un fallo técnico (503 transitorio, 500 interno): sin SQL,
+    trazas ni datos internos; con código estable e identificador de petición.
+    JSON para peticiones de API; una página mínima para la navegación normal."""
+    rid = _id_peticion()
+    if forzar_json or _wants_json_response():
+        cuerpo = {'success': False, 'error': mensaje, 'code': codigo, 'request_id': rid}
+        if reintentable:
+            cuerpo['retry'] = True
+        return jsonify(cuerpo), estado
+    destino = request.path + (('?' + request.query_string.decode('utf-8', 'replace')) if request.query_string else '')
+    reintentar = f'<p><a href="{escape(destino)}">Reintentar</a></p>' if reintentable else ''
+    html = (
+        '<!doctype html><html lang="es"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f'<title>{estado} · Clicandseo</title></head>'
+        '<body style="font-family:system-ui,sans-serif;max-width:560px;margin:15vh auto;padding:0 16px">'
+        f'<h1 style="font-size:1.4rem">{escape(mensaje)}</h1>{reintentar}'
+        f'<p style="color:#666;font-size:.85rem">Referencia: <code>{escape(rid)}</code></p>'
+        '</body></html>'
+    )
+    return Response(html, status=estado, mimetype='text/html')
+
+
 def is_user_authenticated():
     """Verifica si el usuario está autenticado"""
     return 'user_id' in session and session['user_id'] is not None
@@ -371,49 +419,67 @@ def cron_or_admin_required(f):
     return decorated_function
 
 def admin_required(f):
-    """Decorador que requiere privilegios de administrador"""
+    """Decorador que requiere privilegios de administrador.
+
+    Fase de fiabilidad (sep-2026): si no se puede comprobar al usuario por un
+    fallo de la base de datos se responde 503 (500 si es un fallo interno) y la
+    sesión se CONSERVA; nunca se deja pasar sin comprobar los permisos. Solo se
+    cierra la sesión si la consulta fue bien y el usuario ya no existe."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        quiere_json = _wants_json_response()
+
         # Verificar autenticación básica
         if not is_user_authenticated():
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if quiere_json:
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
             return redirect(url_for('login_page') + '?auth_required=true')
-        
+
         # Verificar expiración por inactividad
         if is_session_expired():
             session.clear()
             logger.info("Sesión expirada por inactividad")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if quiere_json:
                 return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
             return redirect(url_for('login_page') + '?session_expired=true')
-        
-        # Verificar si el usuario está en la base de datos
-        user = get_current_user()
-        if not user:
+
+        # Comprobar al usuario en la base de datos
+        try:
+            user = get_current_user_strict()
+        except DatabaseUnavailableError:
+            logger.warning(
+                f"admin_required: no se pudo comprobar al usuario {session.get('user_id')} "
+                f"({request.method} {request.path}, petición {_id_peticion()})", exc_info=True)
+            return _respuesta_fallo_tecnico(
+                503, 'database_unavailable', 'Servicio no disponible temporalmente. Reintenta en unos segundos.', True)
+        except Exception:
+            logger.exception(
+                f"admin_required: fallo interno al comprobar al usuario {session.get('user_id')} "
+                f"({request.method} {request.path}, petición {_id_peticion()})")
+            return _respuesta_fallo_tecnico(500, 'internal_error', 'Error interno al comprobar la sesión.', False)
+
+        if user is None:
             session.clear()
-            logger.warning("Usuario no encontrado en base de datos")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'User not found', 'auth_required': True}), 401
+            logger.warning("Usuario de la sesión no encontrado en base de datos")
+            if quiere_json:
+                return jsonify({'error': 'User not found', 'auth_required': True, 'code': 'user_not_found'}), 401
             return redirect(url_for('login_page') + '?user_not_found=true')
-        
+
         # Verificar si el usuario está activo
         if not user['is_active']:
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if quiere_json:
                 return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
             return redirect(url_for('login_page') + '?account_suspended=true')
-        
+
         # Verificar si el usuario es administrador
         if not user['role'] == 'admin':
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if quiere_json:
                 return jsonify({'error': 'Admin privileges required', 'admin_required': True}), 403
             return redirect(url_for('dashboard') + '?admin_required=true')
-        
+
         # Actualizar última actividad
         update_last_activity()
-        
+
         return f(*args, **kwargs)
     return decorated_function
 
@@ -1912,52 +1978,28 @@ def setup_auth_routes(app):
     @app.route('/admin/users/<int:user_id>/billing-details')
     @admin_required
     def user_billing_details(user_id):
-        """Obtener detalles completos de billing de un usuario para el modal Ver"""
+        """Ficha de facturación de un usuario para el modal "Ver".
+
+        200 con {'success': True, 'user': {...}}; 404 si el usuario no existe;
+        503 (retry) si no se pudo consultar; 500 ante un fallo interno. Los
+        errores llevan 'code' estable y 'request_id' para buscar en el log."""
+        from admin_billing_panel import get_user_billing_details_strict
         try:
-            from admin_billing_panel import get_user_billing_details
-            user_details = get_user_billing_details(user_id)
-            
-            if not user_details:
-                return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
-            
-            return jsonify({'success': True, 'user': user_details})
-            
-        except ImportError:
-            # Fallback a datos básicos si admin_billing_panel no está disponible
-            logger.warning("⚠️ admin_billing_panel no disponible, usando datos básicos")
-            # Refactor 2026-05-25: explicit conn=None + null-check + try/finally.
-            conn = None
-            try:
-                conn = get_db_connection()
-                if not conn:
-                    return jsonify({'success': False, 'error': 'Service temporarily unavailable'}), 503
-                cur = conn.cursor()
-                cur.execute('''
-                    SELECT id, email, name, picture, role, is_active, created_at,
-                           plan, quota_limit, quota_used, current_period_start, current_period_end
-                    FROM users WHERE id = %s
-                ''', (user_id,))
-                user = cur.fetchone()
+            detalles = get_user_billing_details_strict(user_id)
+        except DatabaseUnavailableError:
+            logger.warning(f"billing-details del usuario {user_id}: base de datos no disponible "
+                           f"(petición {_id_peticion()})", exc_info=True)
+            return _respuesta_fallo_tecnico(
+                503, 'database_unavailable', 'Servicio no disponible temporalmente. Reintenta en unos segundos.',
+                True, forzar_json=True)
+        except Exception:
+            logger.exception(f"billing-details del usuario {user_id}: fallo interno (petición {_id_peticion()})")
+            return _respuesta_fallo_tecnico(
+                500, 'internal_error', 'Error interno al cargar los datos del usuario.', False, forzar_json=True)
 
-                if not user:
-                    return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
-
-                user_dict = dict(user)
-                return jsonify({'success': True, 'user': user_dict})
-
-            except Exception as fallback_error:
-                logger.error(f"Error en fallback de detalles usuario: {fallback_error}")
-                return jsonify({'success': False, 'error': 'Failed to load user data'}), 500
-            finally:
-                if conn is not None:
-                    try:
-                        conn.close()
-                    except Exception:
-                        pass
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo detalles billing usuario {user_id}: {e}")
-            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        if detalles is None:
+            return jsonify({'success': False, 'error': 'Usuario no encontrado', 'code': 'user_not_found'}), 404
+        return jsonify({'success': True, 'user': detalles})
 
     @app.route('/admin/debug-stats')
     @admin_required 
