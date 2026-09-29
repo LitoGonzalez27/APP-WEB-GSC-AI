@@ -199,14 +199,31 @@ class SessionManager {
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
 
             const response = await fetch('/auth/status', {
-                signal: controller.signal
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' }
             });
             clearTimeout(timeoutId);
-            
-            const data = await response.json();
 
-            if (!data.authenticated) {
-                this.handleSessionExpired(data);
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (_) {
+                data = null;
+            }
+
+            // Solo se cierra la sesión si el servidor dice que ha terminado. Un
+            // fallo del servidor (503, 500...) no la cierra: se reintenta en la
+            // próxima comprobación (session-status.js).
+            const estado = window.SessionStatus
+                ? window.SessionStatus.interpretarEstadoSesion(response.status, data)
+                : (response.ok && data && data.authenticated === true ? 'activa'
+                    : (response.ok && data && data.authenticated === false ? 'terminada' : 'desconocida'));
+            if (estado === 'desconocida') {
+                this.log('Session status unknown (server unavailable), keeping session:', response.status);
+                return;
+            }
+            if (estado === 'terminada') {
+                this.handleSessionExpired(data || {});
                 return;
             }
 
