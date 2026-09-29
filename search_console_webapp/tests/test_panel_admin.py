@@ -54,33 +54,38 @@ def test_ficha_de_usuario_con_quota_limit_nulo(flask_app, clean_db, quota_used):
         paid["id"], None, 3500, quota_used, 0)
 
 
-def test_ficha_de_usuario_con_quota_limit_calcula_el_porcentaje(flask_app, clean_db):
+@pytest.mark.parametrize("quota_used,porcentaje", [(495, 40.4), (None, 0)])
+def test_ficha_de_usuario_con_quota_limit_calcula_el_porcentaje(flask_app, clean_db, quota_used, porcentaje):
     _user, admin, paid = seed_users()
-    _sql(clean_db, "UPDATE users SET quota_limit = 1225, quota_used = 495 WHERE id = %s", (paid["id"],))
+    _sql(clean_db, "UPDATE users SET quota_limit = 1225, quota_used = %s WHERE id = %s", (quota_used, paid["id"]))
     client = flask_app.app.test_client()
     _login(client, admin)
 
-    u = client.get(f"/admin/users/{paid['id']}/billing-details").get_json()["user"]
+    resp = client.get(f"/admin/users/{paid['id']}/billing-details")
 
-    assert u["quota_percentage"] == 40.4
+    # Con quota_used NULL también saltaba TypeError (None / 1225).
+    assert resp.status_code == 200
+    assert resp.get_json()["user"]["quota_percentage"] == porcentaje
 
 
-def test_tarjeta_de_pago_cuenta_los_usuarios_de_planes_de_pago(flask_app, clean_db):
-    _user, admin, _paid = seed_users()  # un único usuario de pago (business)
+def test_tarjetas_del_resumen_con_los_valores_del_servidor(flask_app, clean_db):
+    _user, admin, _paid = seed_users()  # 3 usuarios activos, uno de pago (business)
     client = flask_app.app.test_client()
     _login(client, admin)
 
     html = client.get("/admin/users").get_data(as_text=True)
 
-    m = re.search(r'<div class="stat-number">\s*(\d+)\s*</div>\s*<div class="stat-label">De pago</div>', html)
-    assert m, "no se encuentra la tarjeta De pago"
-    assert m.group(1) == "1"
+    tarjetas = dict((etiqueta, int(numero)) for numero, etiqueta in re.findall(
+        r'<div class="stat-number">\s*(\d+)\s*</div>\s*<div class="stat-label">([^<]+)</div>', html))
+    assert tarjetas == {"Total usuarios": 3, "Activos": 3, "Inactivos": 0, "De pago": 1}
 
 
-def test_el_script_de_la_pagina_no_sobrescribe_la_tarjeta_de_pago():
-    # ARREGLADO (2026-09-29): al cargar la página un script recontaba la tabla y
-    # escribía en la cuarta tarjeta los registros de hoy (antes era "Hoy"), así
-    # que "De pago" mostraba 0. Solo debe tocar total, activos e inactivos.
+def test_ningun_script_reescribe_las_tarjetas_del_resumen():
+    # ARREGLADO (2026-09-29): al cargar la página un script recontaba las filas
+    # de la página visible (la tabla está paginada) y reescribía las tarjetas;
+    # en la cuarta, "De pago", ponía los registros de hoy (antes era "Hoy"), así
+    # que mostraba 0. Las tarjetas son las del servidor y ningún script las toca.
     src = PLANTILLA.read_text(encoding="utf-8")
-    assert "statNumbers[3]" not in src
-    assert "statNumbers[0].textContent = total" in src
+    scripts = "\n".join(re.findall(r"<script[^>]*>(.*?)</script>", src, flags=re.S))
+    assert "stat-number" not in scripts
+    assert "stat-number" in src  # las tarjetas siguen en la plantilla
