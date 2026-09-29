@@ -89,3 +89,11 @@ test('valorMetrica: null o ausente es "No disponible", 0 es 0', () => {
     assert.equal(valorMetrica(0, (v) => `${v} RU`), '0 RU');
     assert.equal(valorMetrica(7), '7');
 });
+
+test('502, 504 y 429 (proxy o límite de peticiones): transitorios y reintentables', () => {
+    for (const status of [502, 504, 429]) {
+        const r = interpretarRespuestaDetalles(status, null);
+        assert.equal(r.tipo, 'no_disponible', String(status));
+        assert.equal(r.reintentable, true, String(status));
+    }
+});

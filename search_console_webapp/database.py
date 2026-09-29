@@ -346,10 +346,26 @@ class DatabaseUnavailableError(Exception):
     """No se pudo consultar la base de datos por un problema transitorio."""
 
 
-# Errores de psycopg2 que indican indisponibilidad (conexión rota o perdida,
-# consulta cancelada, conflicto transitorio). Los de programación
-# (ProgrammingError, DataError, IntegrityError, InternalError...) no lo son.
-TRANSIENT_DB_ERRORS = (psycopg2.OperationalError, psycopg2.InterfaceError)
+# Clases SQLSTATE que indican indisponibilidad transitoria: 08 conexión,
+# 40 conflicto (deadlock, serialización), 53 recursos insuficientes,
+# 57 intervención del operador (consulta cancelada, apagado del servidor).
+_CLASES_SQLSTATE_TRANSITORIAS = ('08', '40', '53', '57')
+
+
+def is_transient_db_error(exc):
+    """True si el error de psycopg2 indica que no se pudo consultar por un
+    problema transitorio (reintentable). Los de programación (SQL mal formado,
+    tabla o columna inexistente, límites del programa, transacción abortada...)
+    no lo son aunque psycopg2 los clasifique como OperationalError."""
+    if isinstance(exc, psycopg2.InterfaceError):
+        return True  # conexión cerrada o perdida en el cliente
+    if not isinstance(exc, psycopg2.DatabaseError):
+        return False
+    codigo = getattr(exc, 'pgcode', None)
+    if codigo:
+        return codigo[:2] in _CLASES_SQLSTATE_TRANSITORIAS
+    # Sin SQLSTATE: fallo de la conexión o de libpq (p. ej. caída de SSL).
+    return isinstance(exc, psycopg2.OperationalError) or type(exc) is psycopg2.DatabaseError
 
 _SQL_USUARIO_POR_ID = 'SELECT * FROM users WHERE id = %s'
 
@@ -376,8 +392,10 @@ def get_user_by_id_strict(user_id):
         with conn.cursor() as cur:
             cur.execute(_SQL_USUARIO_POR_ID, (user_id,))
             row = cur.fetchone()
-    except TRANSIENT_DB_ERRORS as e:
-        raise DatabaseUnavailableError(f'consulta de usuario interrumpida ({type(e).__name__})') from e
+    except psycopg2.Error as e:
+        if is_transient_db_error(e):
+            raise DatabaseUnavailableError(f'consulta de usuario interrumpida ({type(e).__name__})') from e
+        raise
     finally:
         return_db_connection(conn)
     if row is None:
@@ -1280,7 +1298,8 @@ def get_user_by_id(user_id):
     try:
         return get_user_by_id_strict(user_id)
     except DatabaseUnavailableError as e:
-        logger.error(f"get_user_by_id({user_id}): {e}")
+        causa = f": {e.__cause__}" if e.__cause__ else ""
+        logger.error(f"get_user_by_id({user_id}): {e}{causa}")
         return None
     except Exception as e:
         logger.error(f"get_user_by_id({user_id}) failed: {e}")
