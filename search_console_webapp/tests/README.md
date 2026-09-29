@@ -47,7 +47,7 @@ Varios tests antiguos comprueban texto del código (`read_text`/`getsource`); la
 
 `test_fiabilidad_sesion.py`: el mismo contrato en los decoradores de sesión (`auth_required`, keepalive) y en `/auth/status`: un fallo de la base de datos no cierra la sesión; un usuario borrado sí. `tests/js/session-status.test.cjs` prueba que el gestor de sesión del frontend no la cierra ante un 5xx. Sus secciones F y G cubren la lectura única del usuario por petición y el keepalive con cuerpos que no son un objeto JSON.
 
-`test_guardia_usuario_peticion.py` (sin base de datos): falla si una función nueva pide el usuario de la sesión después de escribir en `users` (recibiría los datos de antes). `test_log_seguro.py`: los logs no guardan secretos de la URL (código OAuth, tokens de contraseña, invitación y aprobación), incluida una petición real a un servidor Werkzeug.
+`test_guardia_usuario_peticion.py` (sin base de datos): falla si una función nueva pide el usuario de la sesión (directamente o a través de otras funciones) después de escribir en `users`, también dentro de bucles (recibiría los datos de antes); los casos seguros conocidos están justificados en `PERMITIDAS`. `test_log_seguro.py`: los logs no guardan secretos de la URL (código OAuth, tokens de contraseña, invitación y aprobación), incluida una petición real a un servidor Werkzeug.
 
 ## Barreras (tests/conftest.py)
 
