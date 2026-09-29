@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
+import config
 import logging
 from dotenv import load_dotenv
 from datetime import datetime
@@ -25,7 +26,7 @@ FROM_EMAIL = os.getenv('FROM_EMAIL', 'info@clicandseo.com')
 FROM_NAME = os.getenv('FROM_NAME', 'ClicandSEO')
 
 # Branding y URLs públicas
-PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'https://app.clicandseo.com')
+PUBLIC_BASE_URL = config.url_publica()
 LOGO_URL = f"{PUBLIC_BASE_URL}/static/images/logos/logo-clicandseo-light.svg"
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: str = None) -> bool:

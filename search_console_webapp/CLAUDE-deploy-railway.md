@@ -200,6 +200,21 @@ Confirmado con `find`. Deuda técnica documentada en `CLAUDE-manual-ai.md`.
 
 Lista exhaustiva extraída con `grep` sobre todos los `.py` + las variables de staging (hoy en `api-vault/clicandseo/railway-staging-variables.txt`) + Bun functions.
 
+### `config.py`: el entorno se decide en un solo sitio (sep-2026)
+
+Las variables que deciden el entorno y los secretos de cron se leen solo en `config.py` (lo vigila `tests/test_config.py`). Antes cada módulo decidía por su cuenta, y `stripe_config` y `billing_routes` tomaban `APP_ENV` con `'staging'` por defecto: sin `APP_ENV` en producción, la app se creía staging y enseñaba detalles de depuración en los errores de checkout.
+
+| Función | Fuente | Para qué |
+|---|---|---|
+| `entorno_railway()`, `desplegado()` | `RAILWAY_ENVIRONMENT` (la pone Railway) | Barreras de seguridad: clave de sesión obligatoria, cookies seguras, modo depuración, cifrado de tokens, HTTP en OAuth, SerpAPI sin usuario. `APP_ENV` no las abre ni las cierra. |
+| `entorno_app()`, `es_produccion()` | `APP_ENV`, si no `RAILWAY_ENVIRONMENT_NAME`, si no `RAILWAY_ENVIRONMENT`, si no `development` | Negocio: modo de Stripe, detalles en errores de checkout. Hoy: producción tiene `APP_ENV=production`; staging no tiene `APP_ENV` y sale `staging` por Railway. |
+| `etiqueta_entorno()` | `APP_ENV` o `RAILWAY_ENVIRONMENT_NAME` o `unknown` | Asunto de las alertas (`[PRODUCTION] ...`). |
+| `aviso_de_entorno()` | — | Aviso en el arranque si `APP_ENV` contradice a Railway. |
+| `token_cron()`, `cabecera_cron_valida(cabecera)` | `CRON_TOKEN` (o `CRON_SECRET`) | Una sola comprobación de `Authorization: Bearer ...` para todos los crons. Un token no ASCII es inválido (antes daba 500 en `/api/cron/quota-reset` y en el cron de LLM con sesión de admin). |
+| `alertas_cron_activas()`, `email_alertas()` | `CRON_ALERTS_ENABLED`, `CRON_ALERTS_EMAIL` | Interruptor y destinatario de las alertas. |
+| `url_publica()` | `PUBLIC_BASE_URL` o `https://app.clicandseo.com` | Enlaces en emails. No está definida en ningún entorno: staging también enlaza a producción en sus emails. |
+| `cuotas_forzadas()` | `ENFORCE_QUOTAS` | Control de cuota del middleware de SerpAPI. Staging `true`, producción `false` (AI Overview descuenta la cuota por su cuenta). |
+
 ### Críticas / obligatorias
 
 | Variable | Para qué |

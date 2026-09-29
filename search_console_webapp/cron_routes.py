@@ -16,8 +16,8 @@ trigger it on a `30 1 * * *` schedule.
 """
 
 import os
+import config
 import logging
-import secrets
 import threading
 
 from flask import Blueprint, request, jsonify
@@ -29,10 +29,7 @@ cron_bp = Blueprint('cron', __name__, url_prefix='/api/cron')
 
 def _ensure_cron_token():
     """Verify Authorization: Bearer <CRON_TOKEN>. Returns Flask response on failure, None on success."""
-    auth_header = request.headers.get('Authorization', '') or ''
-    token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
-    cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
-    if not cron_secret or not token or not secrets.compare_digest(token, cron_secret):
+    if not config.cabecera_cron_valida(request.headers.get('Authorization')):
         return jsonify({
             'success': False,
             'error': 'forbidden',
@@ -285,7 +282,7 @@ def _run_module_staleness_check():
 
 def _send_stale_cron_alert(stale_modules, max_days):
     """Email de alerta cuando un cron de análisis lleva días sin producir datos."""
-    if os.getenv('CRON_ALERTS_ENABLED', 'true').lower() != 'true':
+    if not config.alertas_cron_activas():
         logger.info("Stale-cron alert suppressed: CRON_ALERTS_ENABLED=false")
         return
 
@@ -295,8 +292,8 @@ def _send_stale_cron_alert(stale_modules, max_days):
         logger.error(f"Cannot import email_service: {e}")
         return
 
-    to = os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com')
-    env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+    to = config.email_alertas()
+    env_name = config.etiqueta_entorno()
 
     rows_html = ''.join(
         f"""<tr>
@@ -341,7 +338,7 @@ def _send_stale_cron_alert(stale_modules, max_days):
 
 def _send_stuck_quota_alert(stuck_users):
     """Send the alert email. Silenced by CRON_ALERTS_ENABLED=false."""
-    if os.getenv('CRON_ALERTS_ENABLED', 'true').lower() != 'true':
+    if not config.alertas_cron_activas():
         logger.info("Stuck-quota alert suppressed: CRON_ALERTS_ENABLED=false")
         return
 
@@ -351,8 +348,8 @@ def _send_stuck_quota_alert(stuck_users):
         logger.error(f"Cannot import email_service: {e}")
         return
 
-    to = os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com')
-    env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+    to = config.email_alertas()
+    env_name = config.etiqueta_entorno()
 
     rows_html = ''.join(
         f"""<tr>

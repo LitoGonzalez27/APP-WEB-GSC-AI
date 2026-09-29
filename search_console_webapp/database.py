@@ -1,6 +1,7 @@
 # database.py - Gestión de base de datos PostgreSQL
 
 import os
+import config
 import time
 import threading
 import psycopg2
@@ -34,7 +35,7 @@ if not DATABASE_URL:
 
 # Detectar si estamos en producción
 # Detección de entorno mejorada
-railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
+railway_env = config.entorno_railway()
 is_production = railway_env == 'production'
 is_staging = railway_env == 'staging'
 is_development = not railway_env or railway_env == 'development'
@@ -675,7 +676,7 @@ def _encrypt(text: Optional[str]) -> Optional[str]:
     if not f:
         # 🔒 No degradar silenciosamente a texto plano en entornos desplegados:
         # es preferible fallar de forma visible a guardar un refresh token sin cifrar.
-        if os.getenv('RAILWAY_ENVIRONMENT', '') in ('production', 'staging'):
+        if config.desplegado():
             raise RuntimeError(
                 "Clave de cifrado (TOKEN_ENCRYPTION_KEY/ENCRYPTION_KEY) ausente o inválida: "
                 "no se guardará el token sin cifrar."

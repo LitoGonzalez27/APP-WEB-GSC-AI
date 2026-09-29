@@ -11,6 +11,7 @@ Implementa el flujo SaaS estándar:
 """
 
 import os
+import config
 import stripe
 import logging
 from datetime import datetime
@@ -159,8 +160,7 @@ def setup_billing_routes(app):
             _ = stripe.Price.retrieve(price_id)
         except Exception as _e:
             logger.error(f"Price ID inválido o no existe en esta cuenta/entorno: {price_id} ({_e})")
-            app_env = os.getenv('APP_ENV', 'staging')
-            if app_env != 'production':
+            if not config.es_produccion():
                 return jsonify({'error': 'Invalid price configuration', 'details': 'Internal server error'}), 500
             return jsonify({'error': 'Plan not available'}), 500
         
@@ -362,8 +362,7 @@ def setup_billing_routes(app):
                 debug_ctx = {}
             logger.error(f"Error creando checkout session: {e} | ctx={debug_ctx}", exc_info=True)
             # Exponer detalles solo fuera de producción para diagnóstico rápido
-            app_env = os.getenv('APP_ENV', 'staging')
-            if app_env != 'production' or (request.args.get('debug') == '1' and is_user_admin()):
+            if not config.es_produccion() or (request.args.get('debug') == '1' and is_user_admin()):
                 return jsonify({'error': 'Could not create checkout session', 'details': 'Internal server error', 'ctx': debug_ctx}), 500
             return jsonify({'error': 'Could not create checkout session'}), 500
     
@@ -389,9 +388,9 @@ def setup_billing_routes(app):
                 'return_url': url_for('user_profile', _external=True) + '?tab=billing',
             }
             try:
-                config = get_stripe_config()
-                if getattr(config, 'portal_configuration_id', None):
-                    portal_create_params['configuration'] = config.portal_configuration_id
+                stripe_cfg = get_stripe_config()
+                if getattr(stripe_cfg, 'portal_configuration_id', None):
+                    portal_create_params['configuration'] = stripe_cfg.portal_configuration_id
             except Exception:
                 pass
 

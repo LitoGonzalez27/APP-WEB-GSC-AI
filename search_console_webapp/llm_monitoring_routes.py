@@ -28,6 +28,7 @@ Endpoints:
 
 import logging
 import os
+import config
 import json
 import re
 import html
@@ -237,11 +238,7 @@ def _ensure_cron_token_or_admin():
     - Bloquea usuarios autenticados no-admin
     """
     try:
-        auth_header = request.headers.get('Authorization', '') or ''
-        token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
-        cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
-
-        if cron_secret and token and secrets.compare_digest(token, cron_secret):
+        if config.cabecera_cron_valida(request.headers.get('Authorization')):
             return None
 
         user = get_current_user()
@@ -6659,7 +6656,7 @@ def cron_watchdog():
             payload = request.get_json(silent=True) or {}
             notify_email = _safe_notify_email(payload.get('notify_email'))
             from email_service import send_email
-            env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+            env_name = config.etiqueta_entorno()
             last_info = ''
             if last_dict:
                 last_info = (
@@ -10253,7 +10250,7 @@ def cron_model_discovery():
         models_added = []
         models_auto_approved = []
         approval_tokens_generated = []
-        public_base_url = os.getenv('PUBLIC_BASE_URL', 'https://app.clicandseo.com')
+        public_base_url = config.url_publica()
 
         for model in newer_chat_models:
             try:

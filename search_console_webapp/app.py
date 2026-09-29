@@ -1,4 +1,5 @@
 import os
+import config
 import sys
 import json
 import time
@@ -20,7 +21,7 @@ import threading
 # Relajar validación de scopes para evitar errores de orden en todos los entornos
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 # Permitir HTTP solo en desarrollo local (NUNCA en producción/staging)
-if not os.getenv('RAILWAY_ENVIRONMENT'):
+if not config.entorno_railway():
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # --- Servicios extraídos ---
@@ -77,7 +78,7 @@ from services.log_seguro import instalar_filtro_secretos
 instalar_filtro_secretos()
 
 # Carga variables de entorno
-if os.getenv("RAILWAY_ENVIRONMENT"):
+if config.entorno_railway():
     logger.info("Entorno Railway detectado, no se carga .env local")
 else:
     load_dotenv('serpapi.env')
@@ -118,7 +119,7 @@ limiter = Limiter(
 )
 
 # Configuración automática según entorno
-railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
+railway_env = config.entorno_railway()
 is_production = railway_env == 'production'
 is_staging = railway_env == 'staging'
 is_development = not railway_env or railway_env == 'development'
@@ -141,6 +142,8 @@ app.secret_key = _flask_secret
 
 logger.info(f"🌍 Entorno detectado: {railway_env or 'development'}")
 logger.info(f"📊 Configuración: Production={is_production}, Staging={is_staging}, Development={is_development}")
+if config.aviso_de_entorno():
+    logger.warning(f"⚠️ {config.aviso_de_entorno()}")
 
 # Reducir verbosidad de logging en producción/staging
 if is_production or is_staging:

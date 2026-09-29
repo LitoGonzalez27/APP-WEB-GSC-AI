@@ -14,6 +14,7 @@ Flujo:
 """
 
 import os
+import config
 import logging
 import time
 import hashlib
@@ -32,7 +33,7 @@ from database import track_quota_consumption
 logger = logging.getLogger(__name__)
 
 # Detección de entorno desplegado (para gates de seguridad).
-_IS_DEPLOYED = os.getenv('RAILWAY_ENVIRONMENT', '') in ('production', 'staging')
+_IS_DEPLOYED = config.desplegado()
 
 # Cache para detectar si una llamada es repetida (mismos parámetros) - LRU + TTL
 CALL_CACHE = OrderedDict()
@@ -236,7 +237,7 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
         }
 
     # ✅ FEATURE FLAG: Verificar si enforcement está activado
-    enforce_quotas = os.getenv('ENFORCE_QUOTAS', 'false').lower() == 'true'
+    enforce_quotas = config.cuotas_forzadas()
 
     if not enforce_quotas:
         logger.info("🔓 ENFORCE_QUOTAS=false - Ejecutando sin control de quotas")
