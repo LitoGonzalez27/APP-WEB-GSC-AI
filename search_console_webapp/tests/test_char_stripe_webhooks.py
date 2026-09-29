@@ -204,7 +204,8 @@ def evento(tipo, objeto, event_id="evt_char_0001"):
 
 def suscripcion(customer=CUSTOMER_PAGO, sub_id=SUB_PAGO, price="price_test_premium_monthly",
                 product="prod_test_premium", status="active", inicio=OCT_INICIO, fin=OCT_FIN,
-                periodo_en="items", cancel_at_period_end=False, trial_end=None, con_items=True):
+                periodo_en="items", cancel_at_period_end=False, trial_end=None, con_items=True,
+                metadata=None):
     """Objeto subscription. periodo_en: 'items' (API basil), 'raiz' (API antigua) o None."""
     item = {
         "id": "si_char_1",
@@ -220,6 +221,7 @@ def suscripcion(customer=CUSTOMER_PAGO, sub_id=SUB_PAGO, price="price_test_premi
         "cancel_at_period_end": cancel_at_period_end,
         "cancel_at": FUTURO_FIN if cancel_at_period_end else None,
         "trial_end": trial_end,
+        "metadata": metadata or {},
         "items": {"object": "list", "data": [item] if con_items else []},
     }
     if periodo_en == "items":
@@ -338,7 +340,6 @@ def ctx(flask_app, clean_db, monkeypatch):
     sin_red = stripe.error.APIConnectionError("API de Stripe no disponible en tests")
     with mock.patch.object(stripe.Customer, "retrieve", side_effect=sin_red) as customer_retrieve, \
             mock.patch.object(stripe.Subscription, "retrieve", side_effect=sin_red) as subscription_retrieve, \
-            mock.patch.object(stripe.Subscription, "list", return_value={"object": "list", "data": []}) as subscription_list, \
             mock.patch.object(stripe.Subscription, "cancel") as subscription_cancel, \
             mock.patch.object(stripe_webhooks, "send_trial_started_email", return_value=True) as email_trial, \
             mock.patch.object(stripe_webhooks, "send_email", return_value=True) as email_modulo, \
@@ -349,7 +350,6 @@ def ctx(flask_app, clean_db, monkeypatch):
             modulo=stripe_webhooks,
             customer_retrieve=customer_retrieve,
             subscription_retrieve=subscription_retrieve,
-            subscription_list=subscription_list,
             subscription_cancel=subscription_cancel,
             email_trial=email_trial,
             email_modulo=email_modulo,
@@ -1348,14 +1348,22 @@ def test_tipo_no_manejado_responde_200_y_queda_registrado(ctx, tipo):
 
 
 # ===========================================================================
-# 8. Cancelación automática de la suscripción antigua (orden de Carlos, 29-sep-2026)
+# 8. Cancelación automática de la suscripción sustituida (orden de Carlos, 29-sep-2026)
 # ===========================================================================
 
 NUEVA = "sub_char_nueva"
+MARCA = {"replaces_subscription": SUB_PAGO}
 
 
-def _lista(*subs):
-    return {"object": "list", "data": [{"id": sid, "object": "subscription", "status": st} for sid, st in subs]}
+def _en_stripe(**subs):
+    """Respuesta de Subscription.retrieve por id: {id: (status, created)}."""
+    def retrieve(sid, *args, **kwargs):
+        if sid not in subs:
+            import stripe
+            raise stripe.error.InvalidRequestError(f"No such subscription: '{sid}'", "id")
+        status, created = subs[sid]
+        return {"id": sid, "object": "subscription", "status": status, "created": created}
+    return retrieve
 
 
 def _asunto_alerta(ctx):
@@ -1363,31 +1371,85 @@ def _asunto_alerta(ctx):
 
 
 @pytest.mark.parametrize("estado_nueva", ["active", "trialing"])
-@pytest.mark.parametrize("estado_antigua", ["past_due", "unpaid", "incomplete", "paused"])
-def test_al_activarse_una_suscripcion_nueva_se_cancela_la_antigua_que_no_paga(ctx, estado_antigua, estado_nueva):
+@pytest.mark.parametrize("estado_antigua", ["past_due", "unpaid", "paused"])
+def test_al_activarse_la_nueva_se_cancela_la_suscripcion_que_sustituye(ctx, estado_antigua, estado_nueva):
     consultar(ctx.db, "UPDATE users SET billing_status = 'past_due' WHERE id = %s", (ID_PAGO,))
-    ctx.subscription_list.return_value = _lista((SUB_PAGO, estado_antigua), (NUEVA, estado_nueva))
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: (estado_antigua, 100), NUEVA: (estado_nueva, 200)})
 
-    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, status=estado_nueva)))
+    resp = enviar(ctx, evento("customer.subscription.updated",
+                              suscripcion(sub_id=NUEVA, status=estado_nueva, metadata=MARCA)))
 
     assert resp.status_code == 200
     assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
-    ctx.subscription_list.assert_called_once_with(customer=CUSTOMER_PAGO, status="all", limit=100)
+    ctx.subscription_cancel.assert_called_once()
     args, kwargs = ctx.subscription_cancel.call_args
-    assert ctx.subscription_cancel.call_count == 1
     assert args == (SUB_PAGO,)
     assert NUEVA in kwargs["cancellation_details"]["comment"]
-    # Cada cancelación automática se avisa por email.
     ctx.email_alerta.assert_called_once()
     assert "cancelada automáticamente" in _asunto_alerta(ctx)
     assert SUB_PAGO in ctx.email_alerta.call_args[0][2]
 
 
-@pytest.mark.parametrize("estado_otra", ["active", "trialing"])
-def test_otra_suscripcion_que_sigue_pagando_no_se_cancela_y_se_avisa(ctx, estado_otra):
-    ctx.subscription_list.return_value = _lista((SUB_PAGO, estado_otra), (NUEVA, "active"))
+def test_secuencia_completa_del_checkout_con_la_antigua_en_past_due(ctx):
+    # created(incomplete) -> checkout -> updated(active) -> deleted(antigua)
+    consultar(ctx.db, "UPDATE users SET billing_status = 'past_due' WHERE id = %s", (ID_PAGO,))
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
 
-    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+    r1 = enviar(ctx, evento("customer.subscription.created",
+                            suscripcion(sub_id=NUEVA, status="incomplete", metadata=MARCA), event_id="evt_1"))
+    r2 = enviar(ctx, evento("checkout.session.completed",
+                            sesion_checkout(client_reference_id=str(ID_PAGO), customer=CUSTOMER_PAGO,
+                                            subscription=NUEVA), event_id="evt_2"))
+    r3 = enviar(ctx, evento("customer.subscription.updated",
+                            suscripcion(sub_id=NUEVA, metadata=MARCA), event_id="evt_3"))
+    r4 = enviar(ctx, evento("customer.subscription.deleted",
+                            suscripcion(sub_id=SUB_PAGO, status="canceled"), event_id="evt_4"))
+
+    assert [r.status_code for r in (r1, r2, r3, r4)] == [200, 200, 200, 200]
+    ctx.subscription_cancel.assert_called_once()
+    assert ctx.subscription_cancel.call_args.args == (SUB_PAGO,)
+    u = usuario(ctx.db, ID_PAGO)
+    assert (u["subscription_id"], u["plan"], u["billing_status"]) == (NUEVA, "premium", "active")
+
+
+def test_la_antigua_recuperada_no_cancela_la_nueva(ctx):
+    # Revisión independiente (R1): la antigua vuelve a pagar mientras la nueva está
+    # a medio pagar. Su evento no lleva marca de sustitución: no se cancela nada.
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("active", 100), NUEVA: ("incomplete", 200)})
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=SUB_PAGO)))
+
+    assert resp.status_code == 200
+    ctx.subscription_cancel.assert_not_called()
+    ctx.subscription_retrieve.assert_not_called()
+
+
+def test_renovacion_o_cambio_de_plan_sin_marca_no_toca_nada(ctx):
+    # Revisión independiente (R5): renovaciones y cambios en el portal no llevan
+    # marca de sustitución y no cancelan otras suscripciones del cliente.
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(price="price_test_business_monthly")))
+
+    assert resp.status_code == 200
+    ctx.subscription_retrieve.assert_not_called()
+    ctx.subscription_cancel.assert_not_called()
+
+
+def test_evento_con_marca_pero_la_nueva_ya_no_esta_activa_no_cancela(ctx):
+    # Evento antiguo o reenviado: el estado en vivo de la nueva manda.
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("past_due", 200)})
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA)))
+
+    assert resp.status_code == 200
+    ctx.subscription_cancel.assert_not_called()
+    ctx.email_alerta.assert_not_called()
+
+
+@pytest.mark.parametrize("estado_antigua", ["active", "trialing"])
+def test_si_la_antigua_sigue_pagando_no_se_cancela_y_se_avisa(ctx, estado_antigua):
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: (estado_antigua, 100), NUEVA: ("active", 200)})
+
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA)))
 
     assert resp.status_code == 200
     ctx.subscription_cancel.assert_not_called()
@@ -1395,92 +1457,112 @@ def test_otra_suscripcion_que_sigue_pagando_no_se_cancela_y_se_avisa(ctx, estado
     assert "posible doble cobro" in _asunto_alerta(ctx)
 
 
-def test_suscripciones_ya_terminadas_no_se_tocan_ni_se_avisa(ctx):
-    ctx.subscription_list.return_value = _lista(
-        (SUB_PAGO, "canceled"), ("sub_char_caducada", "incomplete_expired"), (NUEVA, "active"))
+@pytest.mark.parametrize("estado_antigua", ["canceled", "incomplete_expired", "incomplete"])
+def test_si_la_antigua_ya_termino_no_se_toca_ni_se_avisa(ctx, estado_antigua):
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: (estado_antigua, 100), NUEVA: ("active", 200)})
 
-    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA)))
 
     assert resp.status_code == 200
     ctx.subscription_cancel.assert_not_called()
     ctx.email_alerta.assert_not_called()
 
 
-def test_si_falla_una_cancelacion_se_intentan_las_demas_y_se_avisa(ctx):
-    import stripe
-    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), ("sub_char_otra", "unpaid"), (NUEVA, "active"))
-    ctx.subscription_cancel.side_effect = [stripe.error.APIConnectionError("sin red"), mock.DEFAULT]
+def test_si_la_marcada_es_mas_reciente_que_la_nueva_no_se_cancela_y_se_avisa(ctx):
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("past_due", 300), NUEVA: ("active", 200)})
 
-    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA)))
 
-    # El webhook ya está aplicado: sigue respondiendo 200.
     assert resp.status_code == 200
-    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
-    assert [c.args[0] for c in ctx.subscription_cancel.call_args_list] == [SUB_PAGO, "sub_char_otra"]
+    ctx.subscription_cancel.assert_not_called()
     ctx.email_alerta.assert_called_once()
-    assert "fallo al cancelar" in _asunto_alerta(ctx)
-    cuerpo = ctx.email_alerta.call_args[0][2]
-    assert SUB_PAGO in cuerpo and "sub_char_otra" in cuerpo
+    assert "más reciente" in ctx.email_alerta.call_args[0][2]
 
 
-def test_si_stripe_no_responde_al_listar_se_avisa_y_el_webhook_sigue_bien(ctx):
-    import stripe
-    ctx.subscription_list.side_effect = stripe.error.APIConnectionError("sin red")
+def test_si_la_antigua_no_existe_en_stripe_se_avisa(ctx):
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{NUEVA: ("active", 200)})
 
-    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA)))
 
     assert resp.status_code == 200
-    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
     ctx.subscription_cancel.assert_not_called()
     ctx.email_alerta.assert_called_once()
     assert "fallo al cancelar" in _asunto_alerta(ctx)
+
+
+@pytest.mark.parametrize("falla", ["consulta", "cancelacion"])
+def test_si_stripe_no_responde_se_pide_reintento_y_el_reintento_cancela(ctx, falla):
+    import stripe
+    sin_red = stripe.error.APIConnectionError("sin red")
+    en_stripe = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
+    if falla == "consulta":
+        ctx.subscription_retrieve.side_effect = sin_red
+    else:
+        ctx.subscription_retrieve.side_effect = en_stripe
+        ctx.subscription_cancel.side_effect = sin_red
+    datos = evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA), event_id="evt_reintento")
+
+    primera = enviar(ctx, datos)
+
+    # El evento ya está aplicado en BD, pero se responde 503 para que Stripe lo reintente.
+    assert primera.status_code == 503
+    assert primera.get_json()["error"] == "replaced_subscription_pending"
+    assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
+    assert resumen_eventos(ctx.db) == [
+        ("evt_reintento", "customer.subscription.updated", "failed", "replaced_subscription_pending", True)]
+    ctx.email_alerta.assert_not_called()
+
+    ctx.subscription_retrieve.side_effect = en_stripe
+    ctx.subscription_cancel.side_effect = None
+    segunda = enviar(ctx, datos)
+
+    assert segunda.status_code == 200
+    assert ctx.subscription_cancel.call_args.args == (SUB_PAGO,)
+    assert resumen_eventos(ctx.db) == [("evt_reintento", "customer.subscription.updated", "processed", "", True)]
+    ctx.email_alerta.assert_called_once()
 
 
 def test_con_el_interruptor_apagado_no_se_cancela_nada(ctx, monkeypatch):
     monkeypatch.setenv("STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS", "false")
-    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), (NUEVA, "active"))
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
 
-    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA)))
 
     assert resp.status_code == 200
     assert usuario(ctx.db, ID_PAGO)["subscription_id"] == NUEVA
-    ctx.subscription_list.assert_not_called()
+    ctx.subscription_retrieve.assert_not_called()
     ctx.subscription_cancel.assert_not_called()
 
 
-def test_con_los_avisos_apagados_se_cancela_sin_email(ctx, monkeypatch):
+def test_la_cancelacion_se_avisa_aunque_las_alertas_esten_apagadas(ctx, monkeypatch):
     monkeypatch.setenv("CRON_ALERTS_ENABLED", "false")
-    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), (NUEVA, "active"))
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
 
-    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA)))
+    resp = enviar(ctx, evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA)))
 
     assert resp.status_code == 200
     ctx.subscription_cancel.assert_called_once()
-    ctx.email_alerta.assert_not_called()
+    ctx.email_alerta.assert_called_once()
 
 
 @pytest.mark.parametrize("tipo,datos", [
-    ("customer.subscription.updated", {"status": "past_due"}),
-    ("customer.subscription.updated", {"status": "incomplete"}),
-    ("customer.subscription.deleted", {"status": "canceled"}),
-    ("customer.subscription.updated", {"sub_id": "sub_char_antigua", "status": "unpaid"}),  # ignorado
-    ("customer.subscription.updated", {"customer": "cus_char_fantasma", "sub_id": "sub_char_fantasma"}),  # 503
+    ("customer.subscription.updated", {"sub_id": NUEVA, "status": "past_due"}),
+    ("customer.subscription.created", {"sub_id": NUEVA, "status": "incomplete"}),
+    ("customer.subscription.deleted", {"sub_id": NUEVA, "status": "canceled"}),
 ])
-def test_eventos_que_no_dejan_activa_una_suscripcion_del_usuario_no_cancelan_nada(ctx, tipo, datos):
-    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), ("sub_char_otra", "past_due"))
+def test_eventos_que_no_dejan_activa_la_nueva_no_cancelan_nada(ctx, tipo, datos):
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
 
-    enviar(ctx, evento(tipo, suscripcion(**datos)))
+    enviar(ctx, evento(tipo, suscripcion(metadata=MARCA, **datos)))
 
-    ctx.subscription_list.assert_not_called()
     ctx.subscription_cancel.assert_not_called()
 
 
 def test_evento_repetido_no_vuelve_a_cancelar(ctx):
-    ctx.subscription_list.return_value = _lista((SUB_PAGO, "past_due"), (NUEVA, "active"))
-    datos = evento("customer.subscription.updated", suscripcion(sub_id=NUEVA), event_id="evt_char_repetido")
+    ctx.subscription_retrieve.side_effect = _en_stripe(**{SUB_PAGO: ("past_due", 100), NUEVA: ("active", 200)})
+    datos = evento("customer.subscription.updated", suscripcion(sub_id=NUEVA, metadata=MARCA), event_id="evt_repetido")
 
     assert enviar(ctx, datos).status_code == 200
     assert enviar(ctx, datos).status_code == 200
 
-    # El segundo envío es idempotente (no se reprocesa).
     assert ctx.subscription_cancel.call_count == 1

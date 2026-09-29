@@ -486,10 +486,12 @@ class StripeWebhookHandler:
             
             logger.info(f"✅ Subscription {action} processed successfully for customer {customer_id}")
 
-            # La suscripción ya está guardada como la del usuario: se cancelan en
-            # Stripe las antiguas del cliente que no están pagando.
+            # Si esta suscripción sustituye a otra (marca puesta en el checkout),
+            # se cancela la antigua en Stripe cuando esta queda activa. Si Stripe
+            # no responde, se pide el reintento del evento (ya aplicado en BD).
             if action in ('created', 'updated') and status in _ESTADOS_PAGANDO:
-                _cancelar_suscripciones_antiguas(customer_id, subscription_id)
+                if _cancelar_suscripcion_sustituida(subscription) == 'reintentar':
+                    return {'success': False, 'error': 'replaced_subscription_pending'}
             
             # Enviar email de inicio de trial (una sola vez) - en inglés usando helpers
             # Refactor 2026-05-25: try/finally to GUARANTEE conn2.close().
@@ -850,7 +852,8 @@ def _ensure_webhook_events_table(cur):
 # (el usuario aún no existía, la BD falló...). Un evento que falló por uno de
 # ellos se vuelve a procesar; los errores permanentes (payload sin usuario, sin
 # items...) se siguen confirmando sin reprocesar.
-_REPROCESSABLE_ERRORS = ('customer_not_found', 'internal_error', 'Database connection failed')
+_REPROCESSABLE_ERRORS = ('customer_not_found', 'internal_error', 'Database connection failed',
+                         'replaced_subscription_pending')
 # Un evento 'in_progress' más antiguo que esto se considera abandonado (el
 # proceso murió a mitad) y se puede reclamar de nuevo.
 _STALE_IN_PROGRESS_MINUTES = 10
@@ -953,63 +956,85 @@ def _mark_webhook_event_processed(event_id: str, success: bool, error_message: s
             except Exception: pass
 
 
-# Otras suscripciones del cliente que se cancelan al activarse una nueva: las
-# que no están pagando. Las que siguen pagando no se tocan: se avisa.
-_ESTADOS_ANTIGUA_A_CANCELAR = ('past_due', 'unpaid', 'incomplete', 'paused')
+# Estados en que la suscripción sustituida se cancela (no está pagando) y en
+# que la nueva cuenta como vigente.
+_ESTADOS_ANTIGUA_A_CANCELAR = ('past_due', 'unpaid', 'paused')
 _ESTADOS_PAGANDO = ('active', 'trialing')
 
 
-def _cancelar_suscripciones_antiguas(customer_id, subscription_id):
-    """Cancela en Stripe las otras suscripciones del cliente que no están pagando.
+def _cancelar_suscripcion_sustituida(subscription):
+    """Cancela en Stripe la suscripción a la que sustituye `subscription`.
 
     Orden de Carlos (29-sep-2026). Con la suscripción en past_due el checkout
     deja contratar otra, y Stripe seguiría intentando cobrar la antigua: doble
-    cobro. Cuando la nueva queda activa (o en prueba) y ya es la del usuario, se
-    cancelan las demás en impago, sin completar o pausadas. Al cancelar, Stripe
-    deja de cobrar automáticamente sus facturas abiertas (auto_advance=false).
-    Si otra sigue activa no se cancela: se avisa por email (posible doble cobro).
-    Cada cancelación también se avisa. Nunca lanza: el webhook ya está aplicado.
+    cobro. El checkout marca la nueva con `metadata.replaces_subscription` (la
+    que tenía el usuario). Cuando la nueva queda activa o en prueba, se
+    comprueban las dos en vivo y se cancela la antigua solo si sigue sin pagar
+    (past_due, unpaid, paused) y es anterior a la nueva. Al cancelar, Stripe
+    deja de cobrar automáticamente sus facturas. Si la antigua ha vuelto a
+    pagar, no se toca y se avisa (posible doble cobro). Solo actúa sobre la
+    suscripción marcada: nunca sobre otras del cliente.
+
+    Devuelve 'reintentar' si Stripe no respondió (error transitorio); None en
+    los demás casos. Cada cancelación y cada fallo se avisan por email.
     Interruptor: STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS=false.
     """
     if os.getenv('STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS', 'true').lower() == 'false':
-        return
-    if not customer_id or not subscription_id:
-        return
-    canceladas, pagando, fallos = [], [], []
+        return None
+    nueva_id = subscription.get('id')
+    antigua_id = (subscription.get('metadata') or {}).get('replaces_subscription')
+    if not antigua_id or not nueva_id or antigua_id == nueva_id:
+        return None
+
     try:
-        respuesta = stripe.Subscription.list(customer=customer_id, status='all', limit=100)
-        otras = [s for s in (respuesta.get('data') or []) if s.get('id') != subscription_id]
+        nueva = stripe.Subscription.retrieve(nueva_id)
+        if nueva.get('status') not in _ESTADOS_PAGANDO:
+            # Evento antiguo o reenviado: la nueva ya no está activa. No se toca nada.
+            return None
+        antigua = stripe.Subscription.retrieve(antigua_id)
+    except stripe.error.InvalidRequestError as e:
+        logger.error(f"❌ No se pudo consultar la suscripción sustituida {antigua_id}: {e}")
+        _alertar_suscripciones_antiguas(subscription.get('customer'), nueva_id, [], [], [(antigua_id, str(e))])
+        return None
     except Exception as e:
-        logger.error(f"❌ No se pudieron listar las suscripciones de {customer_id}: {e}")
-        _alertar_suscripciones_antiguas(customer_id, subscription_id, [], [], [('(listado)', str(e))])
-        return
+        logger.warning(f"⚠️ Stripe no respondió al consultar {nueva_id}/{antigua_id}: {e}; se reintentará")
+        return 'reintentar'
 
-    for sub in otras:
-        sid, estado = sub.get('id'), sub.get('status')
-        if estado in _ESTADOS_ANTIGUA_A_CANCELAR:
-            try:
-                stripe.Subscription.cancel(sid, cancellation_details={
-                    'comment': f'Sustituida por {subscription_id}: cancelación automática de Clicandseo',
-                })
-                canceladas.append((sid, estado))
-                logger.warning(f"🧹 Suscripción {sid} ({estado}) cancelada: el cliente {customer_id} "
-                               f"tiene ahora {subscription_id}")
-            except Exception as e:
-                fallos.append((sid, f'{estado}: {e}'))
-                logger.error(f"❌ No se pudo cancelar la suscripción {sid} de {customer_id}: {e}")
-        elif estado in _ESTADOS_PAGANDO:
-            pagando.append((sid, estado))
-            logger.warning(f"⚠️ El cliente {customer_id} tiene otra suscripción pagando ({sid}, {estado}) "
-                           f"además de {subscription_id}: posible doble cobro")
+    estado = antigua.get('status')
+    customer_id = subscription.get('customer')
+    if estado in _ESTADOS_PAGANDO:
+        logger.warning(f"⚠️ {antigua_id} ({estado}) sigue pagando además de {nueva_id}: posible doble cobro")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [(antigua_id, estado)], [])
+        return None
+    if estado not in _ESTADOS_ANTIGUA_A_CANCELAR:
+        return None  # ya cancelada o caducada
+    if (antigua.get('created') or 0) > (nueva.get('created') or 0):
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(
+            antigua_id, f'{estado}: es más reciente que {nueva_id}; no se cancela, revisar a mano')])
+        return None
 
-    if canceladas or pagando or fallos:
-        _alertar_suscripciones_antiguas(customer_id, subscription_id, canceladas, pagando, fallos)
+    try:
+        stripe.Subscription.cancel(antigua_id, cancellation_details={
+            'comment': f'Sustituida por {nueva_id}: cancelación automática de Clicandseo',
+        })
+    except stripe.error.InvalidRequestError as e:
+        logger.error(f"❌ No se pudo cancelar la suscripción sustituida {antigua_id}: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'{estado}: {e}')])
+        return None
+    except Exception as e:
+        logger.warning(f"⚠️ Stripe no respondió al cancelar {antigua_id}: {e}; se reintentará")
+        return 'reintentar'
+
+    logger.warning(f"🧹 Suscripción {antigua_id} ({estado}) cancelada: sustituida por {nueva_id}")
+    _alertar_suscripciones_antiguas(customer_id, nueva_id, [(antigua_id, estado)], [], [])
+    return None
 
 
 def _alertar_suscripciones_antiguas(customer_id, subscription_id, canceladas, pagando, fallos):
-    """Email al admin con lo que hizo (o no pudo hacer) _cancelar_suscripciones_antiguas."""
-    if os.getenv('CRON_ALERTS_ENABLED', 'true').lower() != 'true':
-        return
+    """Email al admin con lo que hizo (o no pudo hacer) _cancelar_suscripcion_sustituida.
+
+    Se envía siempre, también con CRON_ALERTS_ENABLED=false: es el registro de
+    una acción sobre el dinero de un cliente."""
     try:
         from email_service import send_email
     except Exception as e:
@@ -1042,12 +1067,11 @@ def _alertar_suscripciones_antiguas(customer_id, subscription_id, canceladas, pa
         <p><strong>Entorno:</strong> {escape(env_name)}<br>
            <strong>Cliente:</strong> <code>{escape(str(customer_id))}</code><br>
            <strong>Suscripción vigente:</strong> <code>{escape(str(subscription_id))}</code></p>
-        {_filas('Canceladas (en Stripe dejan de cobrarse sus facturas abiertas)', canceladas)}
-        {_filas('Siguen pagando: no se han tocado, revisar en Stripe', pagando)}
-        {_filas('No se pudieron cancelar: hacerlo a mano en Stripe', fallos)}
+        {_filas('Cancelada (Stripe deja de cobrar automáticamente sus facturas)', canceladas)}
+        {_filas('Sigue pagando: no se ha tocado, revisar en Stripe', pagando)}
+        {_filas('No se ha cancelado: revisar y hacerlo a mano en Stripe', fallos)}
         <p style="color:#6b7280;font-size:12px;margin-top:24px">
             Para desactivar la cancelación automática: <code>STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS=false</code>.
-            Para silenciar avisos: <code>CRON_ALERTS_ENABLED=false</code>.
         </p>
     </body></html>
     """
@@ -1202,6 +1226,7 @@ def create_webhook_route(app):
             transient_errors = {
                 'customer_not_found',     # signup race condition
                 'cannot_claim_event',     # DB transient failure
+                'replaced_subscription_pending',  # Stripe no respondió al cancelar la sustituida
             }
             if err_code in transient_errors:
                 # 503 Service Unavailable → Stripe retries with backoff
