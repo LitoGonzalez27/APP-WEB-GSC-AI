@@ -235,6 +235,15 @@ def setup_billing_routes(app):
                 trial_days = int(os.getenv('TRIAL_DAYS', '7'))
                 create_params['subscription_data'] = {'trial_period_days': trial_days}
 
+            # Si el usuario ya tiene una suscripción (p. ej. en past_due), la nueva la
+            # sustituye: el webhook cancela la antigua en Stripe cuando la nueva queda
+            # activa, si la antigua sigue sin pagar (orden de Carlos, 29-sep-2026).
+            reemplaza = user.get('subscription_id')
+            if reemplaza:
+                create_params.setdefault('subscription_data', {})['metadata'] = {
+                    'replaces_subscription': reemplaza,
+                }
+
             # Preaplicar descuentos opcionalmente si se pasan por query
             # Soporta: ?promo=<promotion_code_id|human_code> y ?coupon=<coupon_id>
             promotion_code_param = request.args.get('promo')
@@ -302,6 +311,8 @@ def setup_billing_routes(app):
                             )
                             sanitized_params2 = dict(sanitized_params)
                             sanitized_params2.pop('subscription_data', None)
+                            if reemplaza:  # sin trial, pero conservando la sustitución
+                                sanitized_params2['subscription_data'] = {'metadata': {'replaces_subscription': reemplaza}}
                             sanitized_params2.pop('payment_method_types', None)
                             sanitized_params2.pop('client_reference_id', None)
                             checkout_session = stripe.checkout.Session.create(**sanitized_params2)
@@ -323,6 +334,8 @@ def setup_billing_routes(app):
                         )
                         sanitized_params2 = dict(sanitized_params)
                         sanitized_params2.pop('subscription_data', None)
+                        if reemplaza:  # sin trial, pero conservando la sustitución
+                            sanitized_params2['subscription_data'] = {'metadata': {'replaces_subscription': reemplaza}}
                         sanitized_params2.pop('payment_method_types', None)
                         sanitized_params2.pop('client_reference_id', None)
                         checkout_session = stripe.checkout.Session.create(**sanitized_params2)
