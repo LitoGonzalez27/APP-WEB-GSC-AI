@@ -3,6 +3,7 @@
  * Gestión completa de proyectos (CRUD, renderizado, validación)
  */
 
+import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { escapeHtml, sanitizeUrlForJsString, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './ai-mode-utils.js';
 
 // ================================
@@ -73,7 +74,7 @@ export function renderProjects() {
         // double quotes that would terminate the onclick="..." attribute prematurely
         // and silently kill our handler — including the event.stopPropagation() that
         // prevents the card click from firing. Same trick LLM Monitor uses.
-        const safeName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
+        const safeName = globalThis.ClicandseoHtml.jsArg(project.name || '');  // también escapa & (antes &quot; en el nombre inyectaba)
         const pausedUntilLabel = formatPauseDate(project.paused_until);
 
         // Brandbook rule: no pill-shaped badges for status indicators.

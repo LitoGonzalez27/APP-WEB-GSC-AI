@@ -158,7 +158,7 @@ test('los nombres de cluster ya no pueden salirse de title="..."', () => {
     }
 });
 
-test('las escapeForAttribute de las tablas siguen igual: comillas escapadas, & sin tocar', () => {
+test('las escapeForAttribute de las tablas siguen igual (atributos normales: title, data-*, href)', () => {
     for (const [ruta, cabecera] of [['static/js/ui-keywords-gridjs.js', 'function escapeForAttribute(text) {'],
                                     ['static/js/ui-urls-gridjs.js', 'function escapeForAttribute(str) {'],
                                     ['static/js/ui-url-keywords-gridjs.js', 'function escapeForAttribute(str) {'],
@@ -166,4 +166,34 @@ test('las escapeForAttribute de las tablas siguen igual: comillas escapadas, & s
         const f = compilar(extraer(ruta, cabecera), 'escapeForAttribute');
         assert.equal(f(`a"b'c&amp;`).replace(/&#0?39;/g, "'"), "a&quot;b'c&amp;", ruta);
     }
+});
+
+
+// --- jsArg: datos dentro de manejadores en línea (onclick="f(...)") ----------
+
+// Lo que hace el navegador con onclick="...": decodifica las entidades del
+// atributo y ejecuta el JS resultante.
+function ejecutarManejador(atributo) {
+    const js = decodificar(atributo);
+    let recibido;
+    const f = new Function('f', js);
+    f((x) => { recibido = x; });
+    return recibido;
+}
+
+test('jsArg: el manejador recibe exactamente el dato, sin romper el atributo ni el JS', () => {
+    const datos = ["Qu'est-ce que Acme ?", "What's the best CRM?", "mcdonald's menu", 'a"b', "x');alert(1);//",
+        '&quot;);alert(1);//', '</script><b>', 'c:\\dir', '\u2028\u2029', '', 0, 12.5, true, null,
+        { id: 3, name: "O'Brien \"Jr\" & Co" }, ['a', "b'c"]];
+    for (const x of datos) {
+        const arg = html.jsArg(x);
+        assert.ok(sinRomperAtributos(arg), `${JSON.stringify(x)} -> ${arg}`);
+        assert.deepEqual(ejecutarManejador(`f(${arg})`), x, JSON.stringify(x));
+    }
+    assert.equal(ejecutarManejador(`f(${html.jsArg(undefined)})`), null);
+});
+
+test('antes: escapeHtml + replace de apóstrofo ya no protege dentro de onclick (el fallo que corrige jsArg)', () => {
+    const viejo = (s) => html.escapeHtml(s).replace(/'/g, "\\'");  // el patrón de llm-monitoring-queries.js
+    assert.throws(() => ejecutarManejador(`f('${viejo("Qu'est-ce que Acme ?")}')`), SyntaxError);
 });

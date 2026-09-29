@@ -7,9 +7,8 @@
 import '../html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 import { getDomainLogoUrl } from './ai-mode-utils.js';
 
-// Escape local que también escapa comillas, seguro dentro de atributos HTML, y
-// filtro de esquema para href. Copia exacta de manual-ai-analytics-urls.js: las
-// URLs vienen de resultados de Google AI Mode y no son de confianza.
+// Escape local (delega en html-escape.js; también escapa comillas) y filtro de
+// esquema para href: las URLs vienen de resultados de Google AI Mode y no son de confianza.
 function escapeHtml(unsafe) {
     // Conserva su comportamiento: lo que no es texto da ''.
     return typeof unsafe === 'string' ? globalThis.ClicandseoHtml.escapeHtml(unsafe) : '';

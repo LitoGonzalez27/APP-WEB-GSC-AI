@@ -7,7 +7,12 @@ static/js/html-escape.js es la única implementación. Estos tests fallan si:
 - un módulo ES usa globalThis.ClicandseoHtml sin importar html-escape.js;
 - una plantilla usa window.ClicandseoHtml (en un script clásico o en línea)
   sin cargar antes html-escape.js;
-- un fichero con import/export se carga como script clásico (error de sintaxis).
+- un fichero con import/export se carga como script clásico (error de sintaxis);
+- un dato se mete en una cadena JS dentro de un manejador en línea
+  (onclick="f('${x}')"): ahí el navegador decodifica las entidades antes de
+  ejecutar el JS, así que hay que usar ClicandseoHtml.jsArg(x);
+- reaparecen los parches que no protegen: escapeHtml(x).replace(/'/g, "\\'"),
+  JSON.stringify(x).replace(/"/g, '&quot;') o un escapado parcial de < >.
 
 Las escapeForAttribute de las tablas Grid.js se quedan como estaban a
 propósito: no escapan & (un dato que trae &amp; se sigue viendo igual) y ya
@@ -30,7 +35,17 @@ PERMITIDAS = {  # fichero -> motivo
 }
 
 TRUCO_DOM = re.compile(r"textContent\s*=\s*[^;\n]+;?\s*(?:\n[^\n]*){0,2}?return\s+\w+\.innerHTML", re.M)
-CADENA_REPLACE = re.compile(r"""replace\(/&/g,\s*['"]&amp;['"]\)|['"]&['"]\s*:\s*['"]&amp;['"]""")
+CADENA_REPLACE = re.compile(r"""replace\(/&/g,\s*['"]&amp;['"]\)|['"]&['"]\s*:\s*['"]&amp;['"]|replace\(/</g,\s*['"]&lt;['"]\)""")
+PARCHES = re.compile(r"""escape\w*\([^)]*\)\.replace\(/'/g|JSON\.stringify\([^)]*\)\.replace\(/"/g""")
+CADENA_EN_MANEJADOR = re.compile(r"""\bon[a-z]+=\\?"[^"]*?'\$\{([^}]+)\}'""")
+# Valores que no vienen del usuario (constantes del código) o ya preparados para JS.
+EN_MANEJADOR_PERMITIDOS = {
+    "plan",                          # quota-ui.js: 'basic' / 'premium'
+    "range",                         # ui-render.js: rango de fechas fijo
+    "moduleKey",                     # admin_simple.html: clave de módulo fija
+    "on ? 'off' : 'auto'",           # admin_simple.html
+    "websiteUrl",                    # manual-ai/ai-mode projects: sanitizeUrlForJsString
+}
 
 
 def _js():
@@ -45,9 +60,13 @@ def _es_modulo(texto):
     return re.search(r"^\s*(import|export)\s", texto, re.M) is not None
 
 
+def _plantillas():
+    return sorted(PLANTILLAS.rglob("*.html"))
+
+
 def test_no_quedan_copias_propias_del_escapado():
     copias = []
-    for p in _js() + list(PLANTILLAS.glob("*.html")):
+    for p in _js() + _plantillas():
         texto = p.read_text(encoding="utf-8", errors="replace")
         if TRUCO_DOM.search(texto) or (CADENA_REPLACE.search(texto) and _rel(p) not in PERMITIDAS):
             copias.append(_rel(p))
@@ -81,7 +100,7 @@ def test_las_plantillas_cargan_html_escape_antes_de_usarlo():
                 if "window.ClicandseoHtml" in p.read_text(encoding="utf-8", errors="replace")}
     assert clasicos, "esperaba scripts clásicos que usan window.ClicandseoHtml"
     fallos = []
-    for plantilla in PLANTILLAS.glob("*.html"):
+    for plantilla in _plantillas():
         cargado = None
         for pos, ruta, _modulo, cuerpo in _scripts_de(plantilla):
             if ruta and ruta.endswith("js/html-escape.js"):
@@ -96,7 +115,7 @@ def test_las_plantillas_cargan_html_escape_antes_de_usarlo():
 def test_ningun_modulo_es_se_carga_como_script_clasico():
     modulos = {p.relative_to(APP / "static").as_posix() for p in _js()
                if _es_modulo(p.read_text(encoding="utf-8", errors="replace"))}
-    fallos = [f"{pl.name}: {ruta}" for pl in PLANTILLAS.glob("*.html")
+    fallos = [f"{pl.name}: {ruta}" for pl in _plantillas()
               for _pos, ruta, es_modulo, _c in _scripts_de(pl) if ruta in modulos and not es_modulo]
     assert not fallos, fallos
 
@@ -104,3 +123,23 @@ def test_ningun_modulo_es_se_carga_como_script_clasico():
 def test_el_compartido_no_usa_sintaxis_de_modulo():
     # Se carga con <script> clásico y con import: no puede llevar import/export.
     assert not _es_modulo(COMPARTIDO.read_text(encoding="utf-8"))
+
+
+def test_ningun_dato_va_en_una_cadena_js_de_un_manejador_en_linea():
+    fallos = []
+    for p in _js() + _plantillas():
+        texto = p.read_text(encoding="utf-8", errors="replace")
+        for m in CADENA_EN_MANEJADOR.finditer(texto):
+            if m.group(1).strip() not in EN_MANEJADOR_PERMITIDOS:
+                linea = texto.count("\n", 0, m.start()) + 1
+                fallos.append(f"{_rel(p)}:{linea} '${{{m.group(1)}}}'")
+    assert not fallos, f"Usa f(${{ClicandseoHtml.jsArg(x)}}) en vez de f('${{x}}'): {fallos}"
+
+
+def test_no_reaparecen_parches_que_no_protegen():
+    fallos = []
+    for p in _js() + _plantillas():
+        texto = p.read_text(encoding="utf-8", errors="replace")
+        for m in PARCHES.finditer(texto):
+            fallos.append(f"{_rel(p)}:{texto.count(chr(10), 0, m.start()) + 1}")
+    assert not fallos, f"Usa ClicandseoHtml.jsArg(x) (datos en onclick) o escapeHtml: {fallos}"

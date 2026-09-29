@@ -22,12 +22,12 @@ const ES_DECIMAL_FORMAT_OPTIONS = {
 
 // === FUNCIONES DE FORMATEO ===
 
+import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 /**
  * Formatea un número entero usando el formato español (punto para miles)
  * @param {number|string} value - Valor a formatear
  * @returns {string} - Número formateado (ej: "14.789")
  */
-import './html-escape.js'; // escapeHtml único: globalThis.ClicandseoHtml
 export function formatInteger(value) {
   if (value == null || value === '' || isNaN(value)) return '0';
   const num = typeof value === 'string' ? parseFloat(value) : value;

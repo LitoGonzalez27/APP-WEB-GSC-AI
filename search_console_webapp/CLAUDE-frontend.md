@@ -188,13 +188,24 @@ Cargado como **script clásico** (no `type="module"`) en `llm_monitoring.html:17
 
 ### 4.x Escapado de HTML único (`static/js/html-escape.js`, sep-2026)
 
-Una sola implementación: `ClicandseoHtml.escapeHtml(valor)` escapa `& < > " '`; `null`/`undefined` dan `''` y lo demás se convierte con `String()`. Sustituye a ~25 copias; las basadas en el truco del DOM (`textContent` → `innerHTML`) no escapaban comillas, y los nombres de cluster de Manual AI y AI Mode iban a `title="..."` escapando solo `< >` (XSS al ver un proyecto, también para invitados).
+Dos funciones, una sola implementación:
 
-- **Módulos ES**: `import './html-escape.js';` (o `../html-escape.js`) solo por efecto, y `globalThis.ClicandseoHtml.escapeHtml(...)`. Los que exportaban `escapeHtml` (`manual-ai-utils.js`, `ai-mode-utils.js`, `ui-ai-overview-utils.js`, `number-utils.js`) lo siguen exportando y delegan.
-- **Scripts clásicos y JS en línea**: `window.ClicandseoHtml.escapeHtml(...)`, con `<script src=".../js/html-escape.js?v={{ ASSET_V }}">` en la plantilla antes de usarlo (`index.html`, `llm_monitoring.html`, `admin_simple.html`, `project_access.html`, `dashboard.html`, `ai_mode_dashboard.html`, `ai_summary.html`, `manual_ai_dashboard.html`).
+- `ClicandseoHtml.escapeHtml(valor)`: escapa `& < > " '`; `null`/`undefined` dan `''` y lo demás se convierte con `String()`. Para texto y atributos normales (`title`, `value`, `data-*`, `href`).
+- `ClicandseoHtml.jsArg(valor)`: para pasar un dato a un manejador en línea, `onclick="f(${ClicandseoHtml.jsArg(x)})"` (sin comillas alrededor). Dentro de `on*="..."` el navegador decodifica las entidades **antes** de ejecutar el JS, así que `f('${escapeHtml(x)}')` se rompe con un apóstrofo y permite inyectar código. `jsArg` convierte el valor en literal JS con JSON y lo escapa para el atributo; la función recibe exactamente el valor (cadenas, números, objetos; `undefined` llega como `null`).
+
+Sustituye a ~25 copias de `escapeHtml`. Fallos cerrados:
+- Las copias del truco del DOM (`textContent` → `innerHTML`) no escapaban comillas.
+- Los nombres de cluster de Manual AI y AI Mode iban a `title="..."` escapando solo `< >`.
+- En `onclick`, los botones de SERP (palabras clave y URLs de Search Console), las recomendaciones de AI Overview, "Reintentar" de URLs, los chips de sugerencias de LLM Monitoring y pausar/reanudar/borrar/editar proyectos. Todos se rompían con un apóstrofo (por ejemplo «mcdonald's menu» o las sugerencias en francés) o permitían inyectar código con comillas o `&quot;`.
+- El panel de movimientos de Search Console metía consultas y URLs en el HTML sin escapar.
+
+- **Módulos ES**: `import './html-escape.js';` (o `../html-escape.js`) solo por efecto, y `globalThis.ClicandseoHtml...`. Los que exportaban `escapeHtml` (`manual-ai-utils.js`, `ai-mode-utils.js`, `ui-ai-overview-utils.js`, `number-utils.js`) lo siguen exportando y delegan.
+- **Scripts clásicos y JS en línea**: `window.ClicandseoHtml...`, con `<script src=".../js/html-escape.js?v={{ ASSET_V }}">` en la plantilla antes de usarlo (`index.html`, `llm_monitoring.html`, `admin_simple.html`, `project_access.html`, `dashboard.html`, `ai_mode_dashboard.html`, `ai_summary.html`, `manual_ai_dashboard.html`). Si ese fichero no carga, esas páginas fallan al pintar: es un punto único a propósito.
 - Cada fichero conserva su función local con su comportamiento: las que devolvían `''` para lo que no es texto mantienen esa comprobación.
-- **Excepción**: las `escapeForAttribute` de las tablas Grid.js (`ui-keywords-gridjs.js`, `ui-urls-gridjs.js`, `ui-url-keywords-gridjs.js`, `ui-detailed-results-gridjs.js`) no escapan `&` a propósito (un dato que ya trae `&amp;` se sigue viendo igual) y ya escapan comillas; no se tocan.
-- Tests: `tests/js/html-escape.test.cjs` extrae el código real de cada función y comprueba que el texto visible es el mismo que antes y que nada rompe un atributo; `tests/test_html_escape_estatico.py` falla si aparece una copia nueva, si un módulo usa el global sin importarlo o si una plantilla no carga el script antes de usarlo.
+- Las `escapeForAttribute` de las tablas Grid.js siguen igual: solo para atributos normales, no escapan `&` a propósito (un dato con `&amp;` se sigue viendo igual). Ya no se usan en `onclick`.
+- Tests:
+  - `tests/js/html-escape.test.cjs` extrae el código real de cada función y comprueba que el texto visible es el mismo que antes y que nada rompe un atributo. `jsArg` se prueba ejecutando el manejador como lo haría el navegador.
+  - `tests/test_html_escape_estatico.py` falla si aparece una copia nueva, si un módulo usa el global sin importarlo, si una plantilla no carga el script antes de usarlo, si un dato va en `'${...}'` dentro de un `on*=` o si reaparecen los parches que no protegen.
 
 ## 5. Librerías externas (CDN)
 
