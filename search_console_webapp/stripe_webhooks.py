@@ -485,6 +485,15 @@ class StripeWebhookHandler:
                 _close_quietly(conn)
             
             logger.info(f"✅ Subscription {action} processed successfully for customer {customer_id}")
+
+            # Si esta suscripción sustituye a otra (marca puesta en el checkout),
+            # se cancela la antigua en Stripe cuando esta queda activa. Nunca
+            # rompe el webhook: los fallos se avisan por email.
+            if action in ('created', 'updated') and status in _ESTADOS_PAGANDO:
+                try:
+                    _cancelar_suscripcion_sustituida(subscription)
+                except Exception as _e_sust:
+                    logger.error(f"❌ Error inesperado al revisar la suscripción sustituida: {_e_sust}", exc_info=True)
             
             # Enviar email de inicio de trial (una sola vez) - en inglés usando helpers
             # Refactor 2026-05-25: try/finally to GUARANTEE conn2.close().
@@ -946,6 +955,186 @@ def _mark_webhook_event_processed(event_id: str, success: bool, error_message: s
         if conn:
             try: conn.close()
             except Exception: pass
+
+
+# Estados en que la suscripción sustituida se cancela (no está pagando) y en
+# que la nueva cuenta como vigente.
+_ESTADOS_ANTIGUA_A_CANCELAR = ('past_due', 'unpaid', 'paused')
+_ESTADOS_PAGANDO = ('active', 'trialing')
+
+
+def _cancelar_suscripcion_sustituida(subscription):
+    """Cancela en Stripe la suscripción a la que sustituye `subscription`.
+
+    Orden de Carlos (29-sep-2026). Con la suscripción en past_due el checkout
+    deja contratar otra, y Stripe seguiría intentando cobrar la antigua: doble
+    cobro. El checkout marca la nueva con `metadata.replaces_subscription` (la
+    que tenía el usuario). Cuando la nueva queda activa o en prueba, se
+    comprueban las dos en vivo y se cancela la antigua solo si sigue sin pagar
+    (past_due, unpaid, paused) y es anterior a la nueva. Al cancelar, Stripe
+    deja de cobrar automáticamente sus facturas. Solo actúa sobre la marcada:
+    nunca sobre otras suscripciones del cliente.
+
+    Se decide una sola vez: tomada la decisión (cancelada, ya cancelada, o la
+    antigua sigue pagando y se avisa de posible doble cobro) se quita la marca
+    de la nueva y queda `replaced_subscription` como rastro. Si algo falla, la
+    marca se conserva (se vuelve a intentar con el siguiente evento de la nueva)
+    y se avisa por email. Nunca lanza ni pide reintento del webhook: repetir el
+    evento entero pisaría cambios posteriores. Los avisos se envían siempre.
+    Interruptor: STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS=false.
+    """
+    if os.getenv('STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS', 'true').lower() == 'false':
+        return
+    nueva_id = subscription.get('id')
+    antigua_id = (subscription.get('metadata') or {}).get('replaces_subscription')
+    if not antigua_id or not nueva_id:
+        return
+    customer_id = subscription.get('customer')
+    if antigua_id == nueva_id:
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
+
+    try:
+        nueva = stripe.Subscription.retrieve(nueva_id)
+    except Exception as e:
+        logger.error(f"❌ No se pudo consultar la suscripción nueva {nueva_id}: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(
+            nueva_id, f'no se pudo consultar la suscripción nueva (la antigua {antigua_id} sigue sin revisar): {e}')])
+        return
+    if nueva.get('status') not in _ESTADOS_PAGANDO:
+        return  # evento antiguo o reenviado: la nueva ya no está activa
+    # La marca vale la de Stripe ahora, no la del evento: un evento viejo
+    # reenviado no reabre una decisión ya tomada.
+    antigua_id = (nueva.get('metadata') or {}).get('replaces_subscription')
+    if not antigua_id:
+        return
+
+    try:
+        antigua = stripe.Subscription.retrieve(antigua_id)
+    except stripe.error.InvalidRequestError as e:
+        # No existe en esta cuenta: no se arreglará solo. Se avisa una vez.
+        logger.error(f"❌ La suscripción sustituida {antigua_id} no existe: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'no existe en Stripe: {e}')])
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
+    except Exception as e:
+        logger.error(f"❌ No se pudo consultar la suscripción sustituida {antigua_id}: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'no se pudo consultar: {e}')])
+        return
+
+    estado = antigua.get('status')
+    if estado in _ESTADOS_PAGANDO:
+        logger.warning(f"⚠️ {antigua_id} ({estado}) sigue pagando además de {nueva_id}: posible doble cobro")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [(antigua_id, estado)], [])
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
+    if estado == 'canceled':
+        _antigua_ya_cancelada(antigua, antigua_id, nueva_id, customer_id)
+        return
+    if estado not in _ESTADOS_ANTIGUA_A_CANCELAR:
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)  # caducada o sin completar
+        return
+    if (antigua.get('created') or 0) > (nueva.get('created') or 0):
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(
+            antigua_id, f'{estado}: es más reciente que {nueva_id}; no se cancela, revisar a mano')])
+        _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+        return
+
+    try:
+        stripe.Subscription.cancel(antigua_id, cancellation_details={
+            'comment': f'Sustituida por {nueva_id}: cancelación automática de Clicandseo',
+        })
+    except Exception as e:
+        # ¿La canceló a la vez otro evento de la nueva (created y updated en paralelo)?
+        try:
+            ahora = stripe.Subscription.retrieve(antigua_id)
+            if ahora.get('status') == 'canceled':
+                _antigua_ya_cancelada(ahora, antigua_id, nueva_id, customer_id)
+                return
+        except Exception:
+            pass
+        logger.error(f"❌ No se pudo cancelar la suscripción sustituida {antigua_id}: {e}")
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [], [(antigua_id, f'{estado}: {e}')])
+        return
+
+    logger.warning(f"🧹 Suscripción {antigua_id} ({estado}) cancelada: sustituida por {nueva_id}")
+    _alertar_suscripciones_antiguas(customer_id, nueva_id, [(antigua_id, estado)], [], [])
+    _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+
+
+def _antigua_ya_cancelada(antigua, antigua_id, nueva_id, customer_id):
+    """La antigua ya está cancelada. Si la canceló otra suscripción nueva (dos
+    checkouts), el cliente puede estar pagando dos: se avisa. Si la canceló esta
+    misma o se canceló por otra vía, no hay nada que hacer."""
+    comentario = ((antigua.get('cancellation_details') or {}).get('comment') or '')
+    if comentario.startswith('Sustituida por ') and nueva_id not in comentario:
+        otra = comentario[len('Sustituida por '):].split(':')[0]
+        _alertar_suscripciones_antiguas(customer_id, nueva_id, [], [(otra, f'también sustituye a {antigua_id}')], [])
+    _quitar_marca_de_sustitucion(nueva_id, antigua_id)
+
+
+def _quitar_marca_de_sustitucion(nueva_id, antigua_id):
+    """Quita la marca de la nueva para no repetir la comprobación en cada evento;
+    deja `replaced_subscription` como rastro. Si falla, solo se repite la
+    comprobación con el siguiente evento (es idempotente)."""
+    try:
+        stripe.Subscription.modify(nueva_id, metadata={
+            'replaces_subscription': '',
+            'replaced_subscription': antigua_id,
+        })
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo quitar la marca de sustitución de {nueva_id}: {e}")
+
+
+def _alertar_suscripciones_antiguas(customer_id, subscription_id, canceladas, pagando, fallos):
+    """Email al admin con lo que hizo (o no pudo hacer) _cancelar_suscripcion_sustituida.
+
+    Se envía siempre, también con CRON_ALERTS_ENABLED=false: es el registro de
+    una acción sobre el dinero de un cliente."""
+    try:
+        from email_service import send_email
+    except Exception as e:
+        logger.warning(f"Cannot import email_service for subscription alert: {e}")
+        return
+    from html import escape
+
+    if fallos:
+        asunto = 'Stripe: fallo al cancelar una suscripción antigua'
+    elif pagando:
+        asunto = 'Stripe: cliente con dos suscripciones pagando (posible doble cobro)'
+    else:
+        asunto = 'Stripe: suscripción antigua cancelada automáticamente'
+
+    def _filas(titulo, elementos):
+        if not elementos:
+            return ''
+        filas = ''.join(
+            f'<tr><td style="padding:6px;border:1px solid #e5e7eb;font-family:monospace">{escape(str(a))}</td>'
+            f'<td style="padding:6px;border:1px solid #e5e7eb">{escape(str(b))}</td></tr>'
+            for a, b in elementos
+        )
+        return f'<h3>{titulo}</h3><table style="border-collapse:collapse;font-size:14px">{filas}</table>'
+
+    to = os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com')
+    env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+    html = f"""
+    <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <h2 style="margin-top:0">{escape(asunto)}</h2>
+        <p><strong>Entorno:</strong> {escape(env_name)}<br>
+           <strong>Cliente:</strong> <code>{escape(str(customer_id))}</code><br>
+           <strong>Suscripción vigente:</strong> <code>{escape(str(subscription_id))}</code></p>
+        {_filas('Cancelada (Stripe deja de cobrar automáticamente sus facturas)', canceladas)}
+        {_filas('Sigue pagando: no se ha tocado, revisar en Stripe', pagando)}
+        {_filas('No se ha cancelado: revisar y hacerlo a mano en Stripe', fallos)}
+        <p style="color:#6b7280;font-size:12px;margin-top:24px">
+            Para desactivar la cancelación automática: <code>STRIPE_AUTO_CANCEL_OLD_SUBSCRIPTIONS=false</code>.
+        </p>
+    </body></html>
+    """
+    try:
+        send_email(to, f"[{env_name.upper()}] {asunto}", html)
+    except Exception as e:
+        logger.warning(f"Failed to send subscription alert: {e}")
 
 
 def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: str):
