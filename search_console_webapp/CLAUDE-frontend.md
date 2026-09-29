@@ -115,8 +115,8 @@ Total: **17 plantillas** en `templates/` más las piezas de `templates/partials/
 
 - `favicons.html`: favicons y manifest (13 páginas).
 - `gtm_head.html` / `gtm_body.html`: Google Tag Manager `GTM-NXJS74ZQ` en el `<head>` y justo tras abrir `<body>` (12 páginas).
-- Se incluyen con `{% include 'partials/...' %}`. Al extraerlas se comprobó que cada plantilla produce el mismo HTML que antes; login y signup ganan el comentario de cierre de GTM que les faltaba.
-- `tests/test_plantillas_comunes.py` impide volver a copiarlas y exige que una página con GTM en el `<head>` lo lleve también tras `<body>`.
+- Se incluyen con `{% include 'partials/...' %}`. Al extraerlas se comprobó que cada plantilla produce HTML equivalente al de antes (solo cambian espacios); login y signup ganan el comentario de cierre de GTM que les faltaba. Los comentarios `{# ... -#}` de las piezas no dejan líneas en blanco.
+- `tests/test_plantillas_comunes.py` fija qué páginas llevan cada pieza (perder GTM o los favicons hace fallar el test), impide volver a copiarlas y exige el orden: GTM en el `<head>` y su `noscript` justo tras `<body>`.
 - **Sin GTM**: `billing_success.html` (página de éxito del checkout), `admin_simple.html`, `admin_billing.html`, `project_access.html` y `mobile_error.html`.
 - La barra de navegación no se ha unificado: hay 8 variantes distintas en 9 páginas.
 - `panel_brand_assets.html` y `panel_brand_fonts.html` ya eran parciales.
