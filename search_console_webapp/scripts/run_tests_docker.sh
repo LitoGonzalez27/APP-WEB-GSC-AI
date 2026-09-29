@@ -20,7 +20,13 @@ IMG=clicandseo-tests:py312
 
 # Contexto mínimo (solo requirements y Dockerfile): no se añade .dockerignore al
 # repo para no alterar el contexto de build de Railway.
-COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$APP_DIR" -cf - requirements.txt requirements-dev.txt tests/docker/Dockerfile \
+# En macOS (bsdtar) se excluyen atributos extendidos y metadatos de Apple, que
+# rompen el build; el tar de GNU (Linux, CI) no tiene esas opciones ni los necesita.
+TAR_OPTS=()
+if tar --version 2>/dev/null | grep -qi bsdtar; then
+  TAR_OPTS=(--no-xattrs --no-mac-metadata)
+fi
+COPYFILE_DISABLE=1 tar ${TAR_OPTS[@]+"${TAR_OPTS[@]}"} -C "$APP_DIR" -cf - requirements.txt requirements-dev.txt tests/docker/Dockerfile \
   | docker build -q -t "$IMG" -f tests/docker/Dockerfile - >/dev/null
 
 cleanup() {
