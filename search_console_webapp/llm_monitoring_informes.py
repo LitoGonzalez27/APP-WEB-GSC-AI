@@ -4,7 +4,9 @@ modelos, fan-out y contenido.
 Sacados tal cual de llm_monitoring_routes.py (sep-2026, limpieza de ficheros
 gigantes). Los usan las rutas y las exportaciones (llm_monitoring_export_excel.py,
 llm_monitoring_export_pdf.py). llm_monitoring_routes los vuelve a exponer con los
-mismos nombres, así que `llm_monitoring_routes._parse_report_filters` sigue valiendo.
+mismos nombres, así que `llm_monitoring_routes._parse_report_filters` sigue valiendo para
+leerlo. Para parchearlo en un test hay que hacerlo aquí (llm_monitoring_informes.X): un
+monkeypatch sobre llm_monitoring_routes.X no llega a los demás helpers ni a las exportaciones.
 Este módulo no importa el de rutas.
 """
 
