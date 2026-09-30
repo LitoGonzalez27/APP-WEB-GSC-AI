@@ -200,3 +200,16 @@ def test_solo_las_tres_rutas_de_serp_cobran():
                     encontradas.add(f"{p.relative_to(raiz).as_posix()}:{f.name}")
     assert encontradas == {
         "app.py:get_serp_raw_json", "app.py:get_serp_position", "app.py:get_serp_screenshot_route"}, encontradas
+
+
+def test_admin_sigue_pasando_si_falla_la_lectura_del_portero(ent, monkeypatch):
+    # La ruta le pasa al portero el usuario leído al empezar la petición: si en
+    # ese momento falla get_user_by_id, el admin no recibe el paywall por error.
+    import database
+    monkeypatch.setattr(database, "get_user_by_id", lambda _uid: None)
+    _login(ent.client, ent.admin)
+
+    r = ent.client.get(f"/api/serp?{CONSULTA}", headers=JSON)
+
+    assert r.status_code == 200
+    assert _usado(ent, ent.admin) == 0

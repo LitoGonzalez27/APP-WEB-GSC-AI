@@ -1539,7 +1539,8 @@ def get_serp_raw_json():
 
 
     try:
-        serp_data_json = get_serp_json(params_serp, cobrar=True)
+        usuario = get_current_user()  # el de la petición: el portero no relee la sesión
+        serp_data_json = get_serp_json(params_serp, cobrar=True, usuario=usuario)
         
         # ✅ FASE 4: Manejar errores de quota específicamente
         if serp_data_json.get('quota_blocked'):
@@ -1592,7 +1593,8 @@ def get_serp_position():
 
 
     try:
-        serp_data_pos = get_serp_json(params_serp, cobrar=True)
+        usuario = get_current_user()  # el de la petición: el portero no relee la sesión
+        serp_data_pos = get_serp_json(params_serp, cobrar=True, usuario=usuario)
         
         # ✅ FASE 4: Manejar errores de quota específicamente
         if serp_data_pos.get('quota_blocked'):
@@ -1700,8 +1702,9 @@ def get_serp_screenshot_route():
     
     try:
         logger.info(f"[SCREENSHOT] Keyword: '{keyword_param}', Site: '{site_url_param}', País: {country_to_use or 'DINÁMICO'}")
+        usuario = get_current_user()  # el de la petición: el portero no relee la sesión
         return get_page_screenshot(keyword=keyword_param, site_url_to_highlight=site_url_param, api_key=api_key_env,
-                                   country=country_to_use, site_url=site_url_param, cobrar=True)
+                                   country=country_to_use, site_url=site_url_param, cobrar=True, usuario=usuario)
     except Exception as e:
         logger.error(f"[SCREENSHOT ROUTE] Error para keyword '{keyword_param}': {e}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
