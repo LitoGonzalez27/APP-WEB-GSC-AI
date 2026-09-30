@@ -18,8 +18,8 @@ Endpoints:
     DELETE /api/llm-monitoring/projects/:id           - Eliminar proyecto (soft delete)
     GET    /api/llm-monitoring/projects/:id/metrics   - Métricas detalladas
     GET    /api/llm-monitoring/projects/:id/comparison - Comparativa LLMs
-    GET    /api/llm-monitoring/models                 - Listar modelos LLM disponibles
-    PUT    /api/llm-monitoring/models/:id             - Actualizar modelo (admin)
+    /models, /models/current, /models/:id, /models/approve|reject|changelog y
+    /cron/model-discovery viven en llm_monitoring_rutas_modelos.py (sep-2026).
     GET    /api/llm-monitoring/health                 - Health check del sistema
     
     NOTA: El endpoint POST /projects/:id/analyze fue ELIMINADO.
