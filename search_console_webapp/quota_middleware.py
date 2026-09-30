@@ -230,31 +230,25 @@ OPCIONES_DE_PLAN = ['basic', 'premium', 'business']
 
 
 def _usuario(user_id: int) -> Optional[Dict[str, Any]]:
-    """Usuario (plan y rol): el leído al empezar la petición si es el de la
-    sesión (sin volver a la BD); si no, de la BD. None si no se puede leer."""
+    """Usuario (plan y rol) leído de la BD. None si no se puede leer. No usa
+    get_current_user(): el portero no lee la sesión (las rutas le pasan el
+    usuario que ya leyeron al empezar la petición)."""
     try:
-        from auth import get_current_user
         from database import get_user_by_id
-        usuario = None
-        if has_request_context() and session.get('user_id') == user_id:
-            usuario = get_current_user()
-        return usuario if usuario is not None else get_user_by_id(user_id)
+        return get_user_by_id(user_id)
     except Exception as e:
         logger.error(f"No se pudo leer el usuario {user_id}: {e}")
         return None
 
 
-def _es_admin(user_id: int) -> bool:
-    usuario = _usuario(user_id)
-    return bool(usuario) and usuario.get('role') == 'admin'
-
-
-def bloqueo_serp_por_plan(user_id: int) -> Optional[Dict[str, Any]]:
+def bloqueo_serp_por_plan(user_id: int, usuario: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     """La vista de SERP es de pago (Carlos, 30-sep-2026): devuelve el cuerpo del
     bloqueo para un usuario del plan Free (salvo admin), o None si puede usarla.
-    El plan sale del registro del usuario, no del estado de cuota (que ante un
-    fallo parcial de la BD devuelve plan 'unknown' y dejaría pasar)."""
-    usuario = _usuario(user_id)
+    El plan sale del registro del usuario (el que pasa la ruta, leído al empezar
+    la petición), no del estado de cuota, que ante un fallo parcial de la BD
+    devuelve plan 'unknown' y dejaría pasar."""
+    if usuario is None:
+        usuario = _usuario(user_id)
     if usuario is not None:
         if usuario.get('role') == 'admin':
             return None
@@ -327,23 +321,24 @@ def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: boo
         logger.info("Llamada SerpAPI sin usuario (contexto server-side/desarrollo) - permitiendo sin cuota")
         return _execute_serp_call(params, call_type)
 
-    bloqueo = bloqueo_serp_por_plan(user_id)
+    usuario = _usuario(user_id)
+    bloqueo = bloqueo_serp_por_plan(user_id, usuario)
     if bloqueo:
         logger.info(f"🚫 SERP bloqueada para user {user_id}: plan Free")
         return False, bloqueo
 
+    es_admin = bool(usuario) and usuario.get('role') == 'admin'
     with _candado_de(params):
-        return _serp_cobrada(params, call_type, user_id)
+        return _serp_cobrada(params, call_type, user_id, es_admin)
 
 
-def _serp_cobrada(params: dict, call_type: str, user_id: int) -> Tuple[bool, Dict[str, Any]]:
+def _serp_cobrada(params: dict, call_type: str, user_id: int, es_admin: bool) -> Tuple[bool, Dict[str, Any]]:
     """Parte de quota_protected_serp_call que cobra; se ejecuta con el candado de la búsqueda."""
     # Búsqueda repetida en la última hora: SerpAPI la sirve de su caché sin cobrar.
     if _is_cached_call(params):
         logger.info(f"📦 Ejecutando llamada cacheada para user {user_id} (0 RU)")
         return _execute_serp_call(params, call_type)
 
-    es_admin = _es_admin(user_id)
     if not es_admin:
         quota_validation = validate_quota_access(user_id, f"serp_{call_type}")
         if not quota_validation['allowed']:
