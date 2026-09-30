@@ -166,7 +166,7 @@ Funciones clave:
 | `get_user_monthly_llm_usage(user_id, month_date=None)` | int. **Algoritmo importante**: usa la ventana derivada de `users.quota_reset_date - interval_days` o `current_period_start/end` o último fallback al mes calendario. Cuenta filas en `llm_monitoring_results r JOIN llm_monitoring_projects p WHERE r.analysis_date >= window_start AND < window_end`. |
 | `get_llm_limits_summary(user)` | dict completo: `monthly_units_used`, `monthly_units_remaining`, `active_projects`, `allowed_llms`. Para enterprise aplica `custom_llm_prompts_limit` / `custom_llm_monthly_units_limit`. |
 
-> El "decorador `enforce_llm_access`" **NO está aquí**. Está como `before_request` hook en `llm_monitoring_routes.py:101` y devuelve **HTTP 402 Payment Required** con `error: 'paywall'`. Excepciones: rutas `/cron/` y `/health`. Permite invitados con shared access vía `user_has_any_module_access`.
+> El "decorador `enforce_llm_access`" **NO está aquí**. Está como `before_request` hook en `llm_monitoring_base.py` y devuelve **HTTP 402 Payment Required** con `error: 'paywall'`. Excepciones: rutas `/cron/` y `/health`. Permite invitados con shared access vía `user_has_any_module_access`.
 
 ---
 

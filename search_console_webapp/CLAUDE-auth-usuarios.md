@@ -272,7 +272,7 @@ Todos en `auth.py`:
 
 ### Hooks `before_request` adicionales
 
-- **`enforce_llm_access`** (`llm_monitoring_routes.py:101`). Aplica al blueprint `llm_monitoring_bp`. Bloquea si `can_access_llm_monitoring(user)` es falso, **excepto** si el usuario tiene acceso compartido vía `user_has_any_module_access(user_id, 'llm_monitoring')`. Devuelve 402 con `{error:'paywall', upgrade_options}`.
+- **`enforce_llm_access`** (`llm_monitoring_base.py`). Aplica al blueprint `llm_monitoring_bp`. Bloquea si `can_access_llm_monitoring(user)` es falso, **excepto** si el usuario tiene acceso compartido vía `user_has_any_module_access(user_id, 'llm_monitoring')`. Devuelve 402 con `{error:'paywall', upgrade_options}`.
 - **`validate_project_ownership`** (`llm_monitoring_routes.py:128`). Owner puede todo. Colaborador `viewer` solo GET.
 - **`_block_mobile_globally_except_login_signup`** (`app.py:190`). Bloquea móviles excepto `/static`, `/webhooks`, `/login`, `/signup`, `/auth/*`, `/mobile-not-supported`.
 
