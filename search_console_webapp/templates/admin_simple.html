@@ -2797,7 +2797,9 @@
                         ['De staging y otros servicios con la misma clave', d.serp.cycle_renewal_day ? '— (hoy renueva el plan: la cifra sale mañana)'
                             : d.serp.other_consumers_cycle == null ? '—'
                             : d.serp.other_consumers_cycle >= 0 ? fmtInt(d.serp.other_consumers_cycle)
-                            : '— (lo atribuido supera al dato oficial en ' + fmtInt(-d.serp.other_consumers_cycle) + ': revisar)'],
+                            : -d.serp.other_consumers_cycle <= (d.serp.cycle_first_day_searches || 0)
+                                ? '— (dentro del margen del día de renovación: ' + fmtInt(-d.serp.other_consumers_cycle) + ')'
+                                : '— (lo atribuido supera al dato oficial en ' + fmtInt(-d.serp.other_consumers_cycle) + ': revisar)'],
                         ['Restantes del plan', fmtInt(a.plan_searches_left)],
                         ['Créditos extra', fmtInt(a.extra_credits)],
                         ['Renovación', esc(a.plan_renewal_date || '—')],

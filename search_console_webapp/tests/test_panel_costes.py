@@ -109,6 +109,19 @@ def test_otros_servicios_se_cuentan_en_el_ciclo_de_serpapi(db):
     assert serp["other_consumers_cycle"] == 100 - 32
 
 
+def test_desfase_del_dia_de_renovacion_no_es_una_alarma(db):
+    """Lo gastado el día de renovar antes de la hora de SerpAPI entra en nuestro ciclo y no en el suyo."""
+    import admin_cost_panel
+    sql, paid, _ = db
+    sql.cuenta["plan_renewal_date"] = (date.today() + timedelta(days=20)).isoformat()
+    ciclo = admin_cost_panel.inicio_ciclo_serpapi(sql.cuenta)
+    primer_dia = datetime.combine(ciclo, datetime.min.time()).replace(hour=3)
+    _evento(sql, paid["id"], "manual_ai", 120, cuando=primer_dia)   # cron antes de renovar
+    serp = admin_cost_panel.get_costs_dashboard()["serp"]
+    assert serp["other_consumers_cycle"] == 100 - 120
+    assert serp["cycle_first_day_searches"] == 120   # la plantilla lo muestra como margen
+
+
 def test_si_lo_atribuido_supera_al_oficial_se_ve_en_negativo(db):
     """Antes se recortaba a 0 y escondía un doble conteo."""
     import admin_cost_panel
@@ -148,6 +161,7 @@ def test_inicio_del_ciclo_de_serpapi(renovacion, inicio):
 
 @pytest.mark.parametrize("renovacion", [None, "", "basura", "2026-02-30",
                                         "2026-09-01",    # renovación ya pasada: dato de cuenta viejo
+                                        "2026-09-29",    # ídem, solo un día
                                         "2026-12-30"])   # a más de un mes: el ciclo aún no ha empezado
 def test_ciclo_de_serpapi_sin_sentido_no_se_usa(renovacion):
     import admin_cost_panel
@@ -184,7 +198,8 @@ def test_toda_consulta_sobre_manual_ai_results_filtra_por_fecha():
     consultas = [t for t in literales if "FROM manual_ai_results" in t and (t[:1] in "\"'" or t[:2] in ('f"', "f'"))]
     assert len(consultas) == 3
     for consulta in consultas:
-        assert re.search(r"analysis_date\s*>=", consulta), consulta
+        # en el WHERE de la propia consulta (un FILTER de fuera no evita leer la tabla entera)
+        assert re.search(r"FROM manual_ai_results r\s+(?:JOIN[^\n]*\s+)?WHERE\s+r\.analysis_date\s*>=", consulta), consulta
 
 
 def test_si_falla_la_cuenta_no_escribe_la_clave_en_el_log(monkeypatch, caplog):
