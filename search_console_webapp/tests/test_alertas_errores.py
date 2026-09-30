@@ -29,6 +29,9 @@ def aviso():
     reloj = Reloj()
     h = AvisoErrores(lambda asunto, html: enviados.append((asunto, html)), "production",
                      agrupar=60, intervalo=900, reloj=reloj)
+    # Estos tests llaman a enviar_si_toca() con un reloj falso: sin el hilo real, que
+    # podía arrancar tarde, llevarse el lote y enviar mientras el test comprobaba.
+    h._arrancar_hilo = lambda: None
     registro = logging.getLogger("prueba.avisos")
     registro.addHandler(h)
     registro.propagate = False
@@ -78,6 +81,7 @@ def test_tope_diario_con_reserva_para_tipos_nuevos():
     enviados, reloj, dia = [], Reloj(), {"d": 1}
     h = AvisoErrores(lambda a, b: enviados.append(a), "production", agrupar=0, intervalo=0,
                      reloj=reloj, max_dia=3, hoy=lambda: dia["d"], reserva_tipos_nuevos=1)
+    h._arrancar_hilo = lambda: None
     registro = logging.getLogger("prueba.tope")
     registro.addHandler(h)
     registro.propagate = False
@@ -101,14 +105,27 @@ def test_tope_diario_con_reserva_para_tipos_nuevos():
 def test_ignora_el_ruido_y_los_warning(aviso):
     h, registro, enviados, reloj = aviso
     registro.error("❌ Missing Stripe signature")
-    # Webhook con firma o cuerpo inválidos: lo puede mandar cualquiera
-    registro.error("❌ Invalid signature with provided secrets: No signatures found")
-    registro.error("❌ Error processing webhook: Invalid signature", exc_info=(ValueError, ValueError("x"), None))
-    registro.error("❌ Invalid payload: Expecting value")
-    registro.error("❌ Error processing webhook: Invalid payload")
     registro.warning("solo un aviso")
     reloj.t += 61
     assert h.enviar_si_toca() is True and enviados == []
+
+
+def test_una_firma_de_stripe_invalida_si_avisa(aviso):
+    """Es lo que se ve con el secreto del webhook mal configurado: los pagos no activan el plan."""
+    h, registro, enviados, reloj = aviso
+    registro.error("❌ Invalid signature with provided secrets: No signatures found matching the expected signature")
+    reloj.t += 61
+    h.enviar_si_toca()
+    assert len(enviados) == 1
+
+
+def test_el_ruido_ignorado_existe_en_el_codigo():
+    """Si alguien cambia el mensaje original, el filtro dejaría de funcionar sin que nada falle."""
+    import pathlib
+    raiz = pathlib.Path(alertas_errores.__file__).resolve().parent.parent
+    codigo = "\n".join(f.read_text(errors="ignore") for f in raiz.glob("*.py"))
+    for texto in alertas_errores.IGNORAR:
+        assert texto in codigo, texto
 
 
 def test_oculta_secretos_y_emails(aviso):
@@ -128,9 +145,27 @@ def test_oculta_secretos_y_emails(aviso):
     ("Detalles: {'api_key': 'AbCdEf123456', 'model': 'x'}", "AbCdEf123456"),
     ('respuesta {"password": "hunter2hunter2"}', "hunter2hunter2"),
     ("client_secret=GOCSPX-abcdef123", "GOCSPX-abcdef123"),
+    ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA=="),
+    ('headers {"api-key": "clave-de-brevo-1234"}', "clave-de-brevo-1234"),
+    ("X-API-Key=abcd1234efgh", "abcd1234efgh"),
+    ("secreto del webhook whsec_abcdefghijk", "whsec_abcdefghijk"),
+    ("brevo xkeysib-abcdef1234567890abcd", "xkeysib-abcdef1234567890abcd"),
+    ("perplexity pplx-abcdef1234567890abcd", "pplx-abcdef1234567890abcd"),
+    ("jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijk", "eyJzdWIiOiIxMjM0NTY3ODkwIn0"),
+    ("postgresql://postgres:p@ss!w0rd@db.railway.internal:5432/x", "ss!w0rd"),
 ])
 def test_oculta_otros_secretos(texto, secreto):
     assert secreto not in alertas_errores._limpiar(texto)
+
+
+@pytest.mark.parametrize("texto", [
+    "Error refreshing token: invalid_grant",     # prosa, no un secreto
+    "refresh_token=None",
+    "password = request.form['password']",       # línea de código de una traza
+    'File "/app/auth.py", line 1720, in auth_callback',
+])
+def test_no_destroza_texto_util(texto):
+    assert alertas_errores._limpiar(texto) == texto
 
 
 def test_limpiar_un_texto_enorme_es_rapido():
@@ -191,6 +226,53 @@ def test_al_salir_el_proceso_manda_lo_pendiente_sin_esperar(aviso):
     assert h.vaciar(espera=5) is True          # sin avanzar el reloj
     assert len(enviados) == 1 and "No se pudo conectar" in enviados[0][1]
     assert h.vaciar(espera=5) is False         # nada más pendiente
+
+
+def test_al_salir_espera_al_envio_que_ya_estaba_en_marcha():
+    terminado = threading.Event()
+
+    def enviar_lento(asunto, html):
+        time.sleep(0.5)
+        terminado.set()
+
+    h = AvisoErrores(enviar_lento, "production", agrupar=0, intervalo=0)
+    registro = logging.getLogger("prueba.en_curso")
+    registro.addHandler(h)
+    registro.propagate = False
+    try:
+        registro.error("uno")                       # el hilo de envío lo coge ya
+        for _ in range(50):
+            if not h._sin_envio_en_curso.is_set() or terminado.is_set():
+                break
+            time.sleep(0.01)
+        assert h.vaciar(espera=5) is False          # nada pendiente, pero espera
+        assert terminado.is_set()
+    finally:
+        registro.removeHandler(h)
+        registro.propagate = True
+
+
+def test_al_salir_con_sys_exit_el_aviso_llega(tmp_path):
+    """Proceso real: error de arranque + sys.exit(1). En Python 3.12+ atexit no puede
+    crear hilos; vaciar() envía entonces en el propio hilo."""
+    import subprocess
+    import sys
+    import pathlib
+    salida = tmp_path / "enviado.txt"
+    guion = tmp_path / "arranque.py"
+    guion.write_text(f"""
+import atexit, logging, sys
+sys.path.insert(0, {str(pathlib.Path(alertas_errores.__file__).resolve().parent.parent)!r})
+from services.alertas_errores import AvisoErrores
+h = AvisoErrores(lambda asunto, html: open({str(salida)!r}, "w").write(asunto), "production")
+logging.getLogger().addHandler(h)
+atexit.register(h.vaciar)
+logging.getLogger("app").critical("No se pudo conectar a la base de datos")
+sys.exit(1)
+""")
+    r = subprocess.run([sys.executable, str(guion)], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 1
+    assert salida.read_text() == "[PRODUCTION] Clicandseo: 1 error(es) de 1 tipo(s)", r.stderr
 
 
 def test_errores_distintos_en_rutas_distintas_son_tipos_distintos(aviso):
@@ -286,14 +368,15 @@ def cron(flask_app, monkeypatch):
     return cron_routes
 
 
-def test_un_codigo_de_google_caducado_no_dispara_avisos(flask_app, clean_db, caplog):
+@pytest.mark.parametrize("descripcion", ["Bad Request", "Malformed auth code."])
+def test_un_codigo_de_google_caducado_no_dispara_avisos(flask_app, clean_db, caplog, descripcion):
     """InvalidGrantError lo provoca cualquiera con un code inventado: WARNING, un solo registro."""
     import auth
     from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
     class Flujo:
         def fetch_token(self, **kwargs):
-            raise InvalidGrantError()
+            raise InvalidGrantError(description=descripcion)
 
     client = flask_app.app.test_client()
     with client.session_transaction() as sess:
@@ -305,12 +388,17 @@ def test_un_codigo_de_google_caducado_no_dispara_avisos(flask_app, clean_db, cap
     assert [r.levelname for r in del_callback] == ["WARNING"]
 
 
-def test_otro_fallo_del_callback_sigue_siendo_error_con_traza(flask_app, clean_db, caplog):
+@pytest.mark.parametrize("error", ["runtime", "sin_code_verifier"])
+def test_otro_fallo_del_callback_sigue_siendo_error_con_traza(flask_app, clean_db, caplog, error):
+    """Incluido un invalid_grant que rompería todos los logins (p. ej. PKCE sin verifier)."""
     import auth
+    from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
     class Flujo:
         def fetch_token(self, **kwargs):
-            raise RuntimeError("fallo inesperado")
+            if error == "runtime":
+                raise RuntimeError("fallo inesperado")
+            raise InvalidGrantError(description="Missing code verifier.")
 
     client = flask_app.app.test_client()
     with client.session_transaction() as sess:
@@ -369,11 +457,27 @@ def test_saldo_de_serpapi_un_solo_email_si_el_cron_se_repite(cron, monkeypatch):
     assert len(enviados) == 2
 
 
-def test_saldo_de_serpapi_no_lanza_con_un_umbral_mal_escrito(cron, monkeypatch):
+def test_saldo_de_serpapi_con_un_umbral_mal_escrito_usa_3000_y_avisa(cron, monkeypatch):
     monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("CRON_ALERTS_ENABLED", "true")
     monkeypatch.setenv("SERPAPI_ALERT_MIN_SEARCHES", "tres mil")
-    r = cron._run_serpapi_balance_check(get_account=lambda **_: {"total_searches_left": 10}, enviar=lambda *a: True)
-    assert r == {"checked": False, "reason": "error"}
+    enviados = []
+    r = cron._run_serpapi_balance_check(get_account=lambda **_: {"total_searches_left": 10},
+                                        enviar=lambda to, a, h: enviados.append(a) or True)
+    assert r["threshold"] == 3000 and r["alert"] is True and len(enviados) == 1
+
+
+def test_saldo_de_serpapi_si_la_consulta_lanza_tambien_avisa(cron, monkeypatch):
+    """Antes una excepción (p. ej. un TypeError) dejaba solo un WARNING y ningún email."""
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("CRON_ALERTS_ENABLED", "true")
+    enviados = []
+
+    def rota(**_):
+        raise TypeError("argumento inesperado")
+    r = cron._run_serpapi_balance_check(get_account=rota, enviar=lambda to, a, h: enviados.append(a) or True)
+    assert r["alert"] is True
+    assert enviados == ["[PRODUCTION] SerpAPI: no se pudo consultar el saldo"]
 
 
 def test_saldo_de_serpapi_solo_desde_produccion(cron, monkeypatch):

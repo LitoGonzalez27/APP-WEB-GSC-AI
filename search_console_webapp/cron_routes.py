@@ -128,9 +128,13 @@ def _run_serpapi_balance_check(get_account=None, enviar=None, reloj=time.time):
     """
     if not config.es_produccion():
         return {'checked': False, 'reason': 'solo en producción'}
-    quedan = None
     try:
         minimo = int(os.getenv('SERPAPI_ALERT_MIN_SEARCHES', '3000'))
+    except ValueError:
+        logger.error("SERPAPI_ALERT_MIN_SEARCHES no es un número: se usa 3000")
+        minimo = 3000
+    quedan = None
+    try:
         if get_account is None:
             from admin_cost_panel import get_serpapi_account as get_account
         # Sin dato viejo: si la consulta falla (clave revocada, cuenta suspendida)
@@ -139,8 +143,9 @@ def _run_serpapi_balance_check(get_account=None, enviar=None, reloj=time.time):
         if cuenta and cuenta.get('total_searches_left') is not None:
             quedan = int(cuenta['total_searches_left'])
     except Exception as e:
-        logger.warning(f"No se pudo comprobar el saldo de SerpAPI: {type(e).__name__}: {e}")
-        return {'checked': False, 'reason': 'error'}
+        # Cualquier fallo aquí cuenta como "no se pudo consultar" y avisa: callarse
+        # es justo lo que no puede pasar.
+        logger.warning(f"No se pudo comprobar el saldo de SerpAPI: {type(e).__name__}")
     if quedan is None:
         resultado = {'checked': False, 'reason': 'no se pudo consultar la cuenta', 'alert': True}
         asunto = f"[{config.etiqueta_entorno().upper()}] SerpAPI: no se pudo consultar el saldo"
