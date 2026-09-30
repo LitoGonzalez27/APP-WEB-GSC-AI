@@ -12,7 +12,6 @@ MODELO DE NEGOCIO:
 Endpoints:
     GET    /api/llm-monitoring/projects               - Listar proyectos
     POST   /api/llm-monitoring/projects               - Crear proyecto
-    POST   /api/llm-monitoring/projects/:id/run-initial-analysis - Ejecutar primer análisis (una vez)
     GET    /api/llm-monitoring/projects/:id           - Obtener proyecto
     PUT    /api/llm-monitoring/projects/:id           - Actualizar proyecto
     DELETE /api/llm-monitoring/projects/:id           - Eliminar proyecto (soft delete)
@@ -30,12 +29,8 @@ Endpoints:
 import logging
 import os
 import json
-import threading
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
 
-
-import brand_palette
 
 from flask import request, jsonify
 
@@ -55,11 +50,7 @@ from services.project_access_service import (
 
 # Importar servicios
 from database import get_db_connection
-from services.llm_monitoring_service import MultiLLMMonitoringService
-from services.llm_monitoring_stats import LLMMonitoringStatsService
-from services.llm_monitoring.fanout_stats import collect_fanout_metrics, response_search_detail
 from services.llm_providers.web_search import is_search_enabled, normalize_search_mode
-from services.llm_monitoring import url_content_analyzer
 from services.llm_monitoring import prompt_sets as prompt_sets_lib
 from services.llm_monitoring import pseudo_snapshots as pseudo_snapshots_lib
 from services.country_config import get_default_language_for_country
@@ -117,7 +108,7 @@ from llm_monitoring_base import (  # noqa: F401
     _ensure_cron_token_or_admin,
 )
 
-# Rutas de analisis: viven en llm_monitoring_rutas_analisis.py desde sep-2026. Importarlo registra
+# Rutas de análisis: viven en llm_monitoring_rutas_analisis.py desde sep-2026. Importarlo registra
 # sus rutas en el blueprint; los nombres se exponen aquí como antes.
 from llm_monitoring_rutas_analisis import (  # noqa: F401
     run_initial_analysis,

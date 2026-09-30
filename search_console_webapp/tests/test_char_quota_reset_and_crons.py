@@ -286,7 +286,9 @@ def entorno(flask_app, clean_db, monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
     hilos = _RegistroHilos()
-    for modulo in (cron_routes, llm_monitoring_routes, llm_monitoring_rutas_cron, llm_monitoring_rutas_analisis,
+    # Las rutas de LLM que lanzan hilos viven en rutas_cron y rutas_analisis desde sep-2026;
+    # llm_monitoring_routes ya no importa threading.
+    for modulo in (cron_routes, llm_monitoring_rutas_cron, llm_monitoring_rutas_analisis,
                    manual_ai_routes, ai_mode_routes):
         monkeypatch.setattr(modulo, "threading", hilos.modulo_falso())
 
