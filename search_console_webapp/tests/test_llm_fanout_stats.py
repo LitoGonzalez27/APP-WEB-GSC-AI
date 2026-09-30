@@ -208,7 +208,9 @@ class TestOffProjectsStayUnchanged:
         assert "if include_search:\n                item['search'] = response_search_detail(" in body
 
     def test_exports_only_add_fanout_when_on(self):
-        helper = self.routes[self.routes.index('def _safe_fanout_metrics'):]
+        # Los helpers de informes viven en llm_monitoring_informes.py desde sep-2026
+        informes = (ROOT / 'llm_monitoring_informes.py').read_text()
+        helper = informes[informes.index('def _safe_fanout_metrics'):]
         helper = helper[:helper.index('\ndef ')]
         assert "if not is_search_enabled(project.get('search_mode')):\n        return None" in helper
         # Las exportaciones viven en su propio módulo desde sep-2026

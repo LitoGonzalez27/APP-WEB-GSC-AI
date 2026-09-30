@@ -124,30 +124,28 @@ def test_el_gratuito_se_queda_en_el_filtro_de_plan(ent):
     assert r.status_code == 402
 
 
-@pytest.mark.parametrize("modulo, funcion", [
-    ("llm_monitoring_export_excel", "exportar_excel"),
-    ("llm_monitoring_export_pdf", "exportar_pdf"),
-])
-def test_todos_los_nombres_globales_de_la_exportacion_existen(flask_app, modulo, funcion):
-    """Sin esto, un nombre que faltara al importar solo fallaría con un NameError en plena descarga."""
+@pytest.mark.parametrize("modulo", ["llm_monitoring_routes", "llm_monitoring_informes",
+                                    "llm_monitoring_export_excel", "llm_monitoring_export_pdf"])
+def test_ningun_nombre_global_falta_en_los_modulos_de_llm(flask_app, modulo):
+    """Tras partir llm_monitoring_routes.py (sep-2026): todo nombre global que usa cualquier
+    función de estos módulos existe en su módulo. Sin esto, un helper que se quedara sin
+    importar solo fallaría con un NameError en plena petición."""
     import builtins
     import importlib
     import inspect
     import symtable
     mod = importlib.import_module(modulo)
-    tabla = symtable.symtable(inspect.getsource(mod), mod.__file__, "exec")
 
-    def globales(t):
-        for s in t.get_symbols():
-            if s.is_global() or (s.is_free() is False and s.is_referenced() and not s.is_local()
-                                 and not s.is_parameter() and t.get_type() == "function"
-                                 and not s.is_imported() and not s.is_assigned()):
-                yield s.get_name()
-        for hijo in t.get_children():
-            yield from globales(hijo)
+    def globales(tabla):
+        if tabla.get_type() == "function":
+            for s in tabla.get_symbols():
+                if s.is_global() and s.is_referenced():
+                    yield tabla.get_name(), s.get_name()
+        for hija in tabla.get_children():
+            yield from globales(hija)
 
-    funcion_t = next(t for t in tabla.get_children() if t.get_name() == funcion)
-    faltan = sorted({n for n in globales(funcion_t)
+    raiz = symtable.symtable(inspect.getsource(mod), mod.__file__, "exec")
+    faltan = sorted({f"{f}: {n}" for f, n in globales(raiz)
                      if not hasattr(mod, n) and not hasattr(builtins, n)})
     assert faltan == []
 
@@ -155,3 +153,22 @@ def test_todos_los_nombres_globales_de_la_exportacion_existen(flask_app, modulo,
 def test_sin_sesion_no_se_exporta(flask_app, clean_db):
     r = flask_app.app.test_client().get(f"{BASE}/export/excel", headers={"Accept": "application/json"})
     assert r.status_code == 401
+
+
+def test_las_rutas_exponen_los_mismos_helpers_que_informes(flask_app):
+    """llm_monitoring_routes vuelve a exponer los helpers de informes (sep-2026): mismo objeto,
+    no una copia; y nada de informes vuelve a definirse en las rutas."""
+    import ast
+    import inspect
+    import llm_monitoring_informes as informes
+    import llm_monitoring_routes as rutas
+    definidos = [n.name if isinstance(n, (ast.FunctionDef, ast.ClassDef)) else n.targets[0].id
+                 for n in ast.parse(inspect.getsource(informes)).body
+                 if isinstance(n, (ast.FunctionDef, ast.ClassDef))
+                 or (isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name))]
+    definidos = [n for n in definidos if n != "logger"]
+    assert len(definidos) == 27
+    assert [n for n in definidos if getattr(rutas, n, None) is not getattr(informes, n)] == []
+    en_rutas = {n.name for n in ast.parse(inspect.getsource(rutas)).body
+                if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+    assert en_rutas & set(definidos) == set()
