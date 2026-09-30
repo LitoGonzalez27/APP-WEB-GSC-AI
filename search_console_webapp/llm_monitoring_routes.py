@@ -284,8 +284,6 @@ def _ensure_cron_token_or_admin():
         return jsonify({'success': False, 'error': 'Error validando permisos'}), 500
 
 
-
-
 def _get_effective_plan_limits(user: dict) -> dict:
     """
     Devuelve límites efectivos por usuario.
@@ -2039,7 +2037,6 @@ def delete_query(project_id, query_id):
 # ============================================================================
 
 
-
 def _sanitize_prompt_clusters_config(raw):
     """
     Sanitize incoming clusters config. Expected shape:
@@ -2522,8 +2519,6 @@ def _resolve_set_assignment(requested, sets_config):
     if not canonical:
         return False, f"Set '{name}' is not defined for this project"
     return True, canonical
-
-
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/sets', methods=['GET'])
