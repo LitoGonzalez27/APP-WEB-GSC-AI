@@ -227,14 +227,14 @@ class AvisoErrores(logging.Handler):
         registro = logging.getLogger(__name__)
         try:
             asunto, html = self._componer(pendientes)
-            resultado = self._enviar(asunto, html)
-            if resultado is False:
-                registro.warning(f"✉️ No se pudo enviar el aviso de errores «{asunto}» (ver el error de envío)")
-            else:
+            if self._enviar(asunto, html) is True:   # send_email devuelve True/False
                 registro.warning(f"✉️ Aviso de errores enviado: «{asunto}»")
+            else:
+                registro.warning(f"✉️ No se pudo enviar el aviso de errores «{asunto}» (ver el error de envío)")
         except Exception as e:
             # sin reintento: el detalle sigue en los logs de Railway
-            registro.warning(f"✉️ Fallo al preparar o enviar el aviso de errores: {type(e).__name__}: {e}")
+            registro.warning(f"✉️ Fallo al preparar o enviar el aviso de errores: {type(e).__name__}: "
+                             f"{_limpiar(str(e))[:300]}")
         finally:
             with self._fin_de_envio:
                 self._envios_en_curso -= 1
