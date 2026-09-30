@@ -234,19 +234,26 @@ check_and_send_cron_alerts(run_id, get_db_connection_fn=None) -> Dict
 
 ---
 
-## 5b. Avisos de errores de la aplicación (`services/alertas_errores.py`, oct-2026)
+## 5b. Avisos de errores de la aplicación (`services/alertas_errores.py`, sep-2026)
 
-- Handler de logging en el logger raíz (nivel ERROR o superior), instalado en `app.py` solo en Railway (`config.desplegado()`). Recoge también las excepciones sin capturar de las rutas (Flask las registra) y de los hilos (`threading.excepthook`).
-- Agrupa por tipo (logger, fichero, línea, excepción) y cuenta. Espera `ERROR_ALERTS_GROUP_SECONDS` (60) tras el primer error para juntar ráfagas y no envía más de un email cada `ERROR_ALERTS_MIN_INTERVAL_SECONDS` (900) ni más de `ERROR_ALERTS_MAX_PER_DAY` (12) al día; lo que no cabe se resume en el primer email del día siguiente. Máximo 50 tipos por email. En el arranque escribe «✉️ Avisos de errores por email activos» (WARNING) para poder comprobarlo en los logs.
-- Ignora el ruido conocido (`IGNORAR`: firma de Stripe ausente, Redis no disponible) y los errores de su propio envío. Oculta secretos de URL y enmascara emails (`a***@dominio`).
-- `emit()` solo apunta en memoria; el envío va en un hilo propio (nunca bloquea una petición).
+- Handler de logging en el logger raíz (nivel ERROR o superior), instalado en `app.py` solo en Railway (`config.desplegado()`: producción y staging, con la etiqueta del entorno en el asunto). Recoge también las excepciones sin capturar de las rutas (Flask las registra) y de los hilos (`threading.excepthook`).
+- Agrupa por tipo (logger, fichero y línea donde nació el error, excepción) y cuenta. Con traza, el fichero y la línea salen del último frame del código de la app: Flask registra todas las excepciones de rutas desde la misma línea y sin esto dos bugs distintos saldrían como uno.
+- Espera `ERROR_ALERTS_GROUP_SECONDS` (60) tras el primer error para juntar ráfagas. No envía más de un email cada `ERROR_ALERTS_MIN_INTERVAL_SECONDS` (900) ni más de `ERROR_ALERTS_MAX_PER_DAY` (12) al día. Los 4 últimos del día quedan reservados para tipos de error aún no avisados, así que un fallo repetido no tapa uno nuevo. Lo que no cabe va en el primer email del día siguiente. Máximo 50 tipos por email.
+- Al salir el proceso (`atexit`, p. ej. el `sys.exit(1)` si no conecta a la base al arrancar) manda lo pendiente sin esperar, como mucho 10 s.
+- Los contadores son de cada proceso: se reinician con cada despliegue.
+- En el arranque escribe «✉️ Avisos de errores por email activos» (WARNING) para poder comprobarlo en los logs.
+- Ignora el ruido conocido (`IGNORAR`: webhooks de Stripe sin firma, con firma inválida o con cuerpo inválido, que puede mandar cualquiera) y los errores de su propio envío. Un secreto de Stripe mal configurado también cae ahí, pero Stripe avisa por su cuenta cuando fallan los webhooks reales.
+- El callback de Google registra un código caducado o inventado (`InvalidGrantError`) como WARNING y en un solo registro: no dispara avisos. Cualquier otro fallo del callback sigue siendo ERROR con traza.
+- Oculta secretos (parámetros de URL, `Bearer …`, claves `sk_…`/`sk-…`/`AIza…`, pares `api_key: …`, `password=…`) y enmascara emails (`a***@dominio`). Limpia antes de recortar. Las líneas `LINE 1:` de psycopg2 pueden llevar keywords o dominios de clientes: el destinatario es el propio admin.
+- `emit()` solo apunta en memoria. El envío va en un hilo propio y nunca bloquea una petición. Si el envío falla no hay reintento: el detalle sigue en los logs de Railway.
 - Destinatario: `config.email_alertas()` (`CRON_ALERTS_EMAIL`). Asunto: `[PRODUCTION] Clicandseo: N error(es) de M tipo(s)`. Para silenciar: `ERROR_ALERTS_ENABLED=false`.
 - Medido antes de activarlo (29 y 30-sep-2026): los logs de producción casi no tienen errores, así que cada aviso debería significar algo.
 
-## 5c. Aviso de saldo de SerpAPI (`cron_routes._run_serpapi_balance_check`, oct-2026)
+## 5c. Aviso de saldo de SerpAPI (`cron_routes._run_serpapi_balance_check`, sep-2026)
 
 - En el cron diario de `quota-reset`, solo desde producción: la clave la comparten staging, producción y otros servicios (n8n, vigía de competidores...), y desde staging se duplicaría el aviso.
-- Si `total_searches_left` < `SERPAPI_ALERT_MIN_SEARCHES` (3000), email con plan, restantes y créditos extra. Respeta `CRON_ALERTS_ENABLED`.
+- Si `total_searches_left` < `SERPAPI_ALERT_MIN_SEARCHES` (3000), email con plan, restantes y créditos extra. Si la cuenta no se puede consultar (clave revocada, cuenta suspendida), también avisa: no usa el dato guardado de la consulta anterior.
+- Respeta `CRON_ALERTS_ENABLED`. Un solo email cada 20 h aunque el cron se lance dos veces. Nunca lanza: el reset de cuotas ya está hecho.
 - Motivo: en sep-2026 se agotaron las 15.000 búsquedas del plan. Si se acaba también el saldo extra, fallan los análisis de Manual AI y AI Mode de los clientes sin que nadie lo vea.
 
 ## 6. Alertas Stripe webhook
