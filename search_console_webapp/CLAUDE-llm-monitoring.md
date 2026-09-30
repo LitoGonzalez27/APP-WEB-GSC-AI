@@ -1215,7 +1215,7 @@ Adicionalmente: `scripts/manual_checks/test_cron_alerts.py`, `scripts/manual_che
 4. **Retry de 5 capas**: provider → circuit breaker → task retry → reconciliación → re-run manual.
 5. **`llm_model_registry` es la single source of truth** de modelos y precios. Cron weekly los descubre y los activa con flujo de aprobación por email.
 6. **Quota = 1 unidad por (prompt × LLM)**. Plan free **no puede acceder al producto**.
-7. **Costes reales en juego**: cada run consume tokens facturables. `cron_alerts.py` tiene detección de cost spike pero **no se dispara automáticamente** (deuda).
+7. **Costes reales en juego**: cada run consume tokens facturables. El email de fin de run (`cron_alerts.send_run_completion_email`, llamado desde `database.release_analysis_lock`) pasa todas las comprobaciones, incluida la subida de coste (hoy > `CRON_ALERT_COST_MULTIPLIER` × media de 7 días). `check_and_send_cron_alerts` es el punto de entrada antiguo y ya no se llama (comprobado 30-sep-2026).
 8. **Locale fidelity**: cada provider aplica el locale en su mecanismo nativo (system message / prepended block / web_search_options).
 9. **Frontend pesado**: clase base `llm_monitoring.js` (64 líneas) + 11 mixins en `static/js/llm_monitoring/` (cargados por `<script>` en orden, base primero), `llm_monitoring.html` 2473 líneas, charts/tables/modals/banners.
 10. **Brand Radar no es parte de LLM Monitoring** (es Ahrefs MCP externo).
