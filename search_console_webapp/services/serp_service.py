@@ -11,6 +11,7 @@ from .utils import normalize_search_console_url
 from .google_redirects import sanitize_serp_response
 from .country_config import get_country_config # Importar get_country_config
 import json # Importar json para los logs de depuración
+from html import escape
 
 # ✅ NUEVO: Importar middleware de quotas para Fase 4
 from quota_middleware import quota_protected_serp_call
@@ -89,44 +90,47 @@ def get_serp_json(params: dict, cobrar: bool = False) -> dict:
     return result
 
 
+def _serp_html(params: dict, cobrar: bool = False):
+    """(html, bloqueo, error). bloqueo es la respuesta del portero si la búsqueda
+    se bloqueó por plan o por cuota; error, el motivo si SerpAPI falló o no
+    devolvió nada. Señal estructurada: antes la captura buscaba textos como
+    "Quota Limit Reached" dentro del HTML, y una keyword con ese texto se cobraba
+    y además mostraba el aviso de pago."""
+    success, result = quota_protected_serp_call(params, "html", cobrar=cobrar)
+    if not success:
+        if isinstance(result, dict) and result.get('blocked'):
+            logger.warning(f"🚫 Llamada HTML bloqueada: {result.get('message')}")
+            return None, result, None
+        error = result.get('error', 'Unknown SerpAPI error') if isinstance(result, dict) else str(result)
+        logger.error(f"❌ Error en SerpAPI HTML: {error}")
+        return None, None, error or 'Unknown SerpAPI error'
+    html_content = result.get('html', '')
+    if not html_content:
+        logger.warning(f"SerpAPI devolvió HTML vacío para keyword: {params.get('q')}")
+        return None, None, 'No content returned from SerpAPI'
+    logger.info(f"✅ SERP HTML exitoso para keyword: {params.get('q')}")
+    return html_content, None, None
+
+
 def get_serp_html(params: dict, cobrar: bool = False) -> str:
     """
-    Devuelve el HTML crudo de la búsqueda SERP (cobrar: ver get_serp_json).
+    Devuelve el HTML crudo de la búsqueda SERP (cobrar: ver get_serp_json), o
+    una página de error en HTML si se bloqueó o falló.
     """
     logger.info(f"🔍 SERP HTML request para keyword: {params.get('q')}")
-    
-    # ✅ NUEVO: Usar middleware de quotas
-    success, result = quota_protected_serp_call(params, "html", cobrar=cobrar)
-    
-    if not success:
-        # Si hay error de quota, devolver HTML con mensaje de error
-        if isinstance(result, dict) and result.get('blocked'):
-            logger.warning(f"🚫 Llamada HTML bloqueada por quota: {result.get('message')}")
-            if result.get('paywall'):
-                return "<html><body>Paid Plan Required</body></html>"
-            return f"""
+    html_content, bloqueo, error = _serp_html(params, cobrar)
+    if bloqueo:
+        return f"""
             <html>
                 <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
                     <h2>🚫 Quota Limit Reached</h2>
-                    <p>{result.get('message', 'Quota exceeded')}</p>
-                    <p><strong>Action Required:</strong> {result.get('action_required', 'Contact support')}</p>
+                    <p>{escape(bloqueo.get('message', 'Quota exceeded'))}</p>
+                    <p><strong>Action Required:</strong> {escape(str(bloqueo.get('action_required', 'Contact support')))}</p>
                 </body>
             </html>
             """
-        else:
-            # Error normal de SerpAPI
-            error_msg = result.get('error', 'Unknown SerpAPI error')
-            logger.error(f"❌ Error en SerpAPI HTML: {error_msg}")
-            return f"<html><body>Error de SerpAPI: {error_msg}</body></html>"
-    
-    # ✅ Llamada exitosa - extraer HTML del resultado
-    html_content = result.get('html', '')
-    
-    if not html_content:
-        logger.warning(f"SerpAPI devolvió HTML vacío para keyword: {params.get('q')}")
-        return "<html><body>No content returned from SerpAPI</body></html>"
-    
-    logger.info(f"✅ SERP HTML exitoso para keyword: {params.get('q')}")
+    if error:
+        return f"<html><body>Error de SerpAPI: {escape(error)}</body></html>"
     return html_content
 
 def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, country: str = None, site_url: str = None,
@@ -193,22 +197,24 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
     
     # ✅ FASE 4: Verificar quotas antes de generar screenshot
     # Nota: get_serp_html() ya incluye validación de quotas internamente
-    html_content = get_serp_html(params, cobrar=cobrar)
+    html_content, bloqueo, error = _serp_html(params, cobrar=cobrar)
 
-    if "Paid Plan Required" in html_content:
-        logger.warning(f"🚫 Screenshot bloqueado por plan para keyword '{keyword}'")
-        return Response("Screenshot unavailable: SERP view is available on paid plans.", status=402, mimetype='text/plain')
+    if bloqueo:
+        # 402 si es el plan (paywall), 429 si es la cuota; en JSON, como /api/serp.
+        estado = 402 if bloqueo.get('paywall') else 429
+        logger.warning(f"🚫 Screenshot bloqueado ({estado}) para keyword '{keyword}'")
+        cuerpo = {
+            'error': bloqueo.get('error', 'Quota exceeded'),
+            'message': bloqueo.get('message'),
+            'quota_blocked': True,
+            'paywall': bool(bloqueo.get('paywall')),
+            'upgrade_options': bloqueo.get('upgrade_options'),
+            'quota_info': bloqueo.get('quota_info', {}),
+            'action_required': bloqueo.get('action_required'),
+        }
+        return Response(json.dumps(cuerpo, default=str), status=estado, mimetype='application/json')
 
-    # ✅ NUEVO: Verificar si HTML contiene error de quota
-    if "Quota Limit Reached" in html_content:
-        logger.warning(f"🚫 Screenshot bloqueado por quota para keyword '{keyword}'")
-        return Response(
-            "Screenshot unavailable: Quota limit reached. Please upgrade your plan to continue.",
-            status=429,  # Too Many Requests
-            mimetype='text/plain'
-        )
-
-    if not html_content or "Error de SerpAPI" in html_content or "Excepción al obtener HTML" in html_content :
+    if error:
         logger.error(f"No se pudo obtener HTML válido para screenshot de keyword: {keyword}")
         return Response(f"Error al obtener HTML de SerpAPI para la keyword: {keyword}", status=500, mimetype='text/plain')
 

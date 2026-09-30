@@ -136,7 +136,7 @@ PLAN_PRICES = {
 0. Seguridad: en Railway, petición HTTP sin usuario → bloqueada siempre.
 1. `cobrar=False` (por defecto; AI Overview, Manual AI, crons, depuración): ejecuta sin comprobar ni descontar; cada módulo cuenta lo suyo.
 2. `cobrar=True` (solo `/api/serp`, `/api/serp/position` y `/api/serp/screenshot`): plan Free que no sea admin → bloqueado con paywall (las rutas responden 402 antes de nada, también ante una captura en caché).
-3. Cache LRU+TTL (`SERP_CALL_CACHE_TTL_SECONDS=3600`, `SERP_CALL_CACHE_MAX=5000`): búsqueda repetida en la última hora → 0 RU (SerpAPI tampoco la cobra). Abrir el modal = 1 RU (posición y datos comparten búsqueda); la captura, 1 RU más.
+3. Cache LRU+TTL (`SERP_CALL_CACHE_TTL_SECONDS=3600`, `SERP_CALL_CACHE_MAX=5000`), común a todos los usuarios: búsqueda repetida en la última hora → 0 RU (SerpAPI la sirve de su caché sin cobrar). Abrir el modal = 1 RU; la captura de esa misma búsqueda, 0 (si se pide primero la captura, la paga ella). También quedan en caché las búsquedas de los análisis (`cobrar=False`): abrir la SERP justo después de un análisis no cobra. Un candado por búsqueda evita el doble cobro por doble clic (dos peticiones iguales a la vez).
 4. Admin: ejecuta y registra el evento con `update_user_quota=False` (metadata `admin: true`).
 5. Resto: `validate_quota_access` (agotado → 429 `quota_blocked`), ejecuta con retry (`SERPAPI_RETRY_ATTEMPTS=3`) y `track_quota_consumption(..., update_user_quota=True)`. Sin `gl`, `country_code` va NULL (antes `'unknown'` no cabía en la columna y el cobro fallaba en silencio).
 
@@ -730,7 +730,7 @@ Decorador: `@admin_required`.
 3. **3 vías de reset**: webhook Stripe → cron diario Stripe-aware → health-check con email. Defensa en profundidad.
 4. **`compute_next_quota_reset_date` tiene safety net** que garantiza fecha futura — fix crítico del 2026-05-07.
 5. **Pause/Resume cross-module**: `pause_<module>_projects_for_quota` por módulo + `resume_quota_pauses_for_user` que limpia las 4 ubicaciones (con SAVEPOINT para Manual AI).
-6. **Plan free no consume cuota** (SerpAPI permitido sin consumo, LLM bloqueado, Manual AI / AI Mode con paywall blando).
+6. **Plan free no consume cuota**: vista de SERP bloqueada con paywall (desde el 30-sep-2026; antes era gratis), LLM bloqueado, Manual AI / AI Mode con paywall blando.
 7. **Enterprise = `custom_quota_limit`, `custom_llm_prompts_limit`, `custom_llm_monthly_units_limit`** sobreescriben los valores del plan.
 8. **`chk_source` en `quota_usage_events` está desactualizado** — eventos `'ai_mode'`, `'quota_reset'`, `'admin_quota_reset'` no se persisten en log (deuda).
 9. **Todos los resets hacen `commit` ANTES de llamar a `resume_quota_pauses_for_user`** para evitar self-deadlock.

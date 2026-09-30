@@ -18,6 +18,7 @@ import config
 import logging
 import time
 import hashlib
+import threading
 from collections import OrderedDict
 from typing import Dict, Any, Tuple, Optional
 from datetime import datetime, timezone
@@ -62,6 +63,16 @@ def _is_cached_call(params: dict) -> bool:
         CALL_CACHE.pop(cache_key, None)
     
     return False
+
+# Candados por búsqueda (repartidos en franjas fijas): dos peticiones iguales a la
+# vez (doble clic en el icono de SERP) no cobran dos veces; la segunda espera y
+# sale de la caché.
+_CANDADOS = [threading.Lock() for _ in range(256)]
+
+
+def _candado_de(params: dict) -> threading.Lock:
+    return _CANDADOS[int(_get_cache_key(params), 16) % len(_CANDADOS)]
+
 
 def _mark_call_cached(params: dict):
     """Marca una llamada como cacheada"""
@@ -206,7 +217,7 @@ def validate_quota_access(user_id: int, operation_type: str = "serp_call") -> Di
         logger.error(f"Error validando acceso quota para user {user_id}: {e}")
         return {
             'allowed': False,
-            'reason': f'Error de sistema: {str(e)}',
+            'reason': 'Error de sistema',  # el detalle, solo en el log
             'quota_info': {},
             'action_required': 'contact_support'
         }
@@ -214,29 +225,39 @@ def validate_quota_access(user_id: int, operation_type: str = "serp_call") -> Di
 OPCIONES_DE_PLAN = ['basic', 'premium', 'business']
 
 
-def _es_admin(user_id: int) -> bool:
-    """Rol admin del usuario (con la lectura de la petición si es el de la sesión)."""
+def _usuario(user_id: int) -> Optional[Dict[str, Any]]:
+    """Usuario (plan y rol): el leído al empezar la petición si es el de la
+    sesión (sin volver a la BD); si no, de la BD. None si no se puede leer."""
     try:
         from auth import get_current_user
         from database import get_user_by_id
         usuario = None
         if has_request_context() and session.get('user_id') == user_id:
             usuario = get_current_user()
-        if usuario is None:
-            usuario = get_user_by_id(user_id)
-        return bool(usuario) and usuario.get('role') == 'admin'
+        return usuario if usuario is not None else get_user_by_id(user_id)
     except Exception as e:
-        logger.error(f"No se pudo comprobar el rol del usuario {user_id}: {e}")
-        return False
+        logger.error(f"No se pudo leer el usuario {user_id}: {e}")
+        return None
+
+
+def _es_admin(user_id: int) -> bool:
+    usuario = _usuario(user_id)
+    return bool(usuario) and usuario.get('role') == 'admin'
 
 
 def bloqueo_serp_por_plan(user_id: int) -> Optional[Dict[str, Any]]:
     """La vista de SERP es de pago (Carlos, 30-sep-2026): devuelve el cuerpo del
-    bloqueo para un usuario del plan Free (salvo admin), o None si puede usarla."""
-    if _es_admin(user_id):
-        return None
-    estado = get_user_quota_status(user_id)
-    if estado.get('plan') != 'free':
+    bloqueo para un usuario del plan Free (salvo admin), o None si puede usarla.
+    El plan sale del registro del usuario, no del estado de cuota (que ante un
+    fallo parcial de la BD devuelve plan 'unknown' y dejaría pasar)."""
+    usuario = _usuario(user_id)
+    if usuario is not None:
+        if usuario.get('role') == 'admin':
+            return None
+        plan = usuario.get('plan')
+    else:
+        plan = get_user_quota_status(user_id).get('plan')
+    if plan != 'free':
         return None
     return {
         'error': 'paywall',
@@ -244,7 +265,7 @@ def bloqueo_serp_por_plan(user_id: int) -> Optional[Dict[str, Any]]:
         'blocked': True,
         'paywall': True,
         'upgrade_options': OPCIONES_DE_PLAN,
-        'quota_info': estado,
+        'quota_info': {'plan': 'free'},
         'action_required': 'upgrade',
     }
 
@@ -285,7 +306,12 @@ def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: boo
         }
 
     if not cobrar:
-        return _execute_serp_call(params, call_type)
+        success, result = _execute_serp_call(params, call_type)
+        if success:
+            # La misma búsqueda pedida después desde el modal sale de la caché de
+            # SerpAPI: tampoco se le cobra al usuario.
+            _mark_call_cached(params)
+        return success, result
 
     user_id = get_current_user_id()
     if not user_id:
@@ -298,6 +324,12 @@ def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: boo
         logger.info(f"🚫 SERP bloqueada para user {user_id}: plan Free")
         return False, bloqueo
 
+    with _candado_de(params):
+        return _serp_cobrada(params, call_type, user_id)
+
+
+def _serp_cobrada(params: dict, call_type: str, user_id: int) -> Tuple[bool, Dict[str, Any]]:
+    """Parte de quota_protected_serp_call que cobra; se ejecuta con el candado de la búsqueda."""
     # Búsqueda repetida en la última hora: SerpAPI la sirve de su caché sin cobrar.
     if _is_cached_call(params):
         logger.info(f"📦 Ejecutando llamada cacheada para user {user_id} (0 RU)")
@@ -324,7 +356,7 @@ def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: boo
                 user_id=user_id,
                 ru_consumed=1,
                 source='serp_api',
-                keyword=params.get('q', 'unknown'),
+                keyword=str(params.get('q', 'unknown'))[:255],  # columna VARCHAR(255)
                 # Sin 'gl' (búsqueda sin país) va NULL: antes iba 'unknown', no
                 # cabía en la columna (3 caracteres) y el cobro fallaba en silencio.
                 country_code=params.get('gl') or None,
