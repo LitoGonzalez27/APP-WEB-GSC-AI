@@ -1513,6 +1513,11 @@ def _estado_bloqueo_serp(datos):
 @auth_required
 @limiter.limit("30 per minute")
 def get_serp_raw_json():
+    # Plan Free: paywall antes de nada (sin consultar GSC para el país ni mirar
+    # la caché de capturas).
+    bloqueo = _bloqueo_serp_por_plan()
+    if bloqueo:
+        return bloqueo
     keyword_query = request.args.get('keyword')
     country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
     site_url_param = request.args.get('site_url', '')
@@ -1532,9 +1537,6 @@ def get_serp_raw_json():
     
     params_serp = get_serp_params_with_location(keyword_query, api_key_val, country_to_use, site_url_param)
 
-    bloqueo = _bloqueo_serp_por_plan()
-    if bloqueo:
-        return bloqueo
 
     try:
         serp_data_json = get_serp_json(params_serp, cobrar=True)
@@ -1566,6 +1568,11 @@ def get_serp_raw_json():
 @auth_required
 @limiter.limit("30 per minute")
 def get_serp_position():
+    # Plan Free: paywall antes de nada (sin consultar GSC para el país ni mirar
+    # la caché de capturas).
+    bloqueo = _bloqueo_serp_por_plan()
+    if bloqueo:
+        return bloqueo
     keyword_val = request.args.get('keyword')
     site_url_val = request.args.get('site_url', '')
     country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
@@ -1583,9 +1590,6 @@ def get_serp_position():
     
     params_serp = get_serp_params_with_location(keyword_val, api_key_serp, country_to_use, site_url_val)
 
-    bloqueo = _bloqueo_serp_por_plan()
-    if bloqueo:
-        return bloqueo
 
     try:
         serp_data_pos = get_serp_json(params_serp, cobrar=True)
@@ -1675,6 +1679,11 @@ def get_serp_position():
 @auth_required
 @limiter.limit("30 per minute")
 def get_serp_screenshot_route():
+    # Plan Free: paywall antes de nada (sin consultar GSC para el país ni mirar
+    # la caché de capturas).
+    bloqueo = _bloqueo_serp_por_plan()
+    if bloqueo:
+        return bloqueo
     keyword_param = request.args.get('keyword')
     site_url_param = request.args.get('site_url', '')
     country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
@@ -1689,11 +1698,6 @@ def get_serp_screenshot_route():
     # ✅ NUEVA LÓGICA: Si no hay país, usar None para activar detección dinámica
     country_to_use = country_param if country_param else None
     
-    # Antes que la caché de capturas: el plan Free no las ve aunque ya existan.
-    bloqueo = _bloqueo_serp_por_plan()
-    if bloqueo:
-        return bloqueo
-
     try:
         logger.info(f"[SCREENSHOT] Keyword: '{keyword_param}', Site: '{site_url_param}', País: {country_to_use or 'DINÁMICO'}")
         return get_page_screenshot(keyword=keyword_param, site_url_to_highlight=site_url_param, api_key=api_key_env,

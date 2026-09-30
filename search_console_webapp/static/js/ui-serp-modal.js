@@ -105,14 +105,15 @@ export function interpretarBloqueoSerp(status, datos) {
 }
 
 async function leerRespuestaSerp(response) {
-  const datos = await response.json().catch(() => ({ error: `Error ${response.status}` }));
+  const datos = await response.json().catch(() => null);
   const bloqueo = interpretarBloqueoSerp(response.status, datos);
   if (bloqueo) {
     const error = new Error(bloqueo);
     error.bloqueoSerp = true;
     throw error;
   }
-  return datos;
+  if (response.status === 429) return { error: 'Too many requests. Please wait a minute and try again.' };
+  return datos || { error: `Error ${response.status}` };
 }
 
 // ✅ FUNCIÓN CORREGIDA: fetchSerpPosition
@@ -460,17 +461,18 @@ async function loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty) {
     const response = await fetchSerpScreenshot(keyword, siteUrlScProperty);
 
     if (!response.ok) {
-      const texto = await response.text().catch(() => '');
-      let errorData;
-      try { errorData = JSON.parse(texto); } catch (_) { errorData = { error: texto || 'Unknown server error' }; }
-      // La captura con cuota agotada responde 429 en texto plano (sin quota_blocked).
-      const esCuota = response.status === 429 && (errorData.quota_blocked || /quota/i.test(texto));
-      const bloqueo = interpretarBloqueoSerp(response.status, esCuota ? { ...errorData, quota_blocked: true } : errorData);
+      const errorData = await response.json().catch(() => null);
+      const bloqueo = interpretarBloqueoSerp(response.status, errorData);
       if (bloqueo) {
         screenshotView.innerHTML = `<div class="alert alert-warning">${escapeHtml(bloqueo)}</div>`;
         return;
       }
-      showError(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      if (response.status === 429) {
+        // Limitador de peticiones (no es la cuota): responde con HTML, no con JSON.
+        showError('Too many requests. Please wait a minute and try again.');
+        return;
+      }
+      showError((errorData && errorData.error) || `Error ${response.status}: ${response.statusText}`);
       return;
     }
     

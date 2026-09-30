@@ -445,7 +445,7 @@ class TestValidateQuotaAccess:
         monkeypatch.setattr(quota_middleware, "get_user_access_permissions", boom)
         assert quota_middleware.validate_quota_access(3, "serp_json") == {
             "allowed": False,
-            "reason": "Error de sistema: boom",
+            "reason": "Error de sistema",  # CAMBIADO: el detalle ya no llega al cliente (solo al log)
             "quota_info": {},
             "action_required": "contact_support",
         }
@@ -601,8 +601,40 @@ class TestLlamadaSerpProtegida:
         db.set_user(3, plan="basic", quota_limit=1225, quota_used=1225)
         ok, _ = _serp_como(3, cobrar=False)
         assert ok is True and len(serp.llamadas) == 1
-        assert db.events() == [] and quota_middleware.CALL_CACHE == {}
-        assert db.user(3)["quota_used"] == 1225
+        assert db.events() == [] and db.user(3)["quota_used"] == 1225
+        assert len(quota_middleware.CALL_CACHE) == 1  # queda en caché para el modal
+
+    def test_abrir_la_serp_tras_un_analisis_no_cobra(self, db, serp):
+        # SerpAPI sirve de su caché la búsqueda que acaba de hacer el análisis.
+        _serp_como(3, cobrar=False)
+        ok, _ = _serp_como(3)
+        assert ok is True and len(serp.llamadas) == 2
+        assert db.user(3)["quota_used"] == 0 and db.events() == []
+
+    def test_doble_clic_simultaneo_cobra_una_vez(self, db, serp, monkeypatch):
+        import threading
+        import time as _time
+        original = quota_middleware._execute_serp_call
+
+        def lento(params, call_type):
+            _time.sleep(0.3)
+            return original(params, call_type)
+
+        monkeypatch.setattr(quota_middleware, "_execute_serp_call", lento)
+        resultados = []
+        hilos = [threading.Thread(target=lambda: resultados.append(_serp_como(3))) for _ in range(2)]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join()
+        assert [ok for ok, _ in resultados] == [True, True]
+        assert len(serp.llamadas) == 2
+        assert db.user(3)["quota_used"] == 1 and len(db.events()) == 1
+
+    def test_keyword_larga_se_cobra_recortada(self, db, serp):
+        ok, _ = _serp_como(3, params={**PARAMS, "q": "x" * 300})
+        assert ok is True and db.user(3)["quota_used"] == 1
+        assert [len(e["keyword"]) for e in db.events()] == [255]
 
     def test_agotado_bloqueado_sin_ejecutar(self, db, serp):
         db.set_user(3, plan="basic", quota_limit=1225, quota_used=1225)
@@ -628,7 +660,8 @@ class TestLlamadaSerpProtegida:
     def test_sin_gl_se_cobra_con_pais_nulo(self, db, serp):
         # CAMBIADO: antes sin 'gl' se registraba country_code='unknown' (7
         # caracteres) en una columna VARCHAR(3); el INSERT fallaba en silencio y
-        # no se descontaba nada ("All countries" en el modal de SERP).
+        # no se descontaba nada. Las rutas de SERP siempre ponen 'gl'; esto
+        # protege a cualquier otra llamada que cobre.
         ok, _ = _serp_como(3, params={"q": "sin pais"})
         assert ok is True
         assert db.user(3)["quota_used"] == 1
