@@ -412,8 +412,9 @@ class TestPuedeConsumir:
 class TestValidateQuotaAccess:
     # (plan, quota_limit, custom, used, operation) -> (allowed, reason, action_required)
     @pytest.mark.parametrize("plan,quota_limit,custom,used,op,esperado", [
-        ("free", 0, None, 0, "serp_json", (True, "Plan Free: SERP permitido (sin consumo de RU)", None)),
-        ("free", 0, None, 50, "serp_html", (True, "Plan Free: SERP permitido (sin consumo de RU)", None)),
+        # CAMBIADO (Carlos, 30-sep-2026): la vista de SERP es de pago; antes el plan Free la tenía gratis.
+        ("free", 0, None, 0, "serp_json", (False, "Plan Free: la vista de SERP es de pago", "upgrade")),
+        ("free", 0, None, 50, "serp_html", (False, "Plan Free: la vista de SERP es de pago", "upgrade")),
         ("free", 0, None, 0, "manual_ai", (False, "Plan actual no tiene acceso a módulos de IA", "upgrade")),
         ("free", 500, None, 0, "ai_overview", (False, "Plan actual no tiene acceso a módulos de IA", "upgrade")),
         ("basic", 1225, None, 0, "serp_json", (True, "Quota disponible", None)),
@@ -444,7 +445,7 @@ class TestValidateQuotaAccess:
         monkeypatch.setattr(quota_middleware, "get_user_access_permissions", boom)
         assert quota_middleware.validate_quota_access(3, "serp_json") == {
             "allowed": False,
-            "reason": "Error de sistema: boom",
+            "reason": "Error de sistema",  # CAMBIADO: el detalle ya no llega al cliente (solo al log)
             "quota_info": {},
             "action_required": "contact_support",
         }
@@ -502,19 +503,20 @@ def serp(monkeypatch):
     estado = SimpleNamespace(llamadas=llamadas, resultado=(True, {"organic_results": []}))
     monkeypatch.setattr(quota_middleware, "_execute_serp_call", fake)
     monkeypatch.setattr(quota_middleware, "_IS_DEPLOYED", False)
-    monkeypatch.setenv("ENFORCE_QUOTAS", "true")
     quota_middleware.CALL_CACHE.clear()
     yield estado
     quota_middleware.CALL_CACHE.clear()
 
 
-def _serp_como(user_id, params=PARAMS, call_type="json", via="g"):
+def _serp_como(user_id, params=PARAMS, call_type="json", via="g", cobrar=True):
+    """Búsqueda pedida por un usuario desde los botones de SERP (cobrar=True) o
+    hecha por un análisis que cuenta su propio consumo (cobrar=False)."""
     with _FLASK.test_request_context("/"):
         if user_id is not None and via == "g":
             g.user_id = user_id
         elif user_id is not None and via == "session":
             session["user_id"] = user_id
-        return quota_middleware.quota_protected_serp_call(dict(params), call_type)
+        return quota_middleware.quota_protected_serp_call(dict(params), call_type, cobrar=cobrar)
 
 
 class TestLlamadaSerpProtegida:
@@ -526,7 +528,7 @@ class TestLlamadaSerpProtegida:
         assert db.events() == [{
             "user_id": 3, "ru_consumed": 1, "source": "serp_api",
             "keyword": "zapatillas running", "country_code": "es",
-            "metadata": {"call_type": "json", "cached": False},
+            "metadata": {"call_type": "json", "cached": False, "admin": False},
         }]
 
     def test_usuario_por_sesion(self, db, serp):
@@ -571,11 +573,68 @@ class TestLlamadaSerpProtegida:
         assert ok is True
         assert db.user(3)["quota_used"] == 15000
 
-    def test_free_registra_evento_sin_tocar_quota_used(self, db, serp):
-        ok, _ = _serp_como(1)
-        assert ok is True
-        assert db.user(1)["quota_used"] == 0
-        assert [(e["user_id"], e["ru_consumed"], e["source"]) for e in db.events()] == [(1, 1, "serp_api")]
+    def test_free_bloqueado_sin_ejecutar(self, db, serp):
+        # CAMBIADO (Carlos, 30-sep-2026): antes el plan Free buscaba gratis (con
+        # ENFORCE_QUOTAS=false, como en producción, sin dejar ni rastro).
+        ok, data = _serp_como(1)
+        assert ok is False
+        assert (data["error"], data["paywall"], data["action_required"]) == ("paywall", True, "upgrade")
+        assert data["upgrade_options"] == ["basic", "premium", "business"]
+        assert serp.llamadas == [] and db.events() == []
+
+    def test_free_bloqueado_aunque_la_busqueda_este_en_cache(self, db, serp):
+        _serp_como(3)
+        ok, data = _serp_como(1)
+        assert ok is False and data["paywall"] is True
+        assert len(serp.llamadas) == 1
+
+    def test_admin_busca_sin_descontar_y_queda_registrado(self, db, serp):
+        # El admin de la semilla tiene plan Free: el paywall no le afecta.
+        ok, _ = _serp_como(2)
+        assert ok is True and len(serp.llamadas) == 1
+        assert db.user(2)["quota_used"] == 0
+        assert [(e["user_id"], e["ru_consumed"], e["metadata"]["admin"]) for e in db.events()] == [(2, 1, True)]
+
+    def test_analisis_que_cuenta_lo_suyo_no_cobra(self, db, serp):
+        # cobrar=False: AI Overview y Manual AI ya descuentan su cuota. Antes, con
+        # ENFORCE_QUOTAS=true (staging), cada búsqueda se cobraba otra vez.
+        db.set_user(3, plan="basic", quota_limit=1225, quota_used=1225)
+        ok, _ = _serp_como(3, cobrar=False)
+        assert ok is True and len(serp.llamadas) == 1
+        assert db.events() == [] and db.user(3)["quota_used"] == 1225
+        assert len(quota_middleware.CALL_CACHE) == 1  # queda en caché para el modal
+
+    def test_abrir_la_serp_tras_un_analisis_no_cobra(self, db, serp):
+        # SerpAPI sirve de su caché la búsqueda que acaba de hacer el análisis.
+        _serp_como(3, cobrar=False)
+        ok, _ = _serp_como(3)
+        assert ok is True and len(serp.llamadas) == 2
+        assert db.user(3)["quota_used"] == 0 and db.events() == []
+
+    def test_doble_clic_simultaneo_cobra_una_vez(self, db, serp, monkeypatch):
+        import threading
+        import time as _time
+        original = quota_middleware._execute_serp_call
+
+        def lento(params, call_type):
+            _time.sleep(0.3)
+            return original(params, call_type)
+
+        monkeypatch.setattr(quota_middleware, "_execute_serp_call", lento)
+        resultados = []
+        hilos = [threading.Thread(target=lambda: resultados.append(_serp_como(3))) for _ in range(2)]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join()
+        assert [ok for ok, _ in resultados] == [True, True]
+        assert len(serp.llamadas) == 2
+        assert db.user(3)["quota_used"] == 1 and len(db.events()) == 1
+
+    def test_keyword_larga_se_cobra_recortada(self, db, serp):
+        ok, _ = _serp_como(3, params={**PARAMS, "q": "x" * 300})
+        assert ok is True and db.user(3)["quota_used"] == 1
+        assert [len(e["keyword"]) for e in db.events()] == [255]
 
     def test_agotado_bloqueado_sin_ejecutar(self, db, serp):
         db.set_user(3, plan="basic", quota_limit=1225, quota_used=1225)
@@ -598,16 +657,15 @@ class TestLlamadaSerpProtegida:
         assert db.events() == []
         assert quota_middleware.CALL_CACHE == {}
 
-    def test_sin_gl_no_se_cobra(self, db, serp):
-        # COMPORTAMIENTO ACTUAL (posible defecto): sin 'gl' se registra
-        # country_code='unknown' (7 caracteres) en una columna VARCHAR(3); el
-        # INSERT falla, track_quota_consumption devuelve False en silencio y la
-        # llamada queda cacheada sin haber descontado RU.
+    def test_sin_gl_se_cobra_con_pais_nulo(self, db, serp):
+        # CAMBIADO: antes sin 'gl' se registraba country_code='unknown' (7
+        # caracteres) en una columna VARCHAR(3); el INSERT fallaba en silencio y
+        # no se descontaba nada. Las rutas de SERP siempre ponen 'gl'; esto
+        # protege a cualquier otra llamada que cobre.
         ok, _ = _serp_como(3, params={"q": "sin pais"})
         assert ok is True
-        assert db.user(3)["quota_used"] == 0
-        assert db.events() == []
-        assert len(quota_middleware.CALL_CACHE) == 1
+        assert db.user(3)["quota_used"] == 1
+        assert [(e["ru_consumed"], e["country_code"]) for e in db.events()] == [(1, None)]
 
     def test_sin_usuario_en_request_local_no_consume(self, db, serp):
         ok, _ = _serp_como(None)
@@ -636,26 +694,21 @@ class TestLlamadaSerpProtegida:
         assert ok is True
         assert len(serp.llamadas) == 1
 
-    @pytest.mark.parametrize("valor,controla", [
-        ("true", True), ("TRUE", True), ("True", True),
-        ("false", False), ("1", False), ("yes", False), (None, False),
-    ])
-    def test_enforce_quotas(self, db, serp, monkeypatch, valor, controla):
+    @pytest.mark.parametrize("valor", ["true", "false", None])
+    def test_enforce_quotas_ya_no_decide(self, db, serp, monkeypatch, valor):
+        # CAMBIADO: ENFORCE_QUOTAS decidía todo (true: los análisis cobraban dos
+        # veces; false, como en producción: los botones de SERP no cobraban).
+        # Ahora decide quien llama: cobrar=True solo desde los botones de SERP.
         if valor is None:
             monkeypatch.delenv("ENFORCE_QUOTAS", raising=False)
         else:
             monkeypatch.setenv("ENFORCE_QUOTAS", valor)
         db.set_user(3, plan="basic", quota_limit=1225, quota_used=1225)
         ok, _ = _serp_como(3)
-        if controla:
-            # Agotado: bloqueado y sin ejecutar.
-            assert ok is False and serp.llamadas == []
-        else:
-            # Sin control: se ejecuta aunque esté agotado, sin registrar nada ni cachear.
-            assert ok is True and len(serp.llamadas) == 1
-            assert db.events() == [] and quota_middleware.CALL_CACHE == {}
-        assert db.user(3)["quota_used"] == 1225
-
+        assert ok is False and serp.llamadas == []
+        ok, _ = _serp_como(3, cobrar=False)
+        assert ok is True and len(serp.llamadas) == 1
+        assert db.events() == [] and db.user(3)["quota_used"] == 1225
 
 # ===========================================================================
 # 3. Registro de consumo

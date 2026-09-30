@@ -201,7 +201,7 @@ Librería oficial `google-search-results==2.4.2`.
 
 ### Patrón "reserve & confirm"
 
-`quota_middleware.py:1-13`: pre-check → reserve RU → execute → confirm o devolver. Aplicado a todas las rutas `/api/serp*` y screenshots (Fase 4 quotas).
+`quota_middleware.quota_protected_serp_call(params, call_type, cobrar=False)`: todas las llamadas pasan por él (seguridad: en Railway, sin usuario no hay búsqueda), pero solo cobran las de `cobrar=True`: las rutas `/api/serp`, `/api/serp/position` y `/api/serp/screenshot` (1 RU por búsqueda, plan Free bloqueado; ver `CLAUDE-quota-system.md`). AI Overview y Manual AI llaman sin cobrar porque descuentan su propio consumo.
 
 > ⚠️ **AI Mode NO pasa por el middleware central**: lee `SERPAPI_API_KEY` directo y usa `GoogleSearch` sin `quota_protected_serp_call`. Esto significa que las llamadas de AI Mode **no consumen RU del sistema de cuotas Fase 4** (puede ser intencional si AI Mode tiene su propia contabilidad — verificar).
 

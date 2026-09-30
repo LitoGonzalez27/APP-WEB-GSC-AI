@@ -312,7 +312,7 @@ Para cada keyword activa:
 2. Si ya existe resultado hoy y `force_overwrite=False` → skip.
 3. **`_analyze_keyword`**:
    - **Cache check**: `services.ai_cache.ai_cache.get_cached_analysis(keyword, domain, country)`.
-   - **Fetch SERP**: `services.serp_service.get_serp_json` envuelto por `quota_protected_serp_call` de `quota_middleware.py`. Engine `google`, `num=20`, location/gl/hl/google_domain de `services.country_config.get_country_config`. API key: `os.getenv('SERPAPI_KEY')`. Decorador `@with_backoff(max_attempts=3, base_delay_sec=1.0)`.
+   - **Fetch SERP**: `services.serp_service.get_serp_json` (pasa por `quota_protected_serp_call` sin cobrar: Manual AI descuenta su propio consumo por keyword). Engine `google`, `num=20`, location/gl/hl/google_domain de `services.country_config.get_country_config`. API key: `os.getenv('SERPAPI_KEY')`. Decorador `@with_backoff(max_attempts=3, base_delay_sec=1.0)`.
    - **Detectar AIO**: `services.ai_analysis.detect_ai_overview_elements(serp_data, project_domain)`. Devuelve dict con `has_ai_overview`, `domain_is_ai_source`, `domain_ai_source_position`, `total_elements`, `impact_score`, `debug_info: {references_found, requires_additional_request, page_token}`.
    - **Expansión collapsed AIO** (`_expand_collapsed_aio`, corregido 2026-09-26): si `requires_additional_request` y hay `page_token`, pide el AIO a SerpAPI con **`engine=google_ai_overview`** + `page_token`. Si falla (el token caduca ~1 min), repite la búsqueda para obtener un token nuevo (`MANUAL_AI_AIO_REFETCH_ATTEMPTS`, defecto 1). El resultado queda en `ai_analysis_data.aio_expansion.status` (`expanded` / `refetched` / `failed`).
    - **Cache write**.

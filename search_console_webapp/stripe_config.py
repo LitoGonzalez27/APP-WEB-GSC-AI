@@ -82,7 +82,6 @@ class StripeConfig:
         
         # Control Flags
         self.billing_enabled = os.getenv('BILLING_ENABLED', 'false').lower() == 'true'
-        self.enforce_quotas = config.cuotas_forzadas()
         self.aio_module_enabled = os.getenv('AIO_MODULE_ENABLED', 'true').lower() == 'true'
         
         # Experience Variables
@@ -93,7 +92,7 @@ class StripeConfig:
         self._validate_config()
         
         logger.info(f"🔧 Stripe config loaded - Environment: {self.app_env}")
-        logger.info(f"🎛️ Billing enabled: {self.billing_enabled}, Enforce quotas: {self.enforce_quotas}")
+        logger.info(f"🎛️ Billing enabled: {self.billing_enabled}")
     
     def _validate_config(self):
         """Valida que la configuración esté completa"""
@@ -215,10 +214,6 @@ class StripeConfig:
         """Verifica si el billing está habilitado"""
         return self.billing_enabled
     
-    def should_enforce_quotas(self) -> bool:
-        """Verifica si debe enforcer límites de quotas"""
-        return self.enforce_quotas
-    
     def should_show_ai_features(self) -> bool:
         """Verifica si debe mostrar features de AI Overview"""
         return self.aio_module_enabled
@@ -233,7 +228,6 @@ class StripeConfig:
             'app_env': self.app_env,
             'is_production': self.is_production,
             'billing_enabled': self.billing_enabled,
-            'enforce_quotas': self.enforce_quotas,
             'aio_module_enabled': self.aio_module_enabled,
             'quota_soft_limit_pct': self.quota_soft_limit_pct,
             'quota_grace_period_hours': self.quota_grace_period_hours,
@@ -255,10 +249,6 @@ def get_stripe_config() -> StripeConfig:
 def is_billing_enabled() -> bool:
     """Verifica si billing está habilitado"""
     return stripe_config.can_user_access_billing()
-
-def should_enforce_quotas() -> bool:
-    """Verifica si debe enforcer quotas"""
-    return stripe_config.should_enforce_quotas()
 
 def get_plan_limits() -> Dict[str, int]:
     """Retorna límites por plan"""
@@ -282,7 +272,6 @@ def test_stripe_config():
         print(f"🌍 Environment: {config_dict['app_env']}")
         print(f"🏭 Is Production: {config_dict['is_production']}")
         print(f"💳 Billing Enabled: {config_dict['billing_enabled']}")
-        print(f"🚫 Enforce Quotas: {config_dict['enforce_quotas']}")
         print(f"🤖 AI Module Enabled: {config_dict['aio_module_enabled']}")
         
         print(f"\n📊 Plan Limits:")

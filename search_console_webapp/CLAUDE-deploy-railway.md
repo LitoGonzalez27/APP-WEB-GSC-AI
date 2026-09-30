@@ -213,7 +213,6 @@ Las variables que deciden el entorno, los secretos de cron, el destinatario de a
 | `token_cron()`, `cabecera_cron_valida(cabecera)` | `CRON_TOKEN` (o `CRON_SECRET`) | Una sola comprobación de `Authorization: Bearer ...` para todos los crons. Un token no ASCII es inválido (antes daba 500 en `/api/cron/quota-reset` y en el cron de LLM con sesión de admin). Con token válido, un error del endpoint es 500 (antes los decoradores de `auth.py` lo convertían en 401 y, con sesión de admin, podían ejecutarlo dos veces). |
 | `alertas_cron_activas()`, `email_alertas()`, `email_alertas_llm()`, `email_modelo_activado()` | `CRON_ALERTS_ENABLED`, `CRON_ALERTS_EMAIL` (LLM: también `CRON_ALERT_EMAIL` y `MODEL_DISCOVERY_EMAIL`) | Interruptor y destinatario de las alertas. |
 | `url_publica()` | `PUBLIC_BASE_URL` o `https://app.clicandseo.com` | Enlaces en emails. No está definida en ningún entorno: staging también enlaza a producción en sus emails. |
-| `cuotas_forzadas()` | `ENFORCE_QUOTAS` | Control de cuota del middleware de SerpAPI. Staging `true`, producción `false` (AI Overview descuenta la cuota por su cuenta). |
 
 ### Críticas / obligatorias
 
@@ -285,7 +284,7 @@ Otros: `CUSTOMER_PORTAL_RETURN_URL`, `PRICING_PAGE_URL`, `BILLING_ENABLED`, `TRI
 
 ### Cuotas
 
-`ENFORCE_QUOTAS`, `QUOTA_GRACE_PERIOD_HOURS`, `QUOTA_SOFT_LIMIT_PCT`, `QUOTA_RESET_INTERVAL_DAYS`, `AIO_MODULE_ENABLED`.
+`QUOTA_GRACE_PERIOD_HOURS`, `QUOTA_SOFT_LIMIT_PCT`, `QUOTA_RESET_INTERVAL_DAYS`, `AIO_MODULE_ENABLED`.
 
 ### Rate limiting
 
