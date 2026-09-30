@@ -88,8 +88,8 @@ def inicio_ciclo_serpapi(account, hoy=None):
             continue
     inicio = inicio or date(anio, mes, renovacion.day)
     hoy = hoy or date.today()
-    if not (hoy - timedelta(days=32) <= inicio <= hoy):
-        return None
+    if renovacion < hoy or not (hoy - timedelta(days=32) <= inicio <= hoy):
+        return None  # renovación ya pasada (dato de cuenta viejo) o ciclo que no ha empezado
     return inicio
 
 
@@ -478,6 +478,9 @@ def get_costs_dashboard():
             # El día de la renovación contamos desde las 00:00 y SerpAPI desde la hora
             # de renovar, que no da: saldría negativo sin serlo. Ese día no hay cifra.
             'cycle_renewal_day': bool(ciclo and ciclo == date.today()),
+            # Lo gastado el día de la renovación: si "otros" sale negativo por menos de
+            # esto, es el desfase de la hora de renovar, no un doble conteo.
+            'cycle_first_day_searches': int(serp_por_dia.get(ciclo, 0)) if ciclo else None,
             # Puede salir negativo si lo atribuido supera al dato oficial (doble conteo):
             # se muestra como aviso, no se recorta a 0.
             'other_consumers_cycle': (int(account['this_month_usage']) - int(serp_totals['searches_cycle'])
