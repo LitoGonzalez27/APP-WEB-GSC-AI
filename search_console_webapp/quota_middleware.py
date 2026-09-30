@@ -38,6 +38,8 @@ _IS_DEPLOYED = config.desplegado()
 
 # Cache para detectar si una llamada es repetida (mismos parámetros) - LRU + TTL
 CALL_CACHE = OrderedDict()
+# La escriben a la vez las rutas y los hilos de los análisis (pool de AI Overview).
+_CALL_CACHE_LOCK = threading.Lock()
 CACHE_DURATION = int(os.getenv('SERP_CALL_CACHE_TTL_SECONDS', '3600'))  # 1 hora
 CALL_CACHE_MAX = int(os.getenv('SERP_CALL_CACHE_MAX', '5000'))
 
@@ -52,16 +54,17 @@ def _is_cached_call(params: dict) -> bool:
     """Verifica si esta llamada ya está en caché (no consume RU)"""
     cache_key = _get_cache_key(params)
     now = time.time()
-    
-    if cache_key in CALL_CACHE:
-        cached_time = CALL_CACHE[cache_key]
-        if now - cached_time < CACHE_DURATION:
-            logger.info(f"🔄 CACHE HIT: Llamada SerpAPI en caché (0 RU)")
-            CALL_CACHE.move_to_end(cache_key)
-            return True
-        # Cache expirado, eliminar entrada
-        CALL_CACHE.pop(cache_key, None)
-    
+
+    with _CALL_CACHE_LOCK:
+        cached_time = CALL_CACHE.get(cache_key)
+        if cached_time is not None:
+            if now - cached_time < CACHE_DURATION:
+                logger.info(f"🔄 CACHE HIT: Llamada SerpAPI en caché (0 RU)")
+                CALL_CACHE.move_to_end(cache_key)
+                return True
+            # Cache expirado, eliminar entrada
+            CALL_CACHE.pop(cache_key, None)
+
     return False
 
 # Candados por búsqueda (repartidos en franjas fijas): dos peticiones iguales a la
@@ -77,10 +80,11 @@ def _candado_de(params: dict) -> threading.Lock:
 def _mark_call_cached(params: dict):
     """Marca una llamada como cacheada"""
     cache_key = _get_cache_key(params)
-    CALL_CACHE[cache_key] = time.time()
-    CALL_CACHE.move_to_end(cache_key)
-    while CALL_CACHE_MAX > 0 and len(CALL_CACHE) > CALL_CACHE_MAX:
-        CALL_CACHE.popitem(last=False)
+    with _CALL_CACHE_LOCK:
+        CALL_CACHE[cache_key] = time.time()
+        CALL_CACHE.move_to_end(cache_key)
+        while CALL_CACHE_MAX > 0 and len(CALL_CACHE) > CALL_CACHE_MAX:
+            CALL_CACHE.popitem(last=False)
 
 def _should_retry_serp_error(error_message: str) -> bool:
     if not error_message:
@@ -307,10 +311,14 @@ def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: boo
 
     if not cobrar:
         success, result = _execute_serp_call(params, call_type)
-        if success:
-            # La misma búsqueda pedida después desde el modal sale de la caché de
-            # SerpAPI: tampoco se le cobra al usuario.
-            _mark_call_cached(params)
+        # La misma búsqueda pedida después desde el modal sale de la caché de
+        # SerpAPI: tampoco se le cobra al usuario (AI Overview). Manual AI busca
+        # con no_cache y nunca coincide con el modal: no se guarda.
+        if success and not params.get('no_cache'):
+            try:
+                _mark_call_cached(params)
+            except Exception as e:
+                logger.error(f"No se pudo guardar la búsqueda en la caché: {e}")
         return success, result
 
     user_id = get_current_user_id()

@@ -461,7 +461,9 @@ async function loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty) {
     const response = await fetchSerpScreenshot(keyword, siteUrlScProperty);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
+      const texto = await response.text().catch(() => '');
+      let errorData = null;
+      try { errorData = JSON.parse(texto); } catch (_) { /* texto plano o HTML */ }
       const bloqueo = interpretarBloqueoSerp(response.status, errorData);
       if (bloqueo) {
         screenshotView.innerHTML = `<div class="alert alert-warning">${escapeHtml(bloqueo)}</div>`;
@@ -472,7 +474,8 @@ async function loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty) {
         showError('Too many requests. Please wait a minute and try again.');
         return;
       }
-      showError((errorData && errorData.error) || `Error ${response.status}: ${response.statusText}`);
+      const textoPlano = texto && !/^\s*</.test(texto) ? texto.slice(0, 300) : '';
+      showError((errorData && errorData.error) || textoPlano || `Error ${response.status}: ${response.statusText}`);
       return;
     }
     

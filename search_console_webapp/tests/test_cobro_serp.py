@@ -163,6 +163,10 @@ def test_la_busqueda_de_un_analisis_no_cobra(ent, flask_app):
     assert len(ent.llamadas) == 1 and _eventos(ent) == []
 
 
+POSICION_DE_COBRAR = {"get_serp_json": 1, "get_serp_html": 1, "_serp_html": 1,
+                      "quota_protected_serp_call": 2, "get_page_screenshot": 5}
+
+
 def test_solo_las_tres_rutas_de_serp_cobran():
     # Guardia: cualquier otra llamada que pase cobrar=True (un análisis, un cron)
     # volvería a cobrar dos veces lo que ya descuenta su módulo.
@@ -179,10 +183,20 @@ def test_solo_las_tres_rutas_de_serp_cobran():
             if not isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             for n in ast.walk(f):
-                if isinstance(n, ast.Call) and any(
-                        k.arg == "cobrar" and not (isinstance(k.value, ast.Constant) and k.value.value is False)
-                        and not (isinstance(k.value, ast.Name) and k.value.id == "cobrar")
-                        for k in n.keywords):
+                if not isinstance(n, ast.Call):
+                    continue
+                nombre = getattr(n.func, "id", getattr(n.func, "attr", None))
+                por_nombre = any(
+                    k.arg == "cobrar" and not (isinstance(k.value, ast.Constant) and k.value.value is False)
+                    and not (isinstance(k.value, ast.Name) and k.value.id == "cobrar")
+                    for k in n.keywords)
+                # cobrar también puede ir por posición: get_serp_json(p, True)
+                pos = POSICION_DE_COBRAR.get(nombre, 99)
+                arg = n.args[pos] if len(n.args) > pos else None
+                por_posicion = arg is not None and not (
+                    (isinstance(arg, ast.Constant) and arg.value is False)
+                    or (isinstance(arg, ast.Name) and arg.id == "cobrar"))
+                if por_nombre or por_posicion:
                     encontradas.add(f"{p.relative_to(raiz).as_posix()}:{f.name}")
     assert encontradas == {
         "app.py:get_serp_raw_json", "app.py:get_serp_position", "app.py:get_serp_screenshot_route"}, encontradas
