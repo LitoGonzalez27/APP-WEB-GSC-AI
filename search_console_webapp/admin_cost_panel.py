@@ -4,9 +4,11 @@ admin_cost_panel.py — Agregación de costes reales de plataforma para el panel
 Fuentes de verdad:
   - LLM: llm_monitoring_results (tokens reales del proveedor + cost_usd congelado al
     precio de llm_model_registry en el momento de la llamada). 1 unidad = 1 prompt × 1 LLM.
-  - SerpAPI: quota_usage_events. Las búsquedas reales facturables son las de
-    source IN ('serp_api', 'ai_mode'); 'manual_ai' y 'ai_overview' son contabilidad
-    interna de cuota (RU) que duplica keywords ya contadas como 'serp_api'.
+  - SerpAPI: quota_usage_events + expansiones de Manual AI. Desde oct-2026 (ver
+    SERP_BILLABLE_SOURCES) cuentan 'manual_ai' y 'ai_overview' (1 RU = 1 búsqueda por
+    keyword; el middleware ya no registra esas búsquedas como 'serp_api'), 'ai_mode' y
+    'serp_api' (vista de SERP). Además, cada expansión de un AIO plegado de Manual AI
+    es otra búsqueda (manual_ai_results.ai_analysis_data->'aio_expansion').
   - SerpAPI /account: dato oficial del proveedor (plan, precio mensual, búsquedas
     usadas este mes). Se usa para contrastar el conteo interno y para derivar el
     coste real por búsqueda (plan_monthly_price / searches_per_month).
@@ -31,8 +33,26 @@ logger = logging.getLogger(__name__)
 
 admin_costs_bp = Blueprint('admin_costs', __name__)
 
-# Fuentes de quota_usage_events que representan una búsqueda SerpAPI real y facturable.
-SERP_BILLABLE_SOURCES = ('serp_api', 'ai_mode')
+# Fuentes de quota_usage_events que representan búsquedas SerpAPI reales y facturables.
+# Hasta sep-2026 solo contaban 'serp_api' y 'ai_mode', suponiendo que el middleware
+# registraba como 'serp_api' las búsquedas de Manual AI y AI Overview; en producción
+# nunca lo hizo (ENFORCE_QUOTAS=false) y el panel mostraba una fracción del gasto.
+# Ahora 'serp_api' es solo la vista de SERP y cada módulo registra lo suyo (1 RU por
+# keyword = 1 búsqueda). En staging hay eventos 'serp_api' antiguos que duplican
+# análisis (ENFORCE_QUOTAS=true hasta sep-2026).
+SERP_BILLABLE_SOURCES = ('serp_api', 'ai_mode', 'manual_ai', 'ai_overview')
+
+# Búsquedas extra por expansión de un AI Overview plegado en Manual AI: cada intento
+# es una búsqueda (engine google_ai_overview) y cada refetch, otra búsqueda completa.
+_SQL_EXPANSIONES = """
+    SELECT {grupo}
+           COALESCE(SUM(COALESCE((r.ai_analysis_data->'aio_expansion'->>'attempts')::int, 0)
+                      + COALESCE((r.ai_analysis_data->'aio_expansion'->>'refetches')::int, 0)), 0) AS searches
+    FROM manual_ai_results r
+    {join}
+    WHERE r.ai_analysis_data ? 'aio_expansion' {filtro}
+    {agrupar}
+"""
 
 # Fallback si no hay override ni datos del plan (Developer: $75 / 5000 búsquedas).
 DEFAULT_SERP_COST_PER_SEARCH = 0.015
@@ -203,6 +223,25 @@ def get_costs_dashboard():
         """, (SERP_BILLABLE_SOURCES,))
         serp_totals = dict(cur.fetchone())
 
+        # Expansiones de AIO de Manual AI (búsquedas extra, sin evento de cuota)
+        cur.execute(_SQL_EXPANSIONES.format(
+            grupo="""COALESCE(SUM(COALESCE((r.ai_analysis_data->'aio_expansion'->>'attempts')::int, 0)
+                      + COALESCE((r.ai_analysis_data->'aio_expansion'->>'refetches')::int, 0))
+                      FILTER (WHERE r.analysis_date >= DATE_TRUNC('month', CURRENT_DATE)), 0) AS searches_month,
+                     COALESCE(SUM(COALESCE((r.ai_analysis_data->'aio_expansion'->>'attempts')::int, 0)
+                      + COALESCE((r.ai_analysis_data->'aio_expansion'->>'refetches')::int, 0))
+                      FILTER (WHERE r.analysis_date >= CURRENT_DATE), 0) AS searches_today,
+                     COALESCE(SUM(COALESCE((r.ai_analysis_data->'aio_expansion'->>'attempts')::int, 0)
+                      + COALESCE((r.ai_analysis_data->'aio_expansion'->>'refetches')::int, 0))
+                      FILTER (WHERE r.analysis_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month'
+                              AND r.analysis_date < DATE_TRUNC('month', CURRENT_DATE)), 0) AS searches_prev_month,""",
+            join='', filtro='', agrupar=''))
+        expansiones = dict(cur.fetchone())
+        serp_totals['searches_total'] = int(serp_totals['searches_total']) + int(expansiones['searches'])
+        for clave in ('searches_month', 'searches_today', 'searches_prev_month'):
+            serp_totals[clave] = int(serp_totals[clave]) + int(expansiones[clave])
+        serp_totals['expansions_month'] = int(expansiones['searches_month'])
+
         # Atribución por módulo (todas las fuentes, mes actual) — RU internas
         cur.execute("""
             SELECT COALESCE(source, 'desconocido') AS source,
@@ -226,6 +265,17 @@ def get_costs_dashboard():
         """, (SERP_BILLABLE_SOURCES,))
         serp_by_user = {row['user_id']: dict(row) for row in cur.fetchall()}
 
+        cur.execute(_SQL_EXPANSIONES.format(
+            grupo="p.user_id,",
+            join="JOIN manual_ai_projects p ON p.id = r.project_id",
+            filtro="AND r.analysis_date >= DATE_TRUNC('month', CURRENT_DATE)",
+            agrupar="GROUP BY p.user_id"))
+        for row in cur.fetchall():
+            extra = int(row['searches'] or 0)
+            if extra:
+                fila = serp_by_user.setdefault(row['user_id'], {'user_id': row['user_id'], 'searches_month': 0})
+                fila['searches_month'] = int(fila['searches_month'] or 0) + extra
+
         # Serie diaria de búsquedas (últimos 30 días)
         cur.execute("""
             SELECT DATE(timestamp) AS day, COALESCE(SUM(ru_consumed), 0) AS searches
@@ -234,8 +284,14 @@ def get_costs_dashboard():
               AND source IN %s
             GROUP BY DATE(timestamp) ORDER BY day
         """, (SERP_BILLABLE_SOURCES,))
-        serp_daily = [{'day': r['day'].isoformat(), 'searches': int(r['searches'])}
-                      for r in cur.fetchall()]
+        serp_por_dia = {r['day']: int(r['searches']) for r in cur.fetchall()}
+        cur.execute(_SQL_EXPANSIONES.format(
+            grupo="r.analysis_date AS day,", join='',
+            filtro="AND r.analysis_date >= CURRENT_DATE - INTERVAL '30 days'",
+            agrupar="GROUP BY r.analysis_date"))
+        for r in cur.fetchall():
+            serp_por_dia[r['day']] = serp_por_dia.get(r['day'], 0) + int(r['searches'] or 0)
+        serp_daily = [{'day': d.isoformat(), 'searches': n} for d, n in sorted(serp_por_dia.items())]
 
         # ------------------------- Usuarios: plan/rol para margen -------------------------
         cur.execute("""
@@ -359,9 +415,12 @@ def get_costs_dashboard():
             'cost_month_official_usd': serp_cost_month_official,
             'account': account,
             'billable_sources': list(SERP_BILLABLE_SOURCES),
-            'note': ("Búsquedas facturables = eventos 'serp_api' (middleware) + 'ai_mode' (motor google_ai_mode). "
-                     "'manual_ai' y 'ai_overview' son contabilidad interna de cuota (RU) sobre las mismas búsquedas. "
-                     "El dato oficial del mes es this_month_usage de SerpAPI."),
+            'note': ("Búsquedas de Clicandseo = Manual AI y AI Overview (1 por keyword), expansiones de AIO de Manual AI, "
+                     "AI Mode y la vista de SERP. El dato oficial (this_month_usage) es de toda la cuenta de SerpAPI: "
+                     "la misma clave la usan otros servicios (n8n, vigía de competidores, tracker...), así que la "
+                     "diferencia con el dato atribuido es su consumo."),
+            'other_consumers_month': (max(0, int(account['this_month_usage']) - int(serp_totals['searches_month']))
+                                      if account and account.get('this_month_usage') is not None else None),
         },
         'summary': {
             'llm_cost_month_usd': llm_cost_month,

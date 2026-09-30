@@ -2793,6 +2793,8 @@
                         ['Precio del plan', fmtUsd(a.plan_monthly_price) + ' / mes'],
                         ['Búsquedas incluidas', fmtInt(a.searches_per_month)],
                         ['Usadas este mes (oficial)', fmtInt(a.this_month_usage) + (overage ? ' — plan agotado' : ''), true],
+                        ['De Clicandseo', fmtInt(d.serp.totals.searches_month)],
+                        ['De otros servicios con la misma clave', d.serp.other_consumers_month != null ? fmtInt(d.serp.other_consumers_month) : '—'],
                         ['Restantes del plan', fmtInt(a.plan_searches_left)],
                         ['Créditos extra', fmtInt(a.extra_credits)],
                         ['Renovación', esc(a.plan_renewal_date || '—')],
