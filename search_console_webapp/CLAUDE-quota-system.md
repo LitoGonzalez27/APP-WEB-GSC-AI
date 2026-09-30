@@ -126,17 +126,21 @@ PLAN_PRICES = {
 
 | Función | Qué hace |
 |---|---|
-| `quota_protected_serp_call(params, call_type)` | Wrapper para llamadas a SerpAPI. Patrón "reserva y confirmación". |
-| `validate_quota_access(user_id, operation_type)` | dict `{allowed, reason, quota_info, action_required}`. Lógica especial: para Free permite SERP sin consumo. |
+| `quota_protected_serp_call(params, call_type, cobrar=False)` | Wrapper para llamadas a SerpAPI. Solo cobra con `cobrar=True` (botones de SERP). |
+| `validate_quota_access(user_id, operation_type)` | dict `{allowed, reason, quota_info, action_required}`. SERP: Free bloqueado (`upgrade`); pago necesita RU. |
+| `bloqueo_serp_por_plan(user_id)` | Cuerpo del paywall (402) para un usuario Free que no sea admin, o `None`. |
 | `get_quota_warning_info(user_id)` | dict con `type` (warning/danger), `percentage`, `message`. Soft limit al 80%. |
 | `get_current_user_id()` | Lee `flask.g` o `flask.session`. |
 
-**Patrón `quota_protected_serp_call`:**
-1. Si `ENFORCE_QUOTAS=false` → ejecuta sin control.
-2. Cache LRU+TTL (`SERP_CALL_CACHE_TTL_SECONDS=3600`, `SERP_CALL_CACHE_MAX=5000`) para no recobrar RU en repeticiones.
-3. `validate_quota_access(user_id, operation_type)`.
-4. Ejecuta `_execute_serp_call` con retry exponencial (`SERPAPI_RETRY_ATTEMPTS=3`).
-5. Si éxito y plan != 'free': `track_quota_consumption(...)` con `update_user_quota=True`. Para Free, `update_user_quota=False` (registra evento, no incrementa contador).
+**Patrón `quota_protected_serp_call` (cobro de SERP, Carlos 30-sep-2026: 1 RU por búsqueda, Free bloqueado):**
+0. Seguridad: en Railway, petición HTTP sin usuario → bloqueada siempre.
+1. `cobrar=False` (por defecto; AI Overview, Manual AI, crons, depuración): ejecuta sin comprobar ni descontar; cada módulo cuenta lo suyo.
+2. `cobrar=True` (solo `/api/serp`, `/api/serp/position` y `/api/serp/screenshot`): plan Free que no sea admin → bloqueado con paywall (las rutas responden 402 antes de nada, también ante una captura en caché).
+3. Cache LRU+TTL (`SERP_CALL_CACHE_TTL_SECONDS=3600`, `SERP_CALL_CACHE_MAX=5000`), común a todos los usuarios: búsqueda repetida en la última hora → 0 RU (SerpAPI la sirve de su caché sin cobrar). Abrir el modal = 1 RU; la captura de esa misma búsqueda, 0 (si se pide primero la captura, la paga ella). También quedan en caché las búsquedas de los análisis (`cobrar=False`) salvo las que llevan `no_cache` (Manual AI, `SERP_NO_CACHE`): abrir la SERP justo después de un análisis de AI Overview no cobra. Que la captura de una búsqueda ya hecha no cueste está comprobado en staging el 30-sep-2026: SerpAPI cobró 1 búsqueda por posición + datos + captura (no factura aparte la salida `html` de una búsqueda en su caché). Un candado por búsqueda evita el doble cobro por doble clic (dos peticiones iguales a la vez). `_google_search` pasa a la librería una copia de los parámetros: `google-search-results` no copia el dict y le añade `source` y `output`, y sin la copia la caché nunca coincidía en real (validación en staging del 30-sep-2026: SerpAPI cobró 1 búsqueda por posición + datos + captura y la app registró 3). Los tests usan un doble de `GoogleSearch` que modifica el dict igual que la librería.
+4. Admin: ejecuta y registra el evento con `update_user_quota=False` (metadata `admin: true`).
+5. Resto: `validate_quota_access` (agotado → 429 `quota_blocked`), ejecuta con retry (`SERPAPI_RETRY_ATTEMPTS=3`) y `track_quota_consumption(..., update_user_quota=True)`. Sin `gl`, `country_code` va NULL (antes `'unknown'` no cabía en la columna y el cobro fallaba en silencio).
+
+Hasta sep-2026 todo dependía de `ENFORCE_QUOTAS`: en producción (`false`) los botones de SERP no cobraban y los usaba el plan Free; en staging (`true`) los análisis cobraban dos veces. La variable ya no se lee.
 
 > **No hay decorador `enforce_quota_for_module`** parametrizable. Los módulos hacen la validación inline en su `analysis_service.py`.
 
@@ -255,7 +259,7 @@ Patrón común (en `manual_ai/services/analysis_service.py`, `ai_mode_projects/s
 
 3. **`track_quota_consumption`** (`database.py:2098`):
    - INSERT a `quota_usage_events`.
-   - UPDATE `users.quota_used += ru_consumed` (a menos que `update_user_quota=False`, caso Free + SerpAPI).
+   - UPDATE `users.quota_used += ru_consumed` (a menos que `update_user_quota=False`, caso admin + SerpAPI).
    - Reintentos exponenciales para `DEADLOCK_DETECTED` y `SERIALIZATION_FAILURE` (`DB_RETRY_ATTEMPTS=3`).
 
 4. **Si excepción tiene `is_quota_error`** (proveedor detectó hard-block): pausa proyectos del user, devuelve `quota_exceeded: True`, `action_required`, `paused_until`.
@@ -518,8 +522,7 @@ UPDATE a NULL en `admin_billing_panel.py:1037-1042`.
 - `users.plan = 'free'` con `PLAN_LIMITS['free'] = 0`.
 - `quota_manager.get_user_access_permissions`: free → `can_use_ai_overview=False, can_use_manual_ai=False, can_use_serp_api=False`.
 - **LLM Monitoring**: bloqueado en `before_request` hook (devuelve 402 + `error: 'paywall'`). Excepción: invitados con `user_has_any_module_access(user_id, 'llm_monitoring') = TRUE` (proyectos compartidos).
-- **SerpAPI**: en `quota_middleware.validate_quota_access`, plan free es **permitido** sin consumo (línea 135-141): *"Plan Free: SERP permitido (sin consumo de RU)"*.
-- En `quota_protected_serp_call:265`: `update_user_quota = enforce_quotas and status.get('plan') != 'free'` — para Free, registra evento sin tocar `quota_used`.
+- **Vista de SERP** (botones del panel de Search Console): de pago desde el 30-sep-2026. Free → 402 con paywall (`showPaywall('SERP View')`); el admin la usa sin descontar.
 
 ### UI para Free
 
@@ -617,7 +620,7 @@ Decorador: `@admin_required`.
 | Variable | Default | Uso |
 |---|---|---|
 | `QUOTA_RESET_INTERVAL_DAYS` | `30` | Días entre resets (`quota_manager.py:51`, `llm_monitoring_limits.py:122`). |
-| `ENFORCE_QUOTAS` | `false` | **Master switch** para enforcement (`quota_middleware.py:223`, `stripe_config.py:56`). |
+| `ENFORCE_QUOTAS` | — | **Retirada** (30-sep-2026): el cobro de SERP lo decide quien llama (`cobrar=True`). Si sigue definida en Railway, no tiene efecto. |
 | `QUOTA_SOFT_LIMIT_PCT` | `80` | Umbral aviso soft (`stripe_config.py:60`) — pero el JS lo tiene deshabilitado. |
 | `QUOTA_GRACE_PERIOD_HOURS` | `24` | Definido en `stripe_config.py:61` pero **no encontré uso real**. |
 | `SERP_CALL_CACHE_TTL_SECONDS` | `3600` | TTL cache de llamadas SerpAPI. |
@@ -727,7 +730,7 @@ Decorador: `@admin_required`.
 3. **3 vías de reset**: webhook Stripe → cron diario Stripe-aware → health-check con email. Defensa en profundidad.
 4. **`compute_next_quota_reset_date` tiene safety net** que garantiza fecha futura — fix crítico del 2026-05-07.
 5. **Pause/Resume cross-module**: `pause_<module>_projects_for_quota` por módulo + `resume_quota_pauses_for_user` que limpia las 4 ubicaciones (con SAVEPOINT para Manual AI).
-6. **Plan free no consume cuota** (SerpAPI permitido sin consumo, LLM bloqueado, Manual AI / AI Mode con paywall blando).
+6. **Plan free no consume cuota**: vista de SERP bloqueada con paywall (desde el 30-sep-2026; antes era gratis), LLM bloqueado, Manual AI / AI Mode con paywall blando.
 7. **Enterprise = `custom_quota_limit`, `custom_llm_prompts_limit`, `custom_llm_monthly_units_limit`** sobreescriben los valores del plan.
 8. **`chk_source` en `quota_usage_events` está desactualizado** — eventos `'ai_mode'`, `'quota_reset'`, `'admin_quota_reset'` no se persisten en log (deuda).
 9. **Todos los resets hacen `commit` ANTES de llamar a `resume_quota_pauses_for_user`** para evitar self-deadlock.

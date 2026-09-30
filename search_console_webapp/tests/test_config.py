@@ -18,9 +18,9 @@ RAIZ = pathlib.Path(__file__).resolve().parent.parent
 VARIABLES = ("APP_ENV", "RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "CRON_TOKEN", "CRON_SECRET",
              "CRON_ALERTS_ENABLED", "ENFORCE_QUOTAS", "CRON_ALERTS_EMAIL", "PUBLIC_BASE_URL",
              "CRON_ALERT_EMAIL", "MODEL_DISCOVERY_EMAIL")
-LECTURAS_PERMITIDAS = {  # (fichero, variable) -> (veces que aparece el nombre, motivo)
-    ("diagnostic_endpoint.py", "ENFORCE_QUOTAS"): (2, "muestra el valor tal cual ('not set' si falta)"),
-}
+# ENFORCE_QUOTAS se retiró el 30-sep-2026 (el cobro de SERP lo decide quien llama):
+# sigue en VARIABLES para que nadie vuelva a leerla.
+LECTURAS_PERMITIDAS = {}  # (fichero, variable) -> (veces que aparece el nombre, motivo)
 
 
 @pytest.fixture
@@ -122,9 +122,7 @@ def test_alertas_email_url_y_cuotas(entorno):
     assert config.url_publica() == "https://app.clicandseo.com"
     entorno.setenv("PUBLIC_BASE_URL", "https://staging.example.invalid/")
     assert config.url_publica() == "https://staging.example.invalid"
-    assert config.cuotas_forzadas() is False
-    entorno.setenv("ENFORCE_QUOTAS", "true")
-    assert config.cuotas_forzadas() is True
+    assert not hasattr(config, "cuotas_forzadas")
 
 
 # --- guardia -----------------------------------------------------------------------

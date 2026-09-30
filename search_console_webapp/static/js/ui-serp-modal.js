@@ -86,6 +86,36 @@ function getSelectedCountry() {
     return '';
 }
 
+// Vista de SERP de pago (30-sep-2026): el plan Free recibe 402 (aviso de mejorar
+// plan) y quien agotó su cuota, 429 con quota_blocked (aviso de cuota agotada).
+// Devuelve el texto para el modal, o null si la respuesta no es un bloqueo.
+// Un 429 sin quota_blocked es el limitador de peticiones: error normal.
+export function interpretarBloqueoSerp(status, datos) {
+  if (status === 402) {
+    if (window.showPaywall) {
+      window.showPaywall('SERP View', (datos && datos.upgrade_options) || ['basic', 'premium', 'business']);
+    }
+    return 'SERP view is available on paid plans.';
+  }
+  if (status === 429 && datos && datos.quota_blocked) {
+    if (window.showQuotaExceeded) window.showQuotaExceeded(datos.quota_info || {});
+    return 'You have used all your monthly quota.';
+  }
+  return null;
+}
+
+async function leerRespuestaSerp(response) {
+  const datos = await response.json().catch(() => null);
+  const bloqueo = interpretarBloqueoSerp(response.status, datos);
+  if (bloqueo) {
+    const error = new Error(bloqueo);
+    error.bloqueoSerp = true;
+    throw error;
+  }
+  if (response.status === 429) return { error: 'Too many requests. Please wait a minute and try again.' };
+  return datos || { error: `Error ${response.status}` };
+}
+
 // ✅ FUNCIÓN CORREGIDA: fetchSerpPosition
 async function fetchSerpPosition(keyword, siteUrl) {
     const selectedCountry = getSelectedCountry(); // Puede ser vacío para activar detección dinámica
@@ -103,7 +133,7 @@ async function fetchSerpPosition(keyword, siteUrl) {
     
     console.log(`🔍 SERP Position API: keyword="${keyword}", country="${selectedCountry || 'DYNAMIC'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp/position?${params}`);
-    return response.json();
+    return leerRespuestaSerp(response);
 }
 
 // ✅ FUNCIÓN CORREGIDA: fetchSerpData
@@ -123,7 +153,7 @@ async function fetchSerpData(keyword) {
     
     console.log(`🔍 SERP Data API: keyword="${keyword}", country="${selectedCountry || 'DYNAMIC'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp?${params}`);
-    return response.json();
+    return leerRespuestaSerp(response);
 }
 
 // ✅ FUNCIÓN CORREGIDA: fetchSerpScreenshot
@@ -368,7 +398,8 @@ async function loadQuickView(keyword, userSpecificUrl, siteUrlScProperty) {
         : ''}
     `;
   } catch (err) {
-    quickView.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message)}</div>`;
+    const clase = err.bloqueoSerp ? 'alert-warning' : 'alert-danger';
+    quickView.innerHTML = `<div class="alert ${clase}">${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -430,8 +461,21 @@ async function loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty) {
     const response = await fetchSerpScreenshot(keyword, siteUrlScProperty);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: "Unknown server error" }));
-      showError(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      const texto = await response.text().catch(() => '');
+      let errorData = null;
+      try { errorData = JSON.parse(texto); } catch (_) { /* texto plano o HTML */ }
+      const bloqueo = interpretarBloqueoSerp(response.status, errorData);
+      if (bloqueo) {
+        screenshotView.innerHTML = `<div class="alert alert-warning">${escapeHtml(bloqueo)}</div>`;
+        return;
+      }
+      if (response.status === 429) {
+        // Limitador de peticiones (no es la cuota): responde con HTML, no con JSON.
+        showError('Too many requests. Please wait a minute and try again.');
+        return;
+      }
+      const textoPlano = texto && !/^\s*</.test(texto) ? texto.slice(0, 300) : '';
+      showError((errorData && errorData.error) || textoPlano || `Error ${response.status}: ${response.statusText}`);
       return;
     }
     

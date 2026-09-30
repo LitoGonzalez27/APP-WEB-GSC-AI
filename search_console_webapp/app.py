@@ -1492,10 +1492,32 @@ def download_excel():
         return jsonify({'error': 'Internal server error'}), 500
 
 # --- Rutas de SERP: requieren autenticación (consumen la SERPAPI_KEY de pago) ---
+# Cobro (Carlos, 30-sep-2026): 1 RU por búsqueda real; plan Free bloqueado
+# (paywall, 402); cuota agotada, 429. Ver quota_middleware.quota_protected_serp_call.
+def _bloqueo_serp_por_plan():
+    """Respuesta 402 si el usuario de la sesión es del plan Free (salvo admin)."""
+    from quota_middleware import bloqueo_serp_por_plan
+    usuario = get_current_user()
+    bloqueo = bloqueo_serp_por_plan(usuario['id'], usuario) if usuario else None
+    if bloqueo:
+        return jsonify({**bloqueo, 'quota_blocked': True, 'organic_results': [], 'ads': []}), 402
+    return None
+
+
+def _estado_bloqueo_serp(datos):
+    """402 si el bloqueo es de plan (paywall), 429 si es de cuota."""
+    return 402 if datos.get('paywall') else 429
+
+
 @app.route('/api/serp')
 @auth_required
 @limiter.limit("30 per minute")
 def get_serp_raw_json():
+    # Plan Free: paywall antes de nada (sin consultar GSC para el país ni mirar
+    # la caché de capturas).
+    bloqueo = _bloqueo_serp_por_plan()
+    if bloqueo:
+        return bloqueo
     keyword_query = request.args.get('keyword')
     country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
     site_url_param = request.args.get('site_url', '')
@@ -1514,9 +1536,11 @@ def get_serp_raw_json():
     logger.info(f"[SERP API] Keyword: '{keyword_query}', País: {country_to_use or 'DINÁMICO'}, Site: {site_url_param}")
     
     params_serp = get_serp_params_with_location(keyword_query, api_key_val, country_to_use, site_url_param)
-    
+
+
     try:
-        serp_data_json = get_serp_json(params_serp)
+        usuario = get_current_user()  # el de la petición: el portero no relee la sesión
+        serp_data_json = get_serp_json(params_serp, cobrar=True, usuario=usuario)
         
         # ✅ FASE 4: Manejar errores de quota específicamente
         if serp_data_json.get('quota_blocked'):
@@ -1526,9 +1550,11 @@ def get_serp_raw_json():
                 'quota_blocked': True,
                 'quota_info': serp_data_json.get('quota_info', {}),
                 'action_required': serp_data_json.get('action_required'),
+                'paywall': serp_data_json.get('paywall', False),
+                'upgrade_options': serp_data_json.get('upgrade_options'),
                 'organic_results': [],
                 'ads': []
-            }), 429  # Too Many Requests
+            }), _estado_bloqueo_serp(serp_data_json)
         
         # ✅ Respuesta normal exitosa
         return jsonify({
@@ -1543,6 +1569,11 @@ def get_serp_raw_json():
 @auth_required
 @limiter.limit("30 per minute")
 def get_serp_position():
+    # Plan Free: paywall antes de nada (sin consultar GSC para el país ni mirar
+    # la caché de capturas).
+    bloqueo = _bloqueo_serp_por_plan()
+    if bloqueo:
+        return bloqueo
     keyword_val = request.args.get('keyword')
     site_url_val = request.args.get('site_url', '')
     country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
@@ -1559,9 +1590,11 @@ def get_serp_position():
     logger.info(f"[SERP POSITION] Iniciando búsqueda para '{keyword_val}' en '{site_url_val}' (País: {country_to_use or 'DINÁMICO'})")
     
     params_serp = get_serp_params_with_location(keyword_val, api_key_serp, country_to_use, site_url_val)
-    
+
+
     try:
-        serp_data_pos = get_serp_json(params_serp)
+        usuario = get_current_user()  # el de la petición: el portero no relee la sesión
+        serp_data_pos = get_serp_json(params_serp, cobrar=True, usuario=usuario)
         
         # ✅ FASE 4: Manejar errores de quota específicamente
         if serp_data_pos.get('quota_blocked'):
@@ -1569,6 +1602,8 @@ def get_serp_position():
             return jsonify({
                 'error': serp_data_pos.get('error', 'Quota exceeded'),
                 'quota_blocked': True,
+                'paywall': serp_data_pos.get('paywall', False),
+                'upgrade_options': serp_data_pos.get('upgrade_options'),
                 'quota_info': serp_data_pos.get('quota_info', {}),
                 'action_required': serp_data_pos.get('action_required'),
                 'keyword': keyword_val,
@@ -1580,7 +1615,7 @@ def get_serp_position():
                 'all_matches': [],
                 'total_results': 0,
                 'timestamp': time.time()
-            }), 429  # Too Many Requests
+            }), _estado_bloqueo_serp(serp_data_pos)
         
         if not serp_data_pos:
             logger.error(f"[SERP POSITION] No se obtuvo respuesta de SerpAPI para '{keyword_val}'")
@@ -1646,6 +1681,11 @@ def get_serp_position():
 @auth_required
 @limiter.limit("30 per minute")
 def get_serp_screenshot_route():
+    # Plan Free: paywall antes de nada (sin consultar GSC para el país ni mirar
+    # la caché de capturas).
+    bloqueo = _bloqueo_serp_por_plan()
+    if bloqueo:
+        return bloqueo
     keyword_param = request.args.get('keyword')
     site_url_param = request.args.get('site_url', '')
     country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
@@ -1662,7 +1702,9 @@ def get_serp_screenshot_route():
     
     try:
         logger.info(f"[SCREENSHOT] Keyword: '{keyword_param}', Site: '{site_url_param}', País: {country_to_use or 'DINÁMICO'}")
-        return get_page_screenshot(keyword=keyword_param, site_url_to_highlight=site_url_param, api_key=api_key_env, country=country_to_use, site_url=site_url_param)
+        usuario = get_current_user()  # el de la petición: el portero no relee la sesión
+        return get_page_screenshot(keyword=keyword_param, site_url_to_highlight=site_url_param, api_key=api_key_env,
+                                   country=country_to_use, site_url=site_url_param, cobrar=True, usuario=usuario)
     except Exception as e:
         logger.error(f"[SCREENSHOT ROUTE] Error para keyword '{keyword_param}': {e}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
