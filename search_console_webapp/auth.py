@@ -1716,11 +1716,17 @@ def setup_auth_routes(app):
         except Exception as e:
             session.pop('temp_credentials', None)
             session.pop('oauth_action', None)
-            # ✅ Log detallado del error incluyendo tipo y request.url para diagnóstico
-            logger.error(f"❌ Error en auth_callback: {type(e).__name__}: {e}")
-            logger.error(f"   request.url scheme: {request.url[:30]}...")
-            import traceback
-            logger.error(f"   Traceback: {traceback.format_exc()}")
+            # Un solo registro con la traza. Un código de Google caducado o
+            # inventado (InvalidGrantError "Bad Request" / "Malformed auth code.") lo
+            # puede provocar cualquiera y no es un fallo de la app: va como WARNING
+            # para no disparar los avisos por email. Otro invalid_grant (p. ej.
+            # "Missing code verifier.", que rompería todos los logins) sigue en ERROR.
+            esperado = (type(e).__name__ == 'InvalidGrantError'
+                        and getattr(e, 'description', None) in ('Bad Request', 'Malformed auth code.'))
+            logger.log(logging.WARNING if esperado else logging.ERROR,
+                       f"❌ Error en auth_callback: {type(e).__name__}: {e} "
+                       f"(request.url scheme: {request.url[:30]}...)",
+                       exc_info=not esperado)
             return redirect('/login?auth_error=callback_failed')
 
     # ✅ ELIMINADAS: Rutas innecesarias de pending-google-signup y complete-google-signup
