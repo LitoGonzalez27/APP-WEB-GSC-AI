@@ -10,8 +10,9 @@ Fuentes de verdad:
     'serp_api' (vista de SERP). Además, cada expansión de un AIO plegado de Manual AI
     es otra búsqueda (manual_ai_results.ai_analysis_data->'aio_expansion').
   - SerpAPI /account: dato oficial del proveedor (plan, precio mensual, búsquedas
-    usadas este mes). Se usa para contrastar el conteo interno y para derivar el
-    coste real por búsqueda (plan_monthly_price / searches_per_month).
+    usadas desde la última renovación, de toda la cuenta). Se usa para contrastar el
+    conteo interno en el mismo ciclo y para derivar el coste real por búsqueda
+    (plan_monthly_price / searches_per_month).
 
 Config por entorno:
   SERPAPI_COST_PER_SEARCH_USD  — override del coste por búsqueda (si no, se deriva del plan)
@@ -21,7 +22,7 @@ Config por entorno:
 import os
 import time
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 import requests
 from flask import Blueprint, jsonify
@@ -65,22 +66,31 @@ _serpapi_account_cache = {'data': None, 'fetched_at': 0.0}
 _SERPAPI_ACCOUNT_TTL = 600  # segundos
 
 
-def inicio_ciclo_serpapi(account):
+def inicio_ciclo_serpapi(account, hoy=None):
     """Primer día del ciclo de facturación de SerpAPI (renovación − 1 mes) o None.
 
     this_month_usage de SerpAPI cuenta desde la última renovación, no desde el día 1:
-    para restarle lo de Clicandseo hay que contar lo nuestro en el mismo periodo."""
+    para restarle lo de Clicandseo hay que contar lo nuestro en el mismo periodo.
+    Aproximado: SerpAPI no da la hora de renovación y el día ancla se pierde en los
+    meses cortos (renovar el 28-feb con ancla 30 da un ciclo desde el 28-ene).
+    None si la fecha no encaja con un ciclo en curso (dato de cuenta viejo o raro)."""
     try:
         renovacion = date.fromisoformat(str((account or {}).get('plan_renewal_date'))[:10])
     except ValueError:
         return None
     anio, mes = (renovacion.year, renovacion.month - 1) if renovacion.month > 1 else (renovacion.year - 1, 12)
+    inicio = None
     for dia in range(renovacion.day, 27, -1):  # 31-mar -> 28/29-feb
         try:
-            return date(anio, mes, dia)
+            inicio = date(anio, mes, dia)
+            break
         except ValueError:
             continue
-    return date(anio, mes, renovacion.day)
+    inicio = inicio or date(anio, mes, renovacion.day)
+    hoy = hoy or date.today()
+    if not (hoy - timedelta(days=32) <= inicio <= hoy):
+        return None
+    return inicio
 
 
 def get_serpapi_account(force_refresh=False, dato_viejo_si_falla=True):
@@ -260,7 +270,8 @@ def get_costs_dashboard():
                 COALESCE(SUM(x.n) FILTER (WHERE x.analysis_date >= DATE_TRUNC('month', CURRENT_DATE)), 0) AS searches_month,
                 COUNT(*) FILTER (WHERE x.analysis_date >= DATE_TRUNC('month', CURRENT_DATE) AND x.n > 0) AS rows_month,
                 COALESCE(SUM(x.n) FILTER (WHERE x.analysis_date >= CURRENT_DATE), 0) AS searches_today,
-                COALESCE(SUM(x.n) FILTER (WHERE x.analysis_date < DATE_TRUNC('month', CURRENT_DATE)), 0) AS searches_prev_month,
+                COALESCE(SUM(x.n) FILTER (WHERE x.analysis_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month'
+                                            AND x.analysis_date < DATE_TRUNC('month', CURRENT_DATE)), 0) AS searches_prev_month,
                 COALESCE(SUM(x.n) FILTER (WHERE %s::date IS NOT NULL AND x.analysis_date >= %s::date), 0) AS searches_cycle
             FROM (SELECT r.analysis_date, {_EXPANSIONES} AS n
                   FROM manual_ai_results r
@@ -460,13 +471,18 @@ def get_costs_dashboard():
                      "cuenta desde la última renovación: la misma clave la usan staging y otros servicios (n8n, vigía "
                      "de competidores, tracker...), así que la diferencia con lo atribuido en el mismo ciclo es su "
                      "consumo (más las expansiones de AI Overview, que no se registran). Aproximado: SerpAPI no dice "
-                     "a qué hora renueva."),
+                     "a qué hora renueva y el día de la renovación se cuenta entero, así que la cifra puede "
+                     "desviarse en lo que Clicandseo gastó ese día antes de renovar (como mucho, un día de consumo)."),
             'cycle_start': ciclo.isoformat() if ciclo else None,
             'clicandseo_cycle': int(serp_totals['searches_cycle']) if ciclo else None,
-            # Puede salir negativo si lo atribuido supera al dato oficial (doble conteo o
-            # desfase de horas en la renovación): se muestra como aviso, no se recorta a 0.
+            # El día de la renovación contamos desde las 00:00 y SerpAPI desde la hora
+            # de renovar, que no da: saldría negativo sin serlo. Ese día no hay cifra.
+            'cycle_renewal_day': bool(ciclo and ciclo == date.today()),
+            # Puede salir negativo si lo atribuido supera al dato oficial (doble conteo):
+            # se muestra como aviso, no se recorta a 0.
             'other_consumers_cycle': (int(account['this_month_usage']) - int(serp_totals['searches_cycle'])
-                                      if ciclo and account.get('this_month_usage') is not None else None),
+                                      if ciclo and ciclo != date.today()
+                                      and account.get('this_month_usage') is not None else None),
         },
         'summary': {
             'llm_cost_month_usd': llm_cost_month,
