@@ -134,14 +134,14 @@ def validate_quota_access(user_id: int, operation_type: str = "serp_call") -> Di
         is_serp = str(operation_type).startswith('serp_')
 
         if is_serp:
-            # Política: SERP está permitido para plan Free (no consume RU),
-            # y para planes de pago si tienen RU disponible
+            # Política (Carlos, 30-sep-2026): la vista de SERP es de pago; el
+            # plan Free queda bloqueado. Los planes de pago necesitan RU disponible.
             if plan == 'free':
                 return {
-                    'allowed': True,
-                    'reason': 'Plan Free: SERP permitido (sin consumo de RU)',
+                    'allowed': False,
+                    'reason': 'Plan Free: la vista de SERP es de pago',
                     'quota_info': quota_status,
-                    'action_required': None
+                    'action_required': 'upgrade'
                 }
 
             # Para planes de pago, verificar RU disponible
@@ -211,23 +211,71 @@ def validate_quota_access(user_id: int, operation_type: str = "serp_call") -> Di
             'action_required': 'contact_support'
         }
 
-def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bool, Dict[str, Any]]:
+OPCIONES_DE_PLAN = ['basic', 'premium', 'business']
+
+
+def _es_admin(user_id: int) -> bool:
+    """Rol admin del usuario (con la lectura de la petición si es el de la sesión)."""
+    try:
+        from auth import get_current_user
+        from database import get_user_by_id
+        usuario = None
+        if has_request_context() and session.get('user_id') == user_id:
+            usuario = get_current_user()
+        if usuario is None:
+            usuario = get_user_by_id(user_id)
+        return bool(usuario) and usuario.get('role') == 'admin'
+    except Exception as e:
+        logger.error(f"No se pudo comprobar el rol del usuario {user_id}: {e}")
+        return False
+
+
+def bloqueo_serp_por_plan(user_id: int) -> Optional[Dict[str, Any]]:
+    """La vista de SERP es de pago (Carlos, 30-sep-2026): devuelve el cuerpo del
+    bloqueo para un usuario del plan Free (salvo admin), o None si puede usarla."""
+    if _es_admin(user_id):
+        return None
+    estado = get_user_quota_status(user_id)
+    if estado.get('plan') != 'free':
+        return None
+    return {
+        'error': 'paywall',
+        'message': 'SERP view is available on paid plans.',
+        'blocked': True,
+        'paywall': True,
+        'upgrade_options': OPCIONES_DE_PLAN,
+        'quota_info': estado,
+        'action_required': 'upgrade',
+    }
+
+
+def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: bool = False) -> Tuple[bool, Dict[str, Any]]:
     """
-    Ejecuta una llamada SerpAPI protegida por quotas usando patrón reserva/confirmación.
-    
-    Args:
-        params: Parámetros para la llamada SerpAPI
-        call_type: 'json', 'html', o 'screenshot'
-        
+    Ejecuta una llamada a SerpAPI.
+
+    cobrar=False (por defecto): la hace un proceso que ya cuenta su propio consumo
+    (análisis de AI Overview, Manual AI) o que no tiene usuario (crons): se ejecuta
+    sin comprobar ni descontar RU.
+    cobrar=True: búsquedas que pide el usuario desde los botones de SERP
+    (/api/serp, /api/serp/position, /api/serp/screenshot):
+      - plan Free (salvo admin): bloqueado, con paywall;
+      - búsqueda repetida en la última hora: sin coste (SerpAPI tampoco la cobra);
+      - admin: se ejecuta y se registra el evento sin descontar RU;
+      - resto: comprueba la cuota, ejecuta y descuenta 1 RU.
+
+    Antes (hasta sep-2026) todo dependía de ENFORCE_QUOTAS: encendido, los
+    análisis cobraban dos veces (el análisis y además cada búsqueda); apagado,
+    como estaba en producción, los botones de SERP no cobraban nada y los usaba
+    también el plan Free.
+
     Returns:
         Tuple[bool, dict]: (success, data_or_error)
     """
-    
-    # 🔒 SEGURIDAD (independiente de ENFORCE_QUOTAS): en entornos desplegados nunca
-    # se ejecuta una llamada SerpAPI a partir de una petición HTTP sin usuario
-    # autenticado. Esto evita el abuso anónimo de la SERPAPI_KEY de pago. Los
-    # procesos server-side (crons/scripts) no tienen contexto de request y sí
-    # pueden ejecutar la llamada.
+
+    # 🔒 SEGURIDAD: en entornos desplegados nunca se ejecuta una llamada SerpAPI a
+    # partir de una petición HTTP sin usuario autenticado. Esto evita el abuso
+    # anónimo de la SERPAPI_KEY de pago. Los procesos server-side (crons/scripts)
+    # no tienen contexto de request y sí pueden ejecutar la llamada.
     if _IS_DEPLOYED and has_request_context() and not get_current_user_id():
         logger.warning("🚫 Llamada SerpAPI bloqueada: petición HTTP sin usuario autenticado")
         return False, {
@@ -236,76 +284,63 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
             'blocked': True
         }
 
-    # ✅ FEATURE FLAG: Verificar si enforcement está activado
-    enforce_quotas = config.cuotas_forzadas()
-
-    if not enforce_quotas:
-        logger.info("🔓 ENFORCE_QUOTAS=false - Ejecutando sin control de quotas")
+    if not cobrar:
         return _execute_serp_call(params, call_type)
-    
-    logger.info(f"🔒 ENFORCE_QUOTAS=true - Validando quotas para llamada {call_type}")
-    
-    # 🔍 PASO 1: Obtener usuario actual
+
     user_id = get_current_user_id()
     if not user_id:
-        # Llegados aquí (tras el gate de seguridad anterior) solo puede ser un
-        # contexto server-side (cron/script) o desarrollo local: se permite sin
-        # descontar cuota porque no hay un usuario al que atribuírsela.
+        # Solo fuera de Railway (desarrollo) o sin petición: no hay a quién cobrar.
         logger.info("Llamada SerpAPI sin usuario (contexto server-side/desarrollo) - permitiendo sin cuota")
         return _execute_serp_call(params, call_type)
-    
-    # 🔍 PASO 2: Verificar si es llamada cacheada (0 RU)
+
+    bloqueo = bloqueo_serp_por_plan(user_id)
+    if bloqueo:
+        logger.info(f"🚫 SERP bloqueada para user {user_id}: plan Free")
+        return False, bloqueo
+
+    # Búsqueda repetida en la última hora: SerpAPI la sirve de su caché sin cobrar.
     if _is_cached_call(params):
         logger.info(f"📦 Ejecutando llamada cacheada para user {user_id} (0 RU)")
-        success, result = _execute_serp_call(params, call_type)
-        return success, result
-    
-    # 🔍 PASO 3: Validar acceso y quota
-    quota_validation = validate_quota_access(user_id, f"serp_{call_type}")
-    
-    if not quota_validation['allowed']:
-        logger.warning(f"🚫 Quota bloqueada para user {user_id}: {quota_validation['reason']}")
-        return False, {
-            'error': 'Quota exceeded',
-            'message': quota_validation['reason'],
-            'quota_info': quota_validation['quota_info'],
-            'action_required': quota_validation['action_required'],
-            'blocked': True
-        }
-    
-    # 🔍 PASO 4: Ejecutar llamada SerpAPI (ya validada)
-    logger.info(f"✅ Ejecutando llamada SerpAPI para user {user_id} (1 RU)")
-    
+        return _execute_serp_call(params, call_type)
+
+    es_admin = _es_admin(user_id)
+    if not es_admin:
+        quota_validation = validate_quota_access(user_id, f"serp_{call_type}")
+        if not quota_validation['allowed']:
+            logger.warning(f"🚫 Quota bloqueada para user {user_id}: {quota_validation['reason']}")
+            return False, {
+                'error': 'Quota exceeded',
+                'message': quota_validation['reason'],
+                'quota_info': quota_validation['quota_info'],
+                'action_required': quota_validation['action_required'],
+                'blocked': True
+            }
+
     success, result = _execute_serp_call(params, call_type)
-    
-    # 🔍 PASO 5: Registrar consumo si fue exitosa
+
     if success:
         try:
-            status = get_user_quota_status(user_id)
-            update_user_quota = enforce_quotas and status.get('plan') != 'free'
-            track_quota_consumption(
+            registrado = track_quota_consumption(
                 user_id=user_id,
                 ru_consumed=1,
                 source='serp_api',
                 keyword=params.get('q', 'unknown'),
-                country_code=params.get('gl', 'unknown'),
-                metadata={
-                    'call_type': call_type,
-                    'cached': False
-                },
-                update_user_quota=update_user_quota
+                # Sin 'gl' (búsqueda sin país) va NULL: antes iba 'unknown', no
+                # cabía en la columna (3 caracteres) y el cobro fallaba en silencio.
+                country_code=params.get('gl') or None,
+                metadata={'call_type': call_type, 'cached': False, 'admin': es_admin},
+                update_user_quota=not es_admin,
             )
-            if update_user_quota:
-                logger.info(f"📊 RU registrado: user {user_id} consumió 1 RU ({call_type})")
+            if not registrado:
+                logger.error(f"❌ No se pudo registrar el consumo SERP de user {user_id} ({call_type})")
+            elif es_admin:
+                logger.info(f"🧾 SERP de admin registrada sin descontar RU (user {user_id})")
             else:
-                logger.info("🧾 SERP registrado sin afectar RU (tracking-only)")
-
-            # Marcar en caché para futuras llamadas
+                logger.info(f"📊 RU registrado: user {user_id} consumió 1 RU ({call_type})")
             _mark_call_cached(params)
-            
         except Exception as e:
             logger.error(f"Error registrando consumo RU/caché para user {user_id}: {e}")
-    
+
     return success, result
 
 # La librería de SerpAPI pasa timeout=60000 a requests, que lo lee en SEGUNDOS
