@@ -126,6 +126,7 @@ def test_el_gratuito_se_queda_en_el_filtro_de_plan(ent):
 
 
 @pytest.mark.parametrize("modulo", ["llm_monitoring_routes", "llm_monitoring_informes", "llm_monitoring_base",
+                                    "llm_monitoring_rutas_modelos",
                                     "llm_monitoring_export_excel", "llm_monitoring_export_pdf"])
 def test_ningun_nombre_global_falta_en_los_modulos_de_llm(flask_app, modulo):
     """Tras partir llm_monitoring_routes.py (sep-2026): todo nombre global que usa cualquier
@@ -189,3 +190,33 @@ def test_las_rutas_exponen_el_blueprint_y_los_decoradores_de_la_base(flask_app):
     app = flask_app.app
     assert app.blueprints["llm_monitoring"] is base.llm_monitoring_bp
     assert app.before_request_funcs.get("llm_monitoring") == [base.enforce_llm_access]
+
+
+# Módulos de área de rutas sacados de llm_monitoring_routes.py (sep-2026). Al mover una
+# área nueva, añadirla aquí.
+AREAS_DE_RUTAS = ["llm_monitoring_rutas_modelos"]
+
+
+@pytest.mark.parametrize("modulo", AREAS_DE_RUTAS)
+def test_las_rutas_exponen_cada_area_sin_redefinirla(flask_app, modulo):
+    """Cada nombre definido en un módulo de área es el mismo objeto en llm_monitoring_routes,
+    que no lo vuelve a definir; y cada ruta del área está registrada en la app con su vista."""
+    import ast
+    import importlib
+    import inspect
+    import llm_monitoring_routes as rutas
+    area = importlib.import_module(modulo)
+    arbol = ast.parse(inspect.getsource(area))
+    definidos = [n.name if isinstance(n, (ast.FunctionDef, ast.ClassDef)) else n.targets[0].id
+                 for n in arbol.body
+                 if isinstance(n, (ast.FunctionDef, ast.ClassDef))
+                 or (isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name))]
+    definidos = [n for n in definidos if n != "logger"]
+    assert [n for n in definidos if getattr(rutas, n, None) is not getattr(area, n)] == []
+    en_rutas = {n.name for n in ast.parse(inspect.getsource(rutas)).body
+                if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+    assert en_rutas & set(definidos) == set()
+    vistas = flask_app.app.view_functions
+    for n in arbol.body:
+        if isinstance(n, ast.FunctionDef) and any("llm_monitoring_bp.route" in ast.unparse(d) for d in n.decorator_list):
+            assert f"llm_monitoring.{n.name}" in vistas, n.name
