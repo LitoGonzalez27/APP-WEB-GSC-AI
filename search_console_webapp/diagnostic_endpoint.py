@@ -75,7 +75,6 @@ def check_imports():
     # Test 7: Environment variables relevantes
     import os
     results['environment'] = {
-        'ENFORCE_QUOTAS': os.getenv('ENFORCE_QUOTAS', 'not set'),
         'SERPAPI_KEY': 'SET' if os.getenv('SERPAPI_KEY') else 'NOT SET',
         'DATABASE_URL': 'SET' if os.getenv('DATABASE_URL') else 'NOT SET'
     }

@@ -122,7 +122,3 @@ def url_publica():
     """URL pública de la app para enlaces en emails (sin barra final)."""
     return (os.getenv('PUBLIC_BASE_URL') or URL_PUBLICA_POR_DEFECTO).rstrip('/')
 
-
-def cuotas_forzadas():
-    """ENFORCE_QUOTAS: control de cuota en el middleware de SerpAPI (por defecto no)."""
-    return os.getenv('ENFORCE_QUOTAS', 'false').lower() == 'true'
