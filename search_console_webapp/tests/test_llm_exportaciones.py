@@ -124,7 +124,7 @@ def test_el_gratuito_se_queda_en_el_filtro_de_plan(ent):
     assert r.status_code == 402
 
 
-@pytest.mark.parametrize("modulo", ["llm_monitoring_routes", "llm_monitoring_informes",
+@pytest.mark.parametrize("modulo", ["llm_monitoring_routes", "llm_monitoring_informes", "llm_monitoring_base",
                                     "llm_monitoring_export_excel", "llm_monitoring_export_pdf"])
 def test_ningun_nombre_global_falta_en_los_modulos_de_llm(flask_app, modulo):
     """Tras partir llm_monitoring_routes.py (sep-2026): todo nombre global que usa cualquier
@@ -172,3 +172,19 @@ def test_las_rutas_exponen_los_mismos_helpers_que_informes(flask_app):
     en_rutas = {n.name for n in ast.parse(inspect.getsource(rutas)).body
                 if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
     assert en_rutas & set(definidos) == set()
+
+
+def test_las_rutas_exponen_el_blueprint_y_los_decoradores_de_la_base(flask_app):
+    """El blueprint, el control de acceso y los decoradores viven en llm_monitoring_base
+    (sep-2026): las rutas los exponen como el mismo objeto y el blueprint registrado en la
+    app es ese mismo, con enforce_llm_access como único control previo."""
+    import llm_monitoring_base as base
+    import llm_monitoring_routes as rutas
+    nombres = ["llm_monitoring_bp", "_INITIAL_ANALYSIS_RUNNING", "_INITIAL_ANALYSIS_RUNNING_LOCK",
+               "_safe_notify_email", "_is_initial_analysis_running", "_mark_initial_analysis_running",
+               "_clear_initial_analysis_running", "enforce_llm_access", "validate_project_ownership",
+               "_ensure_cron_token_or_admin"]
+    assert [n for n in nombres if getattr(rutas, n) is not getattr(base, n)] == []
+    app = flask_app.app
+    assert app.blueprints["llm_monitoring"] is base.llm_monitoring_bp
+    assert app.before_request_funcs.get("llm_monitoring") == [base.enforce_llm_access]
