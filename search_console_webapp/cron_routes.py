@@ -171,7 +171,8 @@ def _run_serpapi_balance_check(get_account=None, enviar=None, reloj=time.time):
     try:
         if enviar is None:
             from email_service import send_email as enviar
-        html = (f"<html><body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif'>"
+        html = (f"<html lang='es'><head><meta charset='utf-8'><meta http-equiv='Content-Language' content='es'></head>"
+                f"<body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif'>"
                 f"<h2 style='margin-top:0'>{escape(asunto)}</h2>{cuerpo}"
                 f"<p style='color:#888;font-size:12px'>Umbral: SERPAPI_ALERT_MIN_SEARCHES. Para silenciar: CRON_ALERTS_ENABLED=false.</p>"
                 f"</body></html>")

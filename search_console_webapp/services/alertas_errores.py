@@ -34,6 +34,13 @@ import traceback
 from datetime import datetime, timezone
 from html import escape
 
+try:  # horas del email en hora de España; si faltara la base de zonas, en UTC
+    from zoneinfo import ZoneInfo
+    _ZONA = ZoneInfo('Europe/Madrid')
+    _NOMBRE_ZONA = 'hora de España'
+except Exception:
+    _ZONA, _NOMBRE_ZONA = timezone.utc, 'UTC'
+
 AGRUPAR_SEGUNDOS = int(os.getenv('ERROR_ALERTS_GROUP_SECONDS', '60'))
 INTERVALO_MINIMO_SEGUNDOS = int(os.getenv('ERROR_ALERTS_MIN_INTERVAL_SECONDS', '900'))
 # Tope diario: aunque algo provoque errores en bucle, no más de estos emails al día.
@@ -274,6 +281,12 @@ class AvisoErrores(logging.Handler):
                                         timeout=max(0.0, limite - time.monotonic()))
         return pendientes is not None
 
+    @staticmethod
+    def _horas(primera, ultima):
+        a, b = primera.astimezone(_ZONA), ultima.astimezone(_ZONA)
+        formato = '%H:%M' if a.date() == b.date() else '%d/%m %H:%M'
+        return f"{a:{formato}}–{b:{formato}} ({_NOMBRE_ZONA})"
+
     def _componer(self, pendientes):
         total = sum(e['veces'] for e in pendientes.values())
         etiqueta = str(self._etiqueta() if callable(self._etiqueta) else self._etiqueta).upper()
@@ -285,9 +298,10 @@ class AvisoErrores(logging.Handler):
             filas.append(
                 f"<tr><td style='vertical-align:top;padding:6px'><b>{e['veces']}</b></td>"
                 f"<td style='padding:6px'><div style='color:#666;font-size:12px'>{escape(origen)} · "
-                f"{e['primera']:%H:%M}–{e['ultima']:%H:%M} UTC</div>"
+                f"{self._horas(e['primera'], e['ultima'])}</div>"
                 f"<div>{escape(e['mensaje'])}</div>{traza}</td></tr>")
-        html = (f"<html><body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif'>"
+        html = (f"<html lang='es'><head><meta charset='utf-8'><meta http-equiv='Content-Language' content='es'></head>"
+                f"<body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif'>"
                 f"<h2 style='margin-top:0'>{escape(asunto)}</h2>"
                 f"<p>Errores registrados por la aplicación desde el último aviso. Detalle completo en los logs de Railway.</p>"
                 f"<table style='border-collapse:collapse;font-size:14px'>{''.join(filas)}</table>"
