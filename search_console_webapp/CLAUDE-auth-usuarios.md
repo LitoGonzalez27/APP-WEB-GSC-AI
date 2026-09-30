@@ -278,7 +278,7 @@ Todos en `auth.py`:
 
 ### Otros gates
 
-- `_ensure_cron_token_or_admin()` (`llm_monitoring_routes.py:178`) — endpoints sensibles de cron exigen CRON_TOKEN o admin.
+- `_ensure_cron_token_or_admin()` (`llm_monitoring_base.py`) — endpoints sensibles de cron exigen CRON_TOKEN o admin.
 
 ---
 

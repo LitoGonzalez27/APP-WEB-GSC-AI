@@ -29,24 +29,18 @@ Endpoints:
 
 import logging
 import os
-import config
 import json
-import re
-import html
-import unicodedata
 import threading
-import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
-from decimal import Decimal, ROUND_HALF_UP
 
 import brand_palette
 
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
 
 # Importar sistema de autenticación
-from auth import login_required, admin_required, get_current_user, cron_or_auth_required
+from auth import login_required, get_current_user
 from llm_monitoring_limits import (
     get_llm_plan_limits,
     count_user_active_projects,
@@ -60,16 +54,11 @@ from services.project_access_service import (
 )
 
 # Importar servicios
-from database import get_db_connection, acquire_analysis_lock, release_analysis_lock, get_latest_analysis_run
-from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects, cron_service_tier
+from database import get_db_connection
+from services.llm_monitoring_service import MultiLLMMonitoringService
 from services.llm_monitoring_stats import LLMMonitoringStatsService
-from services.llm_monitoring.fanout_stats import (
-    collect_fanout_metrics,
-    fanout_export_tables,
-    response_search_detail,
-)
+from services.llm_monitoring.fanout_stats import collect_fanout_metrics, response_search_detail
 from services.llm_providers.web_search import is_search_enabled, normalize_search_mode
-from services.llm_providers.base_provider import DEFAULT_MODELS
 from services.llm_monitoring import url_content_analyzer
 from services.llm_monitoring import prompt_sets as prompt_sets_lib
 from services.llm_monitoring import pseudo_snapshots as pseudo_snapshots_lib

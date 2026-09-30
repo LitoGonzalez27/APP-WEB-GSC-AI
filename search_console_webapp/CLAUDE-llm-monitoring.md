@@ -685,17 +685,17 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 
 ### Cron
 
-| URL | Método | Línea | Auth |
-|---|---|---:|---|
-| `/cron/daily-analysis?async=1&project_id=N` | POST | 5096 | Bearer CRON_TOKEN |
-| `/cron/model-discovery?notify_email=&auto_update=` | POST | 8199 | Bearer |
-| `/cron/alert` | POST | 8934 | — |
+| URL | Método | Módulo | Auth |
+|---|---|---|---|
+| `/cron/daily-analysis?async=1&project_id=N` | POST | `llm_monitoring_rutas_cron.py` | Bearer CRON_TOKEN |
+| `/cron/model-discovery?notify_email=&auto_update=` | POST | `llm_monitoring_rutas_modelos.py` | Bearer |
+| `/cron/alert` | POST | `llm_monitoring_rutas_cron.py` | — |
 
 ### Salud
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/health` | GET | 5416 |
+| URL | Método | Módulo |
+|---|---|---|
+| `/health` | GET | `llm_monitoring_rutas_cron.py` |
 
 ### UI (fuera del blueprint)
 

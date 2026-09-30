@@ -6,7 +6,7 @@ Sacadas tal cual de llm_monitoring_routes.py (sep-2026, limpieza de ficheros gig
 Registran sus rutas en el blueprint de llm_monitoring_base al importarse;
 llm_monitoring_routes importa este módulo y vuelve a exponer sus nombres. Para
 parchear algo que usen estas rutas en un test (threading, analyze_all_active_projects,
-cron_service...), hazlo en este módulo.
+cron_service_tier...), hazlo en este módulo.
 """
 
 import logging
