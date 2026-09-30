@@ -2,11 +2,10 @@
 
 Sacado tal cual de llm_monitoring_routes.py (sep-2026, limpieza de ficheros gigantes):
 la ruta, sus decoradores y la URL siguen allí y llaman a esta función. Los helpers
-de informes compartidos con las demás rutas se importan del módulo de rutas; por
-eso este módulo se importa al atender la petición y no al cargar las rutas.
+de informes vienen de llm_monitoring_informes.py; este módulo no importa el de rutas.
 
 Los helpers quedan enlazados aquí al importar: un monkeypatch sobre
-llm_monitoring_routes.<helper> ya no afecta a la exportación (hay que parchear
+llm_monitoring_routes.<helper> no afecta a la exportación (hay que parchear
 este módulo). El logger es el de este módulo, no el de las rutas.
 """
 
@@ -15,8 +14,12 @@ from datetime import datetime, timedelta
 from flask import request, jsonify
 import json
 
-from llm_monitoring_routes import (
-    LLMMonitoringStatsService,
+from database import get_db_connection
+from services.llm_monitoring import pseudo_snapshots as pseudo_snapshots_lib
+from services.llm_monitoring.fanout_stats import fanout_export_tables
+from services.llm_monitoring_stats import LLMMonitoringStatsService
+
+from llm_monitoring_informes import (
     _OPPORTUNITY_LABELS,
     _compute_branded_metrics,
     _narrow_llms,
@@ -29,9 +32,6 @@ from llm_monitoring_routes import (
     classify_query_branded,
     collect_prompt_metrics,
     empty_prompt_metrics,
-    fanout_export_tables,
-    get_db_connection,
-    pseudo_snapshots_lib,
     round_half_up,
 )
 

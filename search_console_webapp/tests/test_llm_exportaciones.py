@@ -124,30 +124,28 @@ def test_el_gratuito_se_queda_en_el_filtro_de_plan(ent):
     assert r.status_code == 402
 
 
-@pytest.mark.parametrize("modulo, funcion", [
-    ("llm_monitoring_export_excel", "exportar_excel"),
-    ("llm_monitoring_export_pdf", "exportar_pdf"),
-])
-def test_todos_los_nombres_globales_de_la_exportacion_existen(flask_app, modulo, funcion):
-    """Sin esto, un nombre que faltara al importar solo fallaría con un NameError en plena descarga."""
+@pytest.mark.parametrize("modulo", ["llm_monitoring_routes", "llm_monitoring_informes",
+                                    "llm_monitoring_export_excel", "llm_monitoring_export_pdf"])
+def test_ningun_nombre_global_falta_en_los_modulos_de_llm(flask_app, modulo):
+    """Tras partir llm_monitoring_routes.py (sep-2026): todo nombre global que usa cualquier
+    función de estos módulos existe en su módulo. Sin esto, un helper que se quedara sin
+    importar solo fallaría con un NameError en plena petición."""
     import builtins
     import importlib
     import inspect
     import symtable
     mod = importlib.import_module(modulo)
-    tabla = symtable.symtable(inspect.getsource(mod), mod.__file__, "exec")
 
-    def globales(t):
-        for s in t.get_symbols():
-            if s.is_global() or (s.is_free() is False and s.is_referenced() and not s.is_local()
-                                 and not s.is_parameter() and t.get_type() == "function"
-                                 and not s.is_imported() and not s.is_assigned()):
-                yield s.get_name()
-        for hijo in t.get_children():
-            yield from globales(hijo)
+    def globales(tabla):
+        if tabla.get_type() == "function":
+            for s in tabla.get_symbols():
+                if s.is_global() and s.is_referenced():
+                    yield tabla.get_name(), s.get_name()
+        for hija in tabla.get_children():
+            yield from globales(hija)
 
-    funcion_t = next(t for t in tabla.get_children() if t.get_name() == funcion)
-    faltan = sorted({n for n in globales(funcion_t)
+    raiz = symtable.symtable(inspect.getsource(mod), mod.__file__, "exec")
+    faltan = sorted({f"{f}: {n}" for f, n in globales(raiz)
                      if not hasattr(mod, n) and not hasattr(builtins, n)})
     assert faltan == []
 
