@@ -193,7 +193,7 @@ def test_la_traza_se_limpia_antes_de_recortarla(aviso):
 
 
 @pytest.mark.parametrize("resultado, texto", [(True, "Aviso de errores enviado"),
-                                               (None, "Aviso de errores enviado"),
+                                               (None, "No se pudo enviar el aviso"),
                                                (False, "No se pudo enviar el aviso"),
                                                (RuntimeError("smtp caído"), "Fallo al preparar o enviar")])
 def test_el_resultado_del_envio_queda_en_el_log_como_warning(aviso, caplog, resultado, texto):
@@ -211,6 +211,41 @@ def test_el_resultado_del_envio_queda_en_el_log_como_warning(aviso, caplog, resu
         h.enviar_si_toca()
     avisos = [r for r in caplog.records if r.name == "services.alertas_errores"]
     assert len(avisos) == 1 and avisos[0].levelname == "WARNING" and texto in avisos[0].getMessage()
+    assert h._pendientes == {}
+
+
+def test_el_envio_real_devuelve_lo_que_dice_send_email(monkeypatch):
+    """Sin el return del closure, cada fallo quedaría en el log como «enviado»."""
+    import sys
+    import types
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "staging")
+    monkeypatch.setenv("ERROR_ALERTS_ENABLED", "true")
+    falso = types.ModuleType("email_service")
+    falso.send_email = lambda to, asunto, html: False
+    monkeypatch.setitem(sys.modules, "email_service", falso)
+    monkeypatch.setattr(alertas_errores.atexit, "register", lambda f: None)
+    anterior = threading.excepthook
+    h = alertas_errores.instalar_avisos_de_errores()
+    try:
+        assert h._enviar("asunto", "<p>x</p>") is False
+        falso.send_email = lambda to, asunto, html: True
+        assert h._enviar("asunto", "<p>x</p>") is True
+    finally:
+        logging.getLogger().removeHandler(h)
+        threading.excepthook = anterior
+
+
+def test_el_texto_de_un_fallo_de_envio_sale_limpio(aviso, caplog):
+    h, registro, enviados, reloj = aviso
+
+    def enviar(asunto, html):
+        raise RuntimeError("fallo con /x?token=SECRETO123 para ana.garcia@example.com")
+    h._enviar = enviar
+    registro.error("uno")
+    reloj.t += 61
+    with caplog.at_level(logging.WARNING, logger="services.alertas_errores"):
+        h.enviar_si_toca()
+    assert "SECRETO123" not in caplog.text and "ana.garcia@example.com" not in caplog.text
 
 
 def test_un_envio_que_falla_no_rompe_nada(aviso):
