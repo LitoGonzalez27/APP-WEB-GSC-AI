@@ -70,6 +70,9 @@ def test_excel_de_punta_a_punta(ent):
     libro = openpyxl.load_workbook(io.BytesIO(r.data))
     assert libro.sheetnames[:5] == ["Project Summary", "Share of Voice", "LLM Comparison",
                                     "Daily Metrics", "Prompts & Queries"]
+    resumen = [str(c) for fila in libro["Project Summary"].iter_rows(values_only=True) for c in fila if c]
+    assert "Project: Proyecto export" in resumen
+    assert "Marca" in resumen
 
 
 def test_pdf_de_punta_a_punta(ent):
@@ -97,10 +100,56 @@ def test_la_ruta_llama_al_modulo_nuevo(ent, monkeypatch, tipo, modulo, funcion):
 
 @pytest.mark.parametrize("tipo", ["excel", "pdf"])
 def test_el_proyecto_de_otro_usuario_no_se_exporta(ent, tipo):
-    client, user, _ = ent
-    _login(client, user)   # usuario gratuito, no es el dueño
+    """El admin pasa el filtro de plan (el gratuito se queda en un 402 antes de llegar)
+    y no es el dueño: es validate_project_ownership quien tiene que cortar."""
+    client, _, _ = ent
+    from tests.conftest import seed_users  # noqa: F401  (usuarios ya sembrados en ent)
+    import database
+    conn = database.get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, email, name FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+        admin = dict(cur.fetchone())
+    finally:
+        conn.close()
+    _login(client, admin)
     r = client.get(f"{BASE}/export/{tipo}", headers={"Accept": "application/json"})
-    assert r.status_code in (402, 403, 404)
+    assert r.status_code == 403
+
+
+def test_el_gratuito_se_queda_en_el_filtro_de_plan(ent):
+    client, user, _ = ent
+    _login(client, user)
+    r = client.get(f"{BASE}/export/excel", headers={"Accept": "application/json"})
+    assert r.status_code == 402
+
+
+@pytest.mark.parametrize("modulo, funcion", [
+    ("llm_monitoring_export_excel", "exportar_excel"),
+    ("llm_monitoring_export_pdf", "exportar_pdf"),
+])
+def test_todos_los_nombres_globales_de_la_exportacion_existen(flask_app, modulo, funcion):
+    """Sin esto, un nombre que faltara al importar solo fallaría con un NameError en plena descarga."""
+    import builtins
+    import importlib
+    import inspect
+    import symtable
+    mod = importlib.import_module(modulo)
+    tabla = symtable.symtable(inspect.getsource(mod), mod.__file__, "exec")
+
+    def globales(t):
+        for s in t.get_symbols():
+            if s.is_global() or (s.is_free() is False and s.is_referenced() and not s.is_local()
+                                 and not s.is_parameter() and t.get_type() == "function"
+                                 and not s.is_imported() and not s.is_assigned()):
+                yield s.get_name()
+        for hijo in t.get_children():
+            yield from globales(hijo)
+
+    funcion_t = next(t for t in tabla.get_children() if t.get_name() == funcion)
+    faltan = sorted({n for n in globales(funcion_t)
+                     if not hasattr(mod, n) and not hasattr(builtins, n)})
+    assert faltan == []
 
 
 def test_sin_sesion_no_se_exporta(flask_app, clean_db):

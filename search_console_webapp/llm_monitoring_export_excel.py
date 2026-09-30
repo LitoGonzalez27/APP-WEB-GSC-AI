@@ -4,6 +4,10 @@ Sacado tal cual de llm_monitoring_routes.py (sep-2026, limpieza de ficheros giga
 la ruta, sus decoradores y la URL siguen allí y llaman a esta función. Los helpers
 de informes compartidos con las demás rutas se importan del módulo de rutas; por
 eso este módulo se importa al atender la petición y no al cargar las rutas.
+
+Los helpers quedan enlazados aquí al importar: un monkeypatch sobre
+llm_monitoring_routes.<helper> ya no afecta a la exportación (hay que parchear
+este módulo). El logger es el de este módulo, no el de las rutas.
 """
 
 import logging
