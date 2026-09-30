@@ -45,9 +45,9 @@
 | Alertas cron LLM (duración / error rate / cost spike) | tras `release_analysis_lock` | `cron_alerts.py` invocado desde `database.py:2710` |
 | Webhook Stripe customer no encontrado | webhook con `customer_id` no asociado | `stripe_webhooks._alert_unmatched_customer` |
 | Stuck quota (usuarios atascados >24h) | tras `daily_quota_reset_cron` | `cron_routes._send_stuck_quota_alert` |
-| Aprobación de modelos LLM nuevos | model discovery semanal | `llm_monitoring_routes.py:8225-8359` |
-| Confirmación tras aprobar modelo | endpoint `/models/approve` | `llm_monitoring_routes.py:8503-8522` |
-| Alertas genéricas Bun → Flask | falla un Bun cron service | `llm_monitoring_routes.py:8717` (`POST /cron/alert`) |
+| Aprobación de modelos LLM nuevos | model discovery semanal | `llm_monitoring_rutas_modelos.py` (`cron_model_discovery`) |
+| Confirmación tras aprobar modelo | endpoint `/models/approve` | `llm_monitoring_rutas_modelos.py` (`approve_model_by_token`) |
+| Alertas genéricas Bun → Flask | falla un Bun cron service | `llm_monitoring_routes.py` (`POST /cron/alert`) |
 | Notificación discovery (legacy) | clase `LLMModelDiscovery.send_notification` | `scripts/maintenance/weekly_model_discovery_cron.py:312-345` |
 | Invitaciones a proyectos | invitar viewer a un proyecto | `services/project_access_service.py:408-453` |
 
@@ -72,7 +72,7 @@
 | `sync_users_to_brevo.py` | Script CLI para volcar `users` BD → lista de Brevo. |
 | `cron_routes.py` | Endpoints `/api/cron/quota-reset`, `/api/cron/quota-health-check` + `_send_stuck_quota_alert`. |
 | `stripe_webhooks.py` | `_alert_unmatched_customer` (l. 209) + email trial-started (l. 567). |
-| `llm_monitoring_routes.py` | Endpoints `/cron/alert`, `/models/approve`, `/models/reject`, `/cron/model-discovery` (~l. 7983-8800). |
+| `llm_monitoring_routes.py` / `llm_monitoring_rutas_modelos.py` | `/cron/alert` en el primero; `/models/approve`, `/models/reject` y `/cron/model-discovery` en el segundo (desde sep-2026). |
 | `scripts/maintenance/weekly_model_discovery_cron.py` | Clase legacy `LLMModelDiscovery.send_notification` (l. 312). |
 | `llm_monitoring_cron_function.js` | Bun cron — al fallar `fetch`, postea a `/cron/alert`. |
 | `ai_mode_cron_function.js` | Idem para AI Mode. |
@@ -322,7 +322,7 @@ Cualquier fila → "stuck". Se envía email con tabla HTML por usuario (id, emai
 
 ### Endpoint principal
 
-`POST /api/llm-monitoring/cron/model-discovery` (`llm_monitoring_routes.py:7983`, decorador `@cron_or_auth_required`). Lo dispara el Bun service `function-bun-Model-Discovery` semanalmente.
+`POST /api/llm-monitoring/cron/model-discovery` (`llm_monitoring_rutas_modelos.py`, decorador `@cron_or_auth_required`). Lo dispara el Bun service `function-bun-Model-Discovery` semanalmente.
 
 ### Flujo
 
@@ -442,7 +442,7 @@ Tras crear usuario en BD (signup local o Google OAuth):
 | `CRON_ALERT_DURATION_MIN` | `90` | `cron_alerts.py` |
 | `CRON_ALERT_ERROR_RATE` | `0.20` | `cron_alerts.py` |
 | `CRON_ALERT_COST_MULTIPLIER` | `2.0` | `cron_alerts.py` |
-| `MODEL_DISCOVERY_EMAIL` | `info@soycarlosgonzalez.com` | `llm_monitoring_routes.py:8505`, Bun functions |
+| `MODEL_DISCOVERY_EMAIL` | `info@soycarlosgonzalez.com` | `llm_monitoring_rutas_modelos.py`, Bun functions |
 | `NOTIFICATION_EMAIL` | — | `scripts/maintenance/weekly_model_discovery_cron.py:314` (legacy) |
 | `APP_ENV` / `RAILWAY_ENVIRONMENT_NAME` | `unknown` | label de entorno en alertas |
 | `CRON_TOKEN` | (oblig.) | auth Bearer en `cron_routes.py`, `_ensure_cron_token_or_admin` |
