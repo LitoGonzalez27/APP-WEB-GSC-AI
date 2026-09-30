@@ -270,6 +270,7 @@ def entorno(flask_app, clean_db, monkeypatch):
     import email_service
     import llm_monitoring_routes
     import llm_monitoring_rutas_cron  # crons de LLM Monitoring desde sep-2026
+    import llm_monitoring_rutas_analisis  # primer análisis y contenido de URLs desde sep-2026
 
     manual_ai_routes = importlib.import_module("manual_ai.routes.analysis")
     ai_mode_routes = importlib.import_module("ai_mode_projects.routes.analysis")
@@ -285,7 +286,10 @@ def entorno(flask_app, clean_db, monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
     hilos = _RegistroHilos()
-    for modulo in (cron_routes, llm_monitoring_routes, llm_monitoring_rutas_cron, manual_ai_routes, ai_mode_routes):
+    # Las rutas de LLM que lanzan hilos viven en rutas_cron y rutas_analisis desde sep-2026;
+    # llm_monitoring_routes ya no importa threading.
+    for modulo in (cron_routes, llm_monitoring_rutas_cron, llm_monitoring_rutas_analisis,
+                   manual_ai_routes, ai_mode_routes):
         monkeypatch.setattr(modulo, "threading", hilos.modulo_falso())
 
     correos = []
