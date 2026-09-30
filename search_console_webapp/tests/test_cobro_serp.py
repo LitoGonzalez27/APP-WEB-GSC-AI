@@ -40,11 +40,27 @@ def ent(flask_app, clean_db, monkeypatch):
     user, admin, paid = seed_users()  # 1 Free, 2 admin (plan Free), 3 de pago
     llamadas = []
 
-    def serpapi_falso(params, call_type):
-        llamadas.append((dict(params), call_type))
-        return True, {"organic_results": [], "ads": [], "html": ""}
+    class GoogleSearchFalso:
+        """Como la librería real (google-search-results): guarda el dict SIN
+        copiarlo y le añade 'source' y 'output' al buscar. Con el doble anterior
+        (que sustituía _execute_serp_call) no se vio que por eso la caché nunca
+        coincidía en real y cada petición se cobraba otra vez."""
 
-    monkeypatch.setattr(quota_middleware, "_execute_serp_call", serpapi_falso)
+        def __init__(self, params_dict, engine=None, timeout=60000):
+            self.params_dict = params_dict
+
+        def get_dict(self):
+            self.params_dict["source"] = "python"
+            self.params_dict["output"] = "json"
+            llamadas.append((dict(self.params_dict), "json"))
+            return {"organic_results": [], "ads": []}
+
+        def get_html(self):
+            self.params_dict["source"] = "python"
+            llamadas.append((dict(self.params_dict), "html"))
+            return "<html><body>serp</body></html>"
+
+    monkeypatch.setattr(quota_middleware, "GoogleSearch", GoogleSearchFalso)
     from services import serp_service
     quota_middleware.CALL_CACHE.clear()
     serp_service.SCREENSHOT_CACHE.clear()
@@ -213,3 +229,28 @@ def test_admin_sigue_pasando_si_falla_la_lectura_del_portero(ent, monkeypatch):
 
     assert r.status_code == 200
     assert _usado(ent, ent.admin) == 0
+
+
+def test_abrir_la_serp_y_la_captura_de_la_misma_busqueda_cobra_una_vez(ent, flask_app):
+    # Staging, 30-sep-2026: SerpAPI cobró 1 búsqueda por posición + datos +
+    # captura y la app registró 3 cobros (la librería cambiaba los parámetros
+    # guardados en la caché).
+    _login(ent.client, ent.paid)
+    antes = _usado(ent, ent.paid)
+    assert ent.client.get(f"/api/serp/position?{CONSULTA}", headers=JSON).status_code == 200
+    assert ent.client.get(f"/api/serp?{CONSULTA}", headers=JSON).status_code == 200
+
+    # La captura (salida html) de la misma búsqueda, por el portero, como la pide la ruta.
+    import quota_middleware
+    from flask import session
+    from app import get_serp_params_with_location
+    with flask_app.app.test_request_context("/"):
+        session["user_id"] = ent.paid["id"]
+        params = get_serp_params_with_location("zapatillas running", "test-serpapi-key-not-real", "esp",
+                                               "sc-domain:example.com")
+        ok, _ = quota_middleware.quota_protected_serp_call(params, "html", cobrar=True)
+    assert ok is True
+
+    assert len(ent.llamadas) == 3
+    assert _usado(ent, ent.paid) == antes + 1
+    assert len(_eventos(ent)) == 1
