@@ -1498,7 +1498,7 @@ def _bloqueo_serp_por_plan():
     """Respuesta 402 si el usuario de la sesión es del plan Free (salvo admin)."""
     from quota_middleware import bloqueo_serp_por_plan
     usuario = get_current_user()
-    bloqueo = bloqueo_serp_por_plan(usuario['id']) if usuario else None
+    bloqueo = bloqueo_serp_por_plan(usuario['id'], usuario) if usuario else None
     if bloqueo:
         return jsonify({**bloqueo, 'quota_blocked': True, 'organic_results': [], 'ads': []}), 402
     return None
