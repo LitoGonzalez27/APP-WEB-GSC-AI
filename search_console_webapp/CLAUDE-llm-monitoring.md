@@ -453,7 +453,7 @@ Después: añadir prompts (`POST /projects/:id/queries`), opcionalmente clusters
 
 ### 6.2 Cron diario
 
-Bun service `function-bun-LLM-Monitoring` (Railway) → `POST /api/llm-monitoring/cron/daily-analysis?async=1` (Bearer `CRON_TOKEN`) → endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5096`):
+Bun service `function-bun-LLM-Monitoring` (Railway) → `POST /api/llm-monitoring/cron/daily-analysis?async=1` (Bearer `CRON_TOKEN`) → endpoint `trigger_daily_analysis` (`llm_monitoring_rutas_cron.py`):
 
 1. **Adquiere lock global**: `acquire_analysis_lock(triggered_by)`. Si ya hay un run activo (`status='running'` y `started_at < 30 min`) → 409 con info del run.
 2. Lanza thread → `analyze_all_active_projects(api_keys=None, max_workers=10)`.
@@ -625,7 +625,7 @@ vs **media móvil 7d** (excluyendo hoy). Si hoy > `multiplier × media` (default
 
 Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@validate_project_ownership`, `@cron_or_auth_required`, y middleware `enforce_llm_access` (excepto `/cron/*` y `/health`).
 
-> ⚠️ `llm_monitoring_routes.py` es un monolito (~8.100 líneas desde sep-2026). **Las exportaciones Excel y PDF viven en `llm_monitoring_export_excel.py` (`exportar_excel`) y `llm_monitoring_export_pdf.py` (`exportar_pdf`)**: en el fichero de rutas solo quedan la ruta y sus decoradores. Cualquier cambio de las exportaciones se hace allí. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
+> ⚠️ `llm_monitoring_routes.py` se está partiendo por áreas (sep-2026): blueprint y decoradores en `llm_monitoring_base.py`, helpers de informes en `llm_monitoring_informes.py`, rutas de modelos en `llm_monitoring_rutas_modelos.py` y crons y salud en `llm_monitoring_rutas_cron.py`. **Las exportaciones Excel y PDF viven en `llm_monitoring_export_excel.py` (`exportar_excel`) y `llm_monitoring_export_pdf.py` (`exportar_pdf`)**: en el fichero de rutas solo quedan la ruta y sus decoradores. Cualquier cambio de las exportaciones se hace allí. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
 
 > **Query fan-out (P7, 2026-09-14)**: `GET /projects/<id>/fanout?days=&filtros` → `{enabled:false}` si el proyecto está en
 > `off` (sin más consultas); si está en `auto`, `by_llm`, `top_queries`, `brand_pages`, `competitor_pages`. `GET /projects/<id>`
@@ -685,17 +685,17 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 
 ### Cron
 
-| URL | Método | Línea | Auth |
-|---|---|---:|---|
-| `/cron/daily-analysis?async=1&project_id=N` | POST | 5096 | Bearer CRON_TOKEN |
-| `/cron/model-discovery?notify_email=&auto_update=` | POST | 8199 | Bearer |
-| `/cron/alert` | POST | 8934 | — |
+| URL | Método | Módulo | Auth |
+|---|---|---|---|
+| `/cron/daily-analysis?async=1&project_id=N` | POST | `llm_monitoring_rutas_cron.py` | Bearer CRON_TOKEN |
+| `/cron/model-discovery?notify_email=&auto_update=` | POST | `llm_monitoring_rutas_modelos.py` | Bearer |
+| `/cron/alert` | POST | `llm_monitoring_rutas_cron.py` | — |
 
 ### Salud
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/health` | GET | 5416 |
+| URL | Método | Módulo |
+|---|---|---|
+| `/health` | GET | `llm_monitoring_rutas_cron.py` |
 
 ### UI (fuera del blueprint)
 
@@ -768,7 +768,7 @@ En `railway.json` hay tanto un cron Python (`0 4 * * *` ejecuta `daily_llm_monit
 
 Hace `POST {APP_URL}/api/llm-monitoring/cron/daily-analysis?async=1` con `Authorization: Bearer ${CRON_TOKEN}` y timeout 60s (espera la respuesta 202).
 
-### Endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5096`)
+### Endpoint `trigger_daily_analysis` (`llm_monitoring_rutas_cron.py`)
 
 - Lee `?async=1` y `?project_id=N` (modo single project).
 - **Modo `project_id`**: invoca `service.analyze_project` directamente, sin lock global (re-runs).

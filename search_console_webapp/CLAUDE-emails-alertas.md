@@ -47,7 +47,7 @@
 | Stuck quota (usuarios atascados >24h) | tras `daily_quota_reset_cron` | `cron_routes._send_stuck_quota_alert` |
 | Aprobación de modelos LLM nuevos | model discovery semanal | `llm_monitoring_rutas_modelos.py` (`cron_model_discovery`) |
 | Confirmación tras aprobar modelo | endpoint `/models/approve` | `llm_monitoring_rutas_modelos.py` (`approve_model_by_token`) |
-| Alertas genéricas Bun → Flask | falla un Bun cron service | `llm_monitoring_routes.py` (`POST /cron/alert`) |
+| Alertas genéricas Bun → Flask | falla un Bun cron service | `llm_monitoring_rutas_cron.py` (`POST /cron/alert`) |
 | Notificación discovery (legacy) | clase `LLMModelDiscovery.send_notification` | `scripts/maintenance/weekly_model_discovery_cron.py:312-345` |
 | Invitaciones a proyectos | invitar viewer a un proyecto | `services/project_access_service.py:408-453` |
 
@@ -72,7 +72,7 @@
 | `sync_users_to_brevo.py` | Script CLI para volcar `users` BD → lista de Brevo. |
 | `cron_routes.py` | Endpoints `/api/cron/quota-reset`, `/api/cron/quota-health-check` + `_send_stuck_quota_alert`. |
 | `stripe_webhooks.py` | `_alert_unmatched_customer` (l. 209) + email trial-started (l. 567). |
-| `llm_monitoring_routes.py` / `llm_monitoring_rutas_modelos.py` | `/cron/alert` en el primero; `/models/approve`, `/models/reject` y `/cron/model-discovery` en el segundo (desde sep-2026). |
+| `llm_monitoring_rutas_cron.py` / `llm_monitoring_rutas_modelos.py` | `/cron/alert` en el primero; `/models/approve`, `/models/reject` y `/cron/model-discovery` en el segundo (desde sep-2026). |
 | `scripts/maintenance/weekly_model_discovery_cron.py` | Clase legacy `LLMModelDiscovery.send_notification` (l. 312). |
 | `llm_monitoring_cron_function.js` | Bun cron — al fallar `fetch`, postea a `/cron/alert`. |
 | `ai_mode_cron_function.js` | Idem para AI Mode. |
@@ -438,7 +438,7 @@ Tras crear usuario en BD (signup local o Google OAuth):
 | `BREVO_TARGET_LIST_NAME` | `Usuarios Registrados` | `sync_users_to_brevo.py` |
 | `CRON_ALERTS_ENABLED` | `true` | `cron_alerts.py`, `cron_routes.py`, `stripe_webhooks.py` |
 | `CRON_ALERTS_EMAIL` | `info@soycarlosgonzalez.com` | `cron_alerts.py`, `cron_routes.py`, `stripe_webhooks.py` |
-| `CRON_ALERT_EMAIL` | — | `llm_monitoring_routes._cron_alert` (**singular**, distinto de `CRON_ALERTS_EMAIL`) y Bun functions |
+| `CRON_ALERT_EMAIL` | — | `llm_monitoring_rutas_cron.cron_alert` (**singular**, distinto de `CRON_ALERTS_EMAIL`) y Bun functions |
 | `CRON_ALERT_DURATION_MIN` | `90` | `cron_alerts.py` |
 | `CRON_ALERT_ERROR_RATE` | `0.20` | `cron_alerts.py` |
 | `CRON_ALERT_COST_MULTIPLIER` | `2.0` | `cron_alerts.py` |
