@@ -625,7 +625,7 @@ vs **media móvil 7d** (excluyendo hoy). Si hoy > `multiplier × media` (default
 
 Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@validate_project_ownership`, `@cron_or_auth_required`, y middleware `enforce_llm_access` (excepto `/cron/*` y `/health`).
 
-> ⚠️ `llm_monitoring_routes.py` es un monolito de **~9039 líneas**. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
+> ⚠️ `llm_monitoring_routes.py` es un monolito (~8.100 líneas desde sep-2026). **Las exportaciones Excel y PDF viven en `llm_monitoring_export_excel.py` (`exportar_excel`) y `llm_monitoring_export_pdf.py` (`exportar_pdf`)**: en el fichero de rutas solo quedan la ruta y sus decoradores. Cualquier cambio de las exportaciones se hace allí. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
 
 > **Query fan-out (P7, 2026-09-14)**: `GET /projects/<id>/fanout?days=&filtros` → `{enabled:false}` si el proyecto está en
 > `off` (sin más consultas); si está en `auto`, `by_llm`, `top_queries`, `brand_pages`, `competitor_pages`. `GET /projects/<id>`
@@ -658,8 +658,8 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 | `/projects/<id>/urls-ranking` | GET | 3529 |
 | `/projects/<id>/responses` | GET (inspección manual) | 5272 |
 | `/projects/<id>/queries/<qid>/history` | GET | 2655 |
-| `/projects/<id>/export/excel` | GET | 5627 |
-| `/projects/<id>/export/pdf` | GET | 6772 |
+| `/projects/<id>/export/excel` | GET | ruta en `llm_monitoring_routes.py`; código en `llm_monitoring_export_excel.py` |
+| `/projects/<id>/export/pdf` | GET | ruta en `llm_monitoring_routes.py`; código en `llm_monitoring_export_pdf.py` |
 
 ### Clusters
 
