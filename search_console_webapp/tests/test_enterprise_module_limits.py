@@ -163,8 +163,22 @@ def test_keywords_route_uses_effective_limit(rel, module_const):
 
 
 def test_llm_limits_honor_custom_max_projects():
-    for rel in ("llm_monitoring_limits.py", "llm_monitoring_routes.py"):
-        assert "custom_llm_max_projects" in _read(rel), rel
+    # _get_effective_plan_limits vive en llm_monitoring_limits desde sep-2026 (antes en las
+    # rutas): el resumen de límites y los límites efectivos leen custom_llm_max_projects.
+    src = _read("llm_monitoring_limits.py")
+    # Los dos lectores del tope propio: el resumen de límites y los límites efectivos
+    assert src.count("user.get('custom_llm_max_projects')") == 2
+
+    def cuerpo(nombre):
+        trozo = src[src.index(f"def {nombre}"):]
+        fin = trozo.find("\ndef ", 1)
+        return trozo if fin < 0 else trozo[:fin]
+    assert "user.get('custom_llm_max_projects')" in cuerpo("get_llm_limits_summary")
+    assert "user.get('custom_llm_max_projects')" in cuerpo("_get_effective_plan_limits")
+    # y nadie vuelve a definir la función en las rutas
+    assert "def _get_effective_plan_limits" not in _read("llm_monitoring_routes.py")
+    # y las rutas de proyectos siguen aplicándolos
+    assert "plan_limits = _get_effective_plan_limits(user)" in _read("llm_monitoring_routes.py")
 
 
 def test_llm_cron_reads_custom_max_projects():
