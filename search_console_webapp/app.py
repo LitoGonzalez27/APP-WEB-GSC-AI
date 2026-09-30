@@ -77,6 +77,10 @@ logger = logging.getLogger(__name__)
 from services.log_seguro import instalar_filtro_secretos
 instalar_filtro_secretos()
 
+# Avisos por email de los errores de la aplicación (solo en Railway)
+from services.alertas_errores import instalar_avisos_de_errores
+instalar_avisos_de_errores()
+
 # Carga variables de entorno
 if config.entorno_railway():
     logger.info("Entorno Railway detectado, no se carga .env local")

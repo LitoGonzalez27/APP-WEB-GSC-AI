@@ -16,9 +16,11 @@ trigger it on a `30 1 * * *` schedule.
 """
 
 import os
+import time
 import config
 import logging
 import threading
+from html import escape
 
 from flask import Blueprint, request, jsonify
 
@@ -69,6 +71,7 @@ def trigger_quota_reset():
                 run_reset()
                 _run_health_check_and_alert()
                 _run_module_staleness_check()
+                _run_serpapi_balance_check()
                 logger.info("✅ quota-reset cron finished (async)")
             except Exception as e:
                 logger.error(f"💥 quota-reset bg error: {e}", exc_info=True)
@@ -89,16 +92,97 @@ def trigger_quota_reset():
         run_reset()
         health = _run_health_check_and_alert()
         staleness = _run_module_staleness_check()
+        serpapi = _run_serpapi_balance_check()
         return jsonify({
             'success': True,
             'message': 'Quota reset completed',
             'triggered_by': triggered_by,
             'health_check': health,
             'cron_staleness': staleness,
+            'serpapi_balance': serpapi,
         }), 200
     except Exception as e:
         logger.error(f"❌ quota-reset sync error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'internal_error'}), 500
+
+
+# ---------------------------------------------------------------------------
+# Saldo de SerpAPI (sep-2026)
+# ---------------------------------------------------------------------------
+
+# Si el cron se lanza dos veces el mismo día, un solo email.
+AVISO_SALDO_MIN_SEGUNDOS = 20 * 3600
+_ultimo_aviso_saldo = {'cuando': None}
+
+
+def _run_serpapi_balance_check(get_account=None, enviar=None, reloj=time.time):
+    """Aviso si quedan pocas búsquedas en la cuenta de SerpAPI o si no se puede consultar.
+
+    La misma clave la usan Clicandseo (staging y producción) y otros servicios
+    (n8n, vigía de competidores...). En sep-2026 se agotaron las 15.000 del plan;
+    si se acaba también el saldo extra, o la clave deja de valer, los análisis de
+    Manual AI y AI Mode de los clientes fallan. Solo se comprueba desde producción
+    (staging comparte clave y duplicaría el aviso). Umbral:
+    SERPAPI_ALERT_MIN_SEARCHES (por defecto 3000). Nunca lanza: el reset de
+    cuotas ya está hecho cuando se llama.
+    """
+    if not config.es_produccion():
+        return {'checked': False, 'reason': 'solo en producción'}
+    try:
+        minimo = int(os.getenv('SERPAPI_ALERT_MIN_SEARCHES', '3000'))
+    except ValueError:
+        logger.error("SERPAPI_ALERT_MIN_SEARCHES no es un número: se usa 3000")
+        minimo = 3000
+    quedan = None
+    try:
+        if get_account is None:
+            from admin_cost_panel import get_serpapi_account as get_account
+        # Sin dato viejo: si la consulta falla (clave revocada, cuenta suspendida)
+        # hay que avisar, no enseñar el saldo de ayer.
+        cuenta = get_account(force_refresh=True, dato_viejo_si_falla=False)
+        if cuenta and cuenta.get('total_searches_left') is not None:
+            quedan = int(cuenta['total_searches_left'])
+    except Exception as e:
+        # Cualquier fallo aquí cuenta como "no se pudo consultar" y avisa: callarse
+        # es justo lo que no puede pasar.
+        logger.warning(f"No se pudo comprobar el saldo de SerpAPI: {type(e).__name__}")
+    if quedan is None:
+        resultado = {'checked': False, 'reason': 'no se pudo consultar la cuenta', 'alert': True}
+        asunto = f"[{config.etiqueta_entorno().upper()}] SerpAPI: no se pudo consultar el saldo"
+        cuerpo = ("<p>La consulta a la cuenta de SerpAPI ha fallado. Si la clave está revocada o la cuenta "
+                  "suspendida, fallan los análisis de Manual AI y AI Mode de los clientes. Compruébalo en "
+                  "serpapi.com/manage-api-key.</p>")
+    else:
+        resultado = {'checked': True, 'left': quedan, 'threshold': minimo, 'alert': quedan < minimo}
+        asunto = f"[{config.etiqueta_entorno().upper()}] SerpAPI: quedan {quedan} búsquedas"
+        cuerpo = (f"<p>Quedan <b>{quedan}</b> búsquedas en la cuenta de SerpAPI (umbral: {minimo}).</p>"
+                  f"<ul><li>Plan: {escape(str(cuenta.get('plan_name')))} · {cuenta.get('searches_per_month')} búsquedas/mes</li>"
+                  f"<li>Restantes del plan: {cuenta.get('plan_searches_left')} · créditos extra: {cuenta.get('extra_credits')}</li>"
+                  f"<li>Renovación: {escape(str(cuenta.get('plan_renewal_date') or '—'))}</li></ul>"
+                  f"<p>Si se acaban, fallan los análisis de Manual AI y AI Mode de los clientes. La misma clave la usan "
+                  f"otros servicios (n8n, vigía de competidores...): el panel de costes del admin muestra el reparto.</p>")
+    if not resultado['alert'] or not config.alertas_cron_activas():
+        return resultado
+    anterior = _ultimo_aviso_saldo['cuando']
+    if anterior is not None and reloj() - anterior < AVISO_SALDO_MIN_SEGUNDOS:
+        resultado['email_sent'] = False
+        resultado['reason_email'] = 'ya avisado en las últimas 20 h'
+        return resultado
+    try:
+        if enviar is None:
+            from email_service import send_email as enviar
+        html = (f"<html lang='es'><head><meta charset='utf-8'><meta http-equiv='Content-Language' content='es'></head>"
+                f"<body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif'>"
+                f"<h2 style='margin-top:0'>{escape(asunto)}</h2>{cuerpo}"
+                f"<p style='color:#888;font-size:12px'>Umbral: SERPAPI_ALERT_MIN_SEARCHES. Para silenciar: CRON_ALERTS_ENABLED=false.</p>"
+                f"</body></html>")
+        resultado['email_sent'] = bool(enviar(config.email_alertas(), asunto, html))
+        if resultado['email_sent']:
+            _ultimo_aviso_saldo['cuando'] = reloj()
+    except Exception as e:
+        logger.error(f"No se pudo enviar el aviso de saldo de SerpAPI: {e}")
+        resultado['email_sent'] = False
+    return resultado
 
 
 # ---------------------------------------------------------------------------

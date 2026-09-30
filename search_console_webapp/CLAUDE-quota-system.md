@@ -213,11 +213,9 @@ CREATE TABLE IF NOT EXISTS quota_usage_events (
 
 Índices: por `(user_id, timestamp)`, `(source)`, `(timestamp)`, `(user_id, DATE_TRUNC('month', timestamp))`.
 
-> 🚨 **Deuda crítica**: `chk_source` solo permite **3 valores** (`ai_overview`, `manual_ai`, `serp_api`). **No permite `ai_mode`, `quota_reset`, `admin_quota_reset`**. El código lo gestiona con SAVEPOINT/try-except, pero significa que **faltan eventos en la auditoría**:
-> - AI Mode: `users.quota_used` se actualiza correctamente, pero el INSERT al log falla silenciosamente.
-> - Resets admin: idem.
+> **Comprobado el 30-sep-2026 en staging y producción:** ninguna de las dos bases tiene `chk_source` ni `chk_ru_consumed` (solo la clave primaria y la foránea a `users`). La definición de arriba es la del código de creación, que no se aplicó. Los eventos `ai_mode` se guardan en las dos bases. Si algún día se crea la restricción, hay que incluir `ai_mode`.
 
-> 🚨 **`chk_ru_consumed > 0`** impide registrar resets como `ru_consumed=0`. Workaround con SAVEPOINT.
+> **Coste real de SerpAPI** (panel de costes, `admin_cost_panel.py`): cuentan `manual_ai`, `ai_overview`, `ai_mode`, `serp_api` y las expansiones de AIO de Manual AI (`manual_ai_results.ai_analysis_data->'aio_expansion'`: intentos + refetches). Hasta el 30-sep-2026 el panel solo contaba `serp_api` y `ai_mode` y mostraba una fracción del gasto. La cuenta de SerpAPI la comparten staging y otros servicios (misma clave). El dato oficial (`this_month_usage`) cuenta desde la última renovación del plan (el 30 de cada mes en sep-2026), no desde el día 1: el panel cuenta lo de Clicandseo en ese mismo ciclo y muestra la diferencia, en negativo si lo atribuido supera al oficial. Límites: las expansiones de AI Overview no se guardan (caen en «otros») y reanalizar una keyword el mismo día sobrescribe la fila y pierde las expansiones del primer análisis. Las expansiones se leen solo de los dos últimos meses (`manual_ai_results` pesa 1,7 GB).
 
 ### Campos `is_paused_by_quota` en proyectos
 
