@@ -29,7 +29,6 @@ Endpoints:
 """
 
 import logging
-import os
 import json
 from datetime import datetime, timedelta
 
@@ -39,10 +38,8 @@ from flask import request, jsonify
 # Importar sistema de autenticación
 from auth import login_required, get_current_user
 from llm_monitoring_limits import (
-    _get_effective_plan_limits,  # vive en llm_monitoring_limits desde sep-2026
-    get_llm_plan_limits,
+    _get_effective_plan_limits,
     count_user_active_projects,
-    count_project_active_queries,
     get_llm_limits_summary,
     get_upgrade_options,
     SEARCH_UNIT_WEIGHTS,
@@ -54,7 +51,6 @@ from services.project_access_service import (
 # Importar servicios
 from database import get_db_connection
 from services.llm_providers.web_search import is_search_enabled, normalize_search_mode
-from services.llm_monitoring import prompt_sets as prompt_sets_lib
 from services.llm_monitoring import pseudo_snapshots as pseudo_snapshots_lib
 from services.country_config import get_default_language_for_country
 
