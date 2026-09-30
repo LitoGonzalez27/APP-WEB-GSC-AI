@@ -6,6 +6,14 @@ Sacado tal cual de llm_monitoring_routes.py (sep-2026, limpieza de ficheros giga
 para que las rutas puedan repartirse en varios módulos sin importarse entre sí: cada
 módulo de rutas importa de aquí el blueprint y los decoradores. llm_monitoring_routes
 vuelve a exponer estos nombres. Este módulo no importa ningún módulo de rutas.
+
+Para parchear en un test lo que usan el control de acceso o los decoradores
+(get_current_user, get_db_connection, user_can_view_project...) hay que hacerlo aquí:
+un monkeypatch sobre llm_monitoring_routes.X no les llega.
+
+El blueprint se registra en app.py importándolo de llm_monitoring_routes, después de
+que se hayan cargado todas sus rutas: importarlo solo de aquí y registrarlo antes haría
+fallar los @route posteriores (Flask 3), y app.py se lo tragaría con un aviso.
 """
 
 import logging

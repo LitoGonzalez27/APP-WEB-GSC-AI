@@ -43,14 +43,10 @@ from decimal import Decimal, ROUND_HALF_UP
 import brand_palette
 
 from flask import Blueprint, request, jsonify
-from functools import wraps
 
 # Importar sistema de autenticación
-from auth import (login_required, admin_required, get_current_user, cron_or_auth_required,
-                  get_current_user_strict, respuesta_fallo_tecnico)
-from database import DatabaseUnavailableError
+from auth import login_required, admin_required, get_current_user, cron_or_auth_required
 from llm_monitoring_limits import (
-    can_access_llm_monitoring,
     get_llm_plan_limits,
     count_user_active_projects,
     count_project_active_queries,
@@ -60,8 +56,6 @@ from llm_monitoring_limits import (
 )
 from services.project_access_service import (
     get_project_permissions,
-    user_can_view_project,
-    user_has_any_module_access,
 )
 
 # Importar servicios
