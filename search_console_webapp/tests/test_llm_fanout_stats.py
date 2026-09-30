@@ -211,7 +211,9 @@ class TestOffProjectsStayUnchanged:
         helper = self.routes[self.routes.index('def _safe_fanout_metrics'):]
         helper = helper[:helper.index('\ndef ')]
         assert "if not is_search_enabled(project.get('search_mode')):\n        return None" in helper
-        assert 'if excel_fanout:' in self.routes and 'if pdf_fanout:' in self.routes
+        # Las exportaciones viven en su propio módulo desde sep-2026
+        assert 'if excel_fanout:' in (ROOT / 'llm_monitoring_export_excel.py').read_text()
+        assert 'if pdf_fanout:' in (ROOT / 'llm_monitoring_export_pdf.py').read_text()
 
     def test_panel_mixin_exits_before_fetching_when_off(self):
         js = (ROOT / 'static/js/llm_monitoring/llm-monitoring-fanout.js').read_text()
