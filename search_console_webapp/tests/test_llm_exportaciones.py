@@ -3,7 +3,8 @@ Exportaciones de LLM Monitoring (Excel y PDF) fuera de llm_monitoring_routes.py.
 
 En sep-2026 los cuerpos de export_project_excel y export_project_pdf (unas 2.900
 líneas) pasaron tal cual a llm_monitoring_export_excel.py y llm_monitoring_export_pdf.py.
-La ruta, sus decoradores y la URL siguen en llm_monitoring_routes.py.
+La ruta y la URL siguen en llm_monitoring_routes.py; el blueprint y los decoradores viven
+en llm_monitoring_base.py y los helpers de informes en llm_monitoring_informes.py.
 
 La equivalencia exacta con el código anterior se comprobó contra los proyectos 11 y 12
 de staging, en solo lectura: 22 combinaciones de filtros, todas las celdas de todas las
