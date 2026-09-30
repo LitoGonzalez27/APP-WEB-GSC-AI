@@ -192,6 +192,27 @@ def test_la_traza_se_limpia_antes_de_recortarla(aviso):
     assert "S" * 40 not in enviados[0][1]
 
 
+@pytest.mark.parametrize("resultado, texto", [(True, "Aviso de errores enviado"),
+                                               (None, "Aviso de errores enviado"),
+                                               (False, "No se pudo enviar el aviso"),
+                                               (RuntimeError("smtp caído"), "Fallo al preparar o enviar")])
+def test_el_resultado_del_envio_queda_en_el_log_como_warning(aviso, caplog, resultado, texto):
+    """En Railway el logger raíz está en WARNING: el INFO de send_email no se ve."""
+    h, registro, enviados, reloj = aviso
+
+    def enviar(asunto, html):
+        if isinstance(resultado, Exception):
+            raise resultado
+        return resultado
+    h._enviar = enviar
+    registro.error("uno")
+    reloj.t += 61
+    with caplog.at_level(logging.WARNING, logger="services.alertas_errores"):
+        h.enviar_si_toca()
+    avisos = [r for r in caplog.records if r.name == "services.alertas_errores"]
+    assert len(avisos) == 1 and avisos[0].levelname == "WARNING" and texto in avisos[0].getMessage()
+
+
 def test_un_envio_que_falla_no_rompe_nada(aviso):
     h, registro, enviados, reloj = aviso
     h._enviar = lambda *a: (_ for _ in ()).throw(RuntimeError("smtp caído"))
