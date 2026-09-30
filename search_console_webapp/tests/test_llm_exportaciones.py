@@ -126,6 +126,7 @@ def test_el_gratuito_se_queda_en_el_filtro_de_plan(ent):
 
 
 @pytest.mark.parametrize("modulo", ["llm_monitoring_routes", "llm_monitoring_informes", "llm_monitoring_base",
+                                    "llm_monitoring_rutas_modelos",
                                     "llm_monitoring_export_excel", "llm_monitoring_export_pdf"])
 def test_ningun_nombre_global_falta_en_los_modulos_de_llm(flask_app, modulo):
     """Tras partir llm_monitoring_routes.py (sep-2026): todo nombre global que usa cualquier
