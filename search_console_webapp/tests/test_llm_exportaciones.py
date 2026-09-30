@@ -127,7 +127,7 @@ def test_el_gratuito_se_queda_en_el_filtro_de_plan(ent):
 
 @pytest.mark.parametrize("modulo", ["llm_monitoring_routes", "llm_monitoring_informes", "llm_monitoring_base",
                                     "llm_monitoring_rutas_modelos", "llm_monitoring_rutas_cron",
-                                    "llm_monitoring_rutas_analisis",
+                                    "llm_monitoring_rutas_analisis", "llm_monitoring_rutas_prompts",
                                     "llm_monitoring_export_excel", "llm_monitoring_export_pdf"])
 def test_ningun_nombre_global_falta_en_los_modulos_de_llm(flask_app, modulo):
     """Tras partir llm_monitoring_routes.py (sep-2026): todo nombre global que usa cualquier
@@ -195,7 +195,8 @@ def test_las_rutas_exponen_el_blueprint_y_los_decoradores_de_la_base(flask_app):
 
 # Módulos de área de rutas sacados de llm_monitoring_routes.py (sep-2026). Al mover una
 # área nueva, añadirla aquí.
-AREAS_DE_RUTAS = ["llm_monitoring_rutas_modelos", "llm_monitoring_rutas_cron", "llm_monitoring_rutas_analisis"]
+AREAS_DE_RUTAS = ["llm_monitoring_rutas_modelos", "llm_monitoring_rutas_cron", "llm_monitoring_rutas_analisis",
+                  "llm_monitoring_rutas_prompts"]
 
 
 @pytest.mark.parametrize("modulo", AREAS_DE_RUTAS)

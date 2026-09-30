@@ -489,7 +489,7 @@ Cinco columnas más en `users`, todas `INTEGER NULL` (NULL = sin tope). Resoluci
 | `custom_manual_ai_keywords_limit` | `manual_ai/routes/keywords.py` → `min(custom, 200)`. |
 | `custom_ai_mode_max_projects` | `ai_mode_projects/routes/projects.py` create + resume → 402. |
 | `custom_ai_mode_keywords_limit` | `ai_mode_projects/routes/keywords.py` → `min(custom, 300)`. |
-| `custom_llm_max_projects` | `llm_monitoring_routes._get_effective_plan_limits`, `llm_monitoring_limits.get_llm_limits_summary` y el filtro de elegibilidad del cron (`services/llm_monitoring_service.py`). Sustituye al `None` (ilimitado) de `LLM_PLAN_LIMITS['enterprise']`. |
+| `custom_llm_max_projects` | `llm_monitoring_limits._get_effective_plan_limits`, `llm_monitoring_limits.get_llm_limits_summary` y el filtro de elegibilidad del cron (`services/llm_monitoring_service.py`). Sustituye al `None` (ilimitado) de `LLM_PLAN_LIMITS['enterprise']`. |
 
 `GET /manual-ai/api/projects` y `GET /ai-mode-projects/api/projects` devuelven ahora `limits: {max_projects, active_projects, max_keywords_per_project, is_enterprise}` (mismo espíritu que `limits` en LLM). Las columnas se crean también en `init_database()` (ADD COLUMN IF NOT EXISTS), así que el deploy no depende del orden migración/código. Tests: `tests/test_enterprise_module_limits.py`.
 
