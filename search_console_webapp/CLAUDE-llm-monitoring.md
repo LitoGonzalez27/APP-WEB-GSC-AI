@@ -107,7 +107,7 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 | `services/llm_monitoring/snapshot.py` | — | `_SnapshotMixin`: `_create_snapshot`, `_calculate_weighted_mentions`. |
 | `services/llm_monitoring/helpers.py` | — | `_HelpersMixin`: utilidades compartidas. |
 | `services/llm_monitoring_stats.py` | — | `LLMMonitoringStatsService.get_project_urls_ranking`. |
-| `llm_monitoring_routes.py` | ~9039 | Blueprint `llm_monitoring_bp` con prefijo `/api/llm-monitoring`. **Todos los endpoints viven aquí** (sigue siendo monolito). |
+| `llm_monitoring_routes.py` | ~3.400 | Agrega el blueprint `llm_monitoring_bp` (prefijo `/api/llm-monitoring`, definido en `llm_monitoring_base.py`). Desde sep-2026 se parte por áreas: aquí quedan proyectos, prompts, clusters y sets, y las rutas de exportación. El resto está en `llm_monitoring_rutas_*.py`; ver la tabla de endpoints. |
 | `llm_monitoring_limits.py` | — | `LLM_PLAN_LIMITS`, `can_access_llm_monitoring`, `get_user_monthly_llm_usage`, `get_upgrade_options`. |
 
 ### Providers
@@ -636,28 +636,28 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 
 ### UI / proyectos
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/projects` | GET (lista) | 393 |
-| `/projects` | POST (crear) | 595 |
-| `/usage` | GET | 581 |
-| `/projects/<id>` | GET | 789 |
-| `/projects/<id>` | PUT | 1416 |
-| `/projects/<id>` | DELETE (soft) | 1715 |
-| `/projects/<id>/activate` | PUT | 1652 |
-| `/projects/<id>/deactivate` | PUT | 1604 |
-| `/projects/<id>/queries` | POST (bulk add) | 1805 |
-| `/projects/<id>/queries/<query_id>` | DELETE | 1958 |
-| `/projects/<id>/queries` | GET | 3941 |
-| `/projects/<id>/queries/suggest` | POST (Gemini IA) | 2801 |
-| `/projects/<id>/queries/suggest-variations` | POST | 2907 |
-| `/projects/<id>/run-initial-analysis` | POST | 3132 |
-| `/projects/<id>/metrics` | GET | 3259 |
-| `/projects/<id>/comparison` | GET | 3603 |
-| `/projects/<id>/share-of-voice-history` | GET (`?metric=weighted\|normal`) | 4185 |
-| `/projects/<id>/urls-ranking` | GET | 3529 |
-| `/projects/<id>/responses` | GET (inspección manual) | 5272 |
-| `/projects/<id>/queries/<qid>/history` | GET | 2655 |
+| URL | Método | Módulo |
+|---|---|---|
+| `/projects` | GET (lista) | `llm_monitoring_routes.py` |
+| `/projects` | POST (crear) | `llm_monitoring_routes.py` |
+| `/usage` | GET | `llm_monitoring_routes.py` |
+| `/projects/<id>` | GET | `llm_monitoring_routes.py` |
+| `/projects/<id>` | PUT | `llm_monitoring_routes.py` |
+| `/projects/<id>` | DELETE (soft) | `llm_monitoring_routes.py` |
+| `/projects/<id>/activate` | PUT | `llm_monitoring_routes.py` |
+| `/projects/<id>/deactivate` | PUT | `llm_monitoring_routes.py` |
+| `/projects/<id>/queries` | POST (bulk add) | `llm_monitoring_routes.py` |
+| `/projects/<id>/queries/<query_id>` | DELETE | `llm_monitoring_routes.py` |
+| `/projects/<id>/queries` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/queries/suggest` | POST (Gemini IA) | `llm_monitoring_routes.py` |
+| `/projects/<id>/queries/suggest-variations` | POST | `llm_monitoring_routes.py` |
+| `/projects/<id>/run-initial-analysis` | POST | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/metrics` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/comparison` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/share-of-voice-history` | GET (`?metric=weighted\|normal`) | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/urls-ranking` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/responses` | GET (inspección manual) | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/queries/<qid>/history` | GET | `llm_monitoring_routes.py` |
 | `/projects/<id>/export/excel` | GET | ruta en `llm_monitoring_routes.py`; código en `llm_monitoring_export_excel.py` |
 | `/projects/<id>/export/pdf` | GET | ruta en `llm_monitoring_routes.py`; código en `llm_monitoring_export_pdf.py` |
 
