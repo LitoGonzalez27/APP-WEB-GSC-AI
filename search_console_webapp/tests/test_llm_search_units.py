@@ -225,7 +225,7 @@ def test_user_project_update_route_cannot_change_search_mode():
     assert not re.search(r"UPDATE llm_monitoring_projects[^;]*search_mode", src)
     # Las exportaciones salieron del fichero de rutas en sep-2026: la guarda las cubre igual
     for modulo in ('llm_monitoring_export_excel.py', 'llm_monitoring_export_pdf.py', 'llm_monitoring_informes.py',
-                   'llm_monitoring_rutas_modelos.py'):
+                   'llm_monitoring_rutas_modelos.py', 'llm_monitoring_rutas_analisis.py'):
         otro = open(os.path.join(os.path.dirname(__file__), '..', modulo)).read()
         assert not re.search(r"UPDATE llm_monitoring_projects[^;]*search_mode", otro), modulo
 
