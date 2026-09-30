@@ -69,6 +69,7 @@ def trigger_quota_reset():
                 run_reset()
                 _run_health_check_and_alert()
                 _run_module_staleness_check()
+                _run_serpapi_balance_check()
                 logger.info("✅ quota-reset cron finished (async)")
             except Exception as e:
                 logger.error(f"💥 quota-reset bg error: {e}", exc_info=True)
@@ -89,16 +90,69 @@ def trigger_quota_reset():
         run_reset()
         health = _run_health_check_and_alert()
         staleness = _run_module_staleness_check()
+        serpapi = _run_serpapi_balance_check()
         return jsonify({
             'success': True,
             'message': 'Quota reset completed',
             'triggered_by': triggered_by,
             'health_check': health,
             'cron_staleness': staleness,
+            'serpapi_balance': serpapi,
         }), 200
     except Exception as e:
         logger.error(f"❌ quota-reset sync error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'internal_error'}), 500
+
+
+# ---------------------------------------------------------------------------
+# Saldo de SerpAPI (oct-2026)
+# ---------------------------------------------------------------------------
+
+def _run_serpapi_balance_check(get_account=None, enviar=None):
+    """Aviso si quedan pocas búsquedas en la cuenta de SerpAPI.
+
+    La misma clave la usan Clicandseo (staging y producción) y otros servicios
+    (n8n, vigía de competidores...). En sep-2026 se agotaron las 15.000 del plan;
+    si se acaba también el saldo extra, los análisis de Manual AI y AI Mode de los
+    clientes fallan. Solo se comprueba desde producción (staging comparte clave y
+    duplicaría el aviso). Umbral: SERPAPI_ALERT_MIN_SEARCHES (por defecto 3000).
+    """
+    import config
+    if not config.es_produccion():
+        return {'checked': False, 'reason': 'solo en producción'}
+    try:
+        if get_account is None:
+            from admin_cost_panel import get_serpapi_account as get_account
+        cuenta = get_account(force_refresh=True)
+    except Exception as e:
+        logger.error(f"No se pudo consultar el saldo de SerpAPI: {e}")
+        return {'checked': False, 'reason': 'error'}
+    if not cuenta or cuenta.get('total_searches_left') is None:
+        return {'checked': False, 'reason': 'sin datos de la cuenta'}
+    quedan = int(cuenta['total_searches_left'])
+    minimo = int(os.getenv('SERPAPI_ALERT_MIN_SEARCHES', '3000'))
+    resultado = {'checked': True, 'left': quedan, 'threshold': minimo, 'alert': quedan < minimo}
+    if not resultado['alert'] or not config.alertas_cron_activas():
+        return resultado
+    try:
+        if enviar is None:
+            from email_service import send_email as enviar
+        asunto = f"[{config.etiqueta_entorno().upper()}] SerpAPI: quedan {quedan} búsquedas"
+        html = (f"<html><body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif'>"
+                f"<h2 style='margin-top:0'>{asunto}</h2>"
+                f"<p>Quedan <b>{quedan}</b> búsquedas en la cuenta de SerpAPI (umbral: {minimo}).</p>"
+                f"<ul><li>Plan: {cuenta.get('plan_name')} · {cuenta.get('searches_per_month')} búsquedas/mes</li>"
+                f"<li>Restantes del plan: {cuenta.get('plan_searches_left')} · créditos extra: {cuenta.get('extra_credits')}</li>"
+                f"<li>Renovación: {cuenta.get('plan_renewal_date') or '—'}</li></ul>"
+                f"<p>Si se acaban, fallan los análisis de Manual AI y AI Mode de los clientes. La misma clave la usan "
+                f"otros servicios (n8n, vigía de competidores...): el panel de costes del admin muestra el reparto.</p>"
+                f"<p style='color:#888;font-size:12px'>Umbral: SERPAPI_ALERT_MIN_SEARCHES. Para silenciar: CRON_ALERTS_ENABLED=false.</p>"
+                f"</body></html>")
+        resultado['email_sent'] = bool(enviar(config.email_alertas(), asunto, html))
+    except Exception as e:
+        logger.error(f"No se pudo enviar el aviso de saldo de SerpAPI: {e}")
+        resultado['email_sent'] = False
+    return resultado
 
 
 # ---------------------------------------------------------------------------
