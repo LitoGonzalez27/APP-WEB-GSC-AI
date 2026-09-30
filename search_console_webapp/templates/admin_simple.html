@@ -2792,9 +2792,11 @@
                         ['Plan', esc(a.plan_name || '—')],
                         ['Precio del plan', fmtUsd(a.plan_monthly_price) + ' / mes'],
                         ['Búsquedas incluidas', fmtInt(a.searches_per_month)],
-                        ['Usadas este mes (oficial)', fmtInt(a.this_month_usage) + (overage ? ' — plan agotado' : ''), true],
-                        ['De Clicandseo', fmtInt(d.serp.totals.searches_month)],
-                        ['De otros servicios con la misma clave', d.serp.other_consumers_month != null ? fmtInt(d.serp.other_consumers_month) : '—'],
+                        ['Usadas desde la renovación (oficial)', fmtInt(a.this_month_usage) + (overage ? ' — plan agotado' : ''), true],
+                        ['De Clicandseo en el mismo ciclo', d.serp.clicandseo_cycle != null ? fmtInt(d.serp.clicandseo_cycle) + ' (desde ' + esc(d.serp.cycle_start) + ')' : '—'],
+                        ['De staging y otros servicios con la misma clave', d.serp.other_consumers_cycle == null ? '—'
+                            : d.serp.other_consumers_cycle >= 0 ? fmtInt(d.serp.other_consumers_cycle)
+                            : '— (lo atribuido supera al dato oficial en ' + fmtInt(-d.serp.other_consumers_cycle) + ': revisar)'],
                         ['Restantes del plan', fmtInt(a.plan_searches_left)],
                         ['Créditos extra', fmtInt(a.extra_credits)],
                         ['Renovación', esc(a.plan_renewal_date || '—')],
