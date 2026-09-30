@@ -269,6 +269,7 @@ def entorno(flask_app, clean_db, monkeypatch):
     import cron_routes
     import email_service
     import llm_monitoring_routes
+    import llm_monitoring_rutas_cron  # crons de LLM Monitoring desde sep-2026
 
     manual_ai_routes = importlib.import_module("manual_ai.routes.analysis")
     ai_mode_routes = importlib.import_module("ai_mode_projects.routes.analysis")
@@ -284,7 +285,7 @@ def entorno(flask_app, clean_db, monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
     hilos = _RegistroHilos()
-    for modulo in (cron_routes, llm_monitoring_routes, manual_ai_routes, ai_mode_routes):
+    for modulo in (cron_routes, llm_monitoring_routes, llm_monitoring_rutas_cron, manual_ai_routes, ai_mode_routes):
         monkeypatch.setattr(modulo, "threading", hilos.modulo_falso())
 
     correos = []
@@ -318,7 +319,7 @@ def entorno(flask_app, clean_db, monkeypatch):
             raise valor
         return valor
 
-    monkeypatch.setattr(llm_monitoring_routes, "analyze_all_active_projects", analizar_todo)
+    monkeypatch.setattr(llm_monitoring_rutas_cron, "analyze_all_active_projects", analizar_todo)
 
     gratuito, admin, pago = seed_users()
     hilos_previos = set(threading.enumerate())
