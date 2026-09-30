@@ -60,6 +60,31 @@ def test_agrupa_por_tipo_y_espera_para_juntar_rafagas(aviso):
     assert "ValueError" in html  # la traza va en el email
 
 
+def test_el_email_va_en_espanol_y_con_la_hora_de_espana(aviso):
+    from datetime import datetime, timezone
+    h, _registro, _enviados, _reloj = aviso
+    en_verano = datetime(2026, 9, 30, 14, 38, tzinfo=timezone.utc)      # CEST, UTC+2
+    en_invierno = datetime(2026, 12, 1, 9, 5, tzinfo=timezone.utc)      # CET, UTC+1
+    pendientes = {("app", "app.py", 1, ""): {"veces": 1, "primera": en_verano, "ultima": en_verano,
+                                             "nivel": "ERROR", "mensaje": "uno", "traza": ""},
+                  ("app", "app.py", 2, ""): {"veces": 1, "primera": en_invierno, "ultima": en_invierno,
+                                             "nivel": "ERROR", "mensaje": "dos", "traza": ""}}
+    _asunto, html = h._componer(pendientes)
+    assert "lang='es'" in html
+    assert "16:38–16:38 (hora de España)" in html and "10:05–10:05 (hora de España)" in html
+    assert " UTC" not in html
+
+
+def test_si_el_aviso_abarca_dos_dias_lleva_la_fecha(aviso):
+    from datetime import datetime, timezone
+    h, _registro, _enviados, _reloj = aviso
+    pendientes = {("app", "app.py", 1, ""): {
+        "veces": 2, "primera": datetime(2026, 9, 30, 21, 50, tzinfo=timezone.utc),
+        "ultima": datetime(2026, 9, 30, 22, 10, tzinfo=timezone.utc),   # 23:50 y 00:10 en España
+        "nivel": "ERROR", "mensaje": "x", "traza": ""}}
+    assert "30/09 23:50–01/10 00:10 (hora de España)" in h._componer(pendientes)[1]
+
+
 def test_intervalo_minimo_entre_emails(aviso):
     h, registro, enviados, reloj = aviso
     registro.error("uno")

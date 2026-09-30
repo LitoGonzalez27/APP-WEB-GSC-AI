@@ -247,7 +247,8 @@ check_and_send_cron_alerts(run_id, get_db_connection_fn=None) -> Dict
 - Oculta secretos (parámetros de URL, `Bearer`/`Basic …`, claves `sk_…`/`whsec_…`/`sk-…`/`xkeysib-…`/`pplx-…`/`AIza…`, JWT, `usuario:clave@` en URLs, `'api_key': …` en diccionarios y JSON, `password=…`) y enmascara emails (`a***@dominio`). No toca `None`/`null` ni líneas de código de la traza. Limpia antes de recortar. Las líneas `LINE 1:` de psycopg2 pueden llevar keywords o dominios de clientes: el destinatario es el propio admin.
 - `emit()` solo apunta en memoria. El envío va en un hilo propio y nunca bloquea una petición. Si el envío falla no hay reintento: el detalle sigue en los logs de Railway.
 - Cada envío deja una línea WARNING en el log: «✉️ Aviso de errores enviado: «asunto»» o «No se pudo enviar…». En Railway el logger raíz está en WARNING (`app.py`) y el «Email enviado exitosamente» de `send_email` es INFO, así que no se ve: sin esta línea un envío correcto no dejaba rastro (comprobado en staging el 30-sep-2026).
-- Destinatario: `config.email_alertas()` (`CRON_ALERTS_EMAIL`). Asunto: `[PRODUCTION] Clicandseo: N error(es) de M tipo(s)`. Para silenciar: `ERROR_ALERTS_ENABLED=false`.
+- Destinatario: `config.email_alertas()` (`CRON_ALERTS_EMAIL`, `info@soycarlosgonzalez.com` en producción y en staging desde el 30-sep-2026). Asunto: `[PRODUCTION] Clicandseo: N error(es) de M tipo(s)`. Para silenciar: `ERROR_ALERTS_ENABLED=false`.
+- El email va marcado como español (`lang='es'`) y con las horas en hora de España (`Europe/Madrid`; con fecha si el aviso abarca dos días; en UTC solo si faltara la base de zonas horarias).
 - Medido antes de activarlo (29 y 30-sep-2026): los logs de producción casi no tienen errores, así que cada aviso debería significar algo.
 
 ## 5c. Aviso de saldo de SerpAPI (`cron_routes._run_serpapi_balance_check`, sep-2026)
