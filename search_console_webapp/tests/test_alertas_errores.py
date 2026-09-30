@@ -153,6 +153,10 @@ def test_oculta_secretos_y_emails(aviso):
     ("perplexity pplx-abcdef1234567890abcd", "pplx-abcdef1234567890abcd"),
     ("jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijk", "eyJzdWIiOiIxMjM0NTY3ODkwIn0"),
     ("postgresql://postgres:p@ss!w0rd@db.railway.internal:5432/x", "ss!w0rd"),
+    ("creds {'token': 'ya29.a0AfH6SMBabcdef', 'x': 1}", "ya29.a0AfH6SMBabcdef"),   # token de Google
+    ('{"access_token": "ya29.a0AfH6SMBabcdef"}', "ya29.a0AfH6SMBabcdef"),
+    ("access_token=ya29.a0AfH6SMBabcdef", "ya29.a0AfH6SMBabcdef"),
+    ("password=Verano2024.segura", "Verano2024.segura"),
 ])
 def test_oculta_otros_secretos(texto, secreto):
     assert secreto not in alertas_errores._limpiar(texto)
@@ -163,6 +167,8 @@ def test_oculta_otros_secretos(texto, secreto):
     "refresh_token=None",
     "password = request.form['password']",       # línea de código de una traza
     'File "/app/auth.py", line 1720, in auth_callback',
+    "key = os.getenv('SERPAPI_KEY')",
+    "https://example.com:8080/path?next=a***@x.com",   # host:puerto no es usuario:clave
 ])
 def test_no_destroza_texto_util(texto):
     assert alertas_errores._limpiar(texto) == texto
@@ -242,11 +248,39 @@ def test_al_salir_espera_al_envio_que_ya_estaba_en_marcha():
     try:
         registro.error("uno")                       # el hilo de envío lo coge ya
         for _ in range(50):
-            if not h._sin_envio_en_curso.is_set() or terminado.is_set():
+            if h._envios_en_curso or terminado.is_set():
                 break
             time.sleep(0.01)
         assert h.vaciar(espera=5) is False          # nada pendiente, pero espera
         assert terminado.is_set()
+    finally:
+        registro.removeHandler(h)
+        registro.propagate = True
+
+
+def test_al_salir_espera_a_todos_los_envios_en_curso():
+    """Con un envío del hilo en marcha y otro de vaciar() que acaba antes, espera a los dos."""
+    lento_hecho, rapido_hecho = threading.Event(), threading.Event()
+    primero = threading.Event()
+
+    def enviar(asunto, html):
+        if not primero.is_set():
+            primero.set()
+            time.sleep(0.6)
+            lento_hecho.set()
+        else:
+            rapido_hecho.set()
+
+    h = AvisoErrores(enviar, "production", agrupar=0, intervalo=0)
+    registro = logging.getLogger("prueba.dos_envios")
+    registro.addHandler(h)
+    registro.propagate = False
+    try:
+        registro.error("uno")
+        assert primero.wait(5)
+        registro.error("otro distinto")            # pendiente: lo manda vaciar()
+        h.vaciar(espera=5)
+        assert rapido_hecho.is_set() and lento_hecho.is_set()
     finally:
         registro.removeHandler(h)
         registro.propagate = True

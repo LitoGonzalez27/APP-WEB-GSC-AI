@@ -62,7 +62,9 @@ def _ocultar_valor(m):
     # No se toca lo que no es un secreto: None/null, o código de una línea de la traza
     # (password = request.form['password']).
     valor = m.group(2)
-    if valor.lower() in ('none', 'null', 'true', 'false') or re.match(r'\w+[.(\[]', valor):
+    # Solo es código si termina en llamada o índice (request.form[, os.getenv():
+    # "ya29.a0..." (token de Google) o "Verano2024.segura" sí se ocultan.
+    if valor.lower() in ('none', 'null', 'true', 'false') or re.fullmatch(r'[A-Za-z_][\w.]*[(\[]', valor):
         return m.group(0)
     return m.group(1) + _MARCA
 
@@ -73,7 +75,8 @@ _SECRETOS = (
     (re.compile(r'\b(?:sk|xkeysib|pplx)-[\w-]{16,}'), _MARCA),
     (re.compile(r'\bAIza[\w-]{30,}'), _MARCA),
     (re.compile(r'\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}'), _MARCA),          # JWT
-    (re.compile(r'(\b[a-z][a-z0-9+.-]{1,20}://[^:/\s@]{1,64}:)\S{1,256}@'), r'\1' + _MARCA + '@'),  # usuario:clave@ (hasta la última @)
+    # usuario:clave@ hasta la última @ antes de la primera / (host:puerto/…?a=b@c no es una clave)
+    (re.compile(r'(\b[a-z][a-z0-9+.-]{1,20}://[^:/\s@]{1,64}:)[^/\s]{1,256}@'), r'\1' + _MARCA + '@'),
     # Diccionarios y JSON: la clave va entre comillas ('api_key': '...', "password": ...).
     (re.compile(r'''(?i)(['"](?:%s)['"]\s*:\s*['"]?)([^'"\s,}&]{4,})''' % _CLAVES), _ocultar_valor),
     # clave=valor fuera de una URL. "token: invalid_grant" (prosa) no se toca.
@@ -128,8 +131,10 @@ class AvisoErrores(logging.Handler):
         self._dia = None
         self._enviados_dia = 0
         self._avisadas_dia = set()     # firmas ya incluidas en un email hoy
-        self._sin_envio_en_curso = threading.Event()
-        self._sin_envio_en_curso.set()
+        # Envíos tomados y aún sin terminar (se cuenta al tomar el lote, bajo el cerrojo,
+        # para que vaciar() no vea un hueco entre _tomar y el envío).
+        self._envios_en_curso = 0
+        self._fin_de_envio = threading.Condition(self._cerrojo)
 
     # --- recogida (en el hilo que registra: rápido y sin excepciones) ---------------
     def emit(self, record):
@@ -209,17 +214,20 @@ class AvisoErrores(logging.Handler):
             self._ultimo_envio = ahora
             self._enviados_dia += 1
             self._avisadas_dia.update(pendientes)
+            self._envios_en_curso += 1
             return pendientes
 
     def _enviar_seguro(self, pendientes):
-        self._sin_envio_en_curso.clear()
+        """Envía un lote sacado con _tomar() (que ya lo contó como en curso)."""
         try:
             asunto, html = self._componer(pendientes)
             self._enviar(asunto, html)
         except Exception:
             pass  # sin reintento: el detalle sigue en los logs de Railway
         finally:
-            self._sin_envio_en_curso.set()
+            with self._fin_de_envio:
+                self._envios_en_curso -= 1
+                self._fin_de_envio.notify_all()
 
     def enviar_si_toca(self):
         """Envía el resumen si ya pasó el tiempo de agrupar y el intervalo mínimo.
@@ -247,12 +255,12 @@ class AvisoErrores(logging.Handler):
                 hilo.start()
             except RuntimeError:
                 # Desde Python 3.12 no se pueden crear hilos mientras el intérprete
-                # se cierra (y atexit ya es el cierre): se envía aquí mismo.
-                hilo = None
+                # se cierra (y atexit ya es el cierre): se envía aquí mismo. Puede
+                # pasar de `espera` (timeout de SMTP de 30 s): solo retrasa el cierre.
                 self._enviar_seguro(pendientes)
-            if hilo is not None:
-                hilo.join(max(0.0, limite - time.monotonic()))
-        self._sin_envio_en_curso.wait(max(0.0, limite - time.monotonic()))
+        with self._fin_de_envio:
+            self._fin_de_envio.wait_for(lambda: self._envios_en_curso == 0,
+                                        timeout=max(0.0, limite - time.monotonic()))
         return pendientes is not None
 
     def _componer(self, pendientes):
