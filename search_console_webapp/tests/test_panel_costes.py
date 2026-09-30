@@ -137,13 +137,54 @@ def test_sin_dato_oficial_no_calcula_otros_consumidores(db, monkeypatch):
     ("2026-10-30", date(2026, 9, 30)),
     ("2026-03-31", date(2026, 2, 28)),
     ("2028-03-31", date(2028, 2, 29)),
+    ("2026-05-31", date(2026, 4, 30)),
     ("2026-01-15", date(2025, 12, 15)),
-    (None, None),
-    ("basura", None),
+    ("2026-12-15", date(2026, 11, 15)),
 ])
 def test_inicio_del_ciclo_de_serpapi(renovacion, inicio):
     import admin_cost_panel
-    assert admin_cost_panel.inicio_ciclo_serpapi({"plan_renewal_date": renovacion}) == inicio
+    assert admin_cost_panel.inicio_ciclo_serpapi({"plan_renewal_date": renovacion}, hoy=inicio) == inicio
+
+
+@pytest.mark.parametrize("renovacion", [None, "", "basura", "2026-02-30",
+                                        "2026-09-01",    # renovación ya pasada: dato de cuenta viejo
+                                        "2026-12-30"])   # a más de un mes: el ciclo aún no ha empezado
+def test_ciclo_de_serpapi_sin_sentido_no_se_usa(renovacion):
+    import admin_cost_panel
+    assert admin_cost_panel.inicio_ciclo_serpapi({"plan_renewal_date": renovacion}, hoy=date(2026, 9, 30)) is None
+
+
+def test_el_dia_de_la_renovacion_no_da_cifra_de_otros(db):
+    """Contamos desde las 00:00 y SerpAPI desde la hora de renovar: saldría negativo sin serlo."""
+    import admin_cost_panel
+    sql, paid, _ = db
+    hoy = date.today()
+    renovacion = next((hoy + timedelta(days=d) for d in range(26, 33)
+                       if admin_cost_panel.inicio_ciclo_serpapi({"plan_renewal_date": (hoy + timedelta(days=d)).isoformat()}) == hoy),
+                      None)
+    if renovacion is None:
+        pytest.skip("hoy no hay fecha de renovación cuyo ciclo empiece hoy (fin de mes corto)")
+    sql.cuenta["plan_renewal_date"] = renovacion.isoformat()
+    sql.cuenta["this_month_usage"] = 1
+    _evento(sql, paid["id"], "manual_ai", 300)   # cron de esta mañana, antes de renovar
+    serp = admin_cost_panel.get_costs_dashboard()["serp"]
+    assert serp["cycle_renewal_day"] is True and serp["other_consumers_cycle"] is None
+    assert serp["clicandseo_cycle"] == 300
+
+
+def test_toda_consulta_sobre_manual_ai_results_filtra_por_fecha():
+    """1,7 GB en producción: sin filtro por analysis_date (con índice) el panel recorre todo el histórico."""
+    import ast
+    import pathlib
+    import re
+    fuente = pathlib.Path(__file__).resolve().parent.parent.joinpath("admin_cost_panel.py").read_text()
+    literales = [ast.get_source_segment(fuente, n) or "" for n in ast.walk(ast.parse(fuente))
+                 if isinstance(n, (ast.JoinedStr, ast.Constant))]
+    # solo literales completos (no los trozos de dentro de un f-string)
+    consultas = [t for t in literales if "FROM manual_ai_results" in t and (t[:1] in "\"'" or t[:2] in ('f"', "f'"))]
+    assert len(consultas) == 3
+    for consulta in consultas:
+        assert re.search(r"analysis_date\s*>=", consulta), consulta
 
 
 def test_si_falla_la_cuenta_no_escribe_la_clave_en_el_log(monkeypatch, caplog):
