@@ -463,6 +463,13 @@ def test_aviso_de_saldo_de_serpapi(cron, monkeypatch, quedan, avisa):
     assert pedido == {"force_refresh": True, "dato_viejo_si_falla": False}
 
 
+def test_la_consulta_real_de_la_cuenta_acepta_los_argumentos_del_aviso(cron):
+    """Los demás tests inyectan get_account: este comprueba la firma de la función real."""
+    import inspect
+    import admin_cost_panel
+    inspect.signature(admin_cost_panel.get_serpapi_account).bind(force_refresh=True, dato_viejo_si_falla=False)
+
+
 def test_saldo_de_serpapi_avisa_si_no_se_puede_consultar(cron, monkeypatch):
     """Clave revocada o cuenta suspendida: es el peor caso y antes no avisaba."""
     monkeypatch.setenv("APP_ENV", "production")
