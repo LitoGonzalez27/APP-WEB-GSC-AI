@@ -394,7 +394,11 @@ SERPAPI_TIMEOUT_SECONDS = float(os.getenv('SERPAPI_TIMEOUT_SECONDS', '120'))
 
 
 def _google_search(params: dict) -> GoogleSearch:
-    search = GoogleSearch(params)
+    # Copia: la librería de SerpAPI no copia el dict y le añade 'source' y
+    # 'output'. Sin copia, la búsqueda quedaba en CALL_CACHE con esos parámetros
+    # y la siguiente petición igual nunca coincidía: cada una se cobraba otra vez
+    # (en staging, 3 RU por abrir la SERP y la captura cuando SerpAPI cobró 1).
+    search = GoogleSearch(dict(params))
     search.timeout = SERPAPI_TIMEOUT_SECONDS
     return search
 
