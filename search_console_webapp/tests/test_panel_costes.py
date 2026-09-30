@@ -6,13 +6,15 @@ registraba como 'serp_api' las búsquedas de Manual AI y AI Overview. En
 producción nunca lo hizo, y el panel mostraba una fracción del gasto real.
 Ahora cuentan Manual AI y AI Overview (1 RU = 1 búsqueda), AI Mode, la vista de
 SERP y las expansiones de AIO de Manual AI, y la diferencia con el dato oficial
-de SerpAPI se muestra como consumo de otros servicios de la misma clave.
+de SerpAPI se muestra como consumo de staging y otros servicios de la misma clave.
+El dato oficial cuenta desde la renovación del plan (no desde el día 1), así que
+lo nuestro se cuenta en ese mismo ciclo.
 
 Ejecutar:  scripts/run_tests_docker.sh -q tests/test_panel_costes.py
 """
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import psycopg2
 import pytest
@@ -34,25 +36,28 @@ def db(flask_app, clean_db, monkeypatch):
 
     cuenta = {"plan_name": "Production Plan", "plan_monthly_price": 150.0, "searches_per_month": 15000,
               "this_month_usage": 100, "plan_searches_left": 14900, "extra_credits": 0,
-              "total_searches_left": 14900, "plan_renewal_date": None, "account_status": "Active"}
+              "total_searches_left": 14900, "account_status": "Active",
+              # ciclo que empieza como muy tarde hoy: los eventos de hoy caen dentro
+              "plan_renewal_date": (date.today() + timedelta(days=1)).isoformat()}
     monkeypatch.setattr(admin_cost_panel, "get_serpapi_account", lambda force_refresh=False: dict(cuenta))
     monkeypatch.delenv("SERPAPI_COST_PER_SEARCH_USD", raising=False)
+    sql.cuenta = cuenta
     yield sql, paid, admin
     conn.close()
 
 
-def _evento(sql, user_id, source, ru):
-    sql("INSERT INTO quota_usage_events (user_id, ru_consumed, source, timestamp) VALUES (%s, %s, %s, now())",
-        (user_id, ru, source))
+def _evento(sql, user_id, source, ru, cuando=None):
+    sql("INSERT INTO quota_usage_events (user_id, ru_consumed, source, timestamp) "
+        "VALUES (%s, %s, %s, COALESCE(%s, now()))", (user_id, ru, source, cuando))
 
 
-def _resultado_manual_ai(sql, user_id, intentos, refetches):
-    proyecto = sql("INSERT INTO manual_ai_projects (user_id, name, domain) VALUES (%s, 'P', 'example.com') RETURNING id",
-                   (user_id,))[0][0]
+def _resultado_manual_ai(sql, user_id, intentos, refetches, dia=None):
+    proyecto = sql("INSERT INTO manual_ai_projects (user_id, name, domain) "
+                   "VALUES (%s, 'P' || gen_random_uuid(), 'example.com') RETURNING id", (user_id,))[0][0]
     keyword = sql("INSERT INTO manual_ai_keywords (project_id, keyword) VALUES (%s, 'kw') RETURNING id", (proyecto,))[0][0]
     datos = {"aio_expansion": {"status": "expanded", "attempts": intentos, "refetches": refetches}}
     sql("""INSERT INTO manual_ai_results (project_id, keyword_id, analysis_date, keyword, domain, ai_analysis_data)
-           VALUES (%s, %s, %s, 'kw', 'example.com', %s)""", (proyecto, keyword, date.today(), json.dumps(datos)))
+           VALUES (%s, %s, %s, 'kw', 'example.com', %s)""", (proyecto, keyword, dia or date.today(), json.dumps(datos)))
 
 
 def test_cuenta_todas_las_busquedas_de_clicandseo(db):
@@ -74,11 +79,90 @@ def test_cuenta_todas_las_busquedas_de_clicandseo(db):
     # 150 $ / 15.000 búsquedas = 0,01 $ por búsqueda
     assert serp["cost_per_search"] == pytest.approx(0.01)
     assert datos["summary"]["serp_cost_month_usd"] == pytest.approx(0.60)
-    # Oficial 100 - atribuido 60 = 40 de otros servicios que usan la misma clave
-    assert serp["other_consumers_month"] == 40
+    # Oficial 100 - atribuido 60 = 40 de staging y otros servicios que usan la misma clave
+    assert serp["clicandseo_cycle"] == 60
+    assert serp["other_consumers_cycle"] == 40
+    # Las expansiones salen como fila propia en la atribución y cuentan como facturables
+    filas = {f["source"]: f for f in serp["by_source_month"]}
+    assert filas[admin_cost_panel.FUENTE_EXPANSIONES] == {
+        "source": admin_cost_panel.FUENTE_EXPANSIONES, "events": 1, "ru": 3}
+    assert admin_cost_panel.FUENTE_EXPANSIONES in serp["billable_sources"]
+
+
+def test_otros_servicios_se_cuentan_en_el_ciclo_de_serpapi(db):
+    """El dato oficial empieza en la renovación: lo de antes del ciclo no se resta."""
+    import admin_cost_panel
+    sql, paid, admin = db
+    sql.cuenta["plan_renewal_date"] = (date.today() + timedelta(days=20)).isoformat()
+    ciclo = admin_cost_panel.inicio_ciclo_serpapi(sql.cuenta)
+    assert ciclo < date.today()
+    antes = datetime.combine(ciclo - timedelta(days=1), datetime.min.time()).replace(hour=12)
+    _evento(sql, paid["id"], "manual_ai", 500, cuando=antes)                      # ciclo anterior
+    _evento(sql, paid["id"], "manual_ai", 30)                                     # este ciclo
+    _resultado_manual_ai(sql, admin["id"], 4, 0, dia=ciclo - timedelta(days=1))  # ciclo anterior
+    _resultado_manual_ai(sql, admin["id"], 2, 0, dia=ciclo)                       # este ciclo
+
+    serp = admin_cost_panel.get_costs_dashboard()["serp"]
+
+    assert serp["cycle_start"] == ciclo.isoformat()
+    assert serp["clicandseo_cycle"] == 32
+    assert serp["other_consumers_cycle"] == 100 - 32
+
+
+def test_si_lo_atribuido_supera_al_oficial_se_ve_en_negativo(db):
+    """Antes se recortaba a 0 y escondía un doble conteo."""
+    import admin_cost_panel
+    sql, paid, _ = db
+    _evento(sql, paid["id"], "manual_ai", 130)
+    assert admin_cost_panel.get_costs_dashboard()["serp"]["other_consumers_cycle"] == -30
+
+
+def test_las_expansiones_antiguas_no_se_leen(db):
+    """manual_ai_results pesa 1,7 GB en producción: solo se leen los dos últimos meses."""
+    import admin_cost_panel
+    sql, _, admin = db
+    _resultado_manual_ai(sql, admin["id"], 7, 0, dia=date.today() - timedelta(days=75))
+    totales = admin_cost_panel.get_costs_dashboard()["serp"]["totals"]
+    assert totales["searches_prev_month"] == 0 and totales["searches_month"] == 0
 
 
 def test_sin_dato_oficial_no_calcula_otros_consumidores(db, monkeypatch):
     import admin_cost_panel
     monkeypatch.setattr(admin_cost_panel, "get_serpapi_account", lambda force_refresh=False: None)
-    assert admin_cost_panel.get_costs_dashboard()["serp"]["other_consumers_month"] is None
+    serp = admin_cost_panel.get_costs_dashboard()["serp"]
+    assert serp["other_consumers_cycle"] is None and serp["clicandseo_cycle"] is None
+
+
+@pytest.mark.parametrize("renovacion, inicio", [
+    ("2026-10-30", date(2026, 9, 30)),
+    ("2026-03-31", date(2026, 2, 28)),
+    ("2028-03-31", date(2028, 2, 29)),
+    ("2026-01-15", date(2025, 12, 15)),
+    (None, None),
+    ("basura", None),
+])
+def test_inicio_del_ciclo_de_serpapi(renovacion, inicio):
+    import admin_cost_panel
+    assert admin_cost_panel.inicio_ciclo_serpapi({"plan_renewal_date": renovacion}) == inicio
+
+
+def test_si_falla_la_cuenta_no_escribe_la_clave_en_el_log(monkeypatch, caplog):
+    """El mensaje de requests lleva la URL con ?api_key=: antes acababa en los logs."""
+    import requests
+    import admin_cost_panel
+    monkeypatch.setenv("SERPAPI_KEY", "clave-secreta-de-prueba")
+    respuesta = requests.Response()
+    respuesta.status_code = 401
+
+    def falla(*a, **k):
+        raise requests.HTTPError("401 Client Error: Unauthorized for url: "
+                                 "https://serpapi.com/account?api_key=clave-secreta-de-prueba", response=respuesta)
+    monkeypatch.setattr(admin_cost_panel.requests, "get", falla)
+    monkeypatch.setitem(admin_cost_panel._serpapi_account_cache, "data", {"total_searches_left": 5})
+
+    with caplog.at_level("WARNING"):
+        viejo = admin_cost_panel.get_serpapi_account(force_refresh=True)
+        estricto = admin_cost_panel.get_serpapi_account(force_refresh=True, dato_viejo_si_falla=False)
+
+    assert viejo == {"total_searches_left": 5} and estricto is None
+    assert "clave-secreta-de-prueba" not in caplog.text and "HTTP 401" in caplog.text
