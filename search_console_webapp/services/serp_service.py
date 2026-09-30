@@ -42,7 +42,7 @@ def _set_cached_screenshot(cache_key: str, response: Response, now: float):
     while SCREENSHOT_CACHE_MAX > 0 and len(SCREENSHOT_CACHE) > SCREENSHOT_CACHE_MAX:
         SCREENSHOT_CACHE.popitem(last=False)
 
-def get_serp_json(params: dict, cobrar: bool = False) -> dict:
+def get_serp_json(params: dict, cobrar: bool = False, usuario: dict = None) -> dict:
     """
     Devuelve el JSON crudo de la búsqueda SERP.
     cobrar=True solo para las búsquedas que pide el usuario (botones de SERP):
@@ -51,7 +51,7 @@ def get_serp_json(params: dict, cobrar: bool = False) -> dict:
     logger.info(f"🔍 SERP JSON request para keyword: {params.get('q')}")
     
     # ✅ NUEVO: Usar middleware de quotas
-    success, result = quota_protected_serp_call(params, "json", cobrar=cobrar)
+    success, result = quota_protected_serp_call(params, "json", cobrar=cobrar, usuario=usuario)
     
     if not success:
         # Si hay error de quota, devolver estructura esperada con info de error
@@ -90,13 +90,13 @@ def get_serp_json(params: dict, cobrar: bool = False) -> dict:
     return result
 
 
-def _serp_html(params: dict, cobrar: bool = False):
+def _serp_html(params: dict, cobrar: bool = False, usuario: dict = None):
     """(html, bloqueo, error). bloqueo es la respuesta del portero si la búsqueda
     se bloqueó por plan o por cuota; error, el motivo si SerpAPI falló o no
     devolvió nada. Señal estructurada: antes la captura buscaba textos como
     "Quota Limit Reached" dentro del HTML, y una keyword con ese texto se cobraba
     y además mostraba el aviso de pago."""
-    success, result = quota_protected_serp_call(params, "html", cobrar=cobrar)
+    success, result = quota_protected_serp_call(params, "html", cobrar=cobrar, usuario=usuario)
     if not success:
         if isinstance(result, dict) and result.get('blocked'):
             logger.warning(f"🚫 Llamada HTML bloqueada: {result.get('message')}")
@@ -112,13 +112,13 @@ def _serp_html(params: dict, cobrar: bool = False):
     return html_content, None, None
 
 
-def get_serp_html(params: dict, cobrar: bool = False) -> str:
+def get_serp_html(params: dict, cobrar: bool = False, usuario: dict = None) -> str:
     """
     Devuelve el HTML crudo de la búsqueda SERP (cobrar: ver get_serp_json), o
     una página de error en HTML si se bloqueó o falló.
     """
     logger.info(f"🔍 SERP HTML request para keyword: {params.get('q')}")
-    html_content, bloqueo, error = _serp_html(params, cobrar)
+    html_content, bloqueo, error = _serp_html(params, cobrar, usuario)
     if bloqueo:
         return f"""
             <html>
@@ -134,7 +134,7 @@ def get_serp_html(params: dict, cobrar: bool = False) -> str:
     return html_content
 
 def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, country: str = None, site_url: str = None,
-                        cobrar: bool = False) -> Response:
+                        cobrar: bool = False, usuario: dict = None) -> Response:
     """
     Obtiene el HTML de SERP, lo mejora para resaltar el dominio,
     captura la pantalla con Playwright, cachea el PNG y devuelve un Response de Flask.
@@ -197,7 +197,7 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
     
     # ✅ FASE 4: Verificar quotas antes de generar screenshot
     # Nota: get_serp_html() ya incluye validación de quotas internamente
-    html_content, bloqueo, error = _serp_html(params, cobrar=cobrar)
+    html_content, bloqueo, error = _serp_html(params, cobrar=cobrar, usuario=usuario)
 
     if bloqueo:
         # 402 si es el plan (paywall), 429 si es la cuota; en JSON, como /api/serp.

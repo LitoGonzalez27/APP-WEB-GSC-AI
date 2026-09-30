@@ -241,13 +241,16 @@ def _usuario(user_id: int) -> Optional[Dict[str, Any]]:
         return None
 
 
-def bloqueo_serp_por_plan(user_id: int, usuario: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+_SIN_USUARIO = object()  # "no me lo pasan", distinto de "no se pudo leer" (None)
+
+
+def bloqueo_serp_por_plan(user_id: int, usuario: Any = _SIN_USUARIO) -> Optional[Dict[str, Any]]:
     """La vista de SERP es de pago (Carlos, 30-sep-2026): devuelve el cuerpo del
     bloqueo para un usuario del plan Free (salvo admin), o None si puede usarla.
     El plan sale del registro del usuario (el que pasa la ruta, leído al empezar
     la petición), no del estado de cuota, que ante un fallo parcial de la BD
     devuelve plan 'unknown' y dejaría pasar."""
-    if usuario is None:
+    if usuario is _SIN_USUARIO:
         usuario = _usuario(user_id)
     if usuario is not None:
         if usuario.get('role') == 'admin':
@@ -268,7 +271,8 @@ def bloqueo_serp_por_plan(user_id: int, usuario: Optional[Dict[str, Any]] = None
     }
 
 
-def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: bool = False) -> Tuple[bool, Dict[str, Any]]:
+def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: bool = False,
+                              usuario: Optional[Dict[str, Any]] = None) -> Tuple[bool, Dict[str, Any]]:
     """
     Ejecuta una llamada a SerpAPI.
 
@@ -286,6 +290,9 @@ def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: boo
     análisis cobraban dos veces (el análisis y además cada búsqueda); apagado,
     como estaba en producción, los botones de SERP no cobraban nada y los usaba
     también el plan Free.
+
+    usuario: el de la petición, que pasan las rutas (leído al empezar); si no
+    llega o es de otro usuario, se lee de la BD.
 
     Returns:
         Tuple[bool, dict]: (success, data_or_error)
@@ -321,7 +328,8 @@ def quota_protected_serp_call(params: dict, call_type: str = "json", cobrar: boo
         logger.info("Llamada SerpAPI sin usuario (contexto server-side/desarrollo) - permitiendo sin cuota")
         return _execute_serp_call(params, call_type)
 
-    usuario = _usuario(user_id)
+    if not usuario or usuario.get('id') != user_id:
+        usuario = _usuario(user_id)
     bloqueo = bloqueo_serp_por_plan(user_id, usuario)
     if bloqueo:
         logger.info(f"🚫 SERP bloqueada para user {user_id}: plan Free")
