@@ -107,8 +107,8 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 | `services/llm_monitoring/snapshot.py` | — | `_SnapshotMixin`: `_create_snapshot`, `_calculate_weighted_mentions`. |
 | `services/llm_monitoring/helpers.py` | — | `_HelpersMixin`: utilidades compartidas. |
 | `services/llm_monitoring_stats.py` | — | `LLMMonitoringStatsService.get_project_urls_ranking`. |
-| `llm_monitoring_routes.py` | ~3.400 | Agrega el blueprint `llm_monitoring_bp` (prefijo `/api/llm-monitoring`, definido en `llm_monitoring_base.py`). Desde sep-2026 se parte por áreas: aquí quedan proyectos y las rutas de exportación; prompts, clusters y sets están en `llm_monitoring_rutas_prompts.py`. El resto está en `llm_monitoring_rutas_*.py`; ver la tabla de endpoints. |
-| `llm_monitoring_limits.py` | — | `LLM_PLAN_LIMITS`, `can_access_llm_monitoring`, `get_user_monthly_llm_usage`, `get_upgrade_options`. |
+| `llm_monitoring_routes.py` | ~1.700 | Agrega el blueprint `llm_monitoring_bp` (prefijo `/api/llm-monitoring`, definido en `llm_monitoring_base.py`). Desde sep-2026 se parte por áreas: aquí quedan proyectos y las rutas de exportación; prompts, clusters y sets están en `llm_monitoring_rutas_prompts.py`. El resto está en `llm_monitoring_rutas_*.py`; ver la tabla de endpoints. |
+| `llm_monitoring_limits.py` | — | `LLM_PLAN_LIMITS`, `can_access_llm_monitoring`, `get_user_monthly_llm_usage`, `get_upgrade_options` y, desde sep-2026, `_get_effective_plan_limits` (límites efectivos por usuario, antes en las rutas). |
 
 ### Providers
 
@@ -663,25 +663,29 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 
 ### Clusters
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/projects/<id>/clusters` | GET | 2068 |
-| `/projects/<id>/clusters` | PUT | 2130 |
-| `/projects/<id>/clusters/rename` | POST | 2214 |
-| `/projects/<id>/queries/<qid>/cluster` | PUT | 2303 |
-| `/projects/<id>/queries/bulk-cluster` | POST | 2384 |
-| `/projects/<id>/clusters/metrics` | GET | 2465 |
+Todas en `llm_monitoring_rutas_prompts.py` (desde sep-2026), junto con los prompt sets (`/sets`, `/sets/rename`, `/queries/<qid>/set`, `/queries/bulk-set`).
+
+| URL | Método |
+|---|---|
+| `/projects/<id>/clusters` | GET |
+| `/projects/<id>/clusters` | PUT |
+| `/projects/<id>/clusters/rename` | POST |
+| `/projects/<id>/queries/<qid>/cluster` | PUT |
+| `/projects/<id>/queries/bulk-cluster` | POST |
+| `/projects/<id>/clusters/metrics` | GET |
 
 ### Modelos (admin)
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/models` | GET | 4807 |
-| `/models/current` | GET | 4877 |
-| `/models/<model_id>` | PUT | 4961 |
-| `/models/approve` | GET (token) | 8620 |
-| `/models/reject` | GET (token) | 8754 |
-| `/models/changelog` | GET | 8867 |
+Todas en `llm_monitoring_rutas_modelos.py` (desde sep-2026).
+
+| URL | Método |
+|---|---|
+| `/models` | GET |
+| `/models/current` | GET |
+| `/models/<model_id>` | PUT |
+| `/models/approve` | GET (token) |
+| `/models/reject` | GET (token) |
+| `/models/changelog` | GET |
 
 ### Cron
 
