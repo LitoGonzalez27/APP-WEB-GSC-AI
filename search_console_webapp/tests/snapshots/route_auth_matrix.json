@@ -554,19 +554,19 @@
   "admin": "400",
   "anon": "401",
   "paid": "400",
-  "user": "400"
+  "user": "402"
  },
  "GET /api/serp/position [get_serp_position]": {
   "admin": "400",
   "anon": "401",
   "paid": "400",
-  "user": "400"
+  "user": "402"
  },
  "GET /api/serp/screenshot [get_serp_screenshot_route]": {
   "admin": "400",
   "anon": "401",
   "paid": "400",
-  "user": "400"
+  "user": "402"
  },
  "GET /app [app_main]": {
   "admin": "200",
