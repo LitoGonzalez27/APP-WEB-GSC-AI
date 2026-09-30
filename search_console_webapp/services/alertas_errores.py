@@ -218,12 +218,23 @@ class AvisoErrores(logging.Handler):
             return pendientes
 
     def _enviar_seguro(self, pendientes):
-        """Envía un lote sacado con _tomar() (que ya lo contó como en curso)."""
+        """Envía un lote sacado con _tomar() (que ya lo contó como en curso).
+
+        Deja una línea WARNING con el resultado: en Railway el logger raíz está en
+        WARNING y el INFO de send_email no se ve, así que sin esto un envío correcto
+        no dejaba rastro. Estos registros salen del hilo de envío y el propio
+        handler los ignora (no se realimenta)."""
+        registro = logging.getLogger(__name__)
         try:
             asunto, html = self._componer(pendientes)
-            self._enviar(asunto, html)
-        except Exception:
-            pass  # sin reintento: el detalle sigue en los logs de Railway
+            resultado = self._enviar(asunto, html)
+            if resultado is False:
+                registro.warning(f"✉️ No se pudo enviar el aviso de errores «{asunto}» (ver el error de envío)")
+            else:
+                registro.warning(f"✉️ Aviso de errores enviado: «{asunto}»")
+        except Exception as e:
+            # sin reintento: el detalle sigue en los logs de Railway
+            registro.warning(f"✉️ Fallo al preparar o enviar el aviso de errores: {type(e).__name__}: {e}")
         finally:
             with self._fin_de_envio:
                 self._envios_en_curso -= 1
@@ -310,7 +321,7 @@ def instalar_avisos_de_errores():
 
     def enviar(asunto, html):
         from email_service import send_email
-        send_email(config.email_alertas(), asunto, html)
+        return send_email(config.email_alertas(), asunto, html)
 
     handler = AvisoErrores(enviar, config.etiqueta_entorno)
     raiz.addHandler(handler)
