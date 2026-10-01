@@ -251,7 +251,8 @@ class AnalysisService:
                         brand_name=project['brand_name'],
                         ai_result=ai_result,
                         serp_data=serp_data,
-                        country_code=project['country_code']
+                        country_code=project['country_code'],
+                        sobrescribir=bool(force_overwrite)
                     )
                     
                     # Almacenar dominios globales detectados para ranking/competidores
