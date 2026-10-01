@@ -345,8 +345,19 @@ class CronService:
                     if results.get('quota_exceeded') or results.get('error') in (
                             'QUOTA_EXCEEDED', 'PROJECT_QUOTA_EXCEEDED', 'project_quota_exceeded',
                             'project_paused_quota', 'Quota limit exceeded'):
+                        # Parada a mitad: las keywords ya analizadas (guardadas y cobradas)
+                        # cuentan y llevan su snapshot; en los ticks siguientes el proyecto
+                        # se salta y ese día no tendría otro.
+                        parciales = results.get('results') or []
+                        if parciales:
+                            total_keywords_processed += len(parciales)
+                            self.result_repo.create_snapshot(
+                                project_id=project_dict['id'],
+                                snapshot_date=today,
+                                metrics=self._calculate_snapshot_metrics(project_dict['id'])
+                            )
                         logger.info(f"⏭️ Project {project_dict['id']} skipped due to quota "
-                                    f"({results.get('error')})")
+                                    f"({results.get('error')}), {len(parciales)} keywords analyzed")
                         skipped_analyses += 1
                     else:
                         logger.warning(f"⚠️ Project {project_dict['id']} not analyzed: {results.get('error')}")

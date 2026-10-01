@@ -313,7 +313,7 @@ Frontend `ai-mode-analysis.js:analyzeProject` → `POST /ai-mode-projects/api/pr
 3. **Pause-by-quota check**: si proyecto pausado y `paused_until > now` → return `{success:False, error:'project_paused_quota', paused_until}`. Si `paused_until <= now`, despausa.
 4. Comprueba cuota global vía `quota_manager.get_user_quota_status`. Si `can_consume=False` → `database.pause_ai_mode_projects_for_quota(...)` y return `quota_exceeded`.
 5. Itera por keywords. **En CADA iteración** re-valida cuota — si se queda sin a mitad, pausa proyectos y devuelve resultados parciales con flag `quota_exceeded`.
-6. Si ya existe resultado de hoy y `force_overwrite=False` → skip; si `True`, `create_result` lo sustituye en una sola sentencia (`INSERT … ON CONFLICT (project_id, keyword_id, analysis_date) DO UPDATE`) y solo con un resultado nuevo válido: si SerpAPI o el guardado fallan, el anterior se conserva (desde oct-2026; antes se borraba antes de llamar a SerpAPI y un fallo dejaba la keyword sin dato del día).
+6. Si ya existe resultado de hoy y `force_overwrite=False` → skip; si `True`, `create_result(..., sobrescribir=True)` lo sustituye en una sola sentencia (`INSERT … ON CONFLICT (project_id, keyword_id, analysis_date) DO UPDATE`) y solo con un resultado nuevo válido. Sin sobrescribir (cron) es un INSERT normal: si la fila del día ya existe (análisis manual cruzado, fallo al comprobarlo), la UNIQUE lo rechaza y la keyword no se cobra dos veces: si SerpAPI o el guardado fallan, el anterior se conserva (desde oct-2026; antes se borraba antes de llamar a SerpAPI y un fallo dejaba la keyword sin dato del día).
 7. **`_analyze_keyword`**:
    - Construye params SerpAPI: `{q: keyword, engine: "google_ai_mode", location: <ciudad/país>, api_key}`.
    - La `location` se calcula vía `convert_iso_to_internal_country` + `services.country_config.get_country_config` (fallback `Madrid, Spain`).
@@ -577,7 +577,7 @@ AbortSignal.timeout(60000)
    - Verifica plan/billing del user otra vez.
    - Si ya hay resultados en `ai_mode_results` dentro de la ventana `analysis_frequency_days` del proyecto (default 1 = comportamiento histórico "hoy"; 7 = semanal; NUEVO 2026-06-10, migración `scripts/migrations/migrate_analysis_frequency_fields.py`) → skip.
    - Llama a `analysis_service.run_project_analysis(project_id, force_overwrite=False, user_id=..., resumen=...)`.
-   - Si devuelve un dict de cuota (`QUOTA_EXCEEDED`, `PROJECT_QUOTA_EXCEEDED`, `project_quota_exceeded`, `project_paused_quota`, `Quota limit exceeded`) → cuenta como skipped; cualquier otro dict (p. ej. usuario no encontrado) → fallido. Hasta oct-2026 solo se miraban los dos primeros y el resto contaba como OK, con snapshot y `len(dict)` keywords.
+   - Si devuelve un dict de cuota (`QUOTA_EXCEEDED`, `PROJECT_QUOTA_EXCEEDED`, `project_quota_exceeded`, `project_paused_quota`, `Quota limit exceeded`) → cuenta como skipped; si paró a mitad, las keywords ya analizadas (guardadas y cobradas) suman en `total_keywords` y se crea su snapshot. Cualquier otro dict (p. ej. usuario no encontrado) → fallido. Hasta oct-2026 solo se miraban los dos primeros y el resto contaba como OK, con snapshot y `len(dict)` keywords.
    - Si no se analizó ninguna keyword y alguna falló (SerpAPI sin resultado válido tras los reintentos) → cuenta como **fallido** y no se crea snapshot (sería un día sin datos). Con alguna keyword analizada cuenta como OK; las fallidas se suman en `keywords_fallidas`.
    - Crea snapshot diario + evento `daily_analysis`.
 4. Libera el advisory lock con `pg_advisory_unlock`.

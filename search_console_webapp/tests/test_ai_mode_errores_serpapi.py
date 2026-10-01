@@ -21,6 +21,7 @@ os.environ.setdefault("DATABASE_URL", "postgresql://dummy:dummy@localhost:5432/d
 
 import json  # noqa: E402
 import logging  # noqa: E402
+import re  # noqa: E402
 from datetime import date, datetime  # noqa: E402
 
 import psycopg2  # noqa: E402
@@ -266,6 +267,25 @@ def test_sin_conexion_al_guardar_no_se_cobra(db, serp, monkeypatch):
     assert db.resultados(pid) == [] and db.eventos_ai_mode() == [] and db.quota_used() == 0
 
 
+def test_sin_sobrescribir_una_fila_del_dia_ya_existente_no_se_pisa_ni_se_cobra(db, serp, monkeypatch):
+    """Cron (sin sobrescribir): si la comprobación previa no ve la fila del día (análisis
+    manual cruzado, fallo de BD), el INSERT choca con la UNIQUE y no se cobra otra vez."""
+    from ai_mode_projects.models.result_repository import ResultRepository
+    pid = db.proyecto(["kw"])
+    serp.respuestas["kw"] = [RESPUESTA_BUENA]
+    _analizar(pid)
+
+    sin_marca = {**RESPUESTA_BUENA, "references": [RESPUESTA_BUENA["references"][1]]}
+    serp.respuestas["kw"] = [sin_marca]
+    monkeypatch.setattr(ResultRepository, "result_exists_for_date", staticmethod(lambda *a: False))
+    resumen = {}
+    _analizar(pid, resumen=resumen)
+
+    assert [(f["brand_mentioned"], f["total_sources"]) for f in db.resultados(pid)] == [(True, 2)]
+    assert len(db.eventos_ai_mode()) == 1
+    assert resumen == {"keywords_fallidas": 1}
+
+
 def test_sin_resumen_el_contrato_de_retorno_no_cambia(db, serp):
     """Sin `resumen` se sigue recibiendo la lista, como antes."""
     pid = db.proyecto(["kw buena", "kw mala"])
@@ -489,6 +509,33 @@ def test_cron_proyecto_parado_por_su_tope_cuenta_como_saltado(db, serp, cron):
     assert _snapshots(db, pid) == [] and serp.llamadas == []
 
 
+def test_cron_parada_por_tope_a_mitad_guarda_snapshot_y_cuenta_las_analizadas(db, serp, cron):
+    pid = db.proyecto(["f1", "f2"])
+    db.all("UPDATE ai_mode_projects SET monthly_ru_limit = 1 WHERE id = %s RETURNING id", (pid,))
+    serp.respuestas["f1"] = [RESPUESTA_BUENA]
+    serp.respuestas["f2"] = [RESPUESTA_BUENA]
+
+    resultado = cron.run_daily_analysis_for_all_projects()
+
+    assert (resultado["successful"], resultado["failed"], resultado["skipped"]) == (0, 0, 1)
+    assert resultado["total_keywords"] == 1
+    filas = db.resultados(pid)  # una de las dos, según el orden del repositorio
+    assert len(filas) == 1 and filas[0]["keyword"] in ("f1", "f2")
+    assert [e["keyword"] for e in db.eventos_ai_mode()] == [filas[0]["keyword"]]
+    assert len(_snapshots(db, pid)) == 1
+
+
+def test_cron_usuario_sin_cuota_cuenta_como_saltado(db, serp, cron):
+    pid = db.proyecto(["g1"])
+    db.all("UPDATE users SET quota_used = quota_limit WHERE id = %s RETURNING id", (ID_PAGO,))
+
+    resultado = cron.run_daily_analysis_for_all_projects()
+
+    assert (resultado["successful"], resultado["failed"], resultado["skipped"]) == (0, 0, 1)
+    assert resultado["total_keywords"] == 0
+    assert _snapshots(db, pid) == [] and serp.llamadas == []
+
+
 def test_cron_proyecto_sin_usuario_cuenta_como_fallido(db, serp, cron, monkeypatch):
     pid = db.proyecto(["e1"])
     monkeypatch.setattr(analysis_mod, "get_user_by_id", lambda user_id: None)
@@ -536,8 +583,8 @@ def test_email_de_fin_de_cron(monkeypatch, stats, fila, severidad):
     assert r == {"email_sent": True, "severity": severidad}
     asunto, html = enviados[0]
     if fila:
-        assert fila in html
-        assert f">{stats['keywords_fallidas']}<" in html
+        valor = re.search(re.escape(fila) + r"</td><td[^>]*>(\d+)</td>", html)
+        assert valor and valor.group(1) == str(stats["keywords_fallidas"])
     else:
         assert "sin analizar" not in html
     if stats.get("keywords_fallidas"):
