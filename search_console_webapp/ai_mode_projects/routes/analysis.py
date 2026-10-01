@@ -49,7 +49,8 @@ def analyze_project(project_id):
     
     try:
         # Ejecutar análisis manual con sobreescritura forzada
-        analysis_result = analysis_service.run_project_analysis(project_id, force_overwrite=True)
+        resumen = {}
+        analysis_result = analysis_service.run_project_analysis(project_id, force_overwrite=True, resumen=resumen)
         
         # Manejar respuesta que puede incluir información de cuota o pausa
         if isinstance(analysis_result, dict) and analysis_result.get('error') == 'project_paused_quota':
@@ -99,6 +100,16 @@ def analyze_project(project_id):
         else:
             results = analysis_result.get('results', []) if isinstance(analysis_result, dict) else []
         
+        if not results and resumen.get('keywords_fallidas'):
+            # SerpAPI no dio un resultado válido para ninguna keyword: no se ha guardado ni cobrado nada
+            logger.warning(f"AI Mode analysis for project {project_id}: "
+                           f"{resumen['keywords_fallidas']} keywords without a valid SerpAPI result")
+            return jsonify({
+                'success': False,
+                'error': 'Analysis service temporarily unavailable',
+                'keywords_failed': resumen['keywords_fallidas']
+            }), 503
+
         if not results:
             logger.warning(f"No results returned for project {project_id} analysis")
             return jsonify({
