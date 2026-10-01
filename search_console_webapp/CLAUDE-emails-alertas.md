@@ -45,9 +45,9 @@
 | Alertas cron LLM (duración / error rate / cost spike) | tras `release_analysis_lock` | `cron_alerts.py` invocado desde `database.py:2710` |
 | Webhook Stripe customer no encontrado | webhook con `customer_id` no asociado | `stripe_webhooks._alert_unmatched_customer` |
 | Stuck quota (usuarios atascados >24h) | tras `daily_quota_reset_cron` | `cron_routes._send_stuck_quota_alert` |
-| Aprobación de modelos LLM nuevos | model discovery semanal | `llm_monitoring_routes.py:8225-8359` |
-| Confirmación tras aprobar modelo | endpoint `/models/approve` | `llm_monitoring_routes.py:8503-8522` |
-| Alertas genéricas Bun → Flask | falla un Bun cron service | `llm_monitoring_routes.py:8717` (`POST /cron/alert`) |
+| Aprobación de modelos LLM nuevos | model discovery semanal | `llm_monitoring_rutas_modelos.py` (`cron_model_discovery`) |
+| Confirmación tras aprobar modelo | endpoint `/models/approve` | `llm_monitoring_rutas_modelos.py` (`approve_model_by_token`) |
+| Alertas genéricas Bun → Flask | falla un Bun cron service | `llm_monitoring_rutas_cron.py` (`POST /cron/alert`) |
 | Notificación discovery (legacy) | clase `LLMModelDiscovery.send_notification` | `scripts/maintenance/weekly_model_discovery_cron.py:312-345` |
 | Invitaciones a proyectos | invitar viewer a un proyecto | `services/project_access_service.py:408-453` |
 
@@ -72,7 +72,7 @@
 | `sync_users_to_brevo.py` | Script CLI para volcar `users` BD → lista de Brevo. |
 | `cron_routes.py` | Endpoints `/api/cron/quota-reset`, `/api/cron/quota-health-check` + `_send_stuck_quota_alert`. |
 | `stripe_webhooks.py` | `_alert_unmatched_customer` (l. 209) + email trial-started (l. 567). |
-| `llm_monitoring_routes.py` | Endpoints `/cron/alert`, `/models/approve`, `/models/reject`, `/cron/model-discovery` (~l. 7983-8800). |
+| `llm_monitoring_rutas_cron.py` / `llm_monitoring_rutas_modelos.py` | `/cron/alert` en el primero; `/models/approve`, `/models/reject` y `/cron/model-discovery` en el segundo (desde sep-2026). |
 | `scripts/maintenance/weekly_model_discovery_cron.py` | Clase legacy `LLMModelDiscovery.send_notification` (l. 312). |
 | `llm_monitoring_cron_function.js` | Bun cron — al fallar `fetch`, postea a `/cron/alert`. |
 | `ai_mode_cron_function.js` | Idem para AI Mode. |
@@ -243,6 +243,7 @@ check_and_send_cron_alerts(run_id, get_db_connection_fn=None) -> Dict
 - Los contadores son de cada proceso: se reinician con cada despliegue.
 - En el arranque escribe «✉️ Avisos de errores por email activos» (WARNING) para poder comprobarlo en los logs.
 - Ignora el ruido conocido (`IGNORAR`: webhook de Stripe sin firma, que puede mandar cualquiera) y los errores de su propio envío. Una firma de Stripe inválida sí avisa: es lo que se ve si el secreto del webhook está mal configurado y los pagos no activan el plan. Un test comprueba que cada texto de `IGNORAR` sigue existiendo en el código.
+- Los errores de SerpAPI que no son un fallo de la app (búsqueda sin resultados, «try again later», «couldn't get valid results») se registran como WARNING en `services/serp_service.py` (`_nivel_error_serpapi`) y no avisan. Los demás (clave, cuenta, saldo) siguen avisando. Motivo: el 1-oct-2026 tres de esos errores generaron tres avisos en un cron de Manual AI que terminó sin fallidos.
 - El callback de Google registra un código caducado o inventado (`InvalidGrantError` con descripción `Bad Request` o `Malformed auth code.`) como WARNING y en un solo registro: no dispara avisos. Cualquier otro fallo del callback, incluido otro `invalid_grant` que rompería todos los logins (p. ej. `Missing code verifier.`), sigue siendo ERROR con traza.
 - Oculta secretos (parámetros de URL, `Bearer`/`Basic …`, claves `sk_…`/`whsec_…`/`sk-…`/`xkeysib-…`/`pplx-…`/`AIza…`, JWT, `usuario:clave@` en URLs, `'api_key': …` en diccionarios y JSON, `password=…`) y enmascara emails (`a***@dominio`). No toca `None`/`null` ni líneas de código de la traza. Limpia antes de recortar. Las líneas `LINE 1:` de psycopg2 pueden llevar keywords o dominios de clientes: el destinatario es el propio admin.
 - `emit()` solo apunta en memoria. El envío va en un hilo propio y nunca bloquea una petición. Si el envío falla no hay reintento: el detalle sigue en los logs de Railway.
@@ -322,7 +323,7 @@ Cualquier fila → "stuck". Se envía email con tabla HTML por usuario (id, emai
 
 ### Endpoint principal
 
-`POST /api/llm-monitoring/cron/model-discovery` (`llm_monitoring_routes.py:7983`, decorador `@cron_or_auth_required`). Lo dispara el Bun service `function-bun-Model-Discovery` semanalmente.
+`POST /api/llm-monitoring/cron/model-discovery` (`llm_monitoring_rutas_modelos.py`, decorador `@cron_or_auth_required`). Lo dispara el Bun service `function-bun-Model-Discovery` semanalmente.
 
 ### Flujo
 
@@ -438,11 +439,11 @@ Tras crear usuario en BD (signup local o Google OAuth):
 | `BREVO_TARGET_LIST_NAME` | `Usuarios Registrados` | `sync_users_to_brevo.py` |
 | `CRON_ALERTS_ENABLED` | `true` | `cron_alerts.py`, `cron_routes.py`, `stripe_webhooks.py` |
 | `CRON_ALERTS_EMAIL` | `info@soycarlosgonzalez.com` | `cron_alerts.py`, `cron_routes.py`, `stripe_webhooks.py` |
-| `CRON_ALERT_EMAIL` | — | `llm_monitoring_routes._cron_alert` (**singular**, distinto de `CRON_ALERTS_EMAIL`) y Bun functions |
+| `CRON_ALERT_EMAIL` | — | `llm_monitoring_rutas_cron.cron_alert` (**singular**, distinto de `CRON_ALERTS_EMAIL`) y Bun functions |
 | `CRON_ALERT_DURATION_MIN` | `90` | `cron_alerts.py` |
 | `CRON_ALERT_ERROR_RATE` | `0.20` | `cron_alerts.py` |
 | `CRON_ALERT_COST_MULTIPLIER` | `2.0` | `cron_alerts.py` |
-| `MODEL_DISCOVERY_EMAIL` | `info@soycarlosgonzalez.com` | `llm_monitoring_routes.py:8505`, Bun functions |
+| `MODEL_DISCOVERY_EMAIL` | `info@soycarlosgonzalez.com` | `llm_monitoring_rutas_modelos.py`, Bun functions |
 | `NOTIFICATION_EMAIL` | — | `scripts/maintenance/weekly_model_discovery_cron.py:314` (legacy) |
 | `APP_ENV` / `RAILWAY_ENVIRONMENT_NAME` | `unknown` | label de entorno en alertas |
 | `CRON_TOKEN` | (oblig.) | auth Bearer en `cron_routes.py`, `_ensure_cron_token_or_admin` |

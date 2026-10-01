@@ -166,7 +166,7 @@ Funciones clave:
 | `get_user_monthly_llm_usage(user_id, month_date=None)` | int. **Algoritmo importante**: usa la ventana derivada de `users.quota_reset_date - interval_days` o `current_period_start/end` o último fallback al mes calendario. Cuenta filas en `llm_monitoring_results r JOIN llm_monitoring_projects p WHERE r.analysis_date >= window_start AND < window_end`. |
 | `get_llm_limits_summary(user)` | dict completo: `monthly_units_used`, `monthly_units_remaining`, `active_projects`, `allowed_llms`. Para enterprise aplica `custom_llm_prompts_limit` / `custom_llm_monthly_units_limit`. |
 
-> El "decorador `enforce_llm_access`" **NO está aquí**. Está como `before_request` hook en `llm_monitoring_routes.py:101` y devuelve **HTTP 402 Payment Required** con `error: 'paywall'`. Excepciones: rutas `/cron/` y `/health`. Permite invitados con shared access vía `user_has_any_module_access`.
+> El "decorador `enforce_llm_access`" **NO está aquí**. Está como `before_request` hook en `llm_monitoring_base.py` y devuelve **HTTP 402 Payment Required** con `error: 'paywall'`. Excepciones: rutas `/cron/` y `/health`. Permite invitados con shared access vía `user_has_any_module_access`.
 
 ---
 
@@ -489,7 +489,7 @@ Cinco columnas más en `users`, todas `INTEGER NULL` (NULL = sin tope). Resoluci
 | `custom_manual_ai_keywords_limit` | `manual_ai/routes/keywords.py` → `min(custom, 200)`. |
 | `custom_ai_mode_max_projects` | `ai_mode_projects/routes/projects.py` create + resume → 402. |
 | `custom_ai_mode_keywords_limit` | `ai_mode_projects/routes/keywords.py` → `min(custom, 300)`. |
-| `custom_llm_max_projects` | `llm_monitoring_routes._get_effective_plan_limits`, `llm_monitoring_limits.get_llm_limits_summary` y el filtro de elegibilidad del cron (`services/llm_monitoring_service.py`). Sustituye al `None` (ilimitado) de `LLM_PLAN_LIMITS['enterprise']`. |
+| `custom_llm_max_projects` | `llm_monitoring_limits._get_effective_plan_limits`, `llm_monitoring_limits.get_llm_limits_summary` y el filtro de elegibilidad del cron (`services/llm_monitoring_service.py`). Sustituye al `None` (ilimitado) de `LLM_PLAN_LIMITS['enterprise']`. |
 
 `GET /manual-ai/api/projects` y `GET /ai-mode-projects/api/projects` devuelven ahora `limits: {max_projects, active_projects, max_keywords_per_project, is_enterprise}` (mismo espíritu que `limits` en LLM). Las columnas se crean también en `init_database()` (ADD COLUMN IF NOT EXISTS), así que el deploy no depende del orden migración/código. Tests: `tests/test_enterprise_module_limits.py`.
 

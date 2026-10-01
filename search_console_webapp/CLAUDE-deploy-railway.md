@@ -356,7 +356,7 @@ No hay scripts CI que validen el deploy. Solo scripts manuales tipo `verify_*.py
 
 | URL | Archivo |
 |---|---|
-| `GET /api/llm-monitoring/health` | `llm_monitoring_routes.py:5222` |
+| `GET /api/llm-monitoring/health` | `llm_monitoring_rutas_cron.py` (`health_check`) |
 | `GET /manual-ai/api/health` | `manual_ai/routes/health.py` |
 | `GET /api/health` (ai-mode) | `ai_mode_projects/routes/health.py:16-17` (función `manual_ai_health` — naming residual de copy/paste) |
 | `POST/GET /api/cron/quota-health-check` | `cron_routes.py:108` |

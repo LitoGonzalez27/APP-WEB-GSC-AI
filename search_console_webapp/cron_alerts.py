@@ -1120,11 +1120,12 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
     CronService de Manual AI / AI Mode:
 
         {success, successful, failed, skipped, total_keywords, elapsed_seconds,
-         error (opcional), job_id (opcional)}
+         error (opcional), job_id (opcional), keywords_fallidas (opcional, AI Mode)}
 
     Severidad del asunto:
       - 🚨 CRITICAL → success=False o error presente (el run reventó entero)
-      - ⚠️ WARNING  → algún proyecto falló, o duración > CRON_ALERT_DURATION_MIN
+      - ⚠️ WARNING  → algún proyecto falló, alguna keyword quedó sin analizar
+                     (keywords_fallidas) o duración > CRON_ALERT_DURATION_MIN
       - ✅ OK       → todo bien
 
     Respeta el kill switch CRON_ALERTS_ENABLED. Nunca lanza excepción — está
@@ -1140,6 +1141,9 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
         skipped = int(stats.get('skipped') or 0)
         total = successful + failed + skipped
         keywords = int(stats.get('total_keywords') or 0)
+        # Solo AI Mode lo manda: keywords sin resultado válido (error de SerpAPI tras los
+        # reintentos o fallo al guardar); ni se guardan ni se cobran
+        keywords_fallidas = int(stats.get('keywords_fallidas') or 0)
         elapsed_min = float(stats.get('elapsed_seconds') or 0) / 60.0
         run_ok = bool(stats.get('success', True))
         error_msg = str(stats.get('error') or '')
@@ -1147,7 +1151,7 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
 
         if not run_ok or error_msg:
             severity = 'critical'
-        elif failed > 0 or elapsed_min > cfg['duration_min_threshold']:
+        elif failed > 0 or keywords_fallidas > 0 or elapsed_min > cfg['duration_min_threshold']:
             severity = 'warning'
         else:
             severity = 'ok'
@@ -1165,6 +1169,13 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
             </p>
             """
 
+        fila_fallidas = ''
+        if 'keywords_fallidas' in stats:
+            fila_fallidas = (
+                '<tr><td style="padding:8px 12px;color:#6b7280;">Keywords sin analizar (ni guardadas ni cobradas)</td>'
+                f'<td style="padding:8px 12px;font-family:monospace;">{keywords_fallidas}</td></tr>'
+            )
+
         html = f"""
         <!DOCTYPE html>
         <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
@@ -1177,6 +1188,7 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
                 <tr><td style="padding:8px 12px;color:#6b7280;">Fallidos</td><td style="padding:8px 12px;font-family:monospace;">{failed}</td></tr>
                 <tr><td style="padding:8px 12px;color:#6b7280;">Saltados (ya analizados / sin cuota)</td><td style="padding:8px 12px;font-family:monospace;">{skipped}</td></tr>
                 <tr><td style="padding:8px 12px;color:#6b7280;">Keywords procesadas</td><td style="padding:8px 12px;font-family:monospace;">{keywords}</td></tr>
+                {fila_fallidas}
                 <tr><td style="padding:8px 12px;color:#6b7280;">Duración</td><td style="padding:8px 12px;font-family:monospace;">{elapsed_min:.1f} min</td></tr>
             </table>
             <p style="color:#6b7280;font-size:12px;margin-top:32px;">
@@ -1189,6 +1201,7 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
         subject = (
             f"{icon} [{env_name.upper()}] {module_label} Cron {severity.upper()} · "
             f"{successful}/{total} OK · {keywords} keywords"
+            + (f" · {keywords_fallidas} sin analizar" if keywords_fallidas else "")
         )
 
         from email_service import send_email

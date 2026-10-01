@@ -278,3 +278,34 @@ def get_llm_limits_summary(user: dict) -> dict:
         'active_projects': projects_count,
         'allowed_llms': LLM_PROVIDERS,
     }
+
+
+# Límites efectivos por usuario (admin sin límites; enterprise con los custom del admin).
+# Sacada tal cual de llm_monitoring_routes.py en sep-2026: la usan las rutas de proyectos y de prompts.
+def _get_effective_plan_limits(user: dict) -> dict:
+    """
+    Devuelve límites efectivos por usuario.
+    Admin opera sin límites para soporte y validación interna.
+    Enterprise: respeta custom_llm_prompts_limit, custom_llm_monthly_units_limit
+    y custom_llm_max_projects si están configurados por el admin; si no,
+    opera sin límites (None).
+    """
+    limits = get_llm_plan_limits((user or {}).get('plan', 'free'))
+    if user and user.get('role') == 'admin':
+        limits = dict(limits)
+        limits['max_projects'] = None
+        limits['max_prompts_per_project'] = None
+        limits['max_monthly_units'] = None
+    elif user and (user or {}).get('plan') == 'enterprise':
+        limits = dict(limits)
+        # Aplicar custom limits si el admin los ha configurado para este usuario
+        custom_prompts = user.get('custom_llm_prompts_limit')
+        custom_units = user.get('custom_llm_monthly_units_limit')
+        custom_projects = user.get('custom_llm_max_projects')
+        if custom_prompts is not None:
+            limits['max_prompts_per_project'] = int(custom_prompts)
+        if custom_units is not None:
+            limits['max_monthly_units'] = int(custom_units)
+        if custom_projects is not None:
+            limits['max_projects'] = int(custom_projects)
+    return limits

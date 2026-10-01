@@ -313,11 +313,12 @@ Frontend `ai-mode-analysis.js:analyzeProject` → `POST /ai-mode-projects/api/pr
 3. **Pause-by-quota check**: si proyecto pausado y `paused_until > now` → return `{success:False, error:'project_paused_quota', paused_until}`. Si `paused_until <= now`, despausa.
 4. Comprueba cuota global vía `quota_manager.get_user_quota_status`. Si `can_consume=False` → `database.pause_ai_mode_projects_for_quota(...)` y return `quota_exceeded`.
 5. Itera por keywords. **En CADA iteración** re-valida cuota — si se queda sin a mitad, pausa proyectos y devuelve resultados parciales con flag `quota_exceeded`.
-6. Si ya existe resultado de hoy y `force_overwrite=False` → skip; si `True` → `delete_result_for_date` antes.
-7. **`_analyze_keyword`** (con `@with_backoff(max_attempts=3)`):
+6. Si ya existe resultado de hoy y `force_overwrite=False` → skip; si `True`, `create_result(..., sobrescribir=True)` lo sustituye en una sola sentencia (`INSERT … ON CONFLICT (project_id, keyword_id, analysis_date) DO UPDATE`) y solo con un resultado nuevo válido. Sin sobrescribir (cron) es un INSERT normal: si la fila del día ya existe (análisis manual cruzado, fallo al comprobarlo), la UNIQUE lo rechaza y la keyword no se cobra dos veces: si SerpAPI o el guardado fallan, el anterior se conserva (desde oct-2026; antes se borraba antes de llamar a SerpAPI y un fallo dejaba la keyword sin dato del día).
+7. **`_analyze_keyword`**:
    - Construye params SerpAPI: `{q: keyword, engine: "google_ai_mode", location: <ciudad/país>, api_key}`.
    - La `location` se calcula vía `convert_iso_to_internal_country` + `services.country_config.get_country_config` (fallback `Madrid, Spain`).
-   - Llama `GoogleSearch(...).get_dict()`.
+   - Llama a SerpAPI en `_fetch_ai_mode` (`@with_backoff(max_attempts=3)`), con `timeout = SERPAPI_TIMEOUT_SECONDS` de `quota_middleware` (120 s; sin él la librería espera hasta 60.000 s). Como `fetch_serp` de Manual AI, solo se reintenta la llamada: un fallo del parser no repite la búsqueda.
+   - **Error de SerpAPI** (respuesta con `error`, vacía, timeout o red): lanza excepción, `with_backoff` reintenta (3 intentos en total, como Manual AI; también los errores permanentes como clave o saldo) y, si sigue fallando, `run_project_analysis` cuenta la keyword como fallida: **ni se guarda en `ai_mode_results` ni se cobra RU**. Lo mismo si falla el parser o el guardado (`create_result` lanza sin conexión: antes hacía `return` y la keyword se cobraba sin fila). El log final usa `services.serp_service.nivel_error_serpapi`: «sin resultados» y «couldn't get valid results» van como WARNING (sin aviso por email); el resto (clave, saldo, timeout), como ERROR. El parámetro opcional `resumen` (dict) recibe `keywords_fallidas`.
    - Pausa de 0.3s entre keywords.
 8. **`_parse_ai_mode_response`** (detallado en §6).
 9. Guarda con `ResultRepository.create_result` (incluye `raw_ai_mode_data` JSON con payload completo).
@@ -575,11 +576,12 @@ AbortSignal.timeout(60000)
 3. Itera **secuencial** (no paralelo, a diferencia de LLM Monitoring):
    - Verifica plan/billing del user otra vez.
    - Si ya hay resultados en `ai_mode_results` dentro de la ventana `analysis_frequency_days` del proyecto (default 1 = comportamiento histórico "hoy"; 7 = semanal; NUEVO 2026-06-10, migración `scripts/migrations/migrate_analysis_frequency_fields.py`) → skip.
-   - Llama a `analysis_service.run_project_analysis(project_id, force_overwrite=False, user_id=...)`.
-   - Si devuelve `error in ('QUOTA_EXCEEDED', 'project_paused_quota')` → cuenta como skipped.
+   - Llama a `analysis_service.run_project_analysis(project_id, force_overwrite=False, user_id=..., resumen=...)`.
+   - Si devuelve un dict de cuota (`QUOTA_EXCEEDED`, `PROJECT_QUOTA_EXCEEDED`, `project_quota_exceeded`, `project_paused_quota`, `Quota limit exceeded`) → cuenta como skipped; si paró a mitad, las keywords ya analizadas (guardadas y cobradas) suman en `total_keywords` y se crea su snapshot. Cualquier otro dict (p. ej. usuario no encontrado) → fallido. Hasta oct-2026 solo se miraban los dos primeros y el resto contaba como OK, con snapshot y `len(dict)` keywords.
+   - Si no se analizó ninguna keyword y alguna falló (SerpAPI sin resultado válido tras los reintentos) → cuenta como **fallido** y no se crea snapshot (sería un día sin datos). Con alguna keyword analizada cuenta como OK; las fallidas se suman en `keywords_fallidas`.
    - Crea snapshot diario + evento `daily_analysis`.
 4. Libera el advisory lock con `pg_advisory_unlock`.
-5. Devuelve `{successful, failed, skipped, total_keywords, elapsed_seconds}`.
+5. Devuelve `{successful, failed, skipped, total_keywords, keywords_fallidas, elapsed_seconds}`.
 
 ### Sin paralelismo ni timeout-por-proyecto
 
@@ -589,7 +591,7 @@ A diferencia del cron LLM Monitoring (que tiene `LLM_PROJECT_PARALLELISM` y `LLM
 
 - Logs en JSON estructurado (`event: cron_start, cron_skipped_lock, cron_projects_found, cron_end`).
 - **No usa `cron_runs` table** como LLM Monitoring; el rastro vive en `ai_mode_events` con `event_type='daily_analysis'`.
-- **Sin alertas por email integradas** para AI Mode (las alertas del Bun van a `/api/llm-monitoring/cron/alert`).
+- Email de fin de cron (`CronService._send_completion_email` → `cron_alerts.send_simple_run_completion_email`): proyectos OK / fallidos / saltados, keywords procesadas y, desde oct-2026, «Keywords sin analizar (ni guardadas ni cobradas)»; si hay alguna, el asunto es WARNING y lo dice («· N sin analizar»). Las alertas del Bun van a `/api/llm-monitoring/cron/alert`.
 
 ---
 
@@ -672,7 +674,11 @@ Son **tres sistemas paralelos** que comparten `users`, cuotas y patrón arquitec
 | **`raw_ai_mode_data` JSONB sin política de purga** | Crece sin límite. | Medio (largo plazo). |
 | **`ai_mode_cron_function.js` postea alertas a `/api/llm-monitoring/cron/alert`** | Plumbing reusado de LLM. | Bajo (funciona). |
 | **Sentimiento sólo en inglés** | Para clientes ESP siempre `neutral`. | Medio (UX). |
-| **Sin tests unitarios formales** | Cobertura 0% real. | Alto. |
+| **Pocos tests** | `tests/test_ai_mode_errores_serpapi.py` cubre errores de SerpAPI, cobro, sobreescritura, cron y email; `test_project_quota.py` y `test_comparative_charts_regression.py` tocan partes sueltas. El parser y las estadísticas casi no tienen tests. | Alto. |
+
+### Errores de SerpAPI guardados como resultados (corregido oct-2026)
+
+Hasta oct-2026 `_analyze_keyword` pasaba al parser la respuesta `{'error': ...}` de SerpAPI («We couldn't get valid results…», «Google hasn't returned any results…») y además se tragaba las excepciones (timeout, red) devolviendo un resultado vacío. En los dos casos se guardaba una fila con `brand_mentioned=False`, `total_sources=0` y el error dentro de `raw_ai_mode_data` (o `{}`), se cobraba 1 RU y `with_backoff` no reintentaba. Esas filas falseaban a la baja la visibilidad del día. Se identifican con `raw_ai_mode_data ? 'error' OR raw_ai_mode_data = '{}'::jsonb`. Test: `tests/test_ai_mode_errores_serpapi.py`.
 
 ### Archivos `.md` sueltos del módulo
 

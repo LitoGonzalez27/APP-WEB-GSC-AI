@@ -41,11 +41,13 @@ USER_ID = int(os.getenv('LLM_SETS_IT_USER_ID', '5'))
 # ══════════════════════════════════════════════════════════════════
 
 class TestReaddCodeGuards:
-    routes = (ROOT / 'llm_monitoring_routes.py').read_text()
+    # Las rutas de prompts viven en llm_monitoring_rutas_prompts.py desde sep-2026
+    routes = (ROOT / 'llm_monitoring_rutas_prompts.py').read_text()
 
     def _route_body(self, name):
         body = self.routes[self.routes.index(f'def {name}('):]
-        return body[:body.index('\n@llm_monitoring_bp.route')]
+        fin = body.find('\n@llm_monitoring_bp.route')
+        return body if fin < 0 else body[:fin]
 
     def test_add_queries_reactivates_soft_deleted_rows(self):
         body = self._route_body('add_queries_to_project')

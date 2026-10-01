@@ -193,25 +193,35 @@ class TestOffProjectsStayUnchanged:
     """Blindaje en el código de las rutas y del panel (no hay BD en los tests)."""
 
     routes = (ROOT / 'llm_monitoring_routes.py').read_text()
+    # Las rutas de análisis (fanout, responses) viven en su módulo desde sep-2026
+    analisis = (ROOT / 'llm_monitoring_rutas_analisis.py').read_text()
+
+    @staticmethod
+    def _cuerpo(fuente, nombre):
+        body = fuente[fuente.index(f'def {nombre}'):]
+        fin = body.find('\n@llm_monitoring_bp.route')
+        return body if fin < 0 else body[:fin]
 
     def test_fanout_endpoint_short_circuits_when_off(self):
-        body = self.routes[self.routes.index('def get_project_fanout'):]
-        body = body[:body.index('\n@llm_monitoring_bp.route')]
+        body = self._cuerpo(self.analisis, 'get_project_fanout')
         assert "if not is_search_enabled(project.get('search_mode')):" in body
         assert "return jsonify({'success': True, 'enabled': False}), 200" in body
         assert body.index("'enabled': False") < body.index('collect_fanout_metrics(')
 
     def test_responses_only_add_search_columns_and_field_when_on(self):
-        body = self.routes[self.routes.index('def get_project_responses'):]
-        body = body[:body.index('\n@llm_monitoring_bp.route')]
+        body = self._cuerpo(self.analisis, 'get_project_responses')
         assert '""" if include_search else "")' in body
         assert "if include_search:\n                item['search'] = response_search_detail(" in body
 
     def test_exports_only_add_fanout_when_on(self):
-        helper = self.routes[self.routes.index('def _safe_fanout_metrics'):]
+        # Los helpers de informes viven en llm_monitoring_informes.py desde sep-2026
+        informes = (ROOT / 'llm_monitoring_informes.py').read_text()
+        helper = informes[informes.index('def _safe_fanout_metrics'):]
         helper = helper[:helper.index('\ndef ')]
         assert "if not is_search_enabled(project.get('search_mode')):\n        return None" in helper
-        assert 'if excel_fanout:' in self.routes and 'if pdf_fanout:' in self.routes
+        # Las exportaciones viven en su propio módulo desde sep-2026
+        assert 'if excel_fanout:' in (ROOT / 'llm_monitoring_export_excel.py').read_text()
+        assert 'if pdf_fanout:' in (ROOT / 'llm_monitoring_export_pdf.py').read_text()
 
     def test_panel_mixin_exits_before_fetching_when_off(self):
         js = (ROOT / 'static/js/llm_monitoring/llm-monitoring-fanout.js').read_text()

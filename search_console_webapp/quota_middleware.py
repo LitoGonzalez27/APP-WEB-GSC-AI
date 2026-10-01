@@ -447,8 +447,11 @@ def _execute_serp_call(params: dict, call_type: str) -> Tuple[bool, Dict[str, An
             
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"Error en llamada SerpAPI ({call_type}): {error_msg}")
-            if attempt < max_attempts and _should_retry_serp_error(error_msg):
+            # Si se va a reintentar es un aviso; solo el fallo definitivo es un error (avisa por email)
+            reintenta = attempt < max_attempts and _should_retry_serp_error(error_msg)
+            logger.log(logging.WARNING if reintenta else logging.ERROR,
+                       f"Error en llamada SerpAPI ({call_type}): {error_msg}")
+            if reintenta:
                 delay = base_delay * (2 ** (attempt - 1))
                 logger.info(f"⏳ Reintentando SerpAPI ({call_type}) en {delay:.1f}s (intento {attempt}/{max_attempts})")
                 time.sleep(delay)

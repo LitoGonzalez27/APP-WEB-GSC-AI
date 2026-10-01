@@ -107,8 +107,8 @@ LLM Monitoring es el sistema más caro y más sensible: cada run consume tokens 
 | `services/llm_monitoring/snapshot.py` | — | `_SnapshotMixin`: `_create_snapshot`, `_calculate_weighted_mentions`. |
 | `services/llm_monitoring/helpers.py` | — | `_HelpersMixin`: utilidades compartidas. |
 | `services/llm_monitoring_stats.py` | — | `LLMMonitoringStatsService.get_project_urls_ranking`. |
-| `llm_monitoring_routes.py` | ~9039 | Blueprint `llm_monitoring_bp` con prefijo `/api/llm-monitoring`. **Todos los endpoints viven aquí** (sigue siendo monolito). |
-| `llm_monitoring_limits.py` | — | `LLM_PLAN_LIMITS`, `can_access_llm_monitoring`, `get_user_monthly_llm_usage`, `get_upgrade_options`. |
+| `llm_monitoring_routes.py` | ~1.700 | Agrega el blueprint `llm_monitoring_bp` (prefijo `/api/llm-monitoring`, definido en `llm_monitoring_base.py`). Desde sep-2026 se parte por áreas: aquí quedan proyectos y las rutas de exportación; prompts, clusters y sets están en `llm_monitoring_rutas_prompts.py`. El resto está en `llm_monitoring_rutas_*.py`; ver la tabla de endpoints. |
+| `llm_monitoring_limits.py` | — | `LLM_PLAN_LIMITS`, `can_access_llm_monitoring`, `get_user_monthly_llm_usage`, `get_upgrade_options` y, desde sep-2026, `_get_effective_plan_limits` (límites efectivos por usuario, antes en las rutas). |
 
 ### Providers
 
@@ -453,7 +453,7 @@ Después: añadir prompts (`POST /projects/:id/queries`), opcionalmente clusters
 
 ### 6.2 Cron diario
 
-Bun service `function-bun-LLM-Monitoring` (Railway) → `POST /api/llm-monitoring/cron/daily-analysis?async=1` (Bearer `CRON_TOKEN`) → endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5096`):
+Bun service `function-bun-LLM-Monitoring` (Railway) → `POST /api/llm-monitoring/cron/daily-analysis?async=1` (Bearer `CRON_TOKEN`) → endpoint `trigger_daily_analysis` (`llm_monitoring_rutas_cron.py`):
 
 1. **Adquiere lock global**: `acquire_analysis_lock(triggered_by)`. Si ya hay un run activo (`status='running'` y `started_at < 30 min`) → 409 con info del run.
 2. Lanza thread → `analyze_all_active_projects(api_keys=None, max_workers=10)`.
@@ -625,7 +625,7 @@ vs **media móvil 7d** (excluyendo hoy). Si hoy > `multiplier × media` (default
 
 Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@validate_project_ownership`, `@cron_or_auth_required`, y middleware `enforce_llm_access` (excepto `/cron/*` y `/health`).
 
-> ⚠️ `llm_monitoring_routes.py` es un monolito de **~9039 líneas**. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
+> ⚠️ `llm_monitoring_routes.py` se está partiendo por áreas (sep-2026): blueprint y decoradores en `llm_monitoring_base.py`, helpers de informes en `llm_monitoring_informes.py`, rutas de modelos en `llm_monitoring_rutas_modelos.py`, crons y salud en `llm_monitoring_rutas_cron.py` y análisis (métricas, comparación, URLs, fan-out, contenido, queries, SOV, respuestas y primer análisis) en `llm_monitoring_rutas_analisis.py` y prompts (alta y baja, clusters, sets, historial y sugerencias) en `llm_monitoring_rutas_prompts.py`. **Las exportaciones Excel y PDF viven en `llm_monitoring_export_excel.py` (`exportar_excel`) y `llm_monitoring_export_pdf.py` (`exportar_pdf`)**: en el fichero de rutas solo quedan la ruta y sus decoradores. Cualquier cambio de las exportaciones se hace allí. Los números de línea de abajo apuntan al `def` del handler y se desfasan en cada cambio — úsalos como orientación, no como verdad absoluta. Los endpoints clave (cron/daily-analysis, health, export, models, discovery) se recalcularon el 2026-06-21; el resto puede variar ±algunas decenas de líneas.
 
 > **Query fan-out (P7, 2026-09-14)**: `GET /projects/<id>/fanout?days=&filtros` → `{enabled:false}` si el proyecto está en
 > `off` (sin más consultas); si está en `auto`, `by_llm`, `top_queries`, `brand_pages`, `competitor_pages`. `GET /projects/<id>`
@@ -636,66 +636,70 @@ Todos bajo prefijo `/api/llm-monitoring`. Decoradores: `@login_required`, `@vali
 
 ### UI / proyectos
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/projects` | GET (lista) | 393 |
-| `/projects` | POST (crear) | 595 |
-| `/usage` | GET | 581 |
-| `/projects/<id>` | GET | 789 |
-| `/projects/<id>` | PUT | 1416 |
-| `/projects/<id>` | DELETE (soft) | 1715 |
-| `/projects/<id>/activate` | PUT | 1652 |
-| `/projects/<id>/deactivate` | PUT | 1604 |
-| `/projects/<id>/queries` | POST (bulk add) | 1805 |
-| `/projects/<id>/queries/<query_id>` | DELETE | 1958 |
-| `/projects/<id>/queries` | GET | 3941 |
-| `/projects/<id>/queries/suggest` | POST (Gemini IA) | 2801 |
-| `/projects/<id>/queries/suggest-variations` | POST | 2907 |
-| `/projects/<id>/run-initial-analysis` | POST | 3132 |
-| `/projects/<id>/metrics` | GET | 3259 |
-| `/projects/<id>/comparison` | GET | 3603 |
-| `/projects/<id>/share-of-voice-history` | GET (`?metric=weighted\|normal`) | 4185 |
-| `/projects/<id>/urls-ranking` | GET | 3529 |
-| `/projects/<id>/responses` | GET (inspección manual) | 5272 |
-| `/projects/<id>/queries/<qid>/history` | GET | 2655 |
-| `/projects/<id>/export/excel` | GET | 5627 |
-| `/projects/<id>/export/pdf` | GET | 6772 |
+| URL | Método | Módulo |
+|---|---|---|
+| `/projects` | GET (lista) | `llm_monitoring_routes.py` |
+| `/projects` | POST (crear) | `llm_monitoring_routes.py` |
+| `/usage` | GET | `llm_monitoring_routes.py` |
+| `/projects/<id>` | GET | `llm_monitoring_routes.py` |
+| `/projects/<id>` | PUT | `llm_monitoring_routes.py` |
+| `/projects/<id>` | DELETE (soft) | `llm_monitoring_routes.py` |
+| `/projects/<id>/activate` | PUT | `llm_monitoring_routes.py` |
+| `/projects/<id>/deactivate` | PUT | `llm_monitoring_routes.py` |
+| `/projects/<id>/queries` | POST (bulk add) | `llm_monitoring_rutas_prompts.py` |
+| `/projects/<id>/queries/<query_id>` | DELETE | `llm_monitoring_rutas_prompts.py` |
+| `/projects/<id>/queries` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/queries/suggest` | POST (Gemini IA) | `llm_monitoring_rutas_prompts.py` |
+| `/projects/<id>/queries/suggest-variations` | POST | `llm_monitoring_rutas_prompts.py` |
+| `/projects/<id>/run-initial-analysis` | POST | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/metrics` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/comparison` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/share-of-voice-history` | GET (`?metric=weighted\|normal`) | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/urls-ranking` | GET | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/responses` | GET (inspección manual) | `llm_monitoring_rutas_analisis.py` |
+| `/projects/<id>/queries/<qid>/history` | GET | `llm_monitoring_rutas_prompts.py` |
+| `/projects/<id>/export/excel` | GET | ruta en `llm_monitoring_routes.py`; código en `llm_monitoring_export_excel.py` |
+| `/projects/<id>/export/pdf` | GET | ruta en `llm_monitoring_routes.py`; código en `llm_monitoring_export_pdf.py` |
 
 ### Clusters
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/projects/<id>/clusters` | GET | 2068 |
-| `/projects/<id>/clusters` | PUT | 2130 |
-| `/projects/<id>/clusters/rename` | POST | 2214 |
-| `/projects/<id>/queries/<qid>/cluster` | PUT | 2303 |
-| `/projects/<id>/queries/bulk-cluster` | POST | 2384 |
-| `/projects/<id>/clusters/metrics` | GET | 2465 |
+Todas en `llm_monitoring_rutas_prompts.py` (desde sep-2026), junto con los prompt sets (`/sets`, `/sets/rename`, `/queries/<qid>/set`, `/queries/bulk-set`).
+
+| URL | Método |
+|---|---|
+| `/projects/<id>/clusters` | GET |
+| `/projects/<id>/clusters` | PUT |
+| `/projects/<id>/clusters/rename` | POST |
+| `/projects/<id>/queries/<qid>/cluster` | PUT |
+| `/projects/<id>/queries/bulk-cluster` | POST |
+| `/projects/<id>/clusters/metrics` | GET |
 
 ### Modelos (admin)
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/models` | GET | 4807 |
-| `/models/current` | GET | 4877 |
-| `/models/<model_id>` | PUT | 4961 |
-| `/models/approve` | GET (token) | 8620 |
-| `/models/reject` | GET (token) | 8754 |
-| `/models/changelog` | GET | 8867 |
+Todas en `llm_monitoring_rutas_modelos.py` (desde sep-2026).
+
+| URL | Método |
+|---|---|
+| `/models` | GET |
+| `/models/current` | GET |
+| `/models/<model_id>` | PUT |
+| `/models/approve` | GET (token) |
+| `/models/reject` | GET (token) |
+| `/models/changelog` | GET |
 
 ### Cron
 
-| URL | Método | Línea | Auth |
-|---|---|---:|---|
-| `/cron/daily-analysis?async=1&project_id=N` | POST | 5096 | Bearer CRON_TOKEN |
-| `/cron/model-discovery?notify_email=&auto_update=` | POST | 8199 | Bearer |
-| `/cron/alert` | POST | 8934 | — |
+| URL | Método | Módulo | Auth |
+|---|---|---|---|
+| `/cron/daily-analysis?async=1&project_id=N` | POST | `llm_monitoring_rutas_cron.py` | Bearer CRON_TOKEN |
+| `/cron/model-discovery?notify_email=&auto_update=` | POST | `llm_monitoring_rutas_modelos.py` | Bearer |
+| `/cron/alert` | POST | `llm_monitoring_rutas_cron.py` | — |
 
 ### Salud
 
-| URL | Método | Línea |
-|---|---|---:|
-| `/health` | GET | 5416 |
+| URL | Método | Módulo |
+|---|---|---|
+| `/health` | GET | `llm_monitoring_rutas_cron.py` |
 
 ### UI (fuera del blueprint)
 
@@ -768,7 +772,7 @@ En `railway.json` hay tanto un cron Python (`0 4 * * *` ejecuta `daily_llm_monit
 
 Hace `POST {APP_URL}/api/llm-monitoring/cron/daily-analysis?async=1` con `Authorization: Bearer ${CRON_TOKEN}` y timeout 60s (espera la respuesta 202).
 
-### Endpoint `trigger_daily_analysis` (`llm_monitoring_routes.py:5096`)
+### Endpoint `trigger_daily_analysis` (`llm_monitoring_rutas_cron.py`)
 
 - Lee `?async=1` y `?project_id=N` (modo single project).
 - **Modo `project_id`**: invoca `service.analyze_project` directamente, sin lock global (re-runs).

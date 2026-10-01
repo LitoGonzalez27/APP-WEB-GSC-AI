@@ -42,6 +42,24 @@ def _set_cached_screenshot(cache_key: str, response: Response, now: float):
     while SCREENSHOT_CACHE_MAX > 0 and len(SCREENSHOT_CACHE) > SCREENSHOT_CACHE_MAX:
         SCREENSHOT_CACHE.popitem(last=False)
 
+# Respuestas de error de SerpAPI que no son un fallo de la app: búsquedas sin resultados y
+# el fallo pasajero «couldn't get valid results». Se registran como WARNING para que no
+# disparen los avisos de errores por email (oct-2026: tres en un cron de Manual AI que
+# terminó sin fallidos). Las demás (clave no válida, cuenta sin saldo o suspendida, límites,
+# formato) siguen como ERROR y avisan. A propósito no se usa «try again later» a secas: lo
+# podría llevar un error real (un límite) y quedaría silenciado.
+_SERPAPI_ERRORES_SIN_FALLO = (
+    "couldn't get valid results",
+    "hasn't returned any results",
+    "has not returned any results",
+)
+
+
+def nivel_error_serpapi(error) -> int:
+    texto = str(error or '').lower()
+    return logging.WARNING if any(m in texto for m in _SERPAPI_ERRORES_SIN_FALLO) else logging.ERROR
+
+
 def get_serp_json(params: dict, cobrar: bool = False, usuario: dict = None) -> dict:
     """
     Devuelve el JSON crudo de la búsqueda SERP.
@@ -69,9 +87,11 @@ def get_serp_json(params: dict, cobrar: bool = False, usuario: dict = None) -> d
             }
         else:
             # Error normal de SerpAPI
-            logger.error(f"❌ Error en SerpAPI: {result}")
+            motivo = result.get('error') if isinstance(result, dict) else result
+            logger.log(nivel_error_serpapi(motivo), f"❌ Error en SerpAPI: {result}")
             return {
-                "error": result.get('error', 'Unknown SerpAPI error'),
+                "error": (result.get('error', 'Unknown SerpAPI error') if isinstance(result, dict)
+                          else str(result or 'Unknown SerpAPI error')),
                 "organic_results": [], 
                 "ads": []
             }
@@ -102,7 +122,7 @@ def _serp_html(params: dict, cobrar: bool = False, usuario: dict = None):
             logger.warning(f"🚫 Llamada HTML bloqueada: {result.get('message')}")
             return None, result, None
         error = result.get('error', 'Unknown SerpAPI error') if isinstance(result, dict) else str(result)
-        logger.error(f"❌ Error en SerpAPI HTML: {error}")
+        logger.log(nivel_error_serpapi(error), f"❌ Error en SerpAPI HTML: {error}")
         return None, None, error or 'Unknown SerpAPI error'
     html_content = result.get('html', '')
     if not html_content:
