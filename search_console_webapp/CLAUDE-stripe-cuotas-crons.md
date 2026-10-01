@@ -282,8 +282,9 @@ Tras el reset de cuotas, `/api/cron/quota-reset` también ejecuta un **health-ch
   (✅ OK / ⚠️ WARNING / 🚨 CRITICAL) al terminar cada run de Manual AI y AI Mode. Lo llaman
   los `CronService` de ambos módulos en éxito, "0 proyectos" y excepción global (nunca en
   skip por advisory lock). Mismo kill-switch `CRON_ALERTS_ENABLED`. Desde oct-2026 AI Mode
-  añade la fila «Keywords sin analizar (error de SerpAPI)» (`keywords_fallidas`): si es
-  mayor que 0 el asunto pasa a WARNING. Manual AI no la manda y su email no cambia.
+  añade la fila «Keywords sin analizar (ni guardadas ni cobradas)» (`keywords_fallidas`): si
+  es mayor que 0 el asunto pasa a WARNING y termina en «· N sin analizar». Manual AI no la
+  manda y su email no cambia.
 - `cron_routes._run_module_staleness_check()`: corre a diario tras el quota-reset. Alerta
   por email si Manual AI o AI Mode llevan > `CRON_STALENESS_MAX_DAYS` (default 4) sin
   producir resultados teniendo proyectos elegibles de frecuencia estándar (ignora los de
