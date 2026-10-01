@@ -15,20 +15,41 @@ from database import get_db_connection
 logger = logging.getLogger(__name__)
 
 
+# Sobreescritura del análisis manual: sustituye el resultado del día en la misma sentencia
+_SOBRESCRIBIR_DEL_DIA = """
+    ON CONFLICT (project_id, keyword_id, analysis_date) DO UPDATE SET
+        keyword = EXCLUDED.keyword,
+        brand_name = EXCLUDED.brand_name,
+        brand_mentioned = EXCLUDED.brand_mentioned,
+        mention_position = EXCLUDED.mention_position,
+        mention_context = EXCLUDED.mention_context,
+        total_sources = EXCLUDED.total_sources,
+        sentiment = EXCLUDED.sentiment,
+        raw_ai_mode_data = EXCLUDED.raw_ai_mode_data,
+        country_code = EXCLUDED.country_code,
+        created_at = NOW()
+"""
+
+
 class ResultRepository:
     """Repositorio para gestión de resultados de análisis AI Mode"""
 
     @staticmethod
     def create_result(project_id: int, keyword_id: int, analysis_date: date,
                      keyword: str, brand_name: str, ai_result: Dict, serp_data: Dict,
-                     country_code: str):
+                     country_code: str, sobrescribir: bool = False):
         """
-        Crear un nuevo resultado de análisis AI Mode
+        Guardar el resultado de análisis AI Mode de una keyword y día.
+
+        sobrescribir=True (análisis manual): si ya hay uno de ese día se sustituye en la
+        misma sentencia; si falla, el anterior se conserva. Sin sobrescribir (cron), una
+        fila del día ya existente hace fallar el INSERT (UNIQUE) y la keyword no se cobra
+        dos veces. Sin conexión lanza, para que la keyword cuente como fallida y no se
+        cobre un resultado que no se ha guardado.
         """
         conn = get_db_connection()
         if not conn:
-            logger.error(f"create_result[ai_mode]({project_id}/{keyword_id}): no DB connection")
-            return
+            raise ConnectionError(f"create_result[ai_mode]({project_id}/{keyword_id}): no DB connection")
         try:
             cur = conn.cursor()
             try:
@@ -38,7 +59,7 @@ class ResultRepository:
                         brand_mentioned, mention_position, mention_context,
                         total_sources, sentiment, raw_ai_mode_data, country_code
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
+                """ + (_SOBRESCRIBIR_DEL_DIA if sobrescribir else ""), (
                     project_id, keyword_id, analysis_date, keyword, brand_name,
                     ai_result.get('brand_mentioned', False),
                     ai_result.get('mention_position'),
@@ -82,35 +103,6 @@ class ResultRepository:
             except Exception as e:
                 logger.error(f"Error checking AI Mode result existence: {e}")
                 return False
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-    @staticmethod
-    def delete_result_for_date(project_id: int, keyword_id: int, analysis_date: date):
-        """
-        Eliminar un resultado AI Mode existente (para permitir sobreescritura)
-        """
-        conn = get_db_connection()
-        if not conn:
-            logger.error(f"delete_result_for_date[ai_mode]({project_id}/{keyword_id}): no DB connection")
-            return
-        try:
-            cur = conn.cursor()
-            try:
-                cur.execute("""
-                    DELETE FROM ai_mode_results
-                    WHERE project_id = %s AND keyword_id = %s AND analysis_date = %s
-                """, (project_id, keyword_id, analysis_date))
-
-                conn.commit()
-                logger.debug(f"Deleted existing AI Mode result for keyword {keyword_id} on {analysis_date}")
-
-            except Exception as e:
-                logger.error(f"Error deleting AI Mode result: {e}")
-                raise
         finally:
             try:
                 conn.close()
