@@ -338,9 +338,19 @@ class CronService:
                 )
                 keywords_fallidas += resumen.get('keywords_fallidas', 0)
 
-                if isinstance(results, dict) and results.get('error') in ('QUOTA_EXCEEDED', 'project_paused_quota'):
-                    logger.info(f"⏭️ Project {project_dict['id']} skipped due to quota pause")
-                    skipped_analyses += 1
+                # Un dict es una parada: por cuota (global, del proyecto o pausa) cuenta como
+                # saltado; cualquier otra (p. ej. usuario no encontrado), como fallido. Antes
+                # solo se miraban dos códigos y el resto contaba como OK con len(dict) keywords.
+                if isinstance(results, dict):
+                    if results.get('quota_exceeded') or results.get('error') in (
+                            'QUOTA_EXCEEDED', 'PROJECT_QUOTA_EXCEEDED', 'project_quota_exceeded',
+                            'project_paused_quota', 'Quota limit exceeded'):
+                        logger.info(f"⏭️ Project {project_dict['id']} skipped due to quota "
+                                    f"({results.get('error')})")
+                        skipped_analyses += 1
+                    else:
+                        logger.warning(f"⚠️ Project {project_dict['id']} not analyzed: {results.get('error')}")
+                        failed_analyses += 1
                     continue
 
                 # SerpAPI no dio un resultado válido para ninguna keyword (tras los reintentos):

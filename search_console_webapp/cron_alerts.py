@@ -1141,7 +1141,8 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
         skipped = int(stats.get('skipped') or 0)
         total = successful + failed + skipped
         keywords = int(stats.get('total_keywords') or 0)
-        # Solo AI Mode lo manda: keywords sin resultado válido de SerpAPI (ni guardadas ni cobradas)
+        # Solo AI Mode lo manda: keywords sin resultado válido (error de SerpAPI tras los
+        # reintentos o fallo al guardar); ni se guardan ni se cobran
         keywords_fallidas = int(stats.get('keywords_fallidas') or 0)
         elapsed_min = float(stats.get('elapsed_seconds') or 0) / 60.0
         run_ok = bool(stats.get('success', True))
@@ -1171,7 +1172,7 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
         fila_fallidas = ''
         if 'keywords_fallidas' in stats:
             fila_fallidas = (
-                '<tr><td style="padding:8px 12px;color:#6b7280;">Keywords sin analizar (error de SerpAPI)</td>'
+                '<tr><td style="padding:8px 12px;color:#6b7280;">Keywords sin analizar (ni guardadas ni cobradas)</td>'
                 f'<td style="padding:8px 12px;font-family:monospace;">{keywords_fallidas}</td></tr>'
             )
 
@@ -1200,6 +1201,7 @@ def send_simple_run_completion_email(module_label: str, stats: Dict) -> Dict:
         subject = (
             f"{icon} [{env_name.upper()}] {module_label} Cron {severity.upper()} · "
             f"{successful}/{total} OK · {keywords} keywords"
+            + (f" · {keywords_fallidas} sin analizar" if keywords_fallidas else "")
         )
 
         from email_service import send_email

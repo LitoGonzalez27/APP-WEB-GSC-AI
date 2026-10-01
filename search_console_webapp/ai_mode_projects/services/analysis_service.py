@@ -46,11 +46,11 @@ class AnalysisService:
         self.keyword_repo = KeywordRepository()
         self.result_repo = ResultRepository()
     
-    def run_project_analysis(self, project_id: int, force_overwrite: bool = False,
+    def run_project_analysis(self, project_id: int, force_overwrite: bool = False, 
                             user_id: Optional[int] = None, resumen: Optional[Dict] = None) -> List[Dict]:
         """
         Ejecutar análisis completo de todas las keywords activas de un proyecto AI Mode
-
+        
         Args:
             project_id: ID del proyecto a analizar
             force_overwrite: Si True, sobreescribe resultados existentes del día (para análisis manual)
@@ -58,7 +58,7 @@ class AnalysisService:
             user_id: ID del usuario (opcional). Si no se proporciona, se obtiene de la sesión actual.
             resumen: dict opcional que se rellena con 'keywords_fallidas': keywords sin resultado
                      válido de SerpAPI tras los reintentos (ni se guardan ni se cobran).
-
+            
         Returns:
             Lista de resultados o dict con error si falla
         """
@@ -181,7 +181,7 @@ class AnalysisService:
         logger.info(f"🚀 Starting AI Mode {analysis_mode} analysis for project {project_id} with {len(keywords)} keywords")
         if resumen is not None:
             resumen['keywords_fallidas'] = 0
-
+        
         for keyword_data in keywords:
             # Re-validar cuota en cada iteración
             current_quota = get_user_quota_status(current_user['id'])
@@ -236,10 +236,10 @@ class AnalysisService:
                 try:
                     ai_result, serp_data = self._analyze_keyword(keyword, project, keyword_id)
 
-                    # Sobreescritura (análisis manual): el resultado anterior del día se borra
-                    # solo cuando ya hay uno nuevo válido; si SerpAPI falla, se conserva.
+                    # Sobreescritura (análisis manual): create_result sustituye el resultado
+                    # del día en una sola sentencia y solo con uno nuevo válido; si SerpAPI o
+                    # el guardado fallan, el anterior se conserva.
                     if existing_analysis:
-                        self.result_repo.delete_result_for_date(project_id, keyword_id, today)
                         logger.info(f"🔄 Overwriting existing analysis for keyword '{keyword}' (manual mode)")
 
                     # Guardar resultado en base de datos
@@ -370,7 +370,6 @@ class AnalysisService:
         
         return results
     
-    @with_backoff(max_attempts=3, base_delay_sec=1.0)
     def _analyze_keyword(self, keyword: str, project: Dict, keyword_id: int) -> tuple:
         """
         Analizar una keyword usando Google Search de SerpApi para detectar menciones de marca
@@ -383,15 +382,13 @@ class AnalysisService:
         Returns:
             Tupla (ai_result, serp_data)
         """
-        from serpapi import GoogleSearch
-        
         api_key = os.getenv('SERPAPI_API_KEY')
         if not api_key:
             # Intentar con SERPAPI_KEY si SERPAPI_API_KEY no existe
             api_key = os.getenv('SERPAPI_KEY')
         
         if not api_key:
-            logger.error(f"❌ SERPAPI_API_KEY not configured")
+            # Sin log aquí: run_project_analysis registra el fallo de la keyword (ERROR)
             raise RuntimeError("SERPAPI_API_KEY not configured")
         
         brand_name = project.get('brand_name', '')
@@ -436,19 +433,7 @@ class AnalysisService:
 
         logger.info(f"🔍 Calling SerpApi Google AI Mode for keyword: '{keyword}' (location: {location}, gl: {serp_gl}, hl: {serp_hl})")
 
-        # Un error de SerpAPI (respuesta {'error': ...}, timeout, red) no es un resultado: se
-        # lanza para que with_backoff reintente y, si sigue fallando, run_project_analysis
-        # cuente la keyword como fallida, sin guardarla ni cobrarla (mismo criterio que Manual AI).
-        try:
-            serp_data = GoogleSearch(params).get_dict()
-        except Exception as e:
-            logger.warning(f"⚠️ SerpAPI AI Mode falló para '{keyword}': {e}")
-            raise
-        error = serp_data.get('error') if isinstance(serp_data, dict) else None
-        if error or not serp_data or not isinstance(serp_data, dict):
-            motivo = str(error or 'Empty SerpAPI response')
-            logger.warning(f"⚠️ SerpAPI AI Mode sin resultado válido para '{keyword}': {motivo}")
-            raise RuntimeError(motivo)
+        serp_data = self._fetch_ai_mode(params, keyword)
 
         # Enlaces google.com/goto sin resolver en la respuesta
         # (regresión del proveedor): alarma en logs + resolución in
@@ -469,7 +454,36 @@ class AnalysisService:
         time.sleep(0.3)
 
         return ai_result, serp_data
-    
+
+    @with_backoff(max_attempts=3, base_delay_sec=1.0)
+    def _fetch_ai_mode(self, params: Dict, keyword: str) -> Dict:
+        """
+        Llamada a SerpAPI (engine google_ai_mode) con reintentos.
+
+        Un error de SerpAPI (respuesta {'error': ...} o vacía, timeout, red) no es un
+        resultado: se lanza para que with_backoff reintente y, si sigue fallando,
+        run_project_analysis cuente la keyword como fallida, sin guardarla ni cobrarla.
+        Como fetch_serp de Manual AI, solo se reintenta la llamada: un fallo del parser
+        no cambia repitiendo la búsqueda (y SerpAPI cobraría cada repetición).
+        """
+        from serpapi import GoogleSearch
+        from quota_middleware import SERPAPI_TIMEOUT_SECONDS
+
+        search = GoogleSearch(dict(params))
+        # Sin esto la librería espera hasta 60.000 s: una lectura colgada pararía el cron
+        search.timeout = SERPAPI_TIMEOUT_SECONDS
+        try:
+            serp_data = search.get_dict()
+        except Exception as e:
+            logger.warning(f"⚠️ SerpAPI AI Mode falló para '{keyword}': {e}")
+            raise
+        error = serp_data.get('error') if isinstance(serp_data, dict) else None
+        if error or not serp_data or not isinstance(serp_data, dict):
+            motivo = str(error or 'Empty SerpAPI response')
+            logger.warning(f"⚠️ SerpAPI AI Mode sin resultado válido para '{keyword}': {motivo}")
+            raise RuntimeError(motivo)
+        return serp_data
+
     def _parse_ai_mode_response(self, serp_data: dict, brand_name: str) -> dict:
         """
         Parsear respuesta de Google AI Mode (google.com/ai) para detectar menciones de marca
@@ -654,7 +668,7 @@ class AnalysisService:
             if matched_variation:
                 result['brand_mentioned'] = True
                 result['mention_position'] = position
-                result['mention_context'] = ref.get('title', '')[:500]
+                result['mention_context'] = str(ref.get('title') or '')[:500]  # title puede venir null
                 
                 # Análisis de sentimiento mejorado (incluir snippet)
                 text = f"{title} {source} {snippet}"
@@ -673,7 +687,7 @@ class AnalysisService:
                 logger.info(f"   → Matched variation: '{matched_variation}'")
                 logger.info(f"   → Matched field: '{matched_field}'")
                 logger.info(f"   → Reference index (0-based): {actual_index}")
-                logger.info(f"   → Title: {ref.get('title', '')[:80]}...")
+                logger.info(f"   → Title: {str(ref.get('title') or '')[:80]}...")
                 logger.info(f"   → Sentiment: {result['sentiment']}")
                 
                 break
