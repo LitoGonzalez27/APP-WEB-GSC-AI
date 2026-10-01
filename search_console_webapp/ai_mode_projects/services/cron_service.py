@@ -140,9 +140,10 @@ class CronService:
                 "failed": stats['failed'],
                 "skipped": stats['skipped'],
                 "total_keywords": stats['total_keywords'],
+                "keywords_fallidas": stats['keywords_fallidas'],
                 "elapsed_sec": round(elapsed_time, 2)
             }))
-            
+
             result = {
                 "success": True,
                 "job_id": job_id,
@@ -150,6 +151,7 @@ class CronService:
                 "failed": stats['failed'],
                 "skipped": stats['skipped'],
                 "total_keywords": stats['total_keywords'],
+                "keywords_fallidas": stats['keywords_fallidas'],
                 "elapsed_seconds": round(elapsed_time, 2)
             }
             self._send_completion_email(result)
@@ -223,7 +225,8 @@ class CronService:
         failed_analyses = 0
         skipped_analyses = 0
         total_keywords_processed = 0
-        
+        keywords_fallidas = 0  # sin resultado válido de SerpAPI: ni guardadas ni cobradas
+
         for project in projects:
             # Convertir a dict si es necesario
             if isinstance(project, (tuple, list)):
@@ -326,17 +329,29 @@ class CronService:
                           f"({project_dict['name']}) - {project_dict['keyword_count']} keywords")
                 
                 # Ejecutar análisis automático (sin sobreescritura)
+                resumen = {}
                 results = self.analysis_service.run_project_analysis(
                     project_dict['id'],
                     force_overwrite=False,
-                    user_id=project_dict['user_id']
+                    user_id=project_dict['user_id'],
+                    resumen=resumen
                 )
-                
+                keywords_fallidas += resumen.get('keywords_fallidas', 0)
+
                 if isinstance(results, dict) and results.get('error') in ('QUOTA_EXCEEDED', 'project_paused_quota'):
                     logger.info(f"⏭️ Project {project_dict['id']} skipped due to quota pause")
                     skipped_analyses += 1
                     continue
-                
+
+                # SerpAPI no dio un resultado válido para ninguna keyword (tras los reintentos):
+                # el proyecto cuenta como fallido y no se crea el snapshot de un día sin datos.
+                # Con alguna keyword analizada cuenta como OK y las fallidas van al email.
+                if not results and resumen.get('keywords_fallidas'):
+                    logger.warning(f"⚠️ Project {project_dict['id']}: ninguna keyword analizada, "
+                                   f"{resumen['keywords_fallidas']} sin resultado válido de SerpAPI")
+                    failed_analyses += 1
+                    continue
+
                 total_keywords_processed += len(results)
                 
                 # Crear snapshot diario
@@ -368,7 +383,8 @@ class CronService:
             'successful': successful_analyses,
             'failed': failed_analyses,
             'skipped': skipped_analyses,
-            'total_keywords': total_keywords_processed
+            'total_keywords': total_keywords_processed,
+            'keywords_fallidas': keywords_fallidas
         }
     
     def _calculate_snapshot_metrics(self, project_id: int) -> dict:
