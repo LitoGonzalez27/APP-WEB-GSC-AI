@@ -26,7 +26,7 @@ if not config.entorno_railway():
 
 # --- Servicios extraídos ---
 from services.search_console import authenticate, fetch_searchconsole_data_single_call
-from services.serp_service import get_serp_json, get_serp_html, get_page_screenshot, SCREENSHOT_CACHE
+from services.serp_service import get_serp_json, get_serp_html, get_page_screenshot, SCREENSHOT_CACHE, nivel_error_serpapi
 from services.ai_analysis import detect_ai_overview_elements
 from services.aio_recommendations import get_ai_recommendations
 from stripe_webhooks import create_webhook_route
@@ -1887,7 +1887,9 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
         return result_data
         
     except Exception as e_single_keyword:
-        logger.error(f"Error analizando keyword '{keyword_arg}': {str(e_single_keyword)}")
+        # Una búsqueda sin resultados en SerpAPI no es un fallo de la app: WARNING, sin aviso
+        logger.log(nivel_error_serpapi(e_single_keyword),
+                   f"Error analizando keyword '{keyword_arg}': {str(e_single_keyword)}")
         
         # ✅ NUEVO: Para errores, también cachear brevemente para evitar re-intentos inmediatos
         error_result = {
@@ -2335,7 +2337,7 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
 
             except Exception as e:
                 error_msg = f"❌ Keyword falló: '{keyword_str}' - Error: {e}"
-                logger.error(error_msg)
+                logger.log(nivel_error_serpapi(e), error_msg)  # sin resultados en SerpAPI: WARNING, sin aviso
                 errors_list.append(error_msg)
                 
                 error_result = {
