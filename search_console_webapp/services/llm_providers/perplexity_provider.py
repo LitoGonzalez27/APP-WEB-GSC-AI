@@ -232,7 +232,7 @@ class PerplexityProvider(BaseLLMProvider):
 
         if response.status_code != 200:
             error = http_error_message('Perplexity', response)
-            logger.error(f"❌ {error}")
+            logger.warning(f"⚠️ {error}")
             return {'success': False, 'error': error}
 
         try:

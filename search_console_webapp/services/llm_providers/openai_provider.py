@@ -339,7 +339,7 @@ class OpenAIProvider(BaseLLMProvider):
 
             # Si a estas alturas no hay contenido, tratar como error real
             if not content or len(content.strip()) == 0:
-                logger.error("❌ OpenAI devolvió contenido vacío tras intentos (Responses/Chat).")
+                logger.warning("⚠️ OpenAI devolvió contenido vacío tras intentos (Responses/Chat).")
                 return {
                     'success': False,
                     'error': 'Empty content from OpenAI response'
@@ -402,14 +402,14 @@ class OpenAIProvider(BaseLLMProvider):
                         'prompt_strategy': prompt_strategy,  # ✨ NUEVO
                     }
                 except Exception as e2:
-                    logger.error(f"❌ OpenAI fallback gpt-4o también falló: {e2}")
-            logger.error(f"❌ OpenAI API Error: {e}")
+                    logger.warning(f"⚠️ OpenAI fallback gpt-4o también falló: {e2}")
+            logger.warning(f"⚠️ OpenAI API Error: {e}")
             return {
                 'success': False,
                 'error': f"OpenAI API Error: {str(e)}"
             }
         except openai.RateLimitError as e:
-            logger.error(f"❌ OpenAI Rate Limit: {e}")
+            logger.warning(f"⚠️ OpenAI Rate Limit: {e}")
             return {
                 'success': False,
                 'error': "Rate limit exceeded. Please try again later."
@@ -445,7 +445,7 @@ class OpenAIProvider(BaseLLMProvider):
             model = fallback_model
             data, error = self._post_responses({**body, 'model': model})
         if error:
-            logger.error(f"❌ {error}")
+            logger.warning(f"⚠️ {error}")
             return {'success': False, 'error': error}
 
         if data.get('error'):

@@ -248,13 +248,13 @@ class AnthropicProvider(BaseLLMProvider):
             }
             
         except anthropic.APIError as e:
-            logger.error(f"❌ Anthropic API Error: {e}")
+            logger.warning(f"⚠️ Anthropic API Error: {e}")
             return {
                 'success': False,
                 'error': f"Anthropic API Error: {str(e)}"
             }
         except anthropic.RateLimitError as e:
-            logger.error(f"❌ Anthropic Rate Limit: {e}")
+            logger.warning(f"⚠️ Anthropic Rate Limit: {e}")
             return {
                 'success': False,
                 'error': "Rate limit exceeded. Please try again later."
@@ -287,7 +287,7 @@ class AnthropicProvider(BaseLLMProvider):
                 provider_label='Anthropic',
             )
             if error:
-                logger.error(f"❌ {error}")
+                logger.warning(f"⚠️ {error}")
                 return {'success': False, 'error': error}
             responses.append(data)
             if data.get('stop_reason') != 'pause_turn' or len(responses) > MAX_PAUSE_TURN_CONTINUATIONS:
