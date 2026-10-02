@@ -789,6 +789,7 @@ async function loadAvailableCountries(siteUrl) {
     }
 
     isLoadingCountries = true;
+    let nextSiteUrl = null;
 
     try {
         const response = await fetch('/get-available-countries', {
@@ -809,6 +810,33 @@ async function loadAvailableCountries(siteUrl) {
                 return;
             }
             
+            // Google ya no da acceso a esta propiedad con la cuenta conectada
+            if (errorData.error_type === 'gsc_no_access') {
+                console.warn('Sin acceso a la propiedad en Search Console:', siteUrl);
+                document.getElementById('countrySelect').innerHTML =
+                    '<option value="" disabled selected>No access to this property in Search Console</option>';
+                resetPrimaryBusinessCountry();
+                if (window.navbar && typeof window.navbar.showToast === 'function') {
+                    window.navbar.showToast(`${siteUrl}: ${errorData.error}`, 'warning');
+                }
+                if (errorData.property_removed) {
+                    // El servidor la ha quitado de la lista: quitarla aquí y pasar a la siguiente
+                    if (Array.isArray(window.__allProperties)) {
+                        window.__allProperties = window.__allProperties.filter(p => p.siteUrl !== siteUrl);
+                    }
+                    const staleOption = Array.from(elems.siteUrlSelect.options).find(o => o.value === siteUrl);
+                    if (staleOption) staleOption.remove();
+                    if (storage.siteUrl === siteUrl) storage.siteUrl = '';
+                    const remaining = Array.from(elems.siteUrlSelect.options).find(o => o.value && !o.disabled);
+                    if (remaining) {
+                        elems.siteUrlSelect.value = remaining.value;
+                        storage.siteUrl = remaining.value;
+                        nextSiteUrl = remaining.value;
+                    }
+                }
+                return;
+            }
+
             console.error('Error cargando países:', errorData.error);
             document.getElementById('countrySelect').innerHTML =
                 `<option value="" disabled selected>Error cargando países: ${errorData.error}</option>`;
@@ -882,6 +910,10 @@ async function loadAvailableCountries(siteUrl) {
         handleAuthError(error, 'en loadAvailableCountries');
     } finally {
         isLoadingCountries = false;
+        if (nextSiteUrl) {
+            const site = nextSiteUrl;
+            setTimeout(() => loadAvailableCountries(site), 0);
+        }
     }
 }
 

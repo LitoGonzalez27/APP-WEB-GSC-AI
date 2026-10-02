@@ -951,6 +951,26 @@ def get_connection_for_site(user_id: int, site_url: str) -> Optional[Dict[str, A
         if conn:
             conn.close()
 
+def delete_gsc_property_for_user(user_id: int, site_url: str) -> bool:
+    """Quita una propiedad de la lista del usuario (p. ej. cuando Google confirma que ya no hay acceso)."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+        cur.execute('DELETE FROM gsc_properties WHERE user_id = %s AND site_url = %s', (user_id, site_url))
+        deleted = cur.rowcount > 0
+        conn.commit()
+        return deleted
+    except Exception as e:
+        logger.error(f"Error eliminando propiedad GSC: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
 def user_owns_site_url(user_id: int, site_url: str) -> bool:
     """Valida si el usuario es dueño del site_url (GSC o análisis previo)."""
     if not site_url:
