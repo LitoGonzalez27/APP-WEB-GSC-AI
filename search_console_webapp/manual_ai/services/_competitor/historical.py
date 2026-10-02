@@ -124,7 +124,8 @@ class _HistoricalMixin:
                 # Obtener competidores actuales como fallback
                 cur.execute("SELECT selected_competitors FROM manual_ai_projects WHERE id = %s", (project_id,))
                 current_result = cur.fetchone()
-                current_competitors = current_result['selected_competitors'] if current_result else []
+                # NULL en BD = proyecto sin competidores
+                current_competitors = list((current_result['selected_competitors'] if current_result else None) or [])
             finally:
                 try:
                     conn.close()
@@ -146,7 +147,7 @@ class _HistoricalMixin:
                         if event_desc:
                             change_data = json.loads(event_desc)
                             if 'competitors' in change_data:
-                                active_competitors = change_data['competitors'].copy()
+                                active_competitors = list(change_data['competitors'] or [])
                         else:
                             active_competitors = current_competitors.copy()
                     except (json.JSONDecodeError, KeyError, TypeError):
@@ -180,7 +181,7 @@ class _HistoricalMixin:
                                 if event_desc:
                                     change_data = json.loads(event_desc)
                                     if 'new_competitors' in change_data:
-                                        active_competitors = change_data['new_competitors'].copy()
+                                        active_competitors = list(change_data['new_competitors'] or [])
                                         logger.info(f"📅 Applied competitor change on {single_date}: {active_competitors}")
                             
                             elif change['event_type'] == 'competitors_updated':
