@@ -370,7 +370,7 @@ def with_retry(func: Callable) -> Callable:
 
             # Si no es retriable, retornar inmediatamente
             if error_type == 'non_retryable':
-                logger.warning(f"⚠️ {provider_name}: Error no retriable, abortando")
+                logger.error(f"❌ {provider_name}: Error no retriable: {last_error}")
                 return result
 
             # ✅ Quota exhausted: abrir circuit breaker con cooldown largo
@@ -385,7 +385,7 @@ def with_retry(func: Callable) -> Callable:
             # Obtener configuración de retry
             config = RetryConfig.RETRYABLE_ERRORS.get(error_type)
             if not config:
-                logger.warning(f"⚠️ {self.get_provider_name()}: Sin configuración de retry para {error_type}")
+                logger.error(f"❌ {provider_name}: Sin configuración de retry para {error_type}: {last_error}")
                 return result
             
             # Reintentos con backoff
@@ -416,7 +416,7 @@ def with_retry(func: Callable) -> Callable:
                         circuit_breaker.trip_billing_exhausted(provider_name, last_error)
                         return billing_exhausted_error(provider_name, last_error)
                     if new_error_type == 'non_retryable':
-                        logger.warning(f"⚠️ {self.get_provider_name()}: Cambió a error no retriable, abortando")
+                        logger.error(f"❌ {provider_name}: Cambió a error no retriable: {last_error}")
                         return result
                     
                 except Exception as e:

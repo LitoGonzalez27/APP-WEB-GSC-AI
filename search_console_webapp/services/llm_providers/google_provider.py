@@ -243,7 +243,7 @@ class GoogleProvider(BaseLLMProvider):
             }
             
         except Exception as e:
-            logger.error(f"❌ Google (Gemini) Error: {e}", exc_info=True)
+            logger.warning(f"⚠️ Google (Gemini) Error: {e}", exc_info=True)
             
             error_msg = str(e)
             if 'API key' in error_msg or 'api_key' in error_msg:
@@ -281,7 +281,7 @@ class GoogleProvider(BaseLLMProvider):
             provider_label='Google',
         )
         if error:
-            logger.error(f"❌ {error}")
+            logger.warning(f"⚠️ {error}")
             return {'success': False, 'error': error}
 
         parsed = parse_generate_content(data)
