@@ -13,6 +13,7 @@ from flask import Flask, render_template, request, jsonify, send_file, Response,
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import pandas as pd
+from googleapiclient.errors import HttpError
 from excel_generator import generate_excel_from_data
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -46,7 +47,9 @@ from auth import (
     get_user_credentials,
     get_current_user
 )
-from database import get_connection_for_site, list_gsc_properties_for_user, user_owns_site_url
+from database import (
+    delete_gsc_property_for_user, get_connection_for_site, list_gsc_properties_for_user, user_owns_site_url,
+)
 
 # --- NUEVO: Detector de dispositivos móviles ---
 from mobile_detector import (
@@ -2762,12 +2765,14 @@ def get_available_countries():
     
     # Resolver servicio: preferir conexión asociada a la propiedad
     gsc_service = None
+    used_property_connection = False
     try:
         user = get_current_user()
         mapping_conn = get_connection_for_site(user['id'], site_url) if user else None
         if mapping_conn:
             from auth import get_authenticated_service_for_connection
             gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+            used_property_connection = gsc_service is not None
     except Exception as e:
         logger.warning(f"No se pudo resolver conexión por site_url en get_available_countries: {e}")
 
@@ -2832,6 +2837,23 @@ def get_available_countries():
             ]
         })
         
+    except HttpError as e:
+        if getattr(e.resp, 'status', None) != 403:
+            logger.error(f"Error obteniendo países: {e}", exc_info=True)
+            return jsonify({'error': 'Internal server error'}), 500
+        # Google niega el acceso: la cuenta conectada ya no tiene permisos sobre la
+        # propiedad (lista guardada desfasada). Es esperable, no un fallo nuestro.
+        # Solo se retira de la lista si respondió la conexión de la propia propiedad.
+        removed = used_property_connection and delete_gsc_property_for_user(user['id'], site_url)
+        logger.warning(
+            f"GSC 403 sin acceso a {site_url} (user {user['id']}); "
+            f"propiedad {'retirada de su lista' if removed else 'no retirada'}"
+        )
+        return jsonify({
+            'error': 'This Google account no longer has access to this property in Search Console.',
+            'error_type': 'gsc_no_access',
+            'property_removed': bool(removed),
+        }), 403
     except Exception as e:
         logger.error(f"Error obteniendo países: {e}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
