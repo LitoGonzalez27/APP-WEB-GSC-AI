@@ -109,3 +109,36 @@ def test_comparative_charts_no_nameerror(svc_mod_name, patch_mods, monkeypatch):
     )
     assert "datasets" in result["visibility_chart"]
     assert "datasets" in result["position_chart"]
+
+
+class _NullCompetitorsCursor(_FakeCursor):
+    """Proyecto con selected_competitors NULL en BD (p. ej. Ceramic Connection en AI Mode)."""
+    def fetchone(self):
+        return _Row(domain="example.com", brand_name="example", selected_competitors=None)
+
+
+class _NullCompetitorsConn(_FakeConn):
+    def cursor(self, *a, **k):
+        return _NullCompetitorsCursor()
+
+
+@pytest.mark.parametrize("svc_mod_name,patch_mods", CASES)
+def test_comparative_charts_with_null_competitors(svc_mod_name, patch_mods, monkeypatch):
+    """Regresión 2026-10-02: con selected_competitors NULL, la reconstrucción temporal
+    hacía None.copy() (también en su fallback) y los gráficos salían vacíos."""
+    svc_mod = importlib.import_module(svc_mod_name)
+    Service = svc_mod.CompetitorService
+    for mod_name in patch_mods:
+        mod = importlib.import_module(mod_name)
+        if hasattr(mod, "get_db_connection"):
+            monkeypatch.setattr(mod, "get_db_connection", lambda: _NullCompetitorsConn())
+
+    from datetime import date
+    temporal = Service.get_competitors_for_date_range(10, date(2026, 9, 2), date(2026, 10, 2))
+    assert len(temporal) == 31
+    assert all(v == [] for v in temporal.values())
+
+    result = Service.get_project_comparative_charts_data(10, days=30)
+    assert result.get("visibility_chart") != {}, result
+    assert "datasets" in result["visibility_chart"]
+    assert "datasets" in result["position_chart"]
