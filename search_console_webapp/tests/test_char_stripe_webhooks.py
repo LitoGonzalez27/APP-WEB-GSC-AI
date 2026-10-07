@@ -855,8 +855,11 @@ def test_deleted_por_email_no_pisa_el_customer_de_otro_usuario(ctx):
 
     # ARREGLADO (2026-09-28): el fallback por email reescribía el
     # stripe_customer_id de un usuario que ya tenía otro cliente de Stripe.
-    assert resp.status_code == 503
-    assert resp.get_json()["error"] == "customer_not_found"
+    # ARREGLADO (2026-10-07): una suscripción borrada sin usuario se ignora con
+    # 200 (antes 503 y Stripe la reintentaba 3 días con un email por intento).
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True,
+                               "message": "Subscription has ended and matches no user; ignored"}
     assert todos_los_usuarios(ctx.db) == antes
     for tabla, filas in estado_proyectos(ctx.db, ID_GRATUITO).items():
         assert [f["is_active"] for f in filas] == [True], tabla
@@ -1113,17 +1116,49 @@ def test_subscription_updated_de_cliente_desconocido_503_y_una_alerta_por_hora(c
     ]
 
 
-def test_subscription_deleted_de_cliente_desconocido_503(ctx):
+def test_subscription_deleted_de_cliente_desconocido_200_sin_alerta(ctx):
     antes = todos_los_usuarios(ctx.db)
 
     resp = enviar(ctx, evento("customer.subscription.deleted",
                               suscripcion(customer="cus_char_fantasma", sub_id="sub_char_fantasma",
                                           status="canceled")))
 
-    assert resp.status_code == 503
-    assert resp.get_json()["error"] == "customer_not_found"
+    # ARREGLADO (2026-10-07): antes 503 + alerta. Una suscripción borrada no
+    # puede ser una carrera del alta (cliente borrado de la BD): no hay nada
+    # que sincronizar y reintentar solo generaba un email de error por intento.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"success": True,
+                               "message": "Subscription has ended and matches no user; ignored"}
     assert todos_los_usuarios(ctx.db) == antes
-    ctx.email_alerta.assert_called_once()
+    ctx.subscription_retrieve.assert_not_called()
+    ctx.email_alerta.assert_not_called()
+    assert resumen_eventos(ctx.db) == [("evt_char_0001", "customer.subscription.deleted", "processed", "", True)]
+
+
+@pytest.mark.parametrize("estado_en_stripe,codigo", [
+    ("canceled", 200), ("incomplete_expired", 200), ("active", 503),
+])
+def test_updated_de_cliente_desconocido_mira_el_estado_actual_en_stripe(ctx, estado_en_stripe, codigo):
+    # Reintento de un evento viejo (foto "active") de una suscripción que ya se
+    # canceló en Stripe: el caso del usuario borrado desde el admin (2026-10-06).
+    antes = todos_los_usuarios(ctx.db)
+    ctx.subscription_retrieve.side_effect = None
+    ctx.subscription_retrieve.return_value = {"id": "sub_char_fantasma", "object": "subscription",
+                                              "status": estado_en_stripe}
+
+    resp = enviar(ctx, evento("customer.subscription.updated",
+                              suscripcion(customer="cus_char_fantasma", sub_id="sub_char_fantasma")))
+
+    assert resp.status_code == codigo
+    assert todos_los_usuarios(ctx.db) == antes
+    ctx.subscription_retrieve.assert_called_once_with("sub_char_fantasma")
+    if codigo == 200:
+        ctx.email_alerta.assert_not_called()
+        assert resumen_eventos(ctx.db) == [("evt_char_0001", "customer.subscription.updated", "processed", "", True)]
+    else:
+        # Sigue viva: puede ser una carrera del alta, se mantiene el 503 + alerta.
+        assert resp.get_json()["error"] == "customer_not_found"
+        ctx.email_alerta.assert_called_once()
 
 
 def test_subscription_updated_fallback_por_subscription_id(ctx):
