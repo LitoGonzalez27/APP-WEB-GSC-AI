@@ -452,6 +452,18 @@ class StripeWebhookHandler:
                             except Exception as _e_fb3:
                                 logger.warning(f"Fallback by customer email failed: {_e_fb3}")
 
+                    if users_updated == 0 and _suscripcion_terminada(subscription_id, action, status):
+                        # Sin usuario y con la suscripción ya cerrada en Stripe no hay
+                        # carrera de alta posible: es un cliente borrado de la BD (p. ej.
+                        # desde el admin). Reintentar no arregla nada; antes daba 503 y
+                        # Stripe repetía el evento 3 días, con un email de error en cada intento.
+                        logger.warning(
+                            f"⚠️ Webhook subscription.{action} sin usuario para una suscripción "
+                            f"terminada: customer_id={customer_id} subscription_id={subscription_id} — ignorado"
+                        )
+                        conn.commit()
+                        return {'success': True, 'message': 'Subscription has ended and matches no user; ignored'}
+
                     if users_updated == 0:
                         # Could not find the user via customer_id, subscription_id, or
                         # Stripe-customer-email lookup. Possible causes:
@@ -765,6 +777,23 @@ def _otra_suscripcion_vigente(cur, customer_id, subscription_id, solo_si_pagando
         LIMIT 1
     ''', (customer_id, subscription_id))
     return cur.fetchone() is not None
+
+
+_ESTADOS_TERMINADOS = ('canceled', 'incomplete_expired')
+
+
+def _suscripcion_terminada(subscription_id, action, status) -> bool:
+    """True si la suscripción ya no puede volver a cobrar: borrada, o cancelada
+    o expirada en Stripe AHORA (no en la foto del evento, que en un reintento
+    puede ser de antes de cancelarla). Si la API no responde, False: ante la
+    duda se mantiene el 503 por si es una carrera del alta."""
+    if action == 'deleted' or status in _ESTADOS_TERMINADOS:
+        return True
+    try:
+        return stripe.Subscription.retrieve(subscription_id).get('status') in _ESTADOS_TERMINADOS
+    except Exception as e:
+        logger.warning(f"No se pudo consultar en Stripe el estado de {subscription_id}: {e}")
+        return False
 
 
 def _subscription_id_de_factura(invoice: dict):
