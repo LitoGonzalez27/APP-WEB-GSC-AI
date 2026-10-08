@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Readiness - ClicAndSEO</title>
+
+    {% include 'partials/gtm_head.html' %}
+
+    {% include 'partials/favicons.html' %}
+
+    <!-- Hojas compartidas: mismo esqueleto que el resto de paneles -->
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='manual-ai.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
+    <!-- Tipografías de marca (brandbook clicandseo v1.1) -->
+    {% include 'partials/panel_brand_fonts.html' %}
+
+    <link href="{{ url_for('static', filename='navbar.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- CSS propio del panel: antes del bloque de marca, que debe ir el último -->
+    <link href="{{ url_for('static', filename='agent-scanner.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+
+    {% include 'partials/panel_brand_assets.html' %}
+</head>
+<body data-authenticated="{{ 'true' if user else 'false' }}">
+    {% include 'partials/gtm_body.html' %}
+
+    <nav class="navbar" id="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" alt="Clicandseo Logo" class="logo-image">
+            </div>
+
+            <div class="navbar-desktop-actions">
+                <div class="navbar-user-dropdown" id="userDropdown" style="display: block;">
+                    <button class="user-dropdown-btn" id="userDropdownBtn" aria-expanded="false">
+                        <div class="user-avatar-small" id="userAvatarSmall">
+                            {% if user.picture %}
+                                <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                            {% else %}
+                                <i class="fas fa-user-circle"></i>
+                            {% endif %}
+                        </div>
+                        <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
+                        <i class="fas fa-chevron-down dropdown-chevron"></i>
+                    </button>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <div class="user-dropdown-header">
+                            <div class="user-avatar-large" id="userAvatarLarge">
+                                {% if user.picture %}
+                                    <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                                {% else %}
+                                    <i class="fas fa-user-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="user-details">
+                                <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
+                                <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profile" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i>
+                            <span>Mi Perfil</span>
+                        </a>
+                        <a href="/dashboard" class="dropdown-item">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
+                            <i class="fas fa-moon" id="dropdownThemeIcon"></i>
+                            <span id="dropdownThemeText">Modo Oscuro</span>
+                        </button>
+                        <div class="dropdown-divider" style="display: none;"></div>
+                        <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="auth-buttons" id="authButtons" style="display: none;">
+                    <button type="button" class="btn-auth btn-login" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Iniciar Sesión</span>
+                    </button>
+
+                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar a modo oscuro" style="display: none;">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+
+            <div class="navbar-mobile-menu" id="navbarMenu">
+                <div class="mobile-menu-header">
+                    <div class="mobile-brand">
+                        <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" alt="Clicandseo Logo" class="logo-image">
+                        <span>Clicandseo</span>
+                    </div>
+                    <button class="mobile-menu-close" id="mobileMenuClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="mobile-menu-content">
+                    <div class="mobile-user-section">
+                        <div class="mobile-user-info" id="mobileUserInfo" style="display: flex;">
+                            <div class="mobile-user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="mobile-user-details">
+                                <span class="mobile-user-name" id="mobileUserName">{{ user.name or user.email }}</span>
+                                <span class="mobile-user-email" id="mobileUserEmail">{{ user.email }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mobile-auth-section">
+                        <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn" style="display: none;">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Iniciar Sesión con Google</span>
+                        </button>
+
+                        <button type="button" class="mobile-btn mobile-btn-logout" id="mobileLogoutBtn" style="display: flex;">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="navbar-overlay" id="navbarOverlay"></div>
+    </nav>
+
+    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
+
+    <div class="app-layout">
+        <aside class="sidebar-container" id="sidebarContainer">
+            <div class="sidebar-header">
+            </div>
+
+            <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
+                <div class="nav-section nav-section-analysis">
+                    <div class="nav-section-title">Análisis</div>
+                    <button type="button" class="nav-item" id="navConfiguration" onclick="navigateToConfiguration()">
+                        <div class="nav-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="nav-text">Configuration</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusConfiguration"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPerformance" onclick="navigateToSection('performance')">
+                        <div class="nav-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="nav-text">Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPerformance"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navKeywords" onclick="navigateToSection('keywords')">
+                        <div class="nav-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="nav-text">Keywords</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusKeywords"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPages" onclick="navigateToSection('pages')">
+                        <div class="nav-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="nav-text">Pages</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPages"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navAI" onclick="navigateToSection('ai-overview')">
+                        <div class="nav-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="nav-text">AI Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusAI"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
+                        <div class="nav-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div class="nav-text">AI Overview Monitoring</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusManualAI"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
+                        <div class="nav-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="nav-text">AI Mode Monitoring</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusAIMode"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item" id="navLLMMonitoring" onclick="openLLMMonitoring()">
+                        <div class="nav-icon">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="nav-text">LLM Visibility Monitor</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusLLMMonitoring"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item" id="navAISummary" onclick="window.location.href='/ai-summary/'">
+                        <div class="nav-icon">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="nav-text">AI Visibility Summary <span class="nav-badge-new">new</span></div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusAISummary"></div>
+                        </div>
+                    </button>
+                    <button type="button" class="nav-item active" id="navAgentScanner" aria-current="page">
+                        <div class="nav-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="nav-text">Agent Readiness</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusAgentScanner"></div>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
+                    <div class="nav-section-title">Herramientas</div>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content-area">
+        <div class="manual-ai-app ag-app" id="agApp" data-initial-tab="{{ initial_tab or 'nuevo' }}" data-is-admin="{{ 'true' if is_admin else 'false' }}">
+
+            <!-- =====================================================================
+                 INICIO: cabecera + pestañas (Nuevo análisis · Informes · Accesos)
+                 Misma estructura que LLM Monitoring / Manual AI: cabecera blanca,
+                 barra de pestañas y contenido. Las otras dos vistas (análisis en
+                 curso e informe) sustituyen a esta, como el detalle de un proyecto.
+                 ===================================================================== -->
+            <div id="agHome">
+                <header class="manual-ai-header">
+                    <div class="header-content">
+                        <div class="header-left">
+                            <h1>Agent Readiness</h1>
+                            <p class="header-subtitle">Comprueba si los agentes de IA pueden leer, entender y usar una web, y compárala con tu competencia</p>
+                        </div>
+                        <div class="header-right"></div>
+                    </div>
+                </header>
+
+                <nav class="manual-ai-nav">
+                    <div class="nav-tabs" role="tablist">
+                        <button type="button" class="nav-tab active" data-ag-tab="nuevo" role="tab">
+                            <i data-lucide="scan-search"></i>
+                            Nuevo análisis
+                        </button>
+                        <button type="button" class="nav-tab" data-ag-tab="informes" role="tab">
+                            <i data-lucide="folder-open"></i>
+                            Informes <span class="ag-tab-count" id="agHistCount"></span>
+                        </button>
+                        {% if is_admin %}
+                        <button type="button" class="nav-tab" data-ag-tab="accesos" role="tab">
+                            <i data-lucide="user-cog"></i>
+                            Accesos
+                        </button>
+                        {% endif %}
+                    </div>
+                </nav>
+
+                <main class="manual-ai-main">
+
+                    <!-- ───────────── Nuevo análisis ───────────── -->
+                    <section class="tab-content active" id="agTab-nuevo">
+                        <div class="ag-intro">
+                            <p class="ag-eyebrow">Auditoría de preparación agéntica</p>
+                            <h2 class="ag-display">¿Está tu web lista para que la use <span class="ag-hl">la IA</span>?</h2>
+                            <p class="ag-lead">Introduce tu dominio y hasta dos competidores. Medimos con la misma vara si los sistemas de IA pueden <b>leer</b>, <b>entender</b> y <b>actuar</b> en cada web.</p>
+                        </div>
+
+                        <div class="ag-setup">
+                            <div class="ag-setup-main">
+                                <div class="ag-card">
+                                    <h3 class="ag-card-title">Dominios</h3>
+                                    <div class="ag-field">
+                                        <label class="ag-label" for="agU0">Tu proyecto</label>
+                                        <div class="ag-input-icon"><i data-lucide="globe"></i>
+                                            <input type="url" id="agU0" placeholder="https://tucliente.com" autocomplete="off" spellcheck="false"></div>
+                                    </div>
+                                    <div class="ag-field-row">
+                                        <div class="ag-field">
+                                            <label class="ag-label" for="agU1">Competidor 1 <span class="ag-optional">opcional</span></label>
+                                            <div class="ag-input-icon"><i data-lucide="swords"></i>
+                                                <input type="url" id="agU1" placeholder="https://competidor1.com" autocomplete="off" spellcheck="false"></div>
+                                        </div>
+                                        <div class="ag-field">
+                                            <label class="ag-label" for="agU2">Competidor 2 <span class="ag-optional">opcional</span></label>
+                                            <div class="ag-input-icon"><i data-lucide="swords"></i>
+                                                <input type="url" id="agU2" placeholder="https://competidor2.com" autocomplete="off" spellcheck="false"></div>
+                                        </div>
+                                    </div>
+                                    <div class="ag-field">
+                                        <label class="ag-label" for="agTyp">Tipología</label>
+                                        <select id="agTyp" class="ag-select">
+                                            <option value="">Detectar automáticamente</option>
+                                            <option value="ecommerce">E-commerce</option>
+                                            <option value="saas">SaaS</option>
+                                            <option value="corporativo">Corporativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="ag-card">
+                                    <div class="ag-card-head">
+                                        <h3 class="ag-card-title">Qué verificar</h3>
+                                        <span class="ag-muted" id="agFacSummary">Auditoría completa</span>
+                                    </div>
+                                    <p class="ag-help">Todo marcado es una auditoría completa. El comercio agéntico solo puntúa en e-commerce.</p>
+                                    <div class="ag-cats" id="agCats"></div>
+
+                                    <details class="ag-factors" id="agFactorsBox">
+                                        <summary>
+                                            <i data-lucide="chevron-right" class="ag-caret"></i>
+                                            <span>Elegir factor a factor <span class="ag-muted">(<b id="agFacCount">40</b> factores)</span></span>
+                                            <span class="ag-factors-actions">
+                                                <button type="button" class="btn-ghost ag-btn-xs" id="agFacAll">Marcar todos</button>
+                                                <button type="button" class="btn-ghost ag-btn-xs" id="agFacNone">Desmarcar todos</button>
+                                            </span>
+                                        </summary>
+                                        <div id="agFacList" class="ag-fac-list"><p class="ag-help">Cargando factores…</p></div>
+                                    </details>
+                                </div>
+                            </div>
+
+                            <aside class="ag-setup-side">
+                                <div class="ag-card">
+                                    <h3 class="ag-card-title">Opciones</h3>
+                                    <div class="ag-opt">
+                                        <div class="ag-opt-text">
+                                            <div class="ag-opt-title">Render JavaScript</div>
+                                            <div class="ag-opt-desc">Compara lo que ven los bots con lo que ve un navegador real. Añade unos 2 minutos.</div>
+                                        </div>
+                                        <label class="ag-switch"><input type="checkbox" id="agOptRender" checked><span></span></label>
+                                    </div>
+                                    <div class="ag-opt">
+                                        <div class="ag-opt-text">
+                                            <div class="ag-opt-title">Leer como Googlebot si nos bloquean</div>
+                                            <div class="ag-opt-desc">Solo sirve para <b>verificar los factores</b> cuando ninguna otra vía obtiene contenido. No cambia cómo medimos el acceso: qué bots de IA entran se sigue midiendo con su user-agent real y el bloqueo se reporta igual. Actívalo únicamente en dominios propios o con permiso del cliente: suplantar a Googlebot desde una IP que no es de Google puede bloquearse más, no menos.</div>
+                                        </div>
+                                        <label class="ag-switch"><input type="checkbox" id="agOptGooglebot"><span></span></label>
+                                    </div>
+                                    <div class="ag-opt">
+                                        <div class="ag-opt-text">
+                                            <div class="ag-opt-title">Pruebas agénticas reales <span class="ag-muted">check 6.3</span></div>
+                                            <div class="ag-opt-desc">ChatGPT, Gemini y Claude pilotan un navegador real e intentan una tarea en tu web y en la de los competidores (carrito y checkout con datos rellenos, formulario o plan más barato). <b>Nunca se paga ni se crean cuentas</b>: los campos de tarjeta están bloqueados por código. No frena el análisis: en el informe aparecerá el botón «Simular agentes» para lanzarlas cuando quieras.</div>
+                                        </div>
+                                        <label class="ag-switch"><input type="checkbox" id="agOptAgents"><span></span></label>
+                                    </div>
+                                    <div class="ag-opt ag-opt-sub" id="agRowReps" hidden>
+                                        <div class="ag-opt-text">
+                                            <div class="ag-opt-title">Intentos por agente</div>
+                                            <div class="ag-opt-desc">Los agentes no son deterministas: repetir la tarea distingue «la web funciona» de «esa vez tuvo suerte». Cada intento suma tiempo.</div>
+                                        </div>
+                                        <select id="agOptReps" class="ag-select ag-select-sm">
+                                            <option value="1">1 · rápido</option>
+                                            <option value="3" selected>3 · recomendado</option>
+                                            <option value="5">5 · máximo rigor</option>
+                                        </select>
+                                    </div>
+                                    <div class="ag-opt ag-opt-sub" id="agRowSubmit" hidden>
+                                        <div class="ag-opt-text">
+                                            <div class="ag-opt-title">Autorizo el envío de formularios de prueba</div>
+                                            <div class="ag-opt-desc">Se envía <b>un solo formulario real</b> en todo el análisis y únicamente en tu dominio: recibirás un aviso a nombre de «Test Auditoria». Nunca en competidores, nunca pagos, nunca cuentas.</div>
+                                        </div>
+                                        <label class="ag-switch"><input type="checkbox" id="agOptSubmit"><span></span></label>
+                                    </div>
+                                </div>
+
+                                <div class="ag-card ag-card-quiet">
+                                    <h3 class="ag-card-title">Qué mide</h3>
+                                    <ol class="ag-journey-mini">
+                                        <li><span class="ag-step-n">1</span><div><b>¿Te leen?</b><span>Acceso real de bots, robots.txt, sitemap, firewall</span></div></li>
+                                        <li><span class="ag-step-n">2</span><div><b>¿Te entienden?</b><span>Datos estructurados, render sin JS, contenido citable</span></div></li>
+                                        <li><span class="ag-step-n">3</span><div><b>¿Pueden usarte?</b><span>MCP/A2A, formularios operables, comercio agéntico</span></div></li>
+                                    </ol>
+                                    <p class="ag-help">La visibilidad en respuestas de IA (menciones, citas, share of voice) se mide en <a href="/llm-monitoring">LLM Visibility Monitor</a>.</p>
+                                </div>
+                            </aside>
+                        </div>
+
+                        <div class="ag-submit-bar">
+                            <p class="ag-error" id="agErr" role="alert"></p>
+                            <button type="button" class="btn-primary ag-btn-lg" id="agGo">
+                                <i data-lucide="radar"></i>
+                                Comprobar viabilidad agéntica
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- ───────────── Informes ───────────── -->
+                    <section class="tab-content" id="agTab-informes">
+                        <div class="projects-header ag-section-head">
+                            <div>
+                                <h2>Informes</h2>
+                                <p class="ag-help" id="agHistScope">Los análisis se guardan para que puedas reabrirlos y descargarlos cuando quieras.</p>
+                            </div>
+                            <button type="button" class="btn-primary" data-ag-goto="nuevo">
+                                <i data-lucide="plus"></i>
+                                Nuevo análisis
+                            </button>
+                        </div>
+                        <div id="agHistBody">
+                            <div class="loading-container"><div class="loading-spinner"><i data-lucide="loader-circle" class="ag-spin"></i></div><p>Cargando informes…</p></div>
+                        </div>
+                    </section>
+
+                    {% if is_admin %}
+                    <!-- ───────────── Accesos (solo admin) ───────────── -->
+                    <section class="tab-content" id="agTab-accesos">
+                        <div class="projects-header ag-section-head">
+                            <div>
+                                <h2>Quién puede usar Agent Readiness</h2>
+                                <p class="ag-help">Los administradores siempre tienen acceso. Aquí das acceso a usuarios concretos; solo los administradores ven esta pestaña.</p>
+                            </div>
+                        </div>
+                        <div class="ag-card">
+                            <label class="ag-label" for="agAccEmail">Dar acceso a un email</label>
+                            <div class="ag-inline-form">
+                                <div class="ag-input-icon"><i data-lucide="mail"></i>
+                                    <input type="email" id="agAccEmail" placeholder="persona@empresa.com" autocomplete="off"></div>
+                                <button type="button" class="btn-primary" id="agAccAdd"><i data-lucide="user-plus"></i> Dar acceso</button>
+                            </div>
+                            <p class="ag-help">El usuario necesita una cuenta de Clicandseo con ese email. Al darle acceso le llega un email de invitación con el enlace.</p>
+                            <p class="ag-error" id="agAccErr" role="alert"></p>
+                            <p class="ag-feedback" id="agAccMsg" role="status"></p>
+                        </div>
+                        <div class="ag-card">
+                            <h3 class="ag-card-title">Con acceso concedido</h3>
+                            <div id="agAccList"><p class="ag-help">Cargando…</p></div>
+                        </div>
+                    </section>
+                    {% endif %}
+                </main>
+            </div>
+
+            <!-- =====================================================================
+                 ANÁLISIS EN CURSO
+                 La única sección oscura de la página (énfasis puntual, Brandbook §13):
+                 el radar en Bio-Lime solo es legible sobre #0A0A0B.
+                 ===================================================================== -->
+            <div id="agRunning" hidden>
+                <header class="manual-ai-header">
+                    <div class="header-content">
+                        <div class="header-left">
+                            <h1>Analizando <span id="agRunHost"></span></h1>
+                            <p class="header-subtitle">Puedes dejar esta pestaña abierta mientras trabajas en otra cosa. Si la cierras, el análisis se cancela.</p>
+                        </div>
+                        <div class="header-right">
+                            <button type="button" class="btn-secondary" id="agCancel"><i data-lucide="x"></i> Cancelar análisis</button>
+                        </div>
+                    </div>
+                </header>
+                <main class="manual-ai-main">
+                    <section class="ag-run-stage" aria-live="polite">
+                        <div class="ag-radar-wrap" aria-hidden="true">
+                            <svg class="ag-radar" viewBox="0 0 240 240" id="agRadar"></svg>
+                        </div>
+                        <div class="ag-run-info">
+                            <p class="ag-run-eyebrow">Análisis en curso</p>
+                            <p class="ag-run-phase" id="agPhase">Preparando análisis…</p>
+                            <p class="ag-run-elapsed"><i data-lucide="timer"></i> <span id="agElapsed">0:00</span></p>
+                            <ul class="ag-run-domains" id="agRunDomains"></ul>
+                            <div class="ag-console" id="agConsole"></div>
+                        </div>
+                    </section>
+
+                    <section class="ag-card ag-learn" id="agLearn">
+                        <div class="ag-card-head">
+                            <h3 class="ag-card-title">Mientras esperas: qué estamos comprobando</h3>
+                            <div class="ag-learn-dots" id="agLearnDots" role="tablist" aria-label="Categorías"></div>
+                        </div>
+                        <div class="ag-learn-body" id="agLearnBody"></div>
+                    </section>
+                </main>
+            </div>
+
+            <!-- =====================================================================
+                 INFORME
+                 ===================================================================== -->
+            <div id="agReport" hidden>
+                <header class="manual-ai-header ag-report-header">
+                    <div class="header-content">
+                        <div class="header-left">
+                            <button type="button" class="btn-ghost ag-back" id="agBack"><i data-lucide="arrow-left"></i> Informes</button>
+                            <p class="ag-eyebrow" id="agRepMeta"></p>
+                            <h1 class="ag-rep-title" id="agRepTitle"></h1>
+                            <p class="header-subtitle" id="agRepSub"></p>
+                        </div>
+                        <div class="header-right ag-actions rep-actions">
+                            <button type="button" class="btn-accent" id="btnAgents" hidden><i data-lucide="bot"></i> <span>Simular agentes</span></button>
+                            <button type="button" class="btn-primary" id="dlPdf"><i data-lucide="file-down"></i> <span>Informe PDF</span></button>
+                            <button type="button" class="btn-secondary" id="dlJson"><i data-lucide="braces"></i> <span>JSON</span></button>
+                            <button type="button" class="btn-secondary js-superprompt"><i data-lucide="clipboard-copy"></i> <span>Copiar prompt IA</span></button>
+                        </div>
+                    </div>
+                </header>
+                <nav class="manual-ai-nav">
+                    <div class="nav-tabs" id="agRepTabs" role="tablist"></div>
+                </nav>
+                <main class="manual-ai-main">
+                    <div id="agAgentsBanner" hidden></div>
+                    <div id="agPanes"></div>
+                </main>
+            </div>
+
+            <!-- estado de error o "no encontrado" al abrir un informe por URL -->
+            <div id="agMissing" hidden>
+                <main class="manual-ai-main">
+                    <div class="empty-state ag-empty">
+                        <div class="empty-icon"><i data-lucide="file-question"></i></div>
+                        <h3 id="agMissingTitle">No encontramos este análisis</h3>
+                        <p id="agMissingMsg">Puede que se cancelara o que el servidor se reiniciara antes de terminar.</p>
+                        <button type="button" class="btn-primary" data-ag-goto="informes"><i data-lucide="folder-open"></i> Ver informes</button>
+                    </div>
+                </main>
+            </div>
+        </div>
+        </main>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/navbar.js') }}?v={{ ASSET_V }}"></script>
+    <script>
+        window.DISABLE_SIDEBAR_NAVIGATION = true;
+
+        window.currentUser = {
+            email: '{{ user.email }}',
+            plan: '{{ user.plan }}',
+            role: '{{ user.role }}'
+        };
+
+        // Navegación del sidebar: mismo comportamiento que el resto de paneles
+        function navigateToConfiguration() {
+            window.location.href = '/app';
+        }
+
+        function navigateToSection(section) {
+            const hasAnalysisData = sessionStorage.getItem('analysisData') || localStorage.getItem('lastAnalysisData');
+            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
+            if (hasAnalysisData || navigationState.hasAnalysisData) {
+                window.location.href = `/app#${section}`;
+            } else {
+                alert('No hay datos de análisis disponibles. Ejecuta un análisis primero desde Configuration.');
+            }
+        }
+
+        function checkAnalysisState() {
+            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
+            const hasAnalysisData = sessionStorage.getItem('analysisData')
+                || localStorage.getItem('lastAnalysisData')
+                || navigationState.hasAnalysisData;
+            if (hasAnalysisData || navigationState.source === 'main-app') {
+                const statusConfig = document.getElementById('statusConfiguration');
+                const navConfig = document.getElementById('navConfiguration');
+                if (statusConfig && navConfig) {
+                    statusConfig.className = 'status-dot status-ready';
+                    navConfig.classList.remove('disabled');
+                }
+                if (hasAnalysisData) {
+                    ['Performance', 'Keywords', 'Pages', 'AI'].forEach(section => {
+                        const statusElement = document.getElementById(`status${section}`);
+                        const navElement = document.getElementById(`nav${section}`);
+                        if (statusElement && navElement) {
+                            statusElement.className = 'status-dot status-ready';
+                            navElement.classList.remove('disabled');
+                        }
+                    });
+                }
+            }
+        }
+
+        function openManualAI() { window.location.href = '/manual-ai/'; }
+        function openAIMode() { window.location.href = '/ai-mode-projects/'; }
+        function openLLMMonitoring() { window.location.href = '/llm-monitoring'; }
+
+        // navbar.js crea window.navbar por su cuenta en DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', checkAnalysisState);
+    </script>
+    <!-- Banner de invitaciones pendientes (compartido) -->
+    <script src="{{ url_for('static', filename='js/html-escape.js') }}?v={{ ASSET_V }}"></script>
+    <script src="{{ url_for('static', filename='js/pending-invitations-banner.js') }}?v={{ ASSET_V }}"></script>
+    <!-- Panel Agent Readiness (defer: corre tras lucide y brand-icons, también defer) -->
+    <script defer src="{{ url_for('static', filename='js/agent-scanner.js') }}?v={{ ASSET_V }}"></script>
+</body>
+</html>

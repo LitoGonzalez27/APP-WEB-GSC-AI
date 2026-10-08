@@ -86,3 +86,5 @@ google-generativeai==0.8.5
 
 # Agent-Ready Scanner: DNS-AID lookups
 dnspython==2.6.1
+# Agent-Ready Scanner: une la portada (a sangre) con el cuerpo del informe PDF
+pypdf==6.10.2

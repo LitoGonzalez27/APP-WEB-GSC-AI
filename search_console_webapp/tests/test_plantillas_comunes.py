@@ -19,7 +19,7 @@ PIEZAS = ("partials/favicons.html", "partials/gtm_head.html", "partials/gtm_body
 
 # Qué páginas llevan cada pieza. Perder una (o ganarla sin querer) hace fallar el test.
 CON_GTM = {
-    "ai_mode_dashboard.html", "ai_summary.html", "dashboard.html", "forgot_password.html", "index.html",
+    "agent_scanner.html", "ai_mode_dashboard.html", "ai_summary.html", "dashboard.html", "forgot_password.html", "index.html",
     "landing.html", "llm_monitoring.html", "login.html", "manual_ai_dashboard.html", "reset_password.html",
     "signup.html", "user_profile.html",
 }

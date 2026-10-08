@@ -774,6 +774,24 @@ def _audit_ficticia(**extra):
     return base
 
 
+def _web_src(compacto=False):
+    """Código del panel web: plantilla Jinja + JS (oct-2026). Antes era un único
+    agent_scanner/web/index.html. Con compacto=True se quitan los espacios y se
+    unifican comillas, para comprobar construcciones sin depender del formato."""
+    import re as _re
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    partes = []
+    for rel in ("templates/agent_scanner.html", "static/js/agent-scanner.js"):
+        ruta = os.path.join(raiz, rel)
+        if os.path.exists(ruta):
+            with open(ruta) as f:
+                partes.append(f.read())
+    src = "\n".join(partes)
+    if compacto:
+        src = _re.sub(r"\s+", "", src).replace("'", '"')
+    return src
+
+
 def test_informes_no_revientan():
     """El PDF y el JSON no tenían NINGUNA prueba: por eso partir build_pdf era
     arriesgado. Se ejercitan sus rutas condicionales (con y sin competidores,
@@ -819,6 +837,63 @@ def test_informes_no_revientan():
         except Exception as exc:
             t("json_" + nombre.replace(" ", "_"), False,
               f"EXCEPCIÓN {type(exc).__name__}: {exc}")
+
+
+def test_informe_pdf_con_marca():
+    """Rediseño oct-2026: el PDF se maqueta en HTML con el brandbook y lo imprime
+    Chromium. Se comprueba sin Chromium: que la plantilla renderiza en todos los
+    escenarios, que respeta las reglas absolutas de la marca y que el respaldo
+    ReportLab sigue vivo para cuando no haya navegador."""
+    import re as _re
+    from .report_pdf_html import render_html, _split
+    from .report_pdf import build_pdf_reportlab
+    degradada = _audit_ficticia(
+        host="bloqueada.example", score_fiable=False,
+        level={"emoji": "🚫", "name": "No evaluable desde nuestra red",
+               "msg": "No pudimos leer el contenido.", "cobertura_parcial": True},
+        cobertura_score=0.4,
+        acceso_degradado={"nivel": "total", "motivo": "bloqueo", "degradados": 8})
+    escenarios = {
+        "solo cliente": {"client": _audit_ficticia(), "competitors": []},
+        "con competidores": {"client": _audit_ficticia(),
+                             "competitors": [_audit_ficticia(host="comp1.example", typology="saas"),
+                                             degradada]},
+        "cliente degradado": {"client": degradada, "competitors": []},
+        "competidor con error": {"client": _audit_ficticia(),
+                                 "competitors": [{"domain": "x", "error": "no responde"}]},
+    }
+    paleta = {"#d9f9b8", "#0f172a", "#64748b", "#94a3b8", "#f8fafc", "#ffffff", "#f1f5f9",
+              "#0a0a0b", "#e2e8f0", "#eef2f7", "#3cb371", "#287a4c", "#e05252", "#d13b3b",
+              "#2a78d6", "#1baf7a", "#eb6834"}
+    for nombre, data in escenarios.items():
+        data["generated"] = "2026-10-08T10:00:00Z"
+        clave = "pdf_marca_" + nombre.replace(" ", "_")
+        try:
+            html = render_html(data)
+        except Exception as exc:
+            t(clave, False, f"EXCEPCIÓN {type(exc).__name__}: {exc}")
+            continue
+        t(clave + "_fuentes", "Inter+Tight" in html and "Libre+Baskerville" in html,
+          "el informe debe cargar las dos familias del brandbook")
+        t(clave + "_sin_degradados", "gradient(" not in html,
+          "regla absoluta del brandbook: nunca gradientes")
+        fuera = {h.lower() for h in _re.findall(r"#[0-9a-fA-F]{6}\b", html)} - paleta
+        t(clave + "_solo_paleta", not fuera, f"colores fuera del brandbook: {sorted(fuera)}")
+        portada, cuerpo = _split(html)
+        t(clave + "_portada_aparte", portada is not None and "cover" in portada
+          and 'class="cover"' not in cuerpo, "la portada se imprime a sangre y sin pie")
+        t(clave + "_fecha", "8 de octubre de 2026" in html, "la fecha del análisis va en la portada")
+    html = render_html(escenarios["cliente degradado"])
+    t("pdf_marca_aviso_del_veredicto", "No evaluable desde nuestra red" in html
+      and "no cuentan como fallo" in html, "mismo aviso informativo que el panel")
+    html = render_html(escenarios["con competidores"])
+    t("pdf_marca_tipologias_mixtas", "no son comparables" in html and "mejor puntuación" not in html,
+      "con tipologías distintas no se corona a nadie, igual que en el panel")
+    try:
+        pdf = build_pdf_reportlab(escenarios["solo cliente"]).getvalue()
+        t("pdf_respaldo_reportlab", len(pdf) > 5000, f"PDF de respaldo demasiado pequeño ({len(pdf)})")
+    except Exception as exc:
+        t("pdf_respaldo_reportlab", False, f"EXCEPCIÓN {type(exc).__name__}: {exc}")
 
 
 def test_persistencia_degrada_sin_bd():
@@ -1383,18 +1458,19 @@ def test_comparativa_no_corona_entre_tipologias():
     significaba nada. Verificado además en navegador: con tipologías mezcladas
     se pinta el aviso y ninguna tarjeta lleva .win; con la misma tipología, una.
     """
-    src = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
-    assert "function paneComparativa" in src, "cambió el nombre del panel"
-    frag = src[src.index("function paneComparativa"):]
-    frag = frag[:frag.index("const heatCats")]
-    t("comparativa_detecta_tipologias", "new Set(audits.map(a=>a.typology))" in frag,
+    src = _web_src(compacto=True)
+    assert "functionpaneComparativa" in src, "cambió el nombre del panel"
+    frag = src[src.index("functionpaneComparativa"):]
+    frag = frag[:frag.index("constheatCats")]
+    t("comparativa_detecta_tipologias", "newSet(audits.map(a=>a.typology))" in frag,
       "el panel debe mirar cuántas tipologías distintas hay")
     t("comparativa_corona_solo_si_homogenea", "!mixto&&conNota.length" in frag,
       "el 'mejor' solo puede calcularse cuando todas comparten tipología")
-    t("comparativa_avisa_al_usuario", "no son comparables" in frag,
+    t("comparativa_avisa_al_usuario", "nosoncomparables" in frag,
       "sin aviso, el usuario compara dos varas distintas sin saberlo")
     # el aviso tiene que llegar al HTML devuelto, no quedarse en una variable
-    t("comparativa_pinta_el_aviso", "return avisoMixto+" in src,
+    funcion = src[src.index("functionpaneComparativa"):src.index("functionbubbleChart")]
+    t("comparativa_pinta_el_aviso", 'ag-pane">${avisoMixto}' in funcion,
       "el aviso se calculaba pero no se insertaba en el panel")
 
 
@@ -1680,8 +1756,8 @@ def test_panel_no_se_mata_con_su_propio_limitador():
     MATABA el sondeo: el análisis seguía corriendo por detrás y el panel se
     quedaba enseñando "¿servidor reiniciado?" indefinidamente.
     """
-    src = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
-    frag = src[src.index("async function poll("):src.index("/* resume por URL */")]
+    src = _web_src(compacto=True)
+    frag = src[src.index("asyncfunctionpoll("):src.index("functionshowMissing(")]
     t("poll_distingue_429", "r.status===429" in frag,
       "un 429 es nuestro limitador, no un análisis perdido")
     t("poll_no_muere_con_429", "setTimeout(()=>poll(id,intentos+1),10000)" in frag,
@@ -1741,15 +1817,20 @@ def test_aviso_degradado_informa_sin_alarmar():
     crear el veredicto. Ahora los tres canales leen título y cuerpo DEL
     veredicto, en naranja, y explican qué se verificó y qué no.
     """
-    web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    web = _web_src()
     t("web_sin_no_entregar", "no entregar este informe" not in web,
       "el texto alarmista no puede seguir en el panel")
     t("web_titulo_del_veredicto", "${esc(c.level.name)}" in web,
       "el título del banner debe salir del veredicto, no estar cableado")
     t("web_cuerpo_del_veredicto", "${esc(c.level.msg)}" in web,
       "el cuerpo también: así web/PDF/JSON no se desincronizan")
-    t("web_banner_naranja", 'var(--warn,#F2A65A);background:rgba(242,166,90' in web,
-      "naranja informativo, no rojo de alarma")
+    # Informativo, no rojo de alarma. Antes se fijaba en naranja; con el
+    # rediseño al brandbook (oct-2026) el naranja no existe en la paleta de
+    # interfaz, así que el aviso va en superficie neutra con icono, y lo que se
+    # blinda es que NO lleve el tono de error.
+    frag = web[web.index("const deg = c.acceso_degradado"):web.index("const pens")]
+    t("web_banner_no_es_error", "tone: 'bad'" not in frag and "shield-alert" in frag,
+      "el aviso de acceso degradado informa, no se pinta como error")
     t("web_dice_que_no_cuentan_como_fallo", "no cuentan como fallo" in web,
       "lo tranquilizador es explicar qué pasa con los factores no verificables")
 
@@ -1757,6 +1838,10 @@ def test_aviso_degradado_informa_sin_alarmar():
     t("pdf_sin_grito", "PUNTUACIÓN NO FIABLE" not in pdf,
       "el PDF viaja solo: menos aún puede gritar")
     t("pdf_titulo_del_veredicto", 'lvl.get("name", "No evaluable desde nuestra red")' in pdf, "")
+    pdf_html = open(os.path.join(os.path.dirname(__file__), "report_pdf_html.py")).read()
+    t("pdf_marca_titulo_del_veredicto",
+      'lvl.get("name", "No evaluable desde nuestra red")' in pdf_html,
+      "el PDF con marca cuenta lo mismo que el panel y el JSON")
 
     # el JSON, que consumen IAs, lleva el mismo mensaje del veredicto
     from . import report_json
@@ -2235,7 +2320,7 @@ def test_analisis_se_cancela_al_abandonar():
       "abandonar no es un fallo del análisis: es un estado propio")
 
     # frontend: avisa al salir por sendBeacon (se entrega durante el unload)
-    web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    web = _web_src(compacto=True)
     t("web_beacon_al_salir",
       "navigator.sendBeacon" in web and "/agent/api/cancel/" in web,
       "sendBeacon es lo único que se entrega mientras la página se descarga")
@@ -2281,7 +2366,7 @@ def test_super_prompt_de_rescate():
     rt = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "agent_routes.py")).read()
     t("endpoint_prompt_existe", "/api/prompt/<job_id>" in rt, "")
-    web = open(os.path.join(os.path.dirname(__file__), "web", "index.html")).read()
+    web = _web_src()
     # el prompt de rescate debe estar SIEMPRE disponible (Carlos): botón en la
     # barra de acciones del informe, no solo dentro del aviso de bloqueo.
     t("boton_prompt_siempre", "js-superprompt" in web and "rep-actions" in web,

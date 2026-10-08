@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Informe PDF del Agent-Ready Scanner (reportlab, ya en las deps de la app).
+"""Informe PDF del Agent-Ready Scanner.
+
+build_pdf() usa el informe con identidad de marca (report_pdf_html.py, HTML
+impreso con Chromium) y, si no puede, el generador ReportLab de este módulo.
 
 Diseñado para el flujo real: un CMO lo lee y se lo pasa a su equipo técnico.
 Estructura:
@@ -26,7 +29,25 @@ TIERS = [(0, "Crítico", "Está frenando a los agentes hoy. Arreglar lo primero.
 
 
 def build_pdf(data):
-    """Devuelve un BytesIO con el PDF del informe."""
+    """Devuelve un BytesIO con el PDF del informe.
+
+    Desde oct-2026 el informe se maqueta en HTML con la identidad de marca y lo
+    imprime Chromium (report_pdf_html.py). Si Chromium no está disponible o
+    falla, se genera con ReportLab como antes: un informe sin la maqueta de marca
+    es mejor que ningún informe.
+    """
+    import logging
+    try:
+        from .report_pdf_html import build_pdf_html
+        return BytesIO(build_pdf_html(data))
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            f"PDF con Chromium no disponible, se usa ReportLab: {type(exc).__name__}: {exc}")
+    return build_pdf_reportlab(data)
+
+
+def build_pdf_reportlab(data):
+    """Generador ReportLab de siempre: respaldo cuando no hay Chromium."""
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     from reportlab.lib.pagesizes import A4
