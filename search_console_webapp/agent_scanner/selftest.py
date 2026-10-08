@@ -865,7 +865,7 @@ def test_informe_pdf_con_marca():
     paleta = {"#d9f9b8", "#0f172a", "#64748b", "#94a3b8", "#f8fafc", "#ffffff", "#f1f5f9",
               "#0a0a0b", "#e2e8f0", "#eef2f7", "#3cb371", "#287a4c", "#e05252", "#d13b3b",
               "#2a78d6", "#1baf7a", "#eb6834", "#4a3aa7", "#e87ba4",
-              "#eda100", "#8f6100"}   # ámbar de datos + su paso de texto (semáforo)
+              "#f2a65a", "#935210"}   # naranja pastel del semáforo + su paso de texto
     for nombre, data in escenarios.items():
         data["generated"] = "2026-10-08T10:00:00Z"
         clave = "pdf_marca_" + nombre.replace(" ", "_")

@@ -72,8 +72,8 @@
         accent: cssVar('--cs-accent', '#d9f9b8'),
         okText: cssVar('--cs-success-text', '#287A4C'),
         badText: cssVar('--cs-error-text', '#D13B3B'),
-        warn: cssVar('--cs-series-5', '#eda100'),
-        warnText: '#8F6100',
+        warn: '#F2A65A',          // naranja pastel del semáforo (ver agent-scanner.css)
+        warnText: '#935210',
     };
     // Semáforo: ≥75 bien, 50-74 regular, <50 mal (porcentajes de categoría).
     const toneOf = p => (p >= 75 ? 'good' : p >= 50 ? 'warn' : 'bad');
