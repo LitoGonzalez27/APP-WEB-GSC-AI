@@ -315,22 +315,31 @@
                                     <h3 class="ag-card-title">Dominios</h3>
                                     <div class="ag-field">
                                         <label class="ag-label" for="agU0">Tu proyecto</label>
-                                        <div class="ag-input-icon"><i data-lucide="globe"></i>
-                                            <input type="url" id="agU0" placeholder="https://tucliente.com" autocomplete="off" spellcheck="false"></div>
+                                        <input type="url" id="agU0" placeholder="https://tucliente.com" autocomplete="off" spellcheck="false">
                                     </div>
                                     <div class="ag-field-row">
                                         <div class="ag-field">
                                             <label class="ag-label" for="agU1">Competidor 1 <span class="ag-optional">opcional</span></label>
-                                            <div class="ag-input-icon"><i data-lucide="swords"></i>
-                                                <input type="url" id="agU1" placeholder="https://competidor1.com" autocomplete="off" spellcheck="false"></div>
+                                            <input type="url" id="agU1" placeholder="https://competidor1.com" autocomplete="off" spellcheck="false">
                                         </div>
                                         <div class="ag-field">
                                             <label class="ag-label" for="agU2">Competidor 2 <span class="ag-optional">opcional</span></label>
-                                            <div class="ag-input-icon"><i data-lucide="swords"></i>
-                                                <input type="url" id="agU2" placeholder="https://competidor2.com" autocomplete="off" spellcheck="false"></div>
+                                            <input type="url" id="agU2" placeholder="https://competidor2.com" autocomplete="off" spellcheck="false">
                                         </div>
                                     </div>
-                                    <div class="ag-field">
+                                    <button type="button" class="btn-primary ag-btn-lg ag-go" id="agGo">
+                                        Comprobar viabilidad agéntica
+                                        <i data-lucide="arrow-right"></i>
+                                    </button>
+                                    <p class="ag-error" id="agErr" role="alert"></p>
+                                </div>
+
+                                <div class="ag-card">
+                                    <div class="ag-card-head">
+                                        <h3 class="ag-card-title">Qué verificar</h3>
+                                        <span class="ag-muted" id="agFacSummary">Auditoría completa</span>
+                                    </div>
+                                    <div class="ag-field" style="margin-top:var(--cs-space-md)">
                                         <label class="ag-label" for="agTyp">Tipología</label>
                                         <select id="agTyp" class="ag-select">
                                             <option value="">Detectar automáticamente</option>
@@ -338,13 +347,6 @@
                                             <option value="saas">SaaS</option>
                                             <option value="corporativo">Corporativo</option>
                                         </select>
-                                    </div>
-                                </div>
-
-                                <div class="ag-card">
-                                    <div class="ag-card-head">
-                                        <h3 class="ag-card-title">Qué verificar</h3>
-                                        <span class="ag-muted" id="agFacSummary">Auditoría completa</span>
                                     </div>
                                     <p class="ag-help">Todo marcado es una auditoría completa. El comercio agéntico solo puntúa en e-commerce.</p>
                                     <div class="ag-cats" id="agCats"></div>
@@ -419,13 +421,6 @@
                             </aside>
                         </div>
 
-                        <div class="ag-submit-bar">
-                            <p class="ag-error" id="agErr" role="alert"></p>
-                            <button type="button" class="btn-primary ag-btn-lg" id="agGo">
-                                <i data-lucide="radar"></i>
-                                Comprobar viabilidad agéntica
-                            </button>
-                        </div>
                     </section>
 
                     <!-- ───────────── Informes ───────────── -->
@@ -457,8 +452,7 @@
                         <div class="ag-card">
                             <label class="ag-label" for="agAccEmail">Dar acceso a un email</label>
                             <div class="ag-inline-form">
-                                <div class="ag-input-icon"><i data-lucide="mail"></i>
-                                    <input type="email" id="agAccEmail" placeholder="persona@empresa.com" autocomplete="off"></div>
+                                <input type="email" id="agAccEmail" placeholder="persona@empresa.com" autocomplete="off">
                                 <button type="button" class="btn-primary" id="agAccAdd"><i data-lucide="user-plus"></i> Dar acceso</button>
                             </div>
                             <p class="ag-help">El usuario necesita una cuenta de Clicandseo con ese email. Al darle acceso le llega un email de invitación con el enlace.</p>
