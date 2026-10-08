@@ -16,17 +16,17 @@
 <style>
 :root {
   --accent: #d9f9b8;
-  --text: #0F172A; --text-2: #64748B; --text-3: #94A3B8; --inverse: #F8FAFC;
+  --text: #0F172A; --text-2: #64748B; --text-3: #64748B; --inverse: #F8FAFC;
   --paper: #FFFFFF; --subtle: #F1F5F9; --dark: #0A0A0B;
   --border: #E2E8F0; --border-subtle: #EEF2F7;
-  --ok: #3CB371; --ok-text: #287A4C; --bad: #E05252; --bad-text: #D13B3B;
+  --ok: #3CB371; --ok-text: #287A4C; --bad: #E05252; --bad-text: #A52727;
   /* semáforo (igual que el panel): naranja vivo y claro + su paso oscuro
      para texto; fondos suaves = los mismos colores con opacidad */
   --warn: #FF9A3C; --warn-text: #A55409;
-  --ok-soft: rgba(60,179,113,0.10); --ok-line: rgba(60,179,113,0.35);
-  --warn-soft: rgba(255,154,60,0.14); --warn-line: rgba(255,154,60,0.50);
-  --bad-soft: rgba(224,82,82,0.09); --bad-line: rgba(224,82,82,0.35);
-  --lime-soft: rgba(217,249,184,0.45); --lime-line: rgba(40,122,76,0.25);
+  --ok-soft: #E8F6EE; --ok-line: rgba(60,179,113,0.35);
+  --warn-soft: #FFEFE0; --warn-line: rgba(255,154,60,0.50);
+  --bad-soft: #FCECEC; --bad-line: rgba(224,82,82,0.35);
+  --lime-soft: #EAFCD8; --lime-line: rgba(40,122,76,0.25);
   --s1: #2a78d6;
   --sans: 'Inter Tight', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
   --serif: 'Libre Baskerville', Georgia, serif;
@@ -62,6 +62,8 @@ body.is-cover { background: var(--dark); }
 .wordmark .a { font-weight: 400; opacity: 0.5; }
 .wordmark .s { font-weight: 700; }
 .wordmark .d { font-weight: 800; color: var(--accent); }
+.cover-kind { margin-top: 2mm; font-size: 9pt; font-weight: 600; color: rgba(255,255,255,0.6); }
+.cover-title { margin-top: 46mm !important; }
 .cover-eyebrow {
   margin-top: 46mm; font-size: 8pt; font-weight: 600; letter-spacing: 0.14em;
   text-transform: uppercase; color: rgba(255,255,255,0.4);
@@ -186,12 +188,15 @@ tbody tr:last-child td { border-bottom: none; }
 td.cat b { color: var(--text-2); margin-right: 1.5mm; }
 .state { font-size: 7.5pt; font-weight: 600; color: var(--text-2); }
 .state.good { color: var(--ok-text); } .state.warn { color: var(--warn-text); } .state.bad { color: var(--bad-text); }
-.cell.best { background: var(--lime-soft); border-radius: 5px; padding: 0.6mm 1.5mm; }
+
 .cell { display: inline-flex; align-items: center; gap: 2mm; justify-content: flex-end; }
 .cell .bar { width: 16mm; }
 .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 1.5mm; vertical-align: 0.5px; }
 .host-th { text-transform: none; letter-spacing: 0; color: var(--text); font-size: 7.5pt; }
 .mk { font-weight: 700; }
+.page-spacer { height: 10mm; page-break-after: always; }
+.ic { width: 1.15em; height: 1.15em; vertical-align: -0.2em; display: inline-block; }
+.best-ic { color: var(--ok-text); margin-left: 1mm; }
 .mk.ok { color: var(--ok-text); } .mk.bad { color: var(--bad-text); }
 .mk.part { color: var(--warn-text); } .mk.na { color: var(--text-3); font-weight: 400; }
 td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(--text-2); word-break: break-word; }
@@ -199,17 +204,19 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 /* viaje */
 .journey { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; }
 .stage { border: 1px solid var(--border-subtle); border-radius: 12px; padding: 4mm; }
-.stage.good { background: var(--ok-soft); border-color: var(--ok-line); }
-.stage.warn { background: var(--warn-soft); border-color: var(--warn-line); }
-.stage.bad { background: var(--bad-soft); border-color: var(--bad-line); }
-.stage .bar { background: var(--paper); }
-.stage.weak { box-shadow: 0 0 0 1.5px var(--text); }
+.journey { gap: 0; border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+.stage { border: none; border-radius: 0; }
+.stage + .stage { border-left: 1px solid var(--border-subtle); }
+.stage.weak.good { background: var(--ok-soft); }
+.stage.weak.warn { background: var(--warn-soft); }
+.stage.weak.bad { background: var(--bad-soft); }
+.stage.weak .bar { background: var(--paper); }
 .stage .top { display: flex; justify-content: space-between; align-items: baseline; }
 .stage .q { font-weight: 700; }
 .stage .p { font-size: 15pt; font-weight: 800; letter-spacing: -0.02em; }
 .stage .bar { margin: 2mm 0; }
 .stage .d { font-size: 7.5pt; color: var(--text-2); }
-.stage .flag { margin-top: 1.5mm; font-size: 7.5pt; font-weight: 600; color: var(--bad-text); }
+.stage .flag { margin-top: 1.5mm; font-size: 7.5pt; font-weight: 600; color: var(--text); }
 
 /* listas */
 .list { list-style: none; }
@@ -227,17 +234,18 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 .list .bd { color: var(--text-2); margin-top: 0.5mm; }
 
 /* plan de acción */
-.tier { margin-top: 7mm; padding: 4mm 4mm 2mm; border-radius: 14px; border: 1px solid var(--border); }
-.tier.t0 { background: var(--bad-soft); border-color: var(--bad-line); }
-.tier.t1 { background: var(--bad-soft); border-color: var(--bad-line); }
-.tier.t2 { background: var(--warn-soft); border-color: var(--warn-line); }
+.tier { margin-top: 7mm; }
 .tier.t0 .tier-name, .tier.t0 .tier-count { color: var(--bad-text); }
 .tier.t1 .tier-name, .tier.t1 .tier-count { color: var(--bad-text); }
 .tier.t2 .tier-name, .tier.t2 .tier-count { color: var(--warn-text); }
-.tier .finding { background: var(--paper); border: none; border-radius: 10px; padding: 4mm; margin-bottom: 2.5mm; }
-.tier-head { display: flex; align-items: baseline; gap: 3mm; padding: 0 1mm 3mm; break-after: avoid; }
+.tier .finding { padding: 4mm 0; }
+.tier-body { border: 1px solid var(--border-subtle); border-radius: 4px 4px 12px 12px; padding: 0 5mm; margin-top: 1.5mm; }
+.tier-body .finding:last-child { border-bottom: none; }
+.tier-head { display: flex; align-items: baseline; gap: 3mm; padding: 3mm 4mm; border: 1px solid var(--border); border-radius: 12px 12px 4px 4px; break-after: avoid; }
+.tier.t0 .tier-head, .tier.t1 .tier-head { background: var(--bad-soft); border-color: var(--bad-line); }
+.tier.t2 .tier-head { background: var(--warn-soft); border-color: var(--warn-line); }
 .tier-mark { width: 9px; height: 9px; border-radius: 50%; display: inline-block; align-self: center; }
-.tier-mark.t0 { background: var(--bad); } .tier-mark.t1 { background: var(--bad); } .tier-mark.t2 { background: var(--warn); } .tier-mark.t3 { background: var(--text-3); }
+.tier-mark.t0 { background: var(--bad); } .tier-mark.t1 { background: var(--bad); } .tier-mark.t2 { background: var(--warn); } .tier-mark.t3 { background: #94A3B8; }
 .tier-name { font-size: 13pt; font-weight: 800; letter-spacing: -0.02em; }
 .tier-count { font-weight: 600; color: var(--text-2); }
 .tier-hint { color: var(--text-2); font-size: 8.5pt; }
@@ -268,6 +276,8 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 .path li.ok { color: var(--text); }
 .path li.ok::before { background: var(--text); }
 .path li.ok .pd { background: var(--text); border-color: var(--text); }
+.path li.stuck { color: var(--bad-text); font-weight: 600; }
+.path li.stuck .pd { border-color: var(--bad); background: var(--bad-soft); }
 </style>
 </head>
 <body>
@@ -277,9 +287,9 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
   {{ dots|safe }}
   <span class="cover-ring r1"></span><span class="cover-ring r2"></span>
   <div class="wordmark"><span class="c">Clic</span><span class="a">and</span><span class="s">seo</span><span class="d">.</span></div>
-  <div class="cover-eyebrow">Agent Readiness · Informe de auditoría</div>
   <div class="cover-title">Preparación para<br>la era <em>agéntica</em></div>
   <div class="cover-host">{{ host }}</div>
+  <div class="cover-kind">Informe de auditoría · Agent Readiness</div>
   <div class="cover-meta">
     {% if fecha %}<span>{{ fecha }}</span>{% endif %}
     <span>{{ typology }}</span>
@@ -300,9 +310,8 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 
 <!-- ═══════════════ 01 RESUMEN ═══════════════ -->
 <div class="section">
-  <div class="sec-eyebrow">01 · Resumen ejecutivo</div>
   <h2>¿Está tu web lista para que la use <span class="hl">la IA</span>?</h2>
-  <p class="lead">Este informe mide si los sistemas de IA pueden <b>leer</b> tu web, <b>entenderla</b> sin equivocarse y <b>actuar</b> en ella (comprar, reservar, contactar). No es SEO clásico: es la capa que determina si tu marca existe cuando un agente hace el trabajo por el usuario. Las secciones 01 a 03 son de decisión; el anexo técnico está pensado para pasárselo directamente al equipo técnico o a la agencia.</p>
+  <p class="lead">Este informe mide si los sistemas de IA pueden <b>leer</b> tu web, <b>entenderla</b> sin equivocarse y <b>actuar</b> en ella (comprar, reservar, contactar). No es SEO clásico: es la capa que determina si tu marca existe cuando un agente hace el trabajo por el usuario. Las primeras páginas son para decidir; la evidencia técnica del final está pensada para pasársela directamente al equipo técnico o a la agencia.</p>
 
   {% for a in avisos %}
   <div class="notice warn">
@@ -314,7 +323,7 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 
   <div class="block card verdict keep">
     <div class="g">
-      <div class="sec-eyebrow" style="text-align:left">{{ 'Puntuación parcial' if parcial else 'Puntuación global' }}</div>
+      <h3 style="text-align:left;margin-bottom:0">{{ 'Puntuación parcial' if parcial else 'Puntuación global' }}</h3>
       {{ gauge|safe }}
     </div>
     <div>
@@ -376,17 +385,17 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
   </div>
 
   <div class="block">
-    <h3>Por dónde empezar <span class="muted">quick wins: alto impacto, poco esfuerzo</span></h3>
+    <h3>Por dónde empezar <span class="muted">lo que más rinde con menos esfuerzo</span></h3>
     {% if quick %}
-    <ul class="list">{% for q in quick %}<li><span class="n q q{{ q.tier }}">{{ loop.index }}</span><div><div class="tt">{{ q.titulo }}</div><div class="bd">{{ q.como }}</div><div class="small" style="margin-top:0.8mm;color:var(--text-3)">Impacto <b>{{ q.impacto }}</b> · esfuerzo <b>{{ q.esfuerzo }}</b></div></div></li>{% endfor %}</ul>
-    {% else %}<p class="small">Sin quick wins pendientes: los fallos restantes requieren más esfuerzo (ver plan de acción).</p>{% endif %}
+    <ul class="list">{% for q in quick %}<li><span class="n q q{{ q.tier }}">{{ loop.index }}</span><div><div class="tt">{{ q.titulo }}</div><div class="bd">{{ q.como }}</div><div class="small" style="margin-top:0.8mm">Impacto <b>{{ q.impacto|lower }}</b> · esfuerzo <b>{{ q.esfuerzo|lower }}</b></div></div></li>{% endfor %}</ul>
+    {% if quick_mas %}<p class="small" style="margin-top:2mm">Y {{ quick_mas }} {{ 'arreglo rápido más' if quick_mas == 1 else 'arreglos rápidos más' }} en el plan de acción.</p>{% endif %}
+    {% else %}<p class="small">No quedan arreglos rápidos: lo que falta requiere más trabajo y está en el plan de acción.</p>{% endif %}
   </div>
 </div>
 
 {% if competencia %}
 <!-- ═══════════════ 02 COMPARATIVA ═══════════════ -->
 <div class="section">
-  <div class="sec-eyebrow">02 · Comparativa</div>
   <h2>Frente a tu <span class="hl">competencia</span></h2>
   <p class="lead">Mismos checks, mismos pesos y la misma vara de medir para todos los dominios.</p>
   {% if mixto %}
@@ -423,14 +432,14 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
   </div>
 
   <div class="block keep">
-    <h3>Categoría a categoría <span class="muted">verde ≥75 · ámbar 50-74 · rojo &lt;50 · fondo lima: el mejor de cada fila</span></h3>
+    <h3>Categoría a categoría <span class="muted">verde 75 o más · naranja 50-74 · rojo menos de 50 · el trofeo marca el mejor de cada fila</span></h3>
     <table>
       <thead><tr><th>Categoría</th>{% for a in audits_head %}<th class="num"><span class="host-th"><span class="dot" style="background:{{ a.color }}"></span>{{ a.host }}</span></th>{% endfor %}</tr></thead>
       <tbody>
       {% for m in matriz %}
         <tr><td class="cat"><b>{{ m.id }}</b>{{ m.name }}</td>
         {% for c in m.celdas %}
-          {% if c %}<td class="num"><span class="cell{{ ' best' if c.best }}"><span class="bar"><i style="width:{{ c.p }}%;background:{{ c.color }}"></i></span><b class="tone-{{ c.tone }}">{{ c.p }}</b></span></td>
+          {% if c %}<td class="num"><span class="cell"><span class="bar"><i style="width:{{ c.p }}%;background:{{ c.color }}"></i></span><b class="tone-{{ c.tone }}">{{ c.p }}</b>{% if c.best %}<span class="best-ic">{{ icons.trophy|safe }}</span>{% endif %}</span></td>
           {% else %}<td class="num muted">n/a</td>{% endif %}
         {% endfor %}</tr>
       {% endfor %}
@@ -442,7 +451,6 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 
 <!-- ═══════════════ 03 PLAN DE ACCIÓN ═══════════════ -->
 <div class="section">
-  <div class="sec-eyebrow">{{ '03' if competencia else '02' }} · Plan de acción</div>
   <h2>Qué arreglar y en qué <span class="hl">orden</span></h2>
   <p class="lead">{{ n_findings }} puntos ordenados por prioridad. Cada uno explica <b>qué falla</b>, <b>por qué le importa al negocio</b> y <b>cómo se arregla</b>; esta última parte puede ir tal cual al equipo técnico.</p>
   {% if not tiers %}<p class="block small">Todos los checks puntuables pasan: no hay nada pendiente que arreglar.</p>{% endif %}
@@ -450,16 +458,18 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
   <div class="tier t{{ t.ord }}">
     <div class="tier-head"><span class="tier-mark t{{ t.ord }}"></span><span class="tier-name">{{ t.name }}</span>
       <span class="tier-count">{{ t.hallazgos|length }} {{ 'punto' if t.hallazgos|length == 1 else 'puntos' }}</span><span class="tier-hint">{{ t.hint }}</span></div>
+    <div class="tier-body">
     {% for f in t.hallazgos %}
     <div class="finding">
       <div class="ft">{{ f.titulo }}</div>
-      <div class="meta"><span>Impacto <b>{{ f.impacto }}</b></span><span>Esfuerzo <b>{{ f.esfuerzo }}</b></span><span>check {{ f.id }}</span>{% if f.qw %}<span><b>Quick win</b></span>{% endif %}</div>
+      <div class="meta"><span>Impacto <b>{{ f.impacto }}</b></span><span>Esfuerzo <b>{{ f.esfuerzo }}</b></span><span>{{ f.name }} · check {{ f.id }}</span>{% if f.qw %}<span><b>Arreglo rápido</b></span>{% endif %}</div>
       <div class="cols">
         <div><div class="sub">Por qué te importa</div><p>{{ f.por_que }}</p></div>
         <div class="fix"><div class="sub">Cómo se arregla</div><p>{{ f.como }}</p></div>
       </div>
     </div>
     {% endfor %}
+    </div>
   </div>
   {% endfor %}
 </div>
@@ -467,23 +477,23 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 {% if agentes %}
 <!-- ═══════════════ 04 AGENTES ═══════════════ -->
 <div class="section">
-  <div class="sec-eyebrow">{{ '04' if competencia else '03' }} · Pruebas con agentes reales</div>
   <h2>Qué pasa cuando un agente <span class="hl">lo intenta</span></h2>
   <p class="lead">ChatGPT, Gemini y Claude controlan un navegador real e intentan completar una tarea en la web. Nunca se pagan compras ni se crean cuentas: los campos de tarjeta están bloqueados por código.</p>
-  {% if agentes_detalle %}<div class="notice warn"><div class="ic">!</div><div><div class="t">Alcance de la simulación</div><div class="b">{{ agentes_detalle }}</div></div></div>{% endif %}
+  {% if agentes_detalle %}<div class="notice warn"><div class="ic">!</div><div><div class="t">Alcance de la simulación con agentes</div><div class="b">{{ agentes_detalle }}</div></div></div>{% endif %}
   {% for d in agentes %}
   <div class="block card">
     <h3><span class="dot" style="background:{{ d.color }}"></span>{{ d.host }} <span class="muted">· tarea de {{ d.typology }}{{ ' · envío de formularios autorizado' if d.allow_submit }}</span></h3>
     {% for a in d.agentes %}
     <div class="agent">
-      <div class="top"><span class="nm">{{ a.name }}</span><span class="outcome {{ a.tone }}">{{ a.outcome }}</span>{% if a.steps %}<span class="muted">· {{ a.steps }} pasos</span>{% endif %}</div>
+      <div class="top"><span class="nm">{{ a.name }}</span><span class="outcome {{ a.tone }}">{{ a.outcome }}</span>{% if a.steps_txt %}<span class="muted">· {{ a.steps_txt }}</span>{% endif %}</div>
       {% if a.detail %}<p class="small" style="margin-top:1mm">{{ a.detail }}</p>{% endif %}
-      {% if a.intentos > 1 %}<div class="runs">Consistencia {% for ok in a.runs %}<span class="run {{ 'ok' if ok else 'bad' }}">{{ '✓' if ok else '✕' }}</span>{% endfor %} <b>{{ a.exitos }}/{{ a.intentos }} intentos</b></div>{% endif %}
+      {% if a.intentos > 1 %}<div class="runs">Consistencia {% for ok in a.runs %}<span class="run {{ 'ok' if ok else 'bad' }}">{{ (icons.ok if ok else icons.bad)|safe }}</span>{% endfor %} <b>{{ a.exitos }}/{{ a.intentos }} intentos</b></div>{% endif %}
       {% if a.hitos %}
-      <ol class="path">{% for h in a.hitos %}<li class="{{ 'ok' if h.ok }}"><span class="pd"></span>{{ h.nombre }}</li>{% endfor %}</ol>
+      <ol class="path">{% for h in a.hitos %}<li class="{{ 'ok' if h.ok else 'stuck' if h.stuck }}"><span class="pd"></span>{{ h.nombre }}{% if h.stuck %}<br>se atascó aquí{% endif %}</li>{% endfor %}</ol>
       {% endif %}
     </div>
     {% endfor %}
+    </div>
   </div>
   {% endfor %}
 </div>
@@ -491,7 +501,6 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 
 <!-- ═══════════════ ANEXO TÉCNICO ═══════════════ -->
 <div class="section">
-  <div class="sec-eyebrow">Anexo técnico</div>
   <h2>Evidencia de cada <span class="hl">comprobación</span></h2>
   <p class="lead">Para el equipo técnico: resultado y evidencia bruta de las {{ n_checks }} comprobaciones sobre {{ host }}.</p>
   <div class="block">
@@ -500,21 +509,20 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
       <tbody>
       {% for c in anexo %}
         <tr><td><b>{{ c.id }}</b> {{ c.name }}{% if c.manual %} <span class="muted">· revisar</span>{% endif %}</td>
-          <td class="center"><span class="mk {{ c.tone }}">{{ c.glyph }}</span></td><td class="ev">{{ c.evidence }}</td></tr>
+          <td class="center"><span class="mk {{ c.tone }}">{{ c.glyph|safe }}</span></td><td class="ev">{{ c.evidence }}</td></tr>
       {% endfor %}
       </tbody>
     </table>
-    <div class="legend"><span><span class="mk ok">✓</span> cumple</span><span><span class="mk part">◐</span> parcial</span><span><span class="mk bad">✕</span> falla</span><span><span class="mk na">–</span> no aplica / no medido</span></div>
+    <div class="legend"><span><span class="mk ok">{{ icons.ok|safe }}</span> cumple</span><span><span class="mk part">{{ icons.part|safe }}</span> parcial</span><span><span class="mk bad">{{ icons.bad|safe }}</span> falla</span><span><span class="mk na">{{ icons.na|safe }}</span> no aplica / no medido</span></div>
   </div>
 </div>
 
 <!-- ═══════════════ METODOLOGÍA ═══════════════ -->
 <div class="section">
-  <div class="sec-eyebrow">Metodología y fiabilidad</div>
   <h2>Cómo se ha <span class="hl">medido</span></h2>
   <p class="lead">Tipología detectada: <b>{{ typology }}</b>. Cobertura del muestreo: {{ coverage.sampled_ok if coverage.sampled_ok is not none else '?' }}/{{ coverage.sampled if coverage.sampled is not none else '?' }} páginas accesibles de {{ coverage.sitemap_urls if coverage.sitemap_urls is not none else '?' }} URLs del sitemap. El muestreo es representativo (hasta 2 páginas por plantilla), no exhaustivo.</p>
   {% if fiabilidad %}
-  <div class="notice {{ fiabilidad.tone }}"><div class="ic">{{ '✓' if fiabilidad.tone == 'good' else '✕' if fiabilidad.tone == 'bad' else '!' }}</div>
+  <div class="notice {{ fiabilidad.tone }}"><div class="ic">{{ (icons.ok if fiabilidad.tone == 'good' else icons.bad if fiabilidad.tone == 'bad' else '!')|safe }}</div>
     <div><div class="t">{{ fiabilidad.titulo }}</div><div class="b">{{ fiabilidad.msg }} {{ manual|length }} checks marcados para criterio humano.</div></div></div>
   {% endif %}
 
@@ -537,9 +545,9 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
     <h3>Procesos ejecutados <span class="muted">{{ trail|length }}</span></h3>
     <table>
       <thead><tr><th class="center" style="width:5%"></th><th style="width:26%">Proceso</th><th>Resultado / evidencia</th></tr></thead>
-      <tbody>{% for t in trail %}<tr><td class="center"><span class="mk {{ t.tone }}">{{ t.glyph }}</span></td><td><b>{{ t.step }}</b></td><td class="small">{{ t.detail }}</td></tr>{% endfor %}</tbody>
+      <tbody>{% for t in trail %}<tr><td class="center"><span class="mk {{ t.tone }}">{{ t.glyph|safe }}</span></td><td><b>{{ t.step }}</b></td><td class="small">{{ t.detail }}</td></tr>{% endfor %}</tbody>
     </table>
-    <div class="legend"><span><span class="mk ok">✓</span> ejecutado con evidencia</span><span><span class="mk part">◐</span> evidencia degradada</span><span><span class="mk bad">✕</span> el proceso falló</span><span><span class="mk na">○</span> desactivado</span><span>Un 404 del sitio es un hallazgo, no un fallo del análisis.</span></div>
+    <div class="legend"><span><span class="mk ok">{{ icons.ok|safe }}</span> ejecutado con evidencia</span><span><span class="mk part">{{ icons.part|safe }}</span> evidencia degradada</span><span><span class="mk bad">{{ icons.bad|safe }}</span> el proceso falló</span><span><span class="mk na">{{ icons.na|safe }}</span> desactivado</span><span>Un 404 del sitio es un hallazgo, no un fallo del análisis.</span></div>
   </div>
   {% endif %}
   {% if manual %}

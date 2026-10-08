@@ -865,7 +865,10 @@ def test_informe_pdf_con_marca():
     paleta = {"#d9f9b8", "#0f172a", "#64748b", "#94a3b8", "#f8fafc", "#ffffff", "#f1f5f9",
               "#0a0a0b", "#e2e8f0", "#eef2f7", "#3cb371", "#287a4c", "#e05252", "#d13b3b",
               "#2a78d6", "#1baf7a", "#eb6834", "#4a3aa7", "#e87ba4",
-              "#ff9a3c", "#a55409"}   # naranja del semáforo + su paso de texto
+              "#ff9a3c", "#a55409",   # naranja del semáforo + su paso de texto
+              # fondos suaves del semáforo y del lima (el color al 11-55 % sobre
+              # blanco) y el rojo de texto que pasa 4,5:1 sobre su fondo suave
+              "#e8f6ee", "#ffefe0", "#fcecec", "#eafcd8", "#a52727"}
     for nombre, data in escenarios.items():
         data["generated"] = "2026-10-08T10:00:00Z"
         clave = "pdf_marca_" + nombre.replace(" ", "_")
