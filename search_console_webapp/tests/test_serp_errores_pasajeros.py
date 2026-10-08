@@ -142,3 +142,33 @@ def test_middleware_reintento_es_warning_y_fallo_definitivo_error(flask_app, mon
         assert niveles == [logging.WARNING]
     else:
         assert niveles[-1] == logging.ERROR
+
+
+@pytest.mark.parametrize("fallos, ok", [(2, True), (3, False)])
+def test_respuesta_no_json_de_serpapi_se_reintenta(flask_app, monkeypatch, caplog, fallos, ok):
+    """Un cuerpo vacío o HTML (5xx) llegaba como «Expecting value: line 1 column 1 (char 0)»,
+    no se reintentaba y avisaba por email al primer intento (8-oct-2026)."""
+    import json
+    import quota_middleware
+    llamadas = {"n": 0}
+
+    class Busqueda:
+        def __init__(self, params): pass
+
+        def get_dict(self):
+            llamadas["n"] += 1
+            if llamadas["n"] <= fallos:
+                return json.loads("")
+            return {"organic_results": []}
+
+    monkeypatch.setattr(quota_middleware, "GoogleSearch", Busqueda)
+    monkeypatch.setattr(quota_middleware.time, "sleep", lambda s: None)
+    with caplog.at_level(logging.WARNING, logger="quota_middleware"):
+        exito, datos = quota_middleware._execute_serp_call({"q": "kw"}, "json")
+    assert exito is ok and llamadas["n"] == min(fallos + 1, 3)
+    niveles = _niveles(caplog, "Error en llamada SerpAPI")
+    if ok:
+        assert niveles == [logging.WARNING] * fallos
+    else:
+        assert niveles == [logging.WARNING, logging.WARNING, logging.ERROR]
+        assert datos["error"].startswith(quota_middleware.SERPAPI_RESPUESTA_NO_JSON)

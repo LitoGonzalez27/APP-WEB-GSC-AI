@@ -55,7 +55,8 @@ def test_agrupa_por_tipo_y_espera_para_juntar_rafagas(aviso):
 
     assert len(enviados) == 1
     asunto, html = enviados[0]
-    assert asunto == "[PRODUCTION] Clicandseo: 4 error(es) de 2 tipo(s)"
+    assert asunto == "[PRODUCTION] Clicandseo · Revisar: Fallo no catalogado en la web (y 1 aviso más)"
+    assert "4 error(es) de 2 tipo(s)" in html
     assert "<b>3</b>" in html and "fallo al guardar el análisis" in html
     assert "ValueError" in html  # la traza va en el email
 
@@ -117,7 +118,7 @@ def test_tope_diario_con_reserva_para_tipos_nuevos():
         assert len(enviados) == 2          # el tercer email queda para un tipo nuevo
         registro.error("fallo distinto")   # otra línea: tipo nuevo
         assert h.enviar_si_toca() is True and len(enviados) == 3
-        assert "2 tipo(s)" in enviados[-1]  # va junto con la repetición pendiente
+        assert "(y 1 aviso más)" in enviados[-1]  # va junto con la repetición pendiente
         registro.error("otro distinto más")
         assert h.enviar_si_toca() is False and len(enviados) == 3   # tope del día
         dia["d"] = 2
@@ -299,7 +300,7 @@ def test_no_se_realimenta_con_errores_del_propio_envio():
                 break
             time.sleep(0.1)
         time.sleep(0.3)
-        assert enviados == ["[PRODUCTION] Clicandseo: 1 error(es) de 1 tipo(s)"]
+        assert enviados == ["[PRODUCTION] Clicandseo · Revisar: Fallo no catalogado en la web"]
         assert h._pendientes == {}
     finally:
         registro.removeHandler(h)
@@ -387,7 +388,7 @@ sys.exit(1)
 """)
     r = subprocess.run([sys.executable, str(guion)], capture_output=True, text=True, timeout=60)
     assert r.returncode == 1
-    assert salida.read_text() == "[PRODUCTION] Clicandseo: 1 error(es) de 1 tipo(s)", r.stderr
+    assert salida.read_text() == ("[PRODUCTION] Clicandseo · Revisar: Fallo de conexión con la base de datos"), r.stderr
 
 
 def test_errores_distintos_en_rutas_distintas_son_tipos_distintos(aviso):
@@ -414,7 +415,8 @@ def test_errores_distintos_en_rutas_distintas_son_tipos_distintos(aviso):
     reloj.t += 61
     h.enviar_si_toca()
     asunto, html = enviados[0]
-    assert asunto == "[PRODUCTION] Clicandseo: 3 error(es) de 2 tipo(s)"
+    assert asunto == "[PRODUCTION] Clicandseo · Revisar: Fallo no catalogado en la web (y 1 aviso más)"
+    assert "3 error(es) de 2 tipo(s)" in html and "alguien usaba la web" in html
     assert "falta_a" in html and "falta_b" in html
 
 

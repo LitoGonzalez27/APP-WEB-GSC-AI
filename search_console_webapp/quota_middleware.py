@@ -18,6 +18,7 @@ import config
 import logging
 import time
 import hashlib
+import json
 import threading
 from collections import OrderedDict
 from typing import Dict, Any, Tuple, Optional
@@ -391,6 +392,7 @@ def _serp_cobrada(params: dict, call_type: str, user_id: int, es_admin: bool) ->
 # búsquedas fallidas a los ~90 s, así que el tope va por encima para no abandonar
 # búsquedas que aún pueden salir bien (SerpAPI las cobra aunque cortemos nosotros).
 SERPAPI_TIMEOUT_SECONDS = float(os.getenv('SERPAPI_TIMEOUT_SECONDS', '120'))
+SERPAPI_RESPUESTA_NO_JSON = "SerpAPI devolvió una respuesta vacía o que no es JSON"
 
 
 def _google_search(params: dict) -> GoogleSearch:
@@ -447,8 +449,14 @@ def _execute_serp_call(params: dict, call_type: str) -> Tuple[bool, Dict[str, An
             
         except Exception as e:
             error_msg = str(e)
+            # La librería de SerpAPI hace json.loads del cuerpo sin mirar el código HTTP:
+            # un 5xx o un cuerpo vacío llegaba como «Expecting value: line 1 column 1»,
+            # no se reintentaba y avisaba por email (oct-2026). Es un fallo pasajero.
+            no_json = isinstance(e, json.JSONDecodeError)
+            if no_json:
+                error_msg = f"{SERPAPI_RESPUESTA_NO_JSON} ({error_msg})"
             # Si se va a reintentar es un aviso; solo el fallo definitivo es un error (avisa por email)
-            reintenta = attempt < max_attempts and _should_retry_serp_error(error_msg)
+            reintenta = attempt < max_attempts and (no_json or _should_retry_serp_error(error_msg))
             logger.log(logging.WARNING if reintenta else logging.ERROR,
                        f"Error en llamada SerpAPI ({call_type}): {error_msg}")
             if reintenta:

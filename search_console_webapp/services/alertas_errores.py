@@ -34,6 +34,9 @@ import traceback
 from datetime import datetime, timezone
 from html import escape
 
+from services.alertas_explicaciones import (GRAVEDADES, ORDEN_GRAVEDAD, ajustar_por_repeticion,
+                                            explicar)
+
 try:  # horas del email en hora de España; si faltara la base de zonas, en UTC
     from zoneinfo import ZoneInfo
     _ZONA = ZoneInfo('Europe/Madrid')
@@ -288,9 +291,18 @@ class AvisoErrores(logging.Handler):
         return f"{a:{formato}}–{b:{formato}} ({_NOMBRE_ZONA})"
 
     def _componer(self, pendientes):
+        """Primero la explicación en lenguaje llano (una tarjeta por causa, lo más grave
+        arriba); al final, el detalle técnico de siempre."""
         total = sum(e['veces'] for e in pendientes.values())
         etiqueta = str(self._etiqueta() if callable(self._etiqueta) else self._etiqueta).upper()
-        asunto = f"[{etiqueta}] Clicandseo: {total} error(es) de {len(pendientes)} tipo(s)"
+        tarjetas = self._tarjetas(pendientes)
+        principal = tarjetas[0]['explicacion']
+        corta = GRAVEDADES[principal.gravedad][0]
+        otras = len(tarjetas) - 1
+        asunto = (f"[{etiqueta}] Clicandseo · {corta}: {principal.titulo}"
+                  + (f" (y {otras} aviso{'s' if otras > 1 else ''} más)" if otras else ''))
+        tecnico = f"{total} error(es) de {len(pendientes)} tipo(s)"
+
         filas = []
         for (logger_name, fichero, linea, tipo), e in sorted(pendientes.items(), key=lambda kv: -kv[1]['veces']):
             origen = f"{logger_name} · {fichero}:{linea}" + (f" · {tipo}" if tipo else '')
@@ -301,12 +313,60 @@ class AvisoErrores(logging.Handler):
                 f"{self._horas(e['primera'], e['ultima'])}</div>"
                 f"<div>{escape(e['mensaje'])}</div>{traza}</td></tr>")
         html = (f"<html lang='es'><head><meta charset='utf-8'><meta http-equiv='Content-Language' content='es'></head>"
-                f"<body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif'>"
-                f"<h2 style='margin-top:0'>{escape(asunto)}</h2>"
-                f"<p>Errores registrados por la aplicación desde el último aviso. Detalle completo en los logs de Railway.</p>"
-                f"<table style='border-collapse:collapse;font-size:14px'>{''.join(filas)}</table>"
+                f"<body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1d2939;max-width:720px'>"
+                f"<h2 style='margin-top:0'>{escape(self._resumen(tarjetas, etiqueta))}</h2>"
+                f"{''.join(self._tarjeta_html(t) for t in tarjetas)}"
+                f"<hr style='border:none;border-top:1px solid #ddd;margin:28px 0 12px'>"
+                f"<h3 style='margin:0 0 4px;color:#555'>Detalle técnico</h3>"
+                f"<p style='color:#555;font-size:13px;margin-top:0'>{tecnico} desde el último aviso. "
+                f"Para quien lo vaya a investigar; el log completo está en Railway.</p>"
+                f"<table style='border-collapse:collapse;font-size:13px'>{''.join(filas)}</table>"
                 f"<p style='color:#888;font-size:12px'>Para silenciar: ERROR_ALERTS_ENABLED=false.</p></body></html>")
         return asunto, html
+
+    def _tarjetas(self, pendientes):
+        """Agrupa por causa: un mismo fallo suele dejar varias líneas en el log (el
+        middleware de SerpAPI y el servicio que lo llamó, p. ej.) y debe leerse como uno."""
+        por_causa = {}
+        for (logger_name, fichero, linea, tipo), e in pendientes.items():
+            base = explicar(logger_name, fichero, tipo, e['mensaje'], e['traza'], linea=linea)
+            t = por_causa.setdefault(base.clave, {'explicacion': base, 'veces': 0,
+                                                  'primera': e['primera'], 'ultima': e['ultima']})
+            # Varias líneas de una misma causa suelen ser el mismo suceso: se cuenta el mayor.
+            t['veces'] = max(t['veces'], e['veces'])
+            t['primera'], t['ultima'] = min(t['primera'], e['primera']), max(t['ultima'], e['ultima'])
+        tarjetas = list(por_causa.values())
+        for t in tarjetas:
+            t['explicacion'] = ajustar_por_repeticion(t['explicacion'], t['veces'])
+        return sorted(tarjetas, key=lambda t: (ORDEN_GRAVEDAD[t['explicacion'].gravedad], -t['veces']))
+
+    @staticmethod
+    def _resumen(tarjetas, etiqueta):
+        entorno = 'producción' if etiqueta == 'PRODUCTION' else etiqueta.lower()
+        n = len(tarjetas)
+        cabecera = f"{n} aviso{'s' if n > 1 else ''} de Clicandseo ({entorno})"
+        if any(t['explicacion'].gravedad == 'urgente' for t in tarjetas):
+            return f"{cabecera}: hay algo urgente"
+        if all(t['explicacion'].gravedad == 'sin_accion' for t in tarjetas):
+            return f"{cabecera}: no hace falta hacer nada"
+        return f"{cabecera}: conviene echar un vistazo"
+
+    def _tarjeta_html(self, t):
+        x = t['explicacion']
+        _corta, insignia, color = GRAVEDADES[x.gravedad]
+        veces = 'una vez' if t['veces'] == 1 else f"{t['veces']} veces"
+        apartado = ("<p style='margin:8px 0 2px;font-size:12px;font-weight:600;color:#667085;"
+                    "text-transform:uppercase;letter-spacing:.04em'>{}</p><p style='margin:0'>{}</p>")
+        return (f"<div style='border-left:4px solid {color};background:#fafafa;padding:12px 16px;margin:14px 0'>"
+                f"<span style='display:inline-block;background:{color};color:#fff;font-size:12px;font-weight:600;"
+                f"padding:2px 8px;border-radius:10px'>{escape(insignia)}</span>"
+                f"<h3 style='margin:8px 0 4px'>{escape(x.titulo)}</h3>"
+                f"<div style='color:#667085;font-size:13px'>Ha pasado {veces} · "
+                f"{self._horas(t['primera'], t['ultima'])}</div>"
+                + apartado.format('Qué ha pasado', escape(x.que_paso))
+                + apartado.format('¿Afecta a los clientes?', escape(x.impacto))
+                + apartado.format('Qué hacer', escape(x.que_hacer))
+                + "</div>")
 
 
 def _registrar_excepciones_de_hilos():
