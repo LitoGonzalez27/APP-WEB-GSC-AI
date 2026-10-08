@@ -20,8 +20,8 @@ KB = {
         "esfuerzo": "Bajo", "impacto": "Alto",
     },
     "1.3": {
-        "titulo": "Lo que decís permitir y lo que el firewall hace no coinciden",
-        "por_que": "Vuestro robots.txt dice 'adelante' pero el firewall/CDN devuelve un portazo a los bots de IA. Creéis estar abiertos y no lo estáis: cero visibilidad en IA sin que nadie lo haya decidido.",
+        "titulo": "Lo que dices permitir y lo que hace tu firewall no coinciden",
+        "por_que": "Tu robots.txt dice 'adelante' pero el firewall/CDN devuelve un portazo a los bots de IA. Crees estar abierto y no lo estás: cero visibilidad en IA sin que nadie lo haya decidido.",
         "como": "Revisar las reglas del WAF/CDN (Cloudflare, Akamai…) y alinear la lista de bots permitidos con robots.txt. Verificar después con peticiones de prueba usando los user-agents de cada bot.",
         "esfuerzo": "Medio", "impacto": "Alto",
     },
@@ -50,19 +50,19 @@ KB = {
         "esfuerzo": "Bajo", "impacto": "Bajo (hoy)",
     },
     "2.1": {
-        "titulo": "No declaráis qué puede hacer la IA con vuestro contenido",
-        "por_que": "Los Content Signals son la forma emergente de decir 'esto puedes usarlo para responder, esto no para entrenar'. Solo el 4% de sitios lo hace: declararlo os pone en el grupo de cabeza y protege vuestros intereses sin renunciar a visibilidad.",
+        "titulo": "No declaras qué puede hacer la IA con tu contenido",
+        "por_que": "Los Content Signals son la forma emergente de decir 'esto puedes usarlo para responder, esto no para entrenar'. Solo el 4% de sitios lo hace: declararlo te pone en el grupo de cabeza y protege tus intereses sin renunciar a visibilidad.",
         "como": "Añadir Content Signals en robots.txt declarando el propósito de cada uso: search=yes (visible en buscadores IA), ai-input=yes (elegible para ser citado en respuestas — la palanca GEO), ai-train según estrategia de propiedad intelectual.",
         "esfuerzo": "Bajo", "impacto": "Medio",
     },
     "2.2": {
-        "titulo": "Nadie vigila qué bots de IA entran ni cuánto os cuestan",
-        "por_que": "Sin un panel de control, no sabéis quién os lee, con qué frecuencia ni a qué coste de servidor. No se puede gestionar (ni monetizar) lo que no se mide.",
+        "titulo": "Nadie vigila qué bots de IA entran ni cuánto te cuestan",
+        "por_que": "Sin un panel de control, no sabes quién te lee, con qué frecuencia ni a qué coste de servidor. No se puede gestionar (ni monetizar) lo que no se mide.",
         "como": "Activar la gestión de crawlers de IA en el CDN (en Cloudflare: AI Crawl Control, incluido en planes de pago) y revisar el informe mensualmente.",
         "esfuerzo": "Bajo", "impacto": "Medio",
     },
     "2.3": {
-        "titulo": "No verificáis la identidad real de los agentes",
+        "titulo": "No verificas la identidad real de los agentes",
         "por_que": "Cualquiera puede disfrazarse de 'bot de OpenAI'. El estándar emergente (Web Bot Auth) permite verificar criptográficamente quién es quién. Hoy es adelantarse; en 1-2 años será lo normal.",
         "como": "Habilitar la verificación de bots firmados en el CDN (Cloudflare Verified Bots). Anotar como roadmap, no como urgencia.",
         "esfuerzo": "Medio", "impacto": "Bajo (hoy)",
@@ -80,7 +80,7 @@ KB = {
         "esfuerzo": "Medio", "impacto": "Alto",
     },
     "3.2": {
-        "titulo": "Vuestra identidad de marca no está declarada para las máquinas",
+        "titulo": "Tu identidad de marca no está declarada para las máquinas",
         "por_que": "Si no declaras quién eres (marca, logo, perfiles oficiales), la IA puede confundirte con otro, describirte mal o no vincularte con tus propias menciones. La entidad es la base de toda la visibilidad en IA.",
         "como": "Añadir schema Organization completo en la home: name, url, logo, sameAs (perfiles sociales, Wikipedia si existe) y contactPoint.",
         "esfuerzo": "Bajo", "impacto": "Alto",
@@ -177,7 +177,7 @@ KB = {
     },
     "5.5": {
         "titulo": "Falta el fichero-guía para LLMs (llms.txt)",
-        "por_que": "Honestidad: hoy casi ningún LLM lo lee (97% nunca reciben una visita). Pero cuesta una hora, Google ya lo mide en Lighthouse, y tenerlo os deja listos si despega. Higiene, no palanca.",
+        "por_que": "Honestidad: hoy casi ningún LLM lo lee (97% nunca reciben una visita). Pero cuesta una hora, Google ya lo mide en Lighthouse, y tenerlo te deja listo si despega. Higiene, no palanca.",
         "como": "Publicar /llms.txt en Markdown con la estructura del sitio y enlaces a las páginas clave.",
         "esfuerzo": "Bajo", "impacto": "Bajo",
     },

@@ -26,6 +26,35 @@ import re
 from datetime import datetime
 
 from .catalog import CATEGORIES as CAT_NAMES
+from .catalog import CHECKS as _CATALOG_CHECKS
+
+# El motor guarda nombres sin tildes ("robots.txt valido"); el catálogo los
+# tiene bien escritos y es la fuente de verdad del texto que se entrega.
+CHECK_NAMES = {cid: nombre for cid, _cat, nombre, _desc in _CATALOG_CHECKS}
+
+
+def _name(c):
+    return CHECK_NAMES.get(c.get("id"), c.get("name", ""))
+
+
+def _plural(n, uno, varios):
+    return f"{n} {uno if n == 1 else varios}"
+
+
+# Iconos Lucide en línea (el PDF no ejecuta JS): resultado de cada check y
+# el trofeo del mejor de cada fila. Antes eran glifos unicode (✓ ◐ ✕).
+_SVG = ('<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" '
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{}</svg>')
+ICONS = {
+    "ok": _SVG.format('<path d="M20 6 9 17l-5-5"/>'),
+    "part": _SVG.format('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>'),
+    "bad": _SVG.format('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+    "na": _SVG.format('<path d="M5 12h14"/>'),
+    "trophy": _SVG.format('<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>'
+                          '<path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>'
+                          '<path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>'
+                          '<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'),
+}
 
 IMPORD = {"Crítico": 0, "Alto": 1, "Alto (apuesta de futuro)": 1,
           "Alto (ventana de oportunidad)": 1, "Medio": 2, "Medio (creciente)": 2,
@@ -128,12 +157,12 @@ def _balance(audit):
 
 def _mark(score):
     if score is None:
-        return ("–", "na")
+        return (ICONS["na"], "na")
     if score >= 1:
-        return ("✓", "ok")
+        return (ICONS["ok"], "ok")
     if score > 0:
-        return ("◐", "part")
-    return ("✕", "bad")
+        return (ICONS["part"], "part")
+    return (ICONS["bad"], "bad")
 
 
 # ------------------------------------------------------------------ gráficos
@@ -147,7 +176,8 @@ def gauge_svg(score, parcial=False, dark=False, size=220):
     frac = max(0.0, min(1.0, (score or 0) / 100))
     length = math.pi * r
     if dark:
-        track, col, num, sub, tick = "rgba(255,255,255,0.08)", ACCENT, "#F8FAFC", "rgba(255,255,255,0.4)", "#0A0A0B"
+        col = "rgba(255,255,255,0.4)" if parcial else {"good": OK, "warn": WARN, "bad": BAD}[_score_tone(score)]
+        track, num, sub, tick = "rgba(255,255,255,0.08)", "#F8FAFC", "rgba(255,255,255,0.6)", "#0A0A0B"
     else:
         col = TEXT3 if parcial else {"good": OK, "warn": WARN, "bad": BAD}[_score_tone(score)]
         track, num, sub, tick = GRID, TEXT, TEXT3, "#FFFFFF"
@@ -239,7 +269,7 @@ def _findings(checks):
         t_items = [c for c in items if min(IMPORD.get(c["advice"].get("impacto"), 3), 3) == ord_]
         if t_items:
             tiers.append({"ord": ord_, "name": name, "hint": hint, "hallazgos": [{
-                "id": c.get("id"), "name": c.get("name"),
+                "id": c.get("id"), "name": _name(c),
                 "titulo": c["advice"].get("titulo", ""), "por_que": c["advice"].get("por_que", ""),
                 "como": c["advice"].get("como", ""), "impacto": c["advice"].get("impacto", ""),
                 "esfuerzo": c["advice"].get("esfuerzo", ""),
@@ -268,7 +298,10 @@ def _agentes(audits):
                 "intentos": r.get("intentos") or 0, "exitos": r.get("exitos") or 0,
                 "runs": [str(x.get("outcome") or "").startswith("conseguido") for x in (r.get("runs") or [])],
                 "alcanzados": p.get("alcanzados"), "total": p.get("total"),
-                "hitos": [{"nombre": h, "ok": h in hechos} for h in todos] if p.get("total") else [],
+                "hitos": [{"nombre": h, "ok": h in hechos,
+                           "stuck": h not in hechos and h == (list(p.get("pendientes") or []) or [None])[0]}
+                          for h in todos] if p.get("total") else [],
+                "steps_txt": _plural(r.get("steps"), "paso", "pasos") if r.get("steps") else "",
             })
         out.append({"host": a.get("host"), "color": SERIES[i % 3], "typology": TYPOLOGY.get(at.get("typology"), at.get("typology")),
                     "allow_submit": at.get("allow_submit"), "agentes": agentes})
@@ -356,13 +389,13 @@ def build_context(data):
     for c in checks:
         g, tone = _mark(c.get("score"))
         ev = str(c.get("evidence") or "")
-        anexo.append({"id": c.get("id"), "name": c.get("name"), "glyph": g, "tone": tone,
+        anexo.append({"id": c.get("id"), "name": _name(c), "glyph": g, "tone": tone,
                       "evidence": ev if len(ev) <= 320 else ev[:317] + "…",
                       "manual": c.get("manual")})
 
     cov = client.get("coverage") or {}
     trail = [{"step": t.get("step"), "status": t.get("status"),
-              "glyph": {"ok": "✓", "warn": "◐", "fail": "✕", "skipped": "○"}.get(t.get("status"), "?"),
+              "glyph": ICONS[{"ok": "ok", "warn": "part", "fail": "bad", "skipped": "na"}.get(t.get("status"), "na")],
               "tone": {"ok": "ok", "warn": "part", "fail": "bad", "skipped": "na"}.get(t.get("status"), "na"),
               "detail": (str(t.get("detail") or "")[:220])} for t in (client.get("trail") or [])]
     pesos = [{"id": k, "name": CAT_NAMES.get(k, k), "v": v}
@@ -391,7 +424,8 @@ def build_context(data):
         "quick": [{"titulo": c["advice"]["titulo"], "como": c["advice"]["como"],
                    "tier": min(IMPORD.get(c["advice"].get("impacto"), 3), 3),
                    "impacto": c["advice"].get("impacto"), "esfuerzo": c["advice"].get("esfuerzo")}
-                  for c in sorted(quick, key=lambda c: IMPORD.get(c["advice"].get("impacto"), 3))[:6]],
+                  for c in sorted(quick, key=lambda c: IMPORD.get(c["advice"].get("impacto"), 3))[:3]],
+        "quick_mas": max(0, len(quick) - 3),
         "n_checks": len(checks),
         "competencia": len(audits) > 1,
         "mixto": mixto, "tipos": [TYPOLOGY.get(t, t) for t in tipos],
@@ -402,7 +436,9 @@ def build_context(data):
         "agentes": _agentes(audits), "agentes_detalle": ag.get("detalle") if ag.get("estado") in ("completado", "error") else None,
         "anexo": anexo,
         "fiabilidad": _veredicto_fiabilidad(client),
-        "manual": [{"id": c.get("id"), "name": c.get("name")} for c in checks if c.get("manual")],
+        "manual": [{"id": c.get("id"), "name": _name(c)} for c in checks if c.get("manual")],
+        "trophy": ICONS["trophy"],
+        "icons": ICONS,
         "coverage": cov, "trail": trail, "pesos": pesos,
         "framework": data.get("framework_version", ""),
     }
@@ -464,16 +500,22 @@ def _esc(s):
 _COVER_RE = re.compile(r"<!--\s*PORTADA\s*-->(.*?)<!--\s*/PORTADA\s*-->", re.S)
 
 
+_SPACER = '<div class="page-spacer"></div>'
+
+
 def _split(html):
     """La plantilla marca la portada entre comentarios: se generan dos
-    documentos con el mismo <head> (estilos y fuentes)."""
+    documentos con el mismo <head> (estilos y fuentes). El cuerpo empieza con
+    una página vacía que ocupa el sitio de la portada: así la numeración de
+    Chromium coincide con la página real (la primera de contenido es la 2) y
+    esa página se descarta al unir."""
     m = _COVER_RE.search(html)
     if not m:
         return None, html
     head_end = html.index("<body")
     head = html[:head_end]
     portada = head + '<body class="is-cover">' + m.group(1) + "</body></html>"
-    cuerpo = html[:m.start()] + html[m.end():]
+    cuerpo = html[:m.start()] + _SPACER + html[m.end():]
     return portada, cuerpo
 
 
@@ -481,9 +523,11 @@ def _merge(cover_pdf, body_pdf):
     from io import BytesIO
     from pypdf import PdfReader, PdfWriter
     w = PdfWriter()
-    for src in (cover_pdf, body_pdf):
-        for pg in PdfReader(BytesIO(src)).pages:
-            w.add_page(pg)
+    for pg in PdfReader(BytesIO(cover_pdf)).pages:
+        w.add_page(pg)
+    # la primera página del cuerpo es el hueco reservado a la portada
+    for pg in PdfReader(BytesIO(body_pdf)).pages[1:]:
+        w.add_page(pg)
     out = BytesIO()
     w.write(out)
     return out.getvalue()

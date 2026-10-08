@@ -282,7 +282,7 @@
 
                 <nav class="manual-ai-nav">
                     <div class="nav-tabs" role="tablist">
-                        <button type="button" class="nav-tab active" data-ag-tab="nuevo" role="tab">
+                        <button type="button" class="nav-tab active" data-ag-tab="nuevo" role="tab" aria-selected="true">
                             <i data-lucide="scan-search"></i>
                             Nuevo análisis
                         </button>
@@ -304,7 +304,6 @@
                     <!-- ───────────── Nuevo análisis ───────────── -->
                     <section class="tab-content active" id="agTab-nuevo">
                         <div class="ag-intro">
-                            <p class="ag-eyebrow">Auditoría de preparación agéntica</p>
                             <h2 class="ag-display">¿Está tu web lista para que la use <span class="ag-hl">la IA</span>?</h2>
                             <p class="ag-lead">Introduce tu dominio y hasta dos competidores. Medimos con la misma vara si los sistemas de IA pueden <b>leer</b>, <b>entender</b> y <b>actuar</b> en cada web.</p>
                         </div>
@@ -491,7 +490,6 @@
                             <svg class="ag-radar" viewBox="0 0 240 240" id="agRadar"></svg>
                         </div>
                         <div class="ag-run-info">
-                            <p class="ag-run-eyebrow">Análisis en curso</p>
                             <p class="ag-run-phase" id="agPhase">Preparando análisis…</p>
                             <p class="ag-run-elapsed"><i data-lucide="timer"></i> <span id="agElapsed">0:00</span></p>
                             <ul class="ag-run-domains" id="agRunDomains"></ul>
@@ -501,8 +499,8 @@
 
                     <section class="ag-card ag-learn" id="agLearn">
                         <div class="ag-card-head">
-                            <h3 class="ag-card-title">Mientras esperas: qué estamos comprobando</h3>
-                            <div class="ag-learn-dots" id="agLearnDots" role="tablist" aria-label="Categorías"></div>
+                            <h2 class="ag-card-title">Mientras esperas: qué estamos comprobando</h2>
+                            <div class="ag-learn-dots" id="agLearnDots" role="group" aria-label="Categorías"></div>
                         </div>
                         <div class="ag-learn-body" id="agLearnBody"></div>
                     </section>
@@ -517,15 +515,14 @@
                     <div class="header-content">
                         <div class="header-left">
                             <button type="button" class="btn-ghost ag-back" id="agBack"><i data-lucide="arrow-left"></i> Informes</button>
-                            <p class="ag-eyebrow" id="agRepMeta"></p>
                             <h1 class="ag-rep-title" id="agRepTitle"></h1>
                             <p class="header-subtitle" id="agRepSub"></p>
                         </div>
                         <div class="header-right ag-actions rep-actions">
                             <button type="button" class="btn-accent" id="btnAgents" hidden><i data-lucide="bot"></i> <span>Simular agentes</span></button>
                             <button type="button" class="btn-primary" id="dlPdf"><i data-lucide="file-down"></i> <span>Informe PDF</span></button>
-                            <button type="button" class="btn-secondary" id="dlJson"><i data-lucide="braces"></i> <span>JSON</span></button>
-                            <button type="button" class="btn-secondary js-superprompt"><i data-lucide="clipboard-copy"></i> <span>Copiar prompt IA</span></button>
+                            <button type="button" class="btn-ghost" id="dlJson" title="Datos completos del análisis para trabajar con IA"><i data-lucide="braces"></i> <span>Descargar JSON</span></button>
+                            <button type="button" class="btn-ghost js-superprompt" title="Prompt para revisar o completar el análisis con ChatGPT o Claude"><i data-lucide="clipboard-copy"></i> <span>Copiar prompt IA</span></button>
                         </div>
                     </div>
                 </header>
@@ -534,7 +531,7 @@
                 </nav>
                 <main class="manual-ai-main">
                     <div id="agAgentsBanner" hidden></div>
-                    <div id="agPanes"></div>
+                    <div id="agPanes" role="tabpanel" tabindex="-1"></div>
                 </main>
             </div>
 
@@ -543,7 +540,7 @@
                 <main class="manual-ai-main">
                     <div class="empty-state ag-empty">
                         <div class="empty-icon"><i data-lucide="file-question"></i></div>
-                        <h3 id="agMissingTitle">No encontramos este análisis</h3>
+                        <h2 id="agMissingTitle">No encontramos este análisis</h2>
                         <p id="agMissingMsg">Puede que se cancelara o que el servidor se reiniciara antes de terminar.</p>
                         <button type="button" class="btn-primary" data-ag-goto="informes"><i data-lucide="folder-open"></i> Ver informes</button>
                     </div>

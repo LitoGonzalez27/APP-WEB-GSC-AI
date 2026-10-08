@@ -99,6 +99,15 @@
 
     const TYPOLOGY = { ecommerce: 'E-commerce', saas: 'SaaS', corporativo: 'Corporativo' };
     const AGENT_NAMES = { chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini', perplexity: 'Perplexity' };
+    // El motor guarda los nombres de check sin tildes ("robots.txt valido");
+    // el catálogo los tiene bien escritos y es la fuente de verdad del texto.
+    const CHECK_NAMES = {};
+    const CATALOG_P = fetch('/agent/api/catalog').then(r => r.json()).then(d => {
+        (d.categorias || []).forEach(g => g.factores.forEach(f => { CHECK_NAMES[f.id] = f.nombre; }));
+        return d;
+    }).catch(() => ({ categorias: [] }));
+    const nameOf = c => CHECK_NAMES[c.id] || c.name;
+    const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
     const typ = t => TYPOLOGY[t] || t || '—';
 
     /* ───────────────────────────── catálogo ───────────────────────────── */
@@ -200,10 +209,24 @@
             tipBox.style.left = x + 'px';
             tipBox.style.top = y + 'px';
             tipBox.style.opacity = 1;
-        } else {
+        } else if (!(document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-tip]'))) {
             tipBox.style.opacity = 0;
         }
     });
+    // Teclado: el mismo detalle al enfocar (las burbujas del mapa son enfocables)
+    document.addEventListener('focusin', e => {
+        const t = e.target.closest && e.target.closest('[data-tip]');
+        if (!t) { tipBox.style.opacity = 0; return; }
+        const [head, ...rest] = t.dataset.tip.split('||');
+        tipBox.innerHTML = `<b>${esc(head)}</b>` + (rest.length ? esc(rest.join('||')) : '');
+        const r = t.getBoundingClientRect(), w = Math.min(tipBox.offsetWidth || 300, 320);
+        let x = r.right + 12, y = r.top;
+        if (x + w > innerWidth - 12) x = Math.max(12, r.left - w - 12);
+        tipBox.style.left = x + 'px';
+        tipBox.style.top = Math.max(12, y) + 'px';
+        tipBox.style.opacity = 1;
+    });
+    document.addEventListener('focusout', () => { tipBox.style.opacity = 0; });
 
     /* ───────────────────────────── vistas ───────────────────────────── */
 
@@ -227,6 +250,7 @@
             const on = b.dataset.agTab === tab;
             b.classList.toggle('active', on);
             b.setAttribute('aria-selected', on ? 'true' : 'false');
+            b.tabIndex = on ? 0 : -1;
         });
         $$('#agHome .tab-content').forEach(s => s.classList.toggle('active', s.id === 'agTab-' + tab));
         show('#agHome');
@@ -285,7 +309,7 @@
         syncGroup(cat);
     }
 
-    fetch('/agent/api/catalog').then(r => r.json()).then(d => {
+    CATALOG_P.then(d => {
         const groups = (d.categorias || []).filter(g => g.factores.length);
         const total = groups.reduce((n, g) => n + g.factores.length, 0);
         $('#agFacCount').textContent = total;
@@ -304,8 +328,7 @@
                 </div>`).join('')}
             </div>`).join('');
         updateFacSummary();
-    }).catch(() => {
-        $('#agFacList').innerHTML = '<p class="ag-help">No se pudo cargar el catálogo de factores.</p>';
+        if (!groups.length) $('#agFacList').innerHTML = '<p class="ag-help">No se pudo cargar la lista de factores. Puedes lanzar el análisis igualmente: se comprobarán las categorías marcadas.</p>';
     });
 
     document.addEventListener('change', e => {
@@ -322,7 +345,7 @@
     $('#agGo').addEventListener('click', async () => {
         const urls = ['#agU0', '#agU1', '#agU2'].map(q => $(q).value.trim()).filter(Boolean);
         const err = $('#agErr');
-        if (!$('#agU0').value.trim()) { err.textContent = 'Falta la URL de tu proyecto.'; $('#agU0').focus(); return; }
+        if (!$('#agU0').value.trim()) { err.textContent = 'Escribe la URL de tu web para empezar.'; $('#agU0').setAttribute('aria-invalid', 'true'); $('#agU0').focus(); return; }
         // factores concretos seleccionados; si el catálogo no cargó, se cae a categorías
         const checks = $$('.ag-fac-item input[data-cat]:checked').map(i => i.value);
         const cats = checks.length
@@ -348,18 +371,43 @@
             setUrl({ job: j.id });
             startRunning(j.id, urls);
         } catch (e) {
-            err.textContent = e.message;
+            showFormError(e.message);
         } finally {
             btn.disabled = false;
         }
     });
+
+    /* El backend responde "URL no permitida (x): el dominio no resuelve: x".
+       Se traduce a qué falló y qué hacer, y se marca el campo afectado. */
+    function showFormError(raw) {
+        const err = $('#agErr');
+        ['#agU0', '#agU1', '#agU2'].forEach(q => { $(q).removeAttribute('aria-invalid'); });
+        const m = String(raw || '').match(/URL no permitida \(([^)]*)\):\s*(.*)$/);
+        if (m) {
+            const field = ['#agU0', '#agU1', '#agU2'].map(q => $(q)).find(i => i.value.trim() === m[1]);
+            if (field) { field.setAttribute('aria-invalid', 'true'); field.focus(); }
+            const why = /no resuelve|resolve/i.test(m[2])
+                ? 'No encontramos ese dominio. Revisa que esté bien escrito, por ejemplo https://tumarca.com.'
+                : /privad|interna|local/i.test(m[2])
+                    ? 'Es una dirección interna o privada: solo se pueden analizar webs públicas.'
+                    : m[2];
+            err.textContent = `«${m[1]}»: ${why}`;
+            return;
+        }
+        if (/en curso/i.test(raw)) { err.textContent = 'Ya hay un análisis en marcha. Espera a que termine o cancélalo desde su pantalla.'; return; }
+        err.textContent = 'No pudimos lanzar el análisis: ' + raw;
+    }
+    ['#agU0', '#agU1', '#agU2'].forEach(q => $(q).addEventListener('input', e => {
+        e.target.removeAttribute('aria-invalid');
+        if ($('#agErr').textContent) $('#agErr').textContent = '';
+    }));
 
     /* ───────────────────────────── análisis en curso ─────────────────────────────
        Si el usuario abandona (cierra, recarga, vuelve atrás) se avisa al servidor
        para que corte el trabajo: corre en un hilo que si no seguiría gastando red
        y bloqueando el siguiente análisis. sendBeacon se entrega aunque la página
        se esté descargando. */
-    let ANALISIS_EN_CURSO = null;
+    let ANALISIS_EN_CURSO = null, JUST_FINISHED = null;
     function cancelarAnalisis() {
         if (!ANALISIS_EN_CURSO) return;
         try { navigator.sendBeacon('/agent/api/cancel/' + ANALISIS_EN_CURSO); } catch (e) { /* nada */ }
@@ -437,13 +485,13 @@
         const k = Object.keys(CATS)[i];
         $$('#agLearnDots button').forEach((b, j) => {
             b.classList.toggle('is-active', j === i);
-            b.setAttribute('aria-selected', j === i ? 'true' : 'false');
+            b.setAttribute('aria-pressed', j === i ? 'true' : 'false');
         });
         const facs = (CATALOG && CATALOG[k]) || [];
         $('#agLearnBody').innerHTML = `
             <div>
-                <p class="ag-eyebrow">${k} · categoría ${i + 1} de 7</p>
-                <h4>${esc(CATS[k])}</h4>
+                <h3>${esc(CATS[k])}</h3>
+                <p class="ag-learn-meta">Categoría ${i + 1} de 7 · ${k}</p>
                 <p>${esc(CAT_DESC[k])}</p>
             </div>
             <ul class="ag-learn-checks">${facs.slice(0, 6).map(f => `<li><span>${esc(f.id)}</span>${esc(f.nombre)}</li>`).join('')
@@ -456,13 +504,13 @@
     }
     function startLearn() {
         $('#agLearnDots').innerHTML = Object.keys(CATS).map((k, i) =>
-            `<button type="button" role="tab" data-learn="${i}" aria-label="${esc(CATS[k])}">${k}</button>`).join('');
+            `<button type="button" data-learn="${i}" aria-label="${esc(CATS[k])}" aria-pressed="false">${k}</button>`).join('');
         if (!CATALOG) {
-            fetch('/agent/api/catalog').then(r => r.json()).then(d => {
+            CATALOG_P.then(d => {
                 CATALOG = {};
                 (d.categorias || []).forEach(g => { CATALOG[g.categoria] = g.factores; });
                 renderLearn(LEARN_IDX);
-            }).catch(() => {});
+            });
         }
         renderLearn(0);
         stopLearn();
@@ -540,6 +588,7 @@
             refreshIcons();
             if (s.status === 'done') {
                 ANALISIS_EN_CURSO = null; stopLearn();
+                JUST_FINISHED = s.elapsed || 0;
                 const rr = await fetch('/agent/api/result/' + id);
                 renderReport(await rr.json(), id);
                 HISTORY_LOADED = false;
@@ -610,8 +659,8 @@
                     `<button type="button" class="btn-primary" data-ag-goto="nuevo">${ic('plus')} Nuevo análisis</button>`);
                 refreshIcons(); return;
             }
-            body.innerHTML = `<div class="ag-card ag-table-wrap"><table class="ag-table">
-                <thead><tr><th>Dominio</th><th>Fecha</th><th>Tipología</th><th>Agentes</th><th class="ag-num">Puntuación</th><th></th></tr></thead>
+            body.innerHTML = `<div class="ag-card ag-table-wrap"><table class="ag-table ag-stack">
+                <thead><tr><th>Dominio</th><th>Fecha</th><th>Tipología</th><th>Agentes</th><th class="ag-num">Puntuación</th><th><span class="ag-sr">Acciones</span></th></tr></thead>
                 <tbody>${items.map(histRow).join('')}</tbody></table></div>`;
             refreshIcons();
         } catch (e) {
@@ -622,17 +671,17 @@
 
     function histRow(it) {
         const s = typeof it.score === 'number' ? Math.round(it.score * 10) / 10 : null;
-        const agentes = { completado: 'Simulados', pendiente: 'Pendientes', corriendo: 'En curso', error: 'Fallaron', desactivadas: '—' }[it.agentes] || '—';
+        const agentes = { completado: 'Simulados', pendiente: 'Por lanzar', corriendo: 'En curso', error: 'Fallaron', desactivadas: 'No pedidos' }[it.agentes] || 'No pedidos';
         const fiable = it.fiable === false
             ? `<span class="ag-hist-comp is-warn-text" data-tip="Lectura limitada||El sitio bloqueó parte del acceso: hay factores que no se pudieron verificar.">${ic('triangle-alert')} lectura limitada</span>` : '';
         return `<tr class="ag-hist-row">
-            <td><span class="ag-hist-host">${esc(it.host)}</span>
-                ${it.competidores ? `<span class="ag-hist-comp">vs ${esc(it.competidores)}</span>` : ''}${fiable}</td>
-            <td style="white-space:nowrap">${esc(fmtDateTime(it.fecha))}</td>
-            <td>${esc(typ(it.tipologia))}</td>
-            <td>${esc(agentes)}</td>
-            <td class="ag-num"><span class="ag-hist-score">${s !== null ? `<span class="ag-bar ag-bar-sm"><i class="is-${scoreTone(s)}" style="width:${Math.max(0, Math.min(100, s))}%"></i></span><b class="is-${scoreTone(s)}-text">${s}</b>` : '—'}</span></td>
-            <td><div class="ag-hist-actions">
+            <td class="c-main"><span class="ag-hist-host">${esc(it.host)}</span>
+                ${it.competidores ? `<span class="ag-hist-comp">frente a ${esc(it.competidores)}</span>` : ''}${fiable}</td>
+            <td class="c-meta" data-label="Fecha" style="white-space:nowrap">${esc(fmtDateTime(it.fecha))}</td>
+            <td class="c-meta" data-label="Tipología">${esc(typ(it.tipologia))}</td>
+            <td class="c-meta" data-label="Agentes">${esc(agentes)}</td>
+            <td class="ag-num c-score"><span class="ag-hist-score">${s !== null ? `<span class="ag-bar ag-bar-sm"><i class="is-${scoreTone(s)}" style="width:${Math.max(0, Math.min(100, s))}%"></i></span><b class="is-${scoreTone(s)}-text">${s}</b>` : '—'}</span></td>
+            <td class="c-actions"><div class="ag-hist-actions">
                 <button type="button" class="btn-secondary ag-btn-sm" data-open="${esc(it.id)}">Abrir</button>
                 <button type="button" class="btn-ghost ag-btn-sm" data-del="${esc(it.id)}" aria-label="Borrar informe de ${esc(it.host)}">${ic('trash-2')}</button>
             </div></td></tr>`;
@@ -640,7 +689,7 @@
 
     function emptyState(icon, title, msg, action) {
         return `<div class="empty-state ag-empty"><div class="empty-icon">${ic(icon)}</div>
-            <h3>${esc(title)}</h3><p>${esc(msg)}</p>${action || ''}</div>`;
+            <h2>${esc(title)}</h2><p>${esc(msg)}</p>${action || ''}</div>`;
     }
 
     document.addEventListener('click', async e => {
@@ -765,10 +814,13 @@
 
     /* ───────────────────────────── piezas del informe ───────────────────────────── */
 
-    const mark = s => s == null ? '<span class="ag-mark is-na">–</span>'
-        : s >= 1 ? '<span class="ag-mark is-ok" aria-label="cumple">✓</span>'
-            : s > 0 ? '<span class="ag-mark is-part" aria-label="parcial">◐</span>'
-                : '<span class="ag-mark is-bad" aria-label="falla">✕</span>';
+    // Resultado de un check: icono + color de estado + nombre accesible. Antes
+    // eran glifos unicode (✓ ◐ ✕), que no son un sistema de iconos.
+    const MARKS = {
+        ok: ['check', 'cumple'], part: ['contrast', 'parcial'], bad: ['x', 'falla'], na: ['minus', 'no aplica']
+    };
+    const markOf = k => `<span class="ag-mark is-${k}" role="img" aria-label="${MARKS[k][1]}">${ic(MARKS[k][0])}</span>`;
+    const mark = s => markOf(s == null ? 'na' : s >= 1 ? 'ok' : s > 0 ? 'part' : 'bad');
 
     const MARK_LEGEND = `<div class="ag-legend">
         <span>${mark(1)} cumple</span><span>${mark(0.5)} parcial</span>
@@ -844,18 +896,23 @@
         }).filter(Boolean);
     }
 
+    /* El viaje es una cadena, no tres tarjetas iguales: un único carril con
+       los tres tramos unidos, y solo el eslabón más débil se rellena. */
     function journeyHTML(a) {
         const st = stagesOf(a);
         if (!st.length) return '';
-        const weakest = st.reduce((m, s) => (s.p < m.p ? s : m), st[0]);
-        return `<div class="ag-journey">${st.map((s, i) => `
-            ${i > 0 ? `<div class="ag-journey-arrow">${ic('chevron-right')}</div>` : ''}
-            <div class="ag-stage is-${toneOf(s.p)}${s === weakest && st.length > 1 ? ' is-weak' : ''}">
-                <div class="ag-stage-top"><span class="ag-stage-q">${s.name}</span><span class="ag-stage-pct is-${toneOf(s.p)}-text">${s.p}%</span></div>
-                <div class="ag-bar"><i class="is-${toneOf(s.p)}" style="width:${s.p}%"></i></div>
-                <div class="ag-stage-desc">${s.desc} · ${s.cats.join(' + ')}</div>
-                ${s === weakest && st.length > 1 ? `<div class="ag-stage-flag">${ic('link-2-off')} Eslabón más débil</div>` : ''}
-            </div>`).join('')}</div>`;
+        const weakest = st.length > 1 ? st.reduce((m, s) => (s.p < m.p ? s : m), st[0]) : null;
+        return `<ol class="ag-chain">${st.map((s, i) => {
+            const tone = toneOf(s.p), weak = s === weakest;
+            const cats = s.cats.filter(c => a.category_scores?.[c] != null).map(c => `${esc(CATS[c])}`).join(' · ');
+            return `<li class="ag-link is-${tone}${weak ? ' is-weak' : ''}">
+                <div class="ag-link-top"><span class="ag-link-step">${i + 1}</span><span class="ag-link-q">${s.name}</span>
+                    <span class="ag-link-pct is-${tone}-text">${s.p}%</span></div>
+                <div class="ag-bar"><i class="is-${tone}" style="width:${s.p}%"></i></div>
+                <p class="ag-link-desc">${cats}</p>
+                ${weak ? `<p class="ag-link-flag">${ic('link-2-off')} Eslabón más débil: empieza por aquí</p>` : ''}
+            </li>`;
+        }).join('')}</ol>`;
     }
 
     function alertHTML(opts) {
@@ -869,7 +926,10 @@
     function paneResumen(d) {
         const c = d.client;
         const parcial = !!(c.level && c.level.cobertura_parcial);
-        const qw = (c.checks || []).filter(x => x.advice && x.advice.esfuerzo === 'Bajo' && (IMPORD[x.advice.impacto] ?? 3) <= 2 && x.score < 1);
+        const qwAll = (c.checks || []).filter(x => x.advice && x.advice.esfuerzo === 'Bajo' && (IMPORD[x.advice.impacto] ?? 3) <= 2 && x.score < 1)
+            .sort((a, b) => (IMPORD[a.advice.impacto] ?? 3) - (IMPORD[b.advice.impacto] ?? 3));
+        // Tres como mucho: más de cuatro opciones a la vez ya no es "por dónde empezar"
+        const qw = qwAll.slice(0, 3);
         /* Aviso de acceso degradado. Título y cuerpo salen del propio veredicto
            (scoring.py), así web, PDF y JSON cuentan lo mismo. Informa sin
            alarmar: no es rojo de error, es lo que sí y lo que no se verificó. */
@@ -905,7 +965,7 @@
         return `<div class="ag-pane">${aviso}
             <div class="ag-grid-score">
                 <div class="ag-card ag-score-card">
-                    <p class="ag-eyebrow">${parcial ? 'Puntuación parcial' : 'Puntuación global'}</p>
+                    <h2 class="ag-card-title ag-score-title">${parcial ? 'Puntuación parcial' : 'Puntuación global'}</h2>
                     ${gaugeSVG(c.score, parcial)}
                     ${via}${cobertura}
                     <div class="ag-level ${parcial ? '' : 'is-' + scoreTone(c.score)}">${esc(c.level.name)}</div>
@@ -915,25 +975,26 @@
                     ${pens}
                 </div>
                 <div class="ag-card">
-                    <div class="ag-card-head"><h3 class="ag-card-title">Desglose por categoría</h3>
+                    <div class="ag-card-head"><h2 class="ag-card-title">Desglose por categoría</h2>
                         <span class="ag-muted">${(c.checks || []).length} comprobaciones</span></div>
                     <div class="ag-catrows" style="margin-top:var(--cs-space-sm)">${catRows(c, null)}</div>
                 </div>
             </div>
+            ${agentsSummaryHTML(d)}
             <div class="ag-card ag-section">
-                <h3 class="ag-card-title">El viaje del agente por tu web</h3>
+                <h2 class="ag-card-title">El viaje del agente por tu web</h2>
                 <p class="ag-card-sub">Un agente primero tiene que poder <b>leerte</b>, luego <b>entenderte</b> sin equivocarse, y solo entonces puede <b>usarte</b> (comprar, reservar, contactar). La cadena se rompe en el eslabón más débil.</p>
                 ${journeyHTML(c)}
             </div>
             <div class="ag-card ag-section">
-                <h3 class="ag-card-title">Por dónde empezar</h3>
-                <p class="ag-card-sub">Quick wins: alto impacto y poco esfuerzo.</p>
-                ${qw.length ? `<ol class="ag-steps">${qw.slice().sort((a, b) => (IMPORD[a.advice.impacto] ?? 3) - (IMPORD[b.advice.impacto] ?? 3)).map((x, i) => `
-                    <li class="ag-step t${Math.min(IMPORD[x.advice.impacto] ?? 3, 3)}"><span class="ag-qn">${i + 1}</span>
+                <h2 class="ag-card-title">Por dónde empezar</h2>
+                <p class="ag-card-sub">Los arreglos que más rinden con menos esfuerzo, de más a menos urgente.</p>
+                ${qw.length ? `<ol class="ag-steps">${qw.map((x, i) => `
+                    <li class="ag-step t${Math.min(IMPORD[x.advice.impacto] ?? 3, 3)}"><span class="ag-qn" aria-hidden="true">${i + 1}</span>
                     <div><div class="ag-step-title">${esc(x.advice.titulo)}</div><div class="ag-step-body">${esc(x.advice.como)}</div>
-                    <div class="ag-step-meta">Impacto <b>${esc(x.advice.impacto)}</b> · esfuerzo <b>${esc(x.advice.esfuerzo)}</b> · check ${esc(x.id)}</div></div></li>`).join('')}</ol>`
-                : '<p class="ag-help">Sin quick wins pendientes: los fallos restantes requieren más esfuerzo.</p>'}
-                <div class="ag-cta-row"><button type="button" class="btn-secondary" data-rep-tab="2">Ver el plan de acción completo ${ic('arrow-right')}</button></div>
+                    <div class="ag-step-meta">Impacto <b>${esc(String(x.advice.impacto).toLowerCase())}</b> · esfuerzo <b>${esc(String(x.advice.esfuerzo).toLowerCase())}</b></div></div></li>`).join('')}</ol>`
+                : '<p class="ag-help">No quedan arreglos rápidos: lo que falta requiere más trabajo y está en el plan de acción.</p>'}
+                <div class="ag-cta-row"><button type="button" class="btn-secondary" data-rep-tab="2">${qwAll.length > qw.length ? `Ver los ${qwAll.length - qw.length} siguientes y el plan completo` : 'Ver el plan de acción completo'} ${ic('arrow-right')}</button></div>
             </div></div>`;
     }
 
@@ -1004,11 +1065,11 @@
         const ranking = audits.map((a, i) => {
             const win = !a.level.cobertura_parcial && best !== null && a.score === best;
             return `<tr class="ag-hist-row${win ? ' win' : ''}">
-                <td><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span></td>
-                <td class="ag-muted">${i === 0 ? 'Tu web' : 'Competidor ' + i}</td>
-                <td>${esc(typ(a.typology))}</td>
-                <td>${esc(a.level.name)}${win ? ` <span class="ag-muted" data-tip="Mejor puntuación||Entre dominios de la misma tipología y con nota completa.">${ic('trophy')}</span>` : ''}</td>
-                <td class="ag-num"><span class="ag-hist-score"><span class="ag-bar ag-bar-sm"><i style="width:${a.score}%;background:${SERIES[i % 3]}"></i></span><b class="is-${scoreTone(a.score)}-text">${a.score}</b></span></td>
+                <td class="c-main"><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span></td>
+                <td class="c-meta ag-muted" data-label="Rol">${i === 0 ? 'Tu web' : 'Competidor ' + i}</td>
+                <td class="c-meta" data-label="Tipología">${esc(typ(a.typology))}</td>
+                <td class="c-meta" data-label="Nivel">${esc(a.level.name)}${win ? ` <span class="ag-best" role="img" aria-label="mejor puntuación" data-tip="Mejor puntuación||Entre dominios de la misma tipología y con nota completa.">${ic('trophy')}</span>` : ''}</td>
+                <td class="ag-num c-score"><span class="ag-hist-score"><span class="ag-bar ag-bar-sm"><i style="width:${a.score}%;background:${SERIES[i % 3]}"></i></span><b class="is-${scoreTone(a.score)}-text">${a.score}</b></span></td>
             </tr>`;
         }).join('');
 
@@ -1026,7 +1087,8 @@
                 const v = vals[i];
                 if (v == null) return '<td class="ag-num ag-muted">n/a</td>';
                 const p = pct(v);
-                return `<td class="ag-num"><span class="ag-cell${v === mx && resalta ? ' is-best' : ''}"><span class="ag-bar ag-bar-sm"><i style="width:${p}%;background:${SERIES[i % 3]}"></i></span><b class="v is-${toneOf(p)}-text">${p}</b></span></td>`;
+                const best = v === mx && resalta;
+                return `<td class="ag-num"><span class="ag-cell"><span class="ag-bar ag-bar-sm"><i style="width:${p}%;background:${SERIES[i % 3]}"></i></span><b class="v is-${toneOf(p)}-text">${p}</b>${best ? `<span class="ag-best" role="img" aria-label="mejor de la fila">${ic('trophy')}</span>` : '<span class="ag-best"></span>'}</span></td>`;
             }).join('')}</tr>`;
         }).join('');
 
@@ -1037,7 +1099,12 @@
                 <div class="ag-list-body">${esc(g.host)} te saca <b>${g.diff} puntos</b> (${g.v}% frente a tu ${g.mine}%).</div></div></li>`).join('')}</ul>`
             : '<p class="ag-help">Sin brechas relevantes: ninguna categoría con desventaja de 15 puntos o más.</p>';
 
+        // Detalle check a check: por defecto solo donde los dominios difieren
+        const markKey = sc => sc == null ? 'na' : sc >= 1 ? 'ok' : sc > 0 ? 'part' : 'bad';
+        const differs = c => new Set(audits.map(a => markKey(((a.checks || []).find(x => x.id === c.id) || {}).score))).size > 1;
+        const nDiff = d.client.checks.filter(differs).length;
         const rows = d.client.checks.map((c, ri) => {
+            if (!CMP_ALL && !differs(c)) return '';
             const cells = audits.map(a => { const m = (a.checks || []).find(x => x.id === c.id); return `<td class="ag-center">${mark(m ? m.score : null)}</td>`; }).join('');
             const detail = audits.map((a, i) => {
                 const m = (a.checks || []).find(x => x.id === c.id);
@@ -1046,7 +1113,7 @@
                 return `<div class="ag-ev-item"><div class="ag-ev-head"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}${link}</div>
                     <div class="ag-evidence-box">${esc(m ? m.evidence : 'no analizado en este dominio')}</div></div>`;
             }).join('');
-            return `<tr class="ag-row-click" data-r="${ri}"><td>${ic('chevron-right', 'ag-caret')}<b>${c.id}</b> ${esc(c.name)}</td>${cells}</tr>
+            return `<tr class="ag-row-click" data-r="${ri}"><td><button type="button" class="ag-row-toggle" aria-expanded="false" aria-controls="agChk-${ri}">${ic('chevron-right', 'ag-caret')}<span>${esc(nameOf(c))}</span></button></td>${cells}</tr>
                 <tr class="ag-row-detail" id="agChk-${ri}" hidden><td colspan="${audits.length + 1}">
                     <p class="ag-help" style="margin:0 0 var(--cs-space-sm)"><b>Cómo se mide:</b> ${esc(METHODS[c.id] || '')}</p>${detail}</td></tr>`;
         }).join('');
@@ -1056,30 +1123,34 @@
 
         return `<div class="ag-pane">${avisoMixto}
             <div class="ag-card">
-                <h3 class="ag-card-title">Puntuación por dominio</h3>
-                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Dominio</th><th></th><th>Tipología</th><th>Nivel</th><th class="ag-num">Puntuación</th></tr></thead>
+                <h2 class="ag-card-title">Puntuación por dominio</h2>
+                <div class="ag-table-wrap"><table class="ag-table ag-stack"><thead><tr><th>Dominio</th><th><span class="ag-sr">Rol</span></th><th>Tipología</th><th>Nivel</th><th class="ag-num">Puntuación</th></tr></thead>
                 <tbody>${ranking}</tbody></table></div>
             </div>
             <div class="ag-grid-2">
                 <div class="ag-card">
-                    <h3 class="ag-card-title">Perfil por categoría</h3>
+                    <h2 class="ag-card-title">Perfil por categoría</h2>
                     <div class="ag-chart-scroll" style="display:flex;justify-content:center">${radarSVG(audits)}</div>
                     <div class="ag-legend" style="justify-content:center">${audits.map((a, i) => `<span><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span>`).join('')}</div>
                 </div>
                 <div class="ag-card">
-                    <h3 class="ag-card-title">Dónde te sacan ventaja</h3>
+                    <h2 class="ag-card-title">Dónde te sacan ventaja</h2>
                     <p class="ag-card-sub">Categorías en las que un competidor te supera por 15 puntos o más.</p>
                     ${gapsHTML}
                 </div>
             </div>
             <div class="ag-card ag-section">
-                <h3 class="ag-card-title">Categoría a categoría</h3>
-                <p class="ag-card-sub">Mismos checks y mismos pesos para todos. Cifra en verde (≥75), ámbar (50-74) o rojo (&lt;50); fondo lima en el mejor de cada fila.</p>
+                <h2 class="ag-card-title">Categoría a categoría</h2>
+                <p class="ag-card-sub">Mismos checks y mismos pesos para todos. Cifra en verde (75 o más), naranja (50-74) o rojo (menos de 50); el trofeo marca el mejor de cada fila.</p>
                 <div class="ag-table-wrap"><table class="ag-table ag-matrix"><thead><tr><th>Categoría</th>${head}</tr></thead><tbody>${matrix}</tbody></table></div>
             </div>
             <div class="ag-card ag-section">
-                <h3 class="ag-card-title">Detalle check a check</h3>
-                <p class="ag-card-sub">Pulsa un check para ver la evidencia concreta de cada dominio y el enlace al recurso.</p>
+                <div class="ag-card-head"><h2 class="ag-card-title">Detalle check a check</h2>
+                    <div class="ag-switcher ag-filter" role="group" aria-label="Filtrar checks">
+                        <button type="button" class="btn-secondary ag-btn-sm${CMP_ALL ? '' : ' is-active'}" data-cmp="diff" aria-pressed="${!CMP_ALL}">Solo diferencias (${nDiff})</button>
+                        <button type="button" class="btn-secondary ag-btn-sm${CMP_ALL ? ' is-active' : ''}" data-cmp="all" aria-pressed="${CMP_ALL}">Todos (${d.client.checks.length})</button>
+                    </div></div>
+                <p class="ag-card-sub">Abre un check para ver la evidencia de cada dominio y el enlace al recurso.</p>
                 <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Check</th>${headC}</tr></thead><tbody>${rows}</tbody></table></div>
                 ${MARK_LEGEND}
             </div></div>`;
@@ -1093,6 +1164,8 @@
         if (!det) return;
         det.hidden = !det.hidden;
         r.classList.toggle('is-open', !det.hidden);
+        const tg = r.querySelector('.ag-row-toggle');
+        if (tg) tg.setAttribute('aria-expanded', String(!det.hidden));
     });
 
     /* ───── Hallazgos ───── */
@@ -1151,8 +1224,9 @@
                 let x = x0 + (cw - rw) / 2;
                 row.forEach(({ c, d }) => {
                     const cx = x + d / 2, cy = y + rh / 2, r = d / 2, t = tierOf(c);
-                    bubbles += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${TIER_FILL[t]}" fill-opacity="${TIER_FILL_OP[t]}" stroke="${TIER_STROKE[t]}" stroke-width="1.5"
-                        data-tip="${esc(c.id + ' · ' + c.advice.titulo + '||Impacto ' + c.advice.impacto + ' · esfuerzo ' + c.advice.esfuerzo + ' · arreglarlo recupera unos ' + rec(c).toFixed(1) + ' puntos. Cómo: ' + c.advice.como)}"/>
+                    bubbles += `<circle class="ag-bubble" tabindex="0" role="img" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${TIER_FILL[t]}" fill-opacity="${TIER_FILL_OP[t]}" stroke="${TIER_STROKE[t]}" stroke-width="1.5"
+                        aria-label="${esc(c.advice.titulo + '. Impacto ' + c.advice.impacto + ', esfuerzo ' + c.advice.esfuerzo)}"
+                        data-tip="${esc(c.advice.titulo + '||Impacto ' + c.advice.impacto + ' · esfuerzo ' + c.advice.esfuerzo + ' · arreglarlo recupera unos ' + rec(c).toFixed(1) + ' puntos. Cómo: ' + c.advice.como)}"/>
                         <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dy="4" fill="${TIER_STROKE[t]}" font-family="Inter Tight, sans-serif" font-size="${r < 18 ? 11 : 13}" font-weight="700" style="pointer-events:none">${c.id}</text>`;
                     x += d + GAP;
                 });
@@ -1179,9 +1253,9 @@
         const legend = TIERS.filter(t => items.some(c => tierOf(c) === t.ord)).map(t =>
             `<span><span class="ag-dot" style="background:${TIER_FILL[t.ord]}"></span>${t.title}</span>`).join('');
         return `<div class="ag-card">
-            <h3 class="ag-card-title">Mapa de prioridades</h3>
-            <p class="ag-card-sub">Cada burbuja es un problema detectado. Altura = impacto en el negocio; horizontal = esfuerzo de arreglo; tamaño = puntos que recuperas al arreglarlo. <b>Empieza por la zona «Hazlo ya».</b> Pasa el ratón por una burbuja para ver el detalle.</p>
-            <div class="ag-chart-full"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Matriz impacto por esfuerzo">
+            <h2 class="ag-card-title">Mapa de prioridades</h2>
+            <p class="ag-card-sub">Cada burbuja es un problema. Cuanto más arriba, más impacto en el negocio; cuanto más a la derecha, más esfuerzo; cuanto más grande, más puntos recuperas. <b>Empieza por la zona «Hazlo ya».</b> Pasa el ratón o el foco por una burbuja para ver el detalle; la lista completa está debajo.</p>
+            <div class="ag-chart-full"><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Mapa de prioridades: ${plural(items.length, 'problema', 'problemas')} por impacto y esfuerzo">
                 ${zones}${grid}
                 <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="${C.border}"/>
                 <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="${C.border}"/>
@@ -1196,18 +1270,17 @@
         const a = c.advice;
         const qw = a.esfuerzo === 'Bajo' && (IMPORD[a.impacto] ?? 3) <= 2;
         return `<article class="ag-finding">
-            <div class="ag-finding-top"><h4 class="ag-finding-title">${esc(a.titulo)}</h4></div>
+            <div class="ag-finding-top"><h3 class="ag-finding-title">${esc(a.titulo)}</h3></div>
             <div class="ag-meta">
                 <span>${ic('gauge')} Impacto <b>${esc(a.impacto)}</b></span>
                 <span>${ic('wrench')} Esfuerzo <b>${esc(a.esfuerzo)}</b></span>
-                <span>${ic('hash')} check ${esc(c.id)}</span>
-                ${qw ? `<span class="is-qw">${ic('zap')} Quick win</span>` : ''}
+                ${qw ? `<span class="is-qw">${ic('zap')} Arreglo rápido</span>` : ''}
             </div>
             <div class="ag-finding-cols">
                 <div><div class="ag-subhead">Por qué te importa</div><p>${esc(a.por_que)}</p></div>
                 <div class="is-fix"><div class="ag-subhead">Cómo se arregla</div><p>${esc(a.como)}</p></div>
             </div>
-            <details class="ag-details"><summary>${ic('chevron-right', 'ag-caret')} Evidencia técnica · ${esc(c.name)}</summary>
+            <details class="ag-details"><summary>${ic('chevron-right', 'ag-caret')} Evidencia técnica · ${esc(nameOf(c))} (check ${esc(c.id)})</summary>
                 <div class="ag-evidence-box">${esc(c.evidence)}</div></details>
         </article>`;
     }
@@ -1225,7 +1298,7 @@
             return `<details class="ag-tier t${t.ord}"${gi < 2 ? ' open' : ''}>
                 <summary><span class="ag-tier-mark t${t.ord}"></span>
                     <span class="ag-tier-name">${t.title}</span>
-                    <span class="ag-tier-count">${inTier.length} ${inTier.length === 1 ? 'punto' : 'puntos'}</span>
+                    <span class="ag-tier-count">${plural(inTier.length, 'punto', 'puntos')}</span>
                     <span class="ag-tier-hint">${t.hint}</span>
                     ${ic('chevron-right', 'ag-caret')}</summary>
                 <div class="ag-tier-body">${inTier.map(findingHTML).join('')}</div>
@@ -1266,12 +1339,15 @@
                 const todos = (at.hitos_tarea || []).length ? at.hitos_tarea
                     : [...(p.hitos || []).map(h => h.nombre), ...(p.pendientes || [])];
                 ruta = `<p class="ag-help" style="margin-top:var(--cs-space-md)">Recorrido de la tarea: <b>${p.alcanzados}/${p.total}</b> pasos</p>
-                    <ol class="ag-path">${todos.map(n => `<li class="${hechos.has(n) ? 'is-done' : ''}" title="${hechos.has(n) ? 'completado' : 'no alcanzado'}"><span class="ag-path-dot"></span>${esc(n)}</li>`).join('')}</ol>`;
+                    <ol class="ag-path">${todos.map(n => {
+                        const done = hechos.has(n), stuck = !done && n === (p.pendientes || [])[0];
+                        return `<li class="${done ? 'is-done' : stuck ? 'is-stuck' : ''}"><span class="ag-path-dot"></span>${esc(n)}${stuck ? '<span class="ag-path-note">se atascó aquí</span>' : ''}<span class="ag-sr">${done ? ' (completado)' : ' (no alcanzado)'}</span></li>`;
+                    }).join('')}</ol>`;
             }
             return `<div class="ag-agent">
                 <div class="ag-agent-top"><span class="ag-agent-name">${esc(AGENT_NAMES[name] || name)}</span>
                     <span class="ag-outcome ${cls}">${txt}</span>
-                    ${r.steps ? `<span class="ag-muted">· ${r.steps} pasos</span>` : ''}</div>
+                    ${r.steps ? `<span class="ag-muted">· ${plural(r.steps, 'paso', 'pasos')}</span>` : ''}</div>
                 ${r.detail ? `<p class="ag-agent-detail">${esc(r.detail)}</p>` : ''}
                 ${cons}${ruta}
                 ${r.action_log && r.action_log.length ? `<details class="ag-details"><summary>${ic('chevron-right', 'ag-caret')} Registro de acciones del agente</summary>
@@ -1279,9 +1355,34 @@
             </div>`;
         }).join('');
         return `<div class="ag-card">
-            <h3 class="ag-card-title">Prueba con agentes reales <span class="ag-muted">check 6.3</span></h3>
+            <h2 class="ag-card-title">Prueba con agentes reales</h2>
             <p class="ag-card-sub">Tarea de tipología <b>${esc(typ(at.typology))}</b>${at.allow_submit ? ' · envío de formularios autorizado en este dominio' : ' · sin envíos (solo llegar y rellenar)'}. Cada agente controla un navegador real e intenta completarla; nunca se pagan compras ni se crean cuentas.</p>
             ${agents}</div>`;
+    }
+
+    /* La prueba más contundente del informe (ver a ChatGPT, Claude y Gemini
+       intentarlo en tu web) estaba en la cuarta pestaña. Aquí, un resumen. */
+    function agentsSummaryHTML(d) {
+        const audits = [d.client, ...(d.competitors || []).filter(a => !a.error)];
+        const conAgentes = audits.map((a, i) => ({ a, i })).filter(x => x.a.agent_tests && x.a.agent_tests.agents);
+        if (!conAgentes.length) return '';
+        // con un solo dominio probado, la columna "Web" solo repetiría su nombre
+        const varias = conAgentes.length > 1;
+        const rows = conAgentes.map(({ a, i }) => Object.entries(a.agent_tests.agents).map(([name, r]) => {
+            const [txt, cls] = outcomeOf(r);
+            const p = r.progreso || {};
+            const atasco = (p.pendientes || [])[0];
+            return `<tr>${varias ? `<td><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span></td>` : ''}
+                <td><b>${esc(AGENT_NAMES[name] || name)}</b></td>
+                <td><span class="ag-outcome ${cls}">${txt}</span></td>
+                <td class="ag-muted">${p.total ? `${p.alcanzados}/${p.total} pasos${atasco ? ` · se atascó en «${esc(atasco)}»` : ''}` : ''}</td></tr>`;
+        }).join('')).join('');
+        return `<div class="ag-card ag-section">
+            <div class="ag-card-head"><h2 class="ag-card-title">Qué pasó cuando los agentes lo intentaron</h2>
+                <button type="button" class="ag-link-btn" data-rep-tab="3">Ver cada intento ${ic('arrow-right')}</button></div>
+            <p class="ag-card-sub">ChatGPT, Claude y Gemini pilotaron un navegador real e intentaron completar una tarea${varias ? '' : ` en <b>${esc(conAgentes[0].a.host)}</b>`}. Nunca se paga ni se crean cuentas.</p>
+            <div class="ag-table-wrap"><table class="ag-table ag-stack"><thead><tr>${varias ? '<th>Web</th>' : ''}<th>Agente</th><th>Resultado</th><th>Recorrido</th></tr></thead>
+            <tbody>${rows}</tbody></table></div></div>`;
     }
 
     function domainSwitcher(audits, sel, attr) {
@@ -1290,7 +1391,7 @@
                 <span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</button>`).join('')}</div>`;
     }
 
-    let EV_SEL = 0, FB_SEL = 0, REPORT = null;
+    let EV_SEL = 0, FB_SEL = 0, REPORT = null, EV_ALL = false, CMP_ALL = false;
 
     /* Señales de tipología en lista legible. Antes se pintaba el JSON crudo
        y se salía de la tarjeta. */
@@ -1317,17 +1418,20 @@
         const a = audits[EV_SEL] || audits[0];
         const bots = Object.entries(a.bot_matrix || {}).map(([b, c]) => {
             const cls = c === 200 ? 'is-ok' : (c === 0 || c === 403 || c === 429) ? 'is-bad' : 'is-part';
-            const glyph = c === 200 ? '✓' : (c === 0 || c === 403 || c === 429) ? '✕' : '◐';
-            return `<tr><td>${esc(b === '_human' ? 'Navegador humano' : b)}</td><td class="ag-num"><span class="ag-mark ${cls}">${glyph} ${c === 0 ? 'sin respuesta' : c}</span></td></tr>`;
+            const k = cls.replace('is-', '');
+            return `<tr><td>${esc(b === '_human' ? 'Navegador humano' : b)}</td><td class="ag-num"><span class="ag-mark is-${k}">${ic(MARKS[k][0])} ${c === 0 ? 'sin respuesta' : c === 200 ? '200 · entra' : c}</span></td></tr>`;
         }).join('');
         const pages = (a.pages_sampled || []).map(p =>
             `<tr><td>${esc(p.bucket)}</td><td style="word-break:break-all">${esc(p.url)}</td><td class="ag-num">${esc(p.status)}</td><td>${esc(p.via)}</td></tr>`).join('');
         const wk = Object.keys(a.wellknown || {}).length
             ? `<ul class="ag-list">${Object.keys(a.wellknown).map(p => `<li><span class="ag-list-ic">${ic('plug')}</span><div class="ag-mono" style="align-self:center">${esc(p)}</div></li>`).join('')}</ul>`
             : '<p class="ag-help">Ninguna superficie agéntica expuesta.</p>';
-        const checks = (a.checks || []).map(c =>
-            `<tr><td style="min-width:200px"><b>${c.id}</b> ${esc(c.name)}${c.manual ? ' <span class="ag-muted">· revisar</span>' : ''}</td>
-            <td class="ag-center">${mark(c.score)}</td><td class="ag-evidence">${esc(c.evidence)}</td></tr>`).join('');
+        const fallos = (a.checks || []).filter(c => c.score != null && c.score < 1);
+        const lista = EV_ALL ? (a.checks || []) : fallos;
+        const checks = lista.map(c =>
+            `<tr><td style="min-width:200px"><b>${esc(nameOf(c))}</b><span class="ag-hist-comp">check ${c.id}${c.manual ? ' · requiere revisión humana' : ''}</span></td>
+            <td class="ag-center">${mark(c.score)}</td><td class="ag-evidence">${esc(c.evidence)}</td></tr>`).join('')
+            || '<tr><td colspan="3" class="ag-muted">Ningún check falla en este dominio.</td></tr>';
         const ag = d.agentes || {};
         const sinAgentes = !(a.agent_tests && a.agent_tests.agents) && ag.solicitados && (ag.estado === 'completado' || ag.estado === 'error')
             ? alertHTML({ tone: 'warn', icon: 'bot-off', title: 'Sin evidencia agéntica en este dominio',
@@ -1337,25 +1441,29 @@
             ${agentPanelHTML(a)}${sinAgentes}
             <div class="ag-grid-2">
                 <div class="ag-card">
-                    <h3 class="ag-card-title">Acceso real de bots de IA</h3>
+                    <h2 class="ag-card-title">Acceso real de bots de IA</h2>
                     <p class="ag-card-sub">Peticiones reales con el user-agent oficial de cada bot.</p>
                     <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>User-agent</th><th class="ag-num">Respuesta</th></tr></thead><tbody>${bots}</tbody></table></div>
                 </div>
                 <div class="ag-card">
-                    <h3 class="ag-card-title">Superficie agéntica encontrada</h3>
+                    <h2 class="ag-card-title">Superficie agéntica encontrada</h2>
                     ${wk}
-                    <h3 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Tipología detectada</h3>
+                    <h2 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Tipología detectada</h2>
                     <p class="ag-help" style="margin-top:0">Clasificada como <b>${esc(typ(a.typology))}</b> por estas señales:</p>
                     ${typologyHTML(a)}
                     <p class="ag-help">Render JS: ${a.render_ok ? 'ejecutado' : 'no ejecutado'} · Vista LLM (Jina): ${a.jina_ok ? 'sí' : 'no'}</p>
                 </div>
             </div>
             <div class="ag-card ag-section">
-                <h3 class="ag-card-title">Páginas muestreadas</h3>
+                <h2 class="ag-card-title">Páginas muestreadas</h2>
                 <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Plantilla</th><th>URL</th><th class="ag-num">HTTP</th><th>Vía</th></tr></thead><tbody>${pages}</tbody></table></div>
             </div>
             <div class="ag-card ag-section">
-                <h3 class="ag-card-title">Los ${(a.checks || []).length} checks con su evidencia</h3>
+                <div class="ag-card-head"><h2 class="ag-card-title">Checks y su evidencia</h2>
+                    <div class="ag-switcher ag-filter" role="group" aria-label="Filtrar checks">
+                        <button type="button" class="btn-secondary ag-btn-sm${EV_ALL ? '' : ' is-active'}" data-evf="fail" aria-pressed="${!EV_ALL}">Fallos y parciales (${fallos.length})</button>
+                        <button type="button" class="btn-secondary ag-btn-sm${EV_ALL ? ' is-active' : ''}" data-evf="all" aria-pressed="${EV_ALL}">Todos (${(a.checks || []).length})</button>
+                    </div></div>
                 <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Check</th><th class="ag-center">Resultado</th><th>Evidencia</th></tr></thead><tbody>${checks}</tbody></table></div>
                 ${MARK_LEGEND}
             </div></div>`;
@@ -1367,15 +1475,16 @@
         const a = audits[FB_SEL] || audits[0];
         const statusFor = (au, id) => {
             const m = (au.checks || []).find(x => x.id === id);
-            if (!m) return '<span class="ag-mark is-na">–</span>';
-            if ((m.evidence || '').startsWith('N/A')) return '<span class="ag-mark is-na">– n/a</span>';
-            if (m.score == null && m.manual) return '<span class="ag-mark is-part">○ humano</span>';
-            if (m.score == null) return '<span class="ag-mark is-na">○ info</span>';
-            if (m.manual) return '<span class="ag-mark is-part">◐ heurístico</span>';
-            return '<span class="ag-mark is-ok">✓ medido</span>';
+            const lbl = (k, t) => `<span class="ag-mark is-${k}">${ic(MARKS[k][0])} ${t}</span>`;
+            if (!m) return lbl('na', '');
+            if ((m.evidence || '').startsWith('N/A')) return lbl('na', 'no aplica');
+            if (m.score == null && m.manual) return lbl('part', 'criterio humano');
+            if (m.score == null) return lbl('na', 'informativo');
+            if (m.manual) return lbl('part', 'heurístico');
+            return lbl('ok', 'medido');
         };
         const matrixRows = d.client.checks.map(c =>
-            `<tr><td style="white-space:nowrap"><b>${c.id}</b> ${esc(c.name)}</td>
+            `<tr><td><b>${esc(nameOf(c))}</b><span class="ag-hist-comp">check ${c.id}</span></td>
             <td class="ag-muted" style="font-size:var(--cs-text-xs);min-width:260px">${esc(METHODS[c.id] || '')}</td>
             ${audits.map(au => `<td style="white-space:nowrap;font-size:var(--cs-text-xs)">${statusFor(au, c.id)}</td>`).join('')}</tr>`).join('');
 
@@ -1391,10 +1500,9 @@
             if (n.fail > 0) v = { tone: 'bad', icon: 'circle-x', title: 'Análisis incompleto', msg: `${n.fail} proceso(s) fallaron y hay checks sin evidencia. No entregar sin revisar o relanzar.` };
             else if (n.warn > 0 || n.skipped > 0) v = { tone: 'warn', icon: 'triangle-alert', title: 'Fiable con avisos', msg: `Todos los procesos corrieron, pero ${n.warn} con evidencia degradada y ${n.skipped} desactivados. Revisa los avisos antes de entregar.` };
             else v = { tone: 'good', icon: 'circle-check', title: 'Análisis completo y fiable', msg: 'Todos los procesos se ejecutaron con evidencia directa. Lo que dice el informe está respaldado.' };
-            const IC = { ok: ['✓', 'is-ok'], warn: ['◐', 'is-part'], fail: ['✕', 'is-bad'], skipped: ['○', 'is-na'] };
+            const IC = { ok: 'ok', warn: 'part', fail: 'bad', skipped: 'na' };
             const steps = a.trail.map(t => {
-                const [g, cls] = IC[t.status] || ['?', 'is-na'];
-                return `<tr><td class="ag-center"><span class="ag-mark ${cls}">${g}</span></td>
+                return `<tr><td class="ag-center">${markOf(IC[t.status] || 'na')}</td>
                     <td style="font-weight:600;white-space:nowrap">${esc(t.step)}</td><td class="ag-muted">${esc(t.detail)}</td></tr>`;
             }).join('');
             const cov = a.coverage || {};
@@ -1404,43 +1512,46 @@
             }).join('');
             body = alertHTML({ tone: v.tone, icon: v.icon, title: v.title, body: `${v.msg} ${manual.length} checks marcados para criterio humano.` }) + `
                 <div class="ag-card">
-                    <h3 class="ag-card-title">Procesos ejecutados <span class="ag-muted">${a.trail.length}</span></h3>
+                    <h2 class="ag-card-title">Procesos ejecutados <span class="ag-muted">${a.trail.length}</span></h2>
                     <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th></th><th>Proceso</th><th>Resultado / evidencia</th></tr></thead><tbody>${steps}</tbody></table></div>
-                    <div class="ag-legend"><span><span class="ag-mark is-ok">✓</span> ejecutado con evidencia</span><span><span class="ag-mark is-part">◐</span> evidencia degradada</span><span><span class="ag-mark is-bad">✕</span> el proceso falló</span><span><span class="ag-mark is-na">○</span> desactivado</span><span>Un 404 del sitio es un hallazgo, no un fallo del análisis.</span></div>
+                    <div class="ag-legend"><span>${markOf('ok')} ejecutado con evidencia</span><span>${markOf('part')} evidencia degradada</span><span>${markOf('bad')} el proceso falló</span><span>${markOf('na')} desactivado</span><span>Un 404 del sitio es un hallazgo, no un fallo del análisis.</span></div>
                 </div>
                 <div class="ag-grid-2">
                     <div class="ag-card">
-                        <h3 class="ag-card-title">Cobertura del muestreo</h3>
+                        <h2 class="ag-card-title">Cobertura del muestreo</h2>
                         <p class="ag-help" style="margin-top:0"><b>${cov.sampled_ok ?? '?'}/${cov.sampled ?? '?'}</b> páginas accesibles de ${cov.sitemap_urls ?? '?'} URLs del sitemap (tope 800) · ${cov.fallbacks ?? 0} vía fallback</p>
                         ${buckets ? `<div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Plantilla</th><th class="ag-num">Encontradas</th><th class="ag-num">Muestreadas</th></tr></thead><tbody>${buckets}</tbody></table></div>` : ''}
                         <p class="ag-help">Muestreo representativo, no exhaustivo: hasta 2 páginas por plantilla.</p>
                     </div>
                     <div class="ag-card">
-                        <h3 class="ag-card-title">Requieren criterio humano <span class="ag-muted">${manual.length}</span></h3>
-                        <ul class="ag-learn-checks">${manual.map(x => `<li><span>${x.id}</span>${esc(x.name)}</li>`).join('') || '<li>Ninguno</li>'}</ul>
-                        <h3 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Informativos, no puntúan <span class="ag-muted">${informational.length}</span></h3>
-                        <ul class="ag-learn-checks">${informational.map(x => `<li><span>${x.id}</span>${esc(x.name)}</li>`).join('') || '<li>Ninguno</li>'}</ul>
+                        <h2 class="ag-card-title">Requieren criterio humano <span class="ag-muted">${manual.length}</span></h2>
+                        <ul class="ag-learn-checks">${manual.map(x => `<li><span>${x.id}</span>${esc(nameOf(x))}</li>`).join('') || '<li>Ninguno</li>'}</ul>
+                        <h2 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Informativos, no puntúan <span class="ag-muted">${informational.length}</span></h2>
+                        <ul class="ag-learn-checks">${informational.map(x => `<li><span>${x.id}</span>${esc(nameOf(x))}</li>`).join('') || '<li>Ninguno</li>'}</ul>
                     </div>
                 </div>`;
         }
         return `<div class="ag-pane">
-            <p class="ag-help" style="margin:0 0 var(--cs-space-md)">Panel de control del analista: qué procesos corrieron, con qué evidencia, qué se degradó y qué falta. <b>Si este panel no está en verde, el informe no se entrega.</b></p>
+            <p class="ag-help ag-pane-intro">Comprueba aquí que el análisis se hizo completo antes de compartir el informe: qué procesos corrieron, con qué evidencia y qué no se pudo verificar.</p>
             ${domainSwitcher(audits, FB_SEL, 'data-fb')}
             ${body}
-            <div class="ag-card ag-section">
-                <h3 class="ag-card-title">Matriz de factores</h3>
-                <p class="ag-card-sub">Qué revisamos, cómo, y si se pudo medir en cada dominio.</p>
+            <details class="ag-card ag-section ag-fold">
+                <summary><h2 class="ag-card-title">Matriz de factores</h2><span class="ag-muted">Qué revisamos, cómo, y si se pudo medir en cada dominio</span>${ic('chevron-down', 'ag-fold-caret')}</summary>
                 <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Factor</th><th>Metodología</th>${audits.map((au, i) => `<th><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(au.host)}</span></th>`).join('')}</tr></thead>
                 <tbody>${matrixRows}</tbody></table></div>
-                <div class="ag-legend"><span>✓ medido con evidencia directa</span><span>◐ heurístico</span><span>○ humano: requiere criterio del analista</span><span>○ info: se comprueba pero no puntúa</span><span>– n/a: no aplica a esta tipología</span></div>
-            </div></div>`;
+                <div class="ag-legend"><span>Medido: evidencia directa</span><span>Heurístico: evidencia parcial</span><span>Criterio humano: lo decide el analista</span><span>Informativo: se comprueba pero no puntúa</span></div>
+            </details></div>`;
     }
 
     document.addEventListener('click', e => {
         const ev = e.target.closest('[data-ev]');
         if (ev && REPORT) { EV_SEL = +ev.dataset.ev; repaint(3); return; }
         const fb = e.target.closest('[data-fb]');
-        if (fb && REPORT) { FB_SEL = +fb.dataset.fb; repaint(4); }
+        if (fb && REPORT) { FB_SEL = +fb.dataset.fb; repaint(4); return; }
+        const evf = e.target.closest('[data-evf]');
+        if (evf && REPORT) { EV_ALL = evf.dataset.evf === 'all'; repaint(3); return; }
+        const cmp = e.target.closest('[data-cmp]');
+        if (cmp && REPORT) { CMP_ALL = cmp.dataset.cmp === 'all'; repaint(1); }
     });
 
     /* ───── Metodología ───── */
@@ -1450,16 +1561,16 @@
             `<tr><td><b>${k}</b> <span class="ag-muted">${esc(CATS[k] || '')}</span></td>
              <td style="width:40%"><div class="ag-bar ag-bar-sm"><i style="width:${Math.min(100, v * 3)}%"></i></div></td>
              <td class="ag-num"><b>${v}%</b></td></tr>`).join('');
-        const manual = (c.checks || []).filter(x => x.manual).map(x => `<li><span>${x.id}</span>${esc(x.name)}</li>`).join('');
+        const manual = (c.checks || []).filter(x => x.manual).map(x => `<li><span>${x.id}</span>${esc(nameOf(x))}</li>`).join('');
         const b = bandOf(c.score);
         return `<div class="ag-pane"><div class="ag-grid-2" style="margin-top:0">
             <div class="ag-card">
-                <h3 class="ag-card-title">Pesos aplicados <span class="ag-muted">${esc(typ(c.typology))}</span></h3>
+                <h2 class="ag-card-title">Pesos aplicados <span class="ag-muted">${esc(typ(c.typology))}</span></h2>
                 <div class="ag-table-wrap"><table class="ag-table"><tbody>${w}</tbody></table></div>
                 <p class="ag-help">Cada check puntúa 0, 0,5 o 1 y pondera dentro de su categoría. Los checks críticos pesan más. Las categorías sin datos redistribuyen su peso.</p>
             </div>
             <div class="ag-card">
-                <h3 class="ag-card-title">Escala</h3>
+                <h2 class="ag-card-title">Escala</h2>
                 <ul class="ag-list">${[
                     ['0–25', 'Invisible para agentes', 'Ni te leen ni te usan.'],
                     ['26–50', 'Legible, no operable', 'Te leen, no te entienden bien, no te usan.'],
@@ -1469,9 +1580,9 @@
                     <div><div class="ag-list-title">${s[1]}${i === b ? ' <span class="ag-muted">· este informe</span>' : ''}</div><div class="ag-list-body">${s[2]}</div></div></li>`).join('')}</ul>
             </div></div>
             <div class="ag-card ag-section">
-                <h3 class="ag-card-title">Checks que requieren revisión humana</h3>
+                <h2 class="ag-card-title">Checks que requieren revisión humana</h2>
                 <ul class="ag-learn-checks">${manual || '<li>Ninguno</li>'}</ul>
-                <p class="ag-help">Framework ${esc(d.framework_version)} · basado en estándares abiertos (RFC 9421, MCP, ACP, Schema.org) y el Agent Readiness score de Cloudflare. El campo evoluciona por trimestres: re-auditar cada 90 días.</p>
+                <p class="ag-help">Metodología v${esc(String(d.framework_version || '').split(' ')[0] || '2.0')} · basada en estándares abiertos (RFC 9421, MCP, ACP, Schema.org) y el Agent Readiness score de Cloudflare. El campo evoluciona por trimestres: re-auditar cada 90 días.</p>
             </div></div>`;
     }
 
@@ -1492,10 +1603,28 @@
         $$('#agRepTabs .nav-tab').forEach((b, j) => {
             b.classList.toggle('active', j === i);
             b.setAttribute('aria-selected', j === i ? 'true' : 'false');
+            b.tabIndex = j === i ? 0 : -1;
         });
+        $('#agPanes').setAttribute('aria-labelledby', 'agRepTab-' + i);
         $('#agPanes').innerHTML = TABS[i][2](REPORT);
+        // los avisos informativos de la simulación viven en el Resumen; el
+        // progreso (en curso, error, recién terminada) se ve en cualquier pestaña
+        const bn = $('#agAgentsBanner');
+        if (bn.dataset.scope === 'resumen') bn.hidden = i !== 0;
         refreshIcons();
     }
+
+    // Navegación con flechas entre pestañas (patrón WAI-ARIA)
+    document.addEventListener('keydown', e => {
+        const tab = e.target.closest && e.target.closest('[role="tab"]');
+        if (!tab || !['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
+        const list = $$('[role="tab"]', tab.parentElement);
+        let k = list.indexOf(tab);
+        k = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : (k + (e.key === 'ArrowRight' ? 1 : -1) + list.length) % list.length;
+        e.preventDefault();
+        list[k].focus();
+        list[k].click();
+    });
 
     document.addEventListener('click', e => {
         const t = e.target.closest('[data-rep-tab]');
@@ -1510,23 +1639,33 @@
         REPORT = d;
         const c = d.client;
         const comps = (d.competitors || []).filter(a => !a.error).map(a => a.host);
-        $('#agRepMeta').textContent = ['Auditoría de preparación agéntica', fmtDate(d.generated), typ(c.typology)].filter(Boolean).join(' · ');
         $('#agRepTitle').innerHTML = `¿Está <span class="ag-hl">${esc(c.host)}</span> lista para la IA?`;
-        $('#agRepSub').textContent = comps.length ? 'Comparada con ' + comps.join(' y ') : 'Sin competidores en este análisis';
+        $('#agRepSub').textContent = [fmtDate(d.generated), typ(c.typology),
+            comps.length ? 'frente a ' + comps.join(' y ') : 'sin competidores'].filter(Boolean).join(' · ');
         $('#agRepTabs').innerHTML = TABS.map((t, i) =>
-            `<button type="button" class="nav-tab${i === ACTIVE_TAB ? ' active' : ''}" data-rep-tab="${i}" role="tab">${t[0]}</button>`).join('');
+            `<button type="button" class="nav-tab${i === ACTIVE_TAB ? ' active' : ''}" id="agRepTab-${i}" data-rep-tab="${i}" role="tab" aria-controls="agPanes" aria-selected="${i === ACTIVE_TAB}" tabindex="${i === ACTIVE_TAB ? 0 : -1}">${t[0]}</button>`).join('');
         document.title = `${c.host} · Agent Readiness - ClicAndSEO`;
         show('#agReport');
         repaint(ACTIVE_TAB);
+        // los nombres con tildes vienen del catálogo: si aún no había llegado,
+        // se repinta cuando llegue
+        if (!Object.keys(CHECK_NAMES).length) CATALOG_P.then(() => { if (REPORT === d) repaint(ACTIVE_TAB); });
         // Lo que la simulación NO llegó a comprobar se dice, no se calla: el
         // botón dice "Agentes simulados" aunque solo funcionara en 1 de 3.
         const ag = d.agentes || {};
         if (!AGENTS_POLL) {
-            if (ag.detalle && (ag.estado === 'completado' || ag.estado === 'error')) {
-                bannerAgentes(`<b>Simulación agéntica:</b> ${esc(ag.detalle)}`, ag.estado === 'error' ? 'error' : 'warn');
+            if (JUST_FINISHED != null) {
+                const m = Math.floor(JUST_FINISHED / 60), sg = String(JUST_FINISHED % 60).padStart(2, '0');
+                bannerAgentes(`<b>Análisis completado en ${m}:${sg}.</b> Esto es lo que hemos encontrado; el informe queda guardado en Informes.`, 'done', 'resumen');
+                JUST_FINISHED = null;
+            } else if (ag.detalle && (ag.estado === 'completado' || ag.estado === 'error')) {
+                bannerAgentes(`<b>Simulación con agentes:</b> ${esc(ag.detalle)}`, ag.estado === 'error' ? 'error' : 'warn', 'resumen');
             } else {
                 $('#agAgentsBanner').hidden = true;
+                $('#agAgentsBanner').dataset.scope = '';
             }
+            const bn = $('#agAgentsBanner');
+            if (bn.dataset.scope === 'resumen') bn.hidden = ACTIVE_TAB !== 0;
         }
         pintarBotonAgentes(d);
     }
@@ -1621,7 +1760,7 @@
         b.hidden = false;
         const est = ag.estado;
         if (est === 'corriendo') { setAgentsBtn('running'); arrancarPollAgentes(d); }
-        else if (est === 'completado') setAgentsBtn('done');
+        else if (est === 'completado') { b.hidden = true; return; }
         else if (est === 'error') setAgentsBtn('error');
         else setAgentsBtn('idle');
         b.onclick = async () => {
@@ -1641,9 +1780,10 @@
         };
     }
 
-    function bannerAgentes(html, estado) {
+    function bannerAgentes(html, estado, scope) {
         const el = $('#agAgentsBanner');
         el.hidden = false;
+        el.dataset.scope = scope || 'global';
         const icon = estado === 'error' ? 'circle-x' : estado === 'done' ? 'circle-check' : estado === 'warn' ? 'triangle-alert' : estado === 'info' ? 'info' : 'loader-circle';
         el.innerHTML = `<div class="ag-banner${estado === 'error' ? ' is-bad' : estado === 'done' ? ' is-good' : estado === 'warn' ? ' is-warn' : ''}">
             ${ic(icon, estado === 'running' ? 'ag-spin' : '')}<div>${html}</div></div>`;
@@ -1675,7 +1815,7 @@
                 const nuevo = await rr.json();
                 renderReport(nuevo, CURRENT_JOB);
                 const det = (nuevo.agentes || {}).detalle;
-                bannerAgentes(`<b>Simulación agéntica completada.</b> El check 6.3 y la puntuación global están actualizados. El detalle paso a paso de cada agente está en la pestaña <b>Evidencias</b>.${det ? ' ' + esc(det) : ''}`, det ? 'warn' : 'done');
+                bannerAgentes(`<b>Simulación con agentes completada.</b> La puntuación ya la incluye y tienes el resumen en esta página; cada intento paso a paso está en <b>Evidencias</b>.${det ? ' ' + esc(det) : ''}`, det ? 'warn' : 'done', 'global');
             }
         }, 4000);
     }
