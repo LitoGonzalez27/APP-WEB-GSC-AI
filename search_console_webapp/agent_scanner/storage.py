@@ -104,12 +104,21 @@ def cargar(job_id):
     try:
         with _conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT data FROM agent_scanner_reports WHERE id = %s", (job_id,))
+            cur.execute("SELECT data, created_at FROM agent_scanner_reports WHERE id = %s",
+                        (job_id,))
             fila = cur.fetchone()
         if not fila:
             return None
-        bruto = fila[0] if not isinstance(fila, dict) else fila.get("data")
-        return json.loads(bruto) if isinstance(bruto, str) else bruto
+        if isinstance(fila, dict):
+            bruto, creado = fila.get("data"), fila.get("created_at")
+        else:
+            bruto, creado = fila[0], fila[1]
+        data = json.loads(bruto) if isinstance(bruto, str) else bruto
+        # Los informes anteriores a oct-2026 no guardaban "generated": se toma la
+        # fecha de la fila para que panel, PDF y descargas no salgan sin fecha.
+        if isinstance(data, dict) and not data.get("generated") and creado:
+            data["generated"] = creado.isoformat() if hasattr(creado, "isoformat") else str(creado)
+        return data
     except Exception as exc:
         logger.warning(f"agent_scanner_reports: fallo al cargar {job_id}: {exc}")
         return None

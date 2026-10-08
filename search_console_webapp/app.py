@@ -104,7 +104,26 @@ ASSET_VERSION = (os.getenv('RAILWAY_GIT_COMMIT_SHA') or '')[:8] or str(int(time.
 @app.context_processor
 def inject_asset_version():
     """Expone ASSET_V a todas las plantillas para el ?v= de los estáticos."""
-    return {'ASSET_V': ASSET_VERSION}
+    return {'ASSET_V': ASSET_VERSION, 'agent_readiness_access': _agent_readiness_access}
+
+
+def _agent_readiness_access(user):
+    """¿Ve este usuario la entrada Agent Readiness del sidebar?
+
+    Misma regla que el acceso a /agent (admin o allowlist). Se calcula como
+    mucho una vez por petición y nunca rompe la página: ante cualquier fallo,
+    la entrada simplemente no se pinta.
+    """
+    from flask import g
+    if not user:
+        return False
+    if 'agent_readiness_access' not in g:
+        try:
+            from agent_scanner.access import user_has_access
+            g.agent_readiness_access = bool(user_has_access(user))
+        except Exception:
+            g.agent_readiness_access = user.get('role') == 'admin'
+    return g.agent_readiness_access
 
 
 # --- Rate limiting (global) ---

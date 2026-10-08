@@ -11,14 +11,13 @@ Los análisis corren en un hilo (uno a la vez por proceso). Para escalado a
 clientes, mover a cola + worker + tabla en Postgres (Fase 2).
 """
 import logging
-import os
 import threading
 import time
 import uuid
 from functools import wraps
 from urllib.parse import urlparse
 
-from flask import (Blueprint, jsonify, redirect, request, send_from_directory,
+from flask import (Blueprint, jsonify, redirect, render_template, request,
                    session, url_for)
 
 from auth import (admin_required, get_current_user, get_current_user_strict, is_user_authenticated,
@@ -70,7 +69,6 @@ def agent_access_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-_WEB_DIR = os.path.join(os.path.dirname(__file__), "agent_scanner", "web")
 _JOBS = {}
 _JOBS_LOCK = threading.Lock()
 _MAX_JOBS = 50
@@ -144,6 +142,9 @@ def _run_job(job_id, urls, opts):
         data = {
             "client": audits[0],
             "competitors": audits[1:],
+            # el panel, el PDF y el nombre de las descargas leen esta fecha;
+            # antes no se guardaba y todos salían sin ella
+            "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "framework_version": "2.0 (agent_scanner en clicandseo)",
             # el informe usa esto para ofrecer el botón "Simular agentes"
             "agentes": {
@@ -316,10 +317,23 @@ def agents_status(job_id):
     })
 
 
+def _render_panel(initial_tab="nuevo"):
+    """Panel dentro del esqueleto común de la app (navbar + sidebar + marca).
+
+    Antes era un HTML estático y oscuro servido aparte (agent_scanner/web/),
+    sin sidebar ni brandbook. Ahora es una plantilla Jinja como el resto de
+    paneles; toda la lógica vive en static/js/agent-scanner.js.
+    """
+    user = get_current_user() or {}
+    return render_template("agent_scanner.html", user=user,
+                           is_admin=user.get("role") == "admin",
+                           initial_tab=initial_tab)
+
+
 @agent_bp.route("/")
 @agent_access_required
 def index():
-    return send_from_directory(_WEB_DIR, "index.html")
+    return _render_panel()
 
 
 @agent_bp.route("/api/scan", methods=["POST"])
@@ -573,7 +587,8 @@ def diag():
 @agent_bp.route("/acceso")
 @admin_required
 def access_page():
-    return send_from_directory(_WEB_DIR, "access.html")
+    # la gestión de accesos es ahora una pestaña del propio panel
+    return _render_panel("accesos")
 
 
 @agent_bp.route("/api/access/list")

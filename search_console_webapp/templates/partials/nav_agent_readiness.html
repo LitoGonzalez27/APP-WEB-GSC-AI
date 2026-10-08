@@ -1,0 +1,17 @@
+{#
+  Entrada "Agent Readiness" del sidebar. Antes solo existía en /app y solo para
+  admins: quien tenía acceso por invitación no la veía en ningún panel. Se
+  muestra a quien de verdad puede entrar (admin o allowlist del scanner), con la
+  misma regla que protege /agent (agent_scanner/access.py).
+#}
+{% if agent_readiness_access(user) %}
+                    <button type="button" class="nav-item" id="navAgentScanner" onclick="window.location.href='/agent/'">
+                        <div class="nav-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="nav-text">Agent Readiness</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusAgentScanner"></div>
+                        </div>
+                    </button>
+{% endif %}
