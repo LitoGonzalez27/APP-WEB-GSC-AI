@@ -32,21 +32,21 @@
   background: var(--cs-bg-subtle);
 
   /* ── Semáforo de estado (pedido de Carlos, oct-2026) ──────────────────────
-     Verde = bien, albaricoque = regular, rojo = mal. Verde y rojo son los
+     Verde = bien, naranja = regular, rojo = mal. Verde y rojo son los
      utilitarios del brandbook con su paso oscuro para texto. El regular es un
-     naranja pastel (#F2A65A) pedido por Carlos (oct-2026), más amable que el
-     ámbar de datos que se probó antes y que el naranja #eb6834, cuyos fondos
-     se confundían con los rojos. Su paso de texto (#935210, mismo tono) da
-     6:1 sobre blanco y 5,2:1 sobre su fondo suave. Los fondos suaves son
-     esos colores con opacidad (textura por opacidad, §15). */
+     naranja vivo y claro (#FF9A3C) elegido por Carlos (oct-2026) tras probar
+     el naranja de datos #eb6834 (sus fondos se confundían con los rojos), el
+     ámbar #eda100 y un albaricoque apagado. Su paso de texto (#A55409, mismo
+     tono) da 5,4:1 sobre blanco y 4,9:1 sobre su fondo suave. Los fondos
+     suaves son esos colores con opacidad (textura por opacidad, §15). */
   --ag-good: var(--cs-success);
   --ag-good-text: var(--cs-success-text);
   --ag-good-soft: rgba(60, 179, 113, 0.10);
   --ag-good-line: rgba(60, 179, 113, 0.35);
-  --ag-warn: #F2A65A;
-  --ag-warn-text: #935210;
-  --ag-warn-soft: rgba(242, 166, 90, 0.18);
-  --ag-warn-line: rgba(242, 166, 90, 0.55);
+  --ag-warn: #FF9A3C;
+  --ag-warn-text: #A55409;
+  --ag-warn-soft: rgba(255, 154, 60, 0.14);
+  --ag-warn-line: rgba(255, 154, 60, 0.50);
   --ag-bad: var(--cs-error);
   --ag-bad-text: var(--cs-error-text);
   --ag-bad-soft: rgba(224, 82, 82, 0.09);
