@@ -1132,9 +1132,11 @@
             const h = rows.reduce((t, r) => t + Math.max(...r.map(o => o.d)), 0) + GAP * (rows.length - 1);
             return { rows, h };
         }
-        const TIER_FILL = [C.bad, C.warn, C.accent, C.text3];
-        const TIER_STROKE = [C.badText, C.warnText, C.okText, C.text2];
-        const TIER_FILL_OP = [0.16, 0.16, 0.75, 0.18];
+        // Cada burbuja es un fallo: nunca verde. Crítico/Importante rojo,
+        // Mejoras ámbar, Menor neutro (mismo código que el plan de acción).
+        const TIER_FILL = [C.bad, C.bad, C.warn, C.text3];
+        const TIER_STROKE = [C.badText, C.badText, C.warnText, C.text2];
+        const TIER_FILL_OP = [0.22, 0.14, 0.18, 0.18];
         let bubbles = '';
         Object.entries(cells).forEach(([k, list]) => {
             const [e, im] = k.split('-').map(Number);
@@ -1164,7 +1166,7 @@
         const zones = zone(padL, padT, cw * 2, ch * 2, C.accent, 0.45)
             + zone(padL + cw * 2, padT, cw, ch * 2, C.grid, 0.9)
             + zone(padL, padT + ch * 2, cw * 2, ch * 2, C.grid, 0.5)
-            + label(padL + 16, padT + 24, 'HAZLO YA', C.okText)
+            + label(padL + 16, padT + 24, 'HAZLO YA', C.text)
             + label(padL + cw * 2 + 16, padT + 24, 'PLANIFÍCALO', C.text2)
             + label(padL + 16, padT + ch * 2 + 24, 'CUANDO PUEDAS', C.text3)
             + label(padL + cw * 2 + 16, padT + ch * 2 + 24, 'AL FINAL', C.text3);
@@ -1175,7 +1177,7 @@
         const grid = [1, 2].map(i => `<line x1="${padL + i * cw}" y1="${padT}" x2="${padL + i * cw}" y2="${H - padB}" stroke="${C.border}" stroke-dasharray="3 4"/>`).join('')
             + [1, 2, 3].map(i => `<line x1="${padL}" y1="${padT + i * ch}" x2="${W - padR}" y2="${padT + i * ch}" stroke="${C.border}" stroke-dasharray="3 4"/>`).join('');
         const legend = TIERS.filter(t => items.some(c => tierOf(c) === t.ord)).map(t =>
-            `<span><span class="ag-dot" style="background:${TIER_FILL[t.ord]};${t.ord === 2 ? `box-shadow:inset 0 0 0 1.5px ${C.okText}` : ''}"></span>${t.title}</span>`).join('');
+            `<span><span class="ag-dot" style="background:${TIER_FILL[t.ord]}"></span>${t.title}</span>`).join('');
         return `<div class="ag-card">
             <h3 class="ag-card-title">Mapa de prioridades</h3>
             <p class="ag-card-sub">Cada burbuja es un problema detectado. Altura = impacto en el negocio; horizontal = esfuerzo de arreglo; tamaño = puntos que recuperas al arreglarlo. <b>Empieza por la zona «Hazlo ya».</b> Pasa el ratón por una burbuja para ver el detalle.</p>

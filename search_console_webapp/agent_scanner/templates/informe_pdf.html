@@ -221,23 +221,23 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 }
 .list .tt { font-weight: 600; }
 .list .n.q0 { background: var(--bad-soft); color: var(--bad-text); }
-.list .n.q1 { background: var(--warn-soft); color: var(--warn-text); }
-.list .n.q2 { background: var(--lime-soft); color: var(--ok-text); }
+.list .n.q1 { background: var(--bad-soft); color: var(--bad-text); }
+.list .n.q2 { background: var(--warn-soft); color: var(--warn-text); }
 .list .n.q { border-radius: 50%; width: 7mm; height: 7mm; font-size: 9pt; font-weight: 800; }
 .list .bd { color: var(--text-2); margin-top: 0.5mm; }
 
 /* plan de acción */
 .tier { margin-top: 7mm; padding: 4mm 4mm 2mm; border-radius: 14px; border: 1px solid var(--border); }
 .tier.t0 { background: var(--bad-soft); border-color: var(--bad-line); }
-.tier.t1 { background: var(--warn-soft); border-color: var(--warn-line); }
-.tier.t2 { background: var(--lime-soft); border-color: var(--lime-line); }
+.tier.t1 { background: var(--bad-soft); border-color: var(--bad-line); }
+.tier.t2 { background: var(--warn-soft); border-color: var(--warn-line); }
 .tier.t0 .tier-name, .tier.t0 .tier-count { color: var(--bad-text); }
-.tier.t1 .tier-name, .tier.t1 .tier-count { color: var(--warn-text); }
-.tier.t2 .tier-name, .tier.t2 .tier-count { color: var(--ok-text); }
+.tier.t1 .tier-name, .tier.t1 .tier-count { color: var(--bad-text); }
+.tier.t2 .tier-name, .tier.t2 .tier-count { color: var(--warn-text); }
 .tier .finding { background: var(--paper); border: none; border-radius: 10px; padding: 4mm; margin-bottom: 2.5mm; }
 .tier-head { display: flex; align-items: baseline; gap: 3mm; padding: 0 1mm 3mm; break-after: avoid; }
 .tier-mark { width: 9px; height: 9px; border-radius: 50%; display: inline-block; align-self: center; }
-.tier-mark.t0 { background: var(--bad); } .tier-mark.t1 { background: var(--warn); } .tier-mark.t2 { background: var(--ok); } .tier-mark.t3 { background: var(--text-3); }
+.tier-mark.t0 { background: var(--bad); } .tier-mark.t1 { background: var(--bad); } .tier-mark.t2 { background: var(--warn); } .tier-mark.t3 { background: var(--text-3); }
 .tier-name { font-size: 13pt; font-weight: 800; letter-spacing: -0.02em; }
 .tier-count { font-weight: 600; color: var(--text-2); }
 .tier-hint { color: var(--text-2); font-size: 8.5pt; }

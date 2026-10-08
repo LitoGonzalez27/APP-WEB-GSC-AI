@@ -1896,8 +1896,8 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 }
 
 .ag-step.t0 .ag-qn { background: var(--ag-bad-soft); color: var(--ag-bad-text); box-shadow: inset 0 0 0 1.5px var(--ag-bad-line); }
-.ag-step.t1 .ag-qn { background: var(--ag-warn-soft); color: var(--ag-warn-text); box-shadow: inset 0 0 0 1.5px var(--ag-warn-line); }
-.ag-step.t2 .ag-qn { background: var(--ag-lime-soft); color: var(--ag-good-text); box-shadow: inset 0 0 0 1.5px var(--ag-lime-line); }
+.ag-step.t1 .ag-qn { background: var(--ag-bad-soft); color: var(--ag-bad-text); box-shadow: inset 0 0 0 1.5px var(--ag-bad-line); }
+.ag-step.t2 .ag-qn { background: var(--ag-warn-soft); color: var(--ag-warn-text); box-shadow: inset 0 0 0 1.5px var(--ag-warn-line); }
 .ag-step.t3 .ag-qn { background: var(--ag-mute-soft); color: var(--cs-text-secondary); }
 
 .ag-step-title { font-size: var(--cs-text-base); font-weight: var(--cs-weight-bold); }
@@ -1909,17 +1909,20 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 
 /* bloques de prioridad del plan de acción, cada uno con su tono suave */
 .ag-tier > summary:focus { outline: none; }
-.ag-tier > summary:focus-visible { outline: 2px solid var(--cs-text-primary); outline-offset: -2px; border-radius: var(--cs-radius-md); }
+.ag-tier > summary:focus-visible { outline: none; text-decoration: underline; text-underline-offset: 4px; }
 .ag-tier.t0 { background: var(--ag-bad-soft); border-color: var(--ag-bad-line); }
-.ag-tier.t1 { background: var(--ag-warn-soft); border-color: var(--ag-warn-line); }
-.ag-tier.t2 { background: var(--ag-lime-soft); border-color: var(--ag-lime-line); }
+/* Todo lo que hay en el plan es algo que falla: nunca verde (el verde es solo
+   para lo que está bien). Crítico e Importante en rojo, Mejoras en ámbar,
+   Menor en neutro. */
+.ag-tier.t1 { background: var(--ag-bad-soft); border-color: var(--ag-bad-line); }
+.ag-tier.t2 { background: var(--ag-warn-soft); border-color: var(--ag-warn-line); }
 .ag-tier.t3 { background: var(--cs-bg-paper); border-color: var(--cs-border); }
 .ag-tier > summary:hover { background: transparent; }
 .ag-tier.t0 .ag-tier-name, .ag-tier.t0 .ag-tier-count { color: var(--ag-bad-text); }
-.ag-tier.t1 .ag-tier-name, .ag-tier.t1 .ag-tier-count { color: var(--ag-warn-text); }
-.ag-tier.t2 .ag-tier-name, .ag-tier.t2 .ag-tier-count { color: var(--ag-good-text); }
-.ag-tier-mark.t1 { background: var(--ag-warn); }
-.ag-tier-mark.t2 { background: var(--ag-good); }
+.ag-tier.t1 .ag-tier-name, .ag-tier.t1 .ag-tier-count { color: var(--ag-bad-text); }
+.ag-tier.t2 .ag-tier-name, .ag-tier.t2 .ag-tier-count { color: var(--ag-warn-text); }
+.ag-tier-mark.t1 { background: var(--ag-bad); }
+.ag-tier-mark.t2 { background: var(--ag-warn); }
 .ag-tier-mark.t3 { background: var(--cs-text-tertiary); }
 .ag-tier-body { display: flex; flex-direction: column; gap: var(--cs-space-sm); padding: 0 var(--cs-space-md) var(--cs-space-md); }
 .ag-tier .ag-finding {
@@ -1928,7 +1931,7 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
   border-radius: var(--cs-radius-sm);
   background: var(--cs-bg-paper);
 }
-.ag-meta .is-qw { color: var(--ag-good-text); }
+.ag-meta .is-qw { color: var(--cs-text-primary); }
 
 /* mapa de prioridades a ancho completo */
 .ag-chart-full svg { display: block; width: 100%; height: auto; }
