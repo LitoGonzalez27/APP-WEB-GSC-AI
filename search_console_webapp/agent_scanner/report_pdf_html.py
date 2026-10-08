@@ -54,8 +54,8 @@ SERIES = ["#2a78d6", "#4a3aa7", "#e87ba4"]
 TEXT, TEXT2, TEXT3 = "#0F172A", "#64748B", "#94A3B8"
 GRID, BORDER = "#EEF2F7", "#E2E8F0"
 OK, BAD, ACCENT = "#3CB371", "#E05252", "#d9f9b8"
-WARN = "#F2A65A"            # naranja pastel, el "regular" del semáforo (como el panel)
-OK_TEXT, WARN_TEXT, BAD_TEXT = "#287A4C", "#935210", "#D13B3B"
+WARN = "#FF9A3C"            # naranja vivo y claro, el "regular" del semáforo (como el panel)
+OK_TEXT, WARN_TEXT, BAD_TEXT = "#287A4C", "#A55409", "#D13B3B"
 
 
 def _tone(p):
