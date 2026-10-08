@@ -51,12 +51,15 @@
         return v || fallback;
     }
 
-    // Paleta de datos del brandbook. Slot 1 = tu web, siempre; 2 y 3 los
-    // competidores. Un color por entidad, fijo en todas las gráficas.
+    // Paleta de datos del brandbook. Slot 1 = tu web, siempre. Los
+    // competidores van en violeta y magenta (slots 4 y 6) y no en aqua/naranja:
+    // el verde, el naranja y el rojo quedan reservados para el semáforo de
+    // estado (bien / regular / mal), y un color de serie nunca puede parecer
+    // un color de estado (Brandbook § Paleta de datos).
     const SERIES = [
         cssVar('--cs-series-1', '#2a78d6'),
-        cssVar('--cs-series-2', '#1baf7a'),
-        cssVar('--cs-series-3', '#eb6834'),
+        cssVar('--cs-series-4', '#4a3aa7'),
+        cssVar('--cs-series-6', '#e87ba4'),
     ];
     const C = {
         text: cssVar('--cs-text-primary', '#0F172A'),
@@ -67,7 +70,17 @@
         ok: cssVar('--cs-success', '#3CB371'),
         bad: cssVar('--cs-error', '#E05252'),
         accent: cssVar('--cs-accent', '#d9f9b8'),
+        okText: cssVar('--cs-success-text', '#287A4C'),
+        badText: cssVar('--cs-error-text', '#D13B3B'),
+        warn: cssVar('--cs-series-5', '#eda100'),
+        warnText: '#8F6100',
     };
+    // Semáforo: ≥75 bien, 50-74 regular, <50 mal (porcentajes de categoría).
+    const toneOf = p => (p >= 75 ? 'good' : p >= 50 ? 'warn' : 'bad');
+    // Nota global por tramos de la escala: 0-50 mal, 51-75 regular, 76-100 bien.
+    const scoreTone = s => (s > 75 ? 'good' : s > 50 ? 'warn' : 'bad');
+    const TONE_HEX = { good: C.ok, warn: C.warn, bad: C.bad };
+    const TONE_TEXT = { good: C.okText, warn: C.warnText, bad: C.badText };
 
     function fmtDate(iso) {
         if (!iso) return '';
@@ -611,14 +624,14 @@
         const s = typeof it.score === 'number' ? Math.round(it.score * 10) / 10 : null;
         const agentes = { completado: 'Simulados', pendiente: 'Pendientes', corriendo: 'En curso', error: 'Fallaron', desactivadas: '—' }[it.agentes] || '—';
         const fiable = it.fiable === false
-            ? `<span class="ag-hist-comp" data-tip="Lectura limitada||El sitio bloqueó parte del acceso: hay factores que no se pudieron verificar.">${ic('triangle-alert')} lectura limitada</span>` : '';
+            ? `<span class="ag-hist-comp is-warn-text" data-tip="Lectura limitada||El sitio bloqueó parte del acceso: hay factores que no se pudieron verificar.">${ic('triangle-alert')} lectura limitada</span>` : '';
         return `<tr class="ag-hist-row">
             <td><span class="ag-hist-host">${esc(it.host)}</span>
                 ${it.competidores ? `<span class="ag-hist-comp">vs ${esc(it.competidores)}</span>` : ''}${fiable}</td>
             <td style="white-space:nowrap">${esc(fmtDateTime(it.fecha))}</td>
             <td>${esc(typ(it.tipologia))}</td>
             <td>${esc(agentes)}</td>
-            <td class="ag-num"><span class="ag-hist-score">${s !== null ? `<span class="ag-bar ag-bar-sm"><i style="width:${Math.max(0, Math.min(100, s))}%"></i></span><b>${s}</b>` : '—'}</span></td>
+            <td class="ag-num"><span class="ag-hist-score">${s !== null ? `<span class="ag-bar ag-bar-sm"><i class="is-${scoreTone(s)}" style="width:${Math.max(0, Math.min(100, s))}%"></i></span><b class="is-${scoreTone(s)}-text">${s}</b>` : '—'}</span></td>
             <td><div class="ag-hist-actions">
                 <button type="button" class="btn-secondary ag-btn-sm" data-open="${esc(it.id)}">Abrir</button>
                 <button type="button" class="btn-ghost ag-btn-sm" data-del="${esc(it.id)}" aria-label="Borrar informe de ${esc(it.host)}">${ic('trash-2')}</button>
@@ -761,13 +774,12 @@
         <span>${mark(1)} cumple</span><span>${mark(0.5)} parcial</span>
         <span>${mark(0)} falla</span><span>${mark(null)} no aplica / no medido</span></div>`;
 
-    const stateOf = p => p >= 75 ? ['Fuerte', 'is-good'] : p >= 50 ? ['Mejorable', ''] : p >= 25 ? ['Flojo', ''] : ['Crítico', 'is-bad'];
+    const stateOf = p => p >= 75 ? ['Fuerte', 'is-good'] : p >= 50 ? ['Mejorable', 'is-warn'] : p >= 25 ? ['Flojo', 'is-bad'] : ['Crítico', 'is-bad'];
 
     function gaugeSVG(score, parcial) {
         const W = 240, H = 150, r = 96, cx = W / 2, cy = 128, L = Math.PI * r;
         const frac = Math.max(0, Math.min(1, (score || 0) / 100));
-        const band = bandOf(score || 0);
-        const col = parcial ? C.text3 : band === 0 ? C.bad : band === 3 ? C.ok : C.text;
+        const col = parcial ? C.text3 : TONE_HEX[scoreTone(score || 0)];
         const arc = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
         let ticks = '';
         for (const t of [25, 50, 75]) {
@@ -788,7 +800,7 @@
         const b = bandOf(score);
         const pos = Math.max(0, Math.min(100, score));
         return `<div class="ag-scale" data-tip="Escala de preparación agéntica||0-25 invisible para agentes · 26-50 legible pero no operable · 51-75 agent-aware · 76-100 agent-ready.">
-            <div class="ag-scale-track">${SCALE.map((s, i) => `<i class="${i === b ? 'is-active' : ''}"></i>`).join('')}
+            <div class="ag-scale-track">${SCALE.map((s, i) => `<i class="${i === b ? 'is-active is-' + scoreTone(score) : ''}"></i>`).join('')}
                 <span class="ag-scale-marker" style="left:${pos}%"></span></div>
             <div class="ag-scale-labels">${SCALE.map((s, i) => `<span class="${i === b ? 'is-active' : ''}">${s.from}–${s.to}<br>${esc(s.name)}</span>`).join('')}</div>
         </div>`;
@@ -818,8 +830,8 @@
             const [st, cls] = stateOf(p);
             return `<div class="ag-catrow" data-tip="${esc(c + ' · ' + CATS[c] + '||' + CAT_DESC[c] + ' El % son los checks superados, ponderados por importancia.')}">
                 <div class="ag-catrow-name"><b>${c}</b>${esc(CATS[c])}</div>
-                <div class="ag-bar"><i style="width:${p}%;background:${color}"></i></div>
-                <div class="ag-catrow-val">${p}%</div>
+                <div class="ag-bar"><i class="${color ? '' : 'is-' + toneOf(p)}" style="width:${p}%;${color ? 'background:' + color : ''}"></i></div>
+                <div class="ag-catrow-val is-${toneOf(p)}-text">${p}%</div>
                 <div class="ag-state ${cls}">${st}</div></div>`;
         }).join('');
     }
@@ -838,9 +850,9 @@
         const weakest = st.reduce((m, s) => (s.p < m.p ? s : m), st[0]);
         return `<div class="ag-journey">${st.map((s, i) => `
             ${i > 0 ? `<div class="ag-journey-arrow">${ic('chevron-right')}</div>` : ''}
-            <div class="ag-stage${s === weakest && st.length > 1 ? ' is-weak' : ''}">
-                <div class="ag-stage-top"><span class="ag-stage-q">${s.name}</span><span class="ag-stage-pct">${s.p}%</span></div>
-                <div class="ag-bar"><i style="width:${s.p}%;background:${SERIES[0]}"></i></div>
+            <div class="ag-stage is-${toneOf(s.p)}${s === weakest && st.length > 1 ? ' is-weak' : ''}">
+                <div class="ag-stage-top"><span class="ag-stage-q">${s.name}</span><span class="ag-stage-pct is-${toneOf(s.p)}-text">${s.p}%</span></div>
+                <div class="ag-bar"><i class="is-${toneOf(s.p)}" style="width:${s.p}%"></i></div>
                 <div class="ag-stage-desc">${s.desc} · ${s.cats.join(' + ')}</div>
                 ${s === weakest && st.length > 1 ? `<div class="ag-stage-flag">${ic('link-2-off')} Eslabón más débil</div>` : ''}
             </div>`).join('')}</div>`;
@@ -865,6 +877,7 @@
         let aviso = '';
         if (deg && c.level.cobertura_parcial) {
             aviso = alertHTML({
+                tone: 'warn',
                 icon: 'shield-alert',
                 title: esc(c.level.name),
                 body: `${esc(c.level.msg)}
@@ -876,6 +889,7 @@
             });
         } else if (c.score_fiable === false && deg) {
             aviso = alertHTML({
+                tone: 'warn',
                 icon: 'shield-alert',
                 title: 'Lectura limitada',
                 body: `${esc(deg.motivo)}. Hay <b>${deg.degradados}</b> factores marcados como «no verificable» porque no se pudieron comprobar: no cuentan como fallo. Puedes repetir el análisis más tarde o desde otra red.`
@@ -894,7 +908,7 @@
                     <p class="ag-eyebrow">${parcial ? 'Puntuación parcial' : 'Puntuación global'}</p>
                     ${gaugeSVG(c.score, parcial)}
                     ${via}${cobertura}
-                    <div class="ag-level">${esc(c.level.name)}</div>
+                    <div class="ag-level ${parcial ? '' : 'is-' + scoreTone(c.score)}">${esc(c.level.name)}</div>
                     ${aviso && parcial ? '' : `<p class="ag-level-msg">${esc(c.level.msg)}</p>`}
                     ${scaleHTML(c.score)}
                     ${balanceHTML(c)}
@@ -903,7 +917,7 @@
                 <div class="ag-card">
                     <div class="ag-card-head"><h3 class="ag-card-title">Desglose por categoría</h3>
                         <span class="ag-muted">${(c.checks || []).length} comprobaciones</span></div>
-                    <div class="ag-catrows" style="margin-top:var(--cs-space-sm)">${catRows(c, SERIES[0])}</div>
+                    <div class="ag-catrows" style="margin-top:var(--cs-space-sm)">${catRows(c, null)}</div>
                 </div>
             </div>
             <div class="ag-card ag-section">
@@ -914,10 +928,12 @@
             <div class="ag-card ag-section">
                 <h3 class="ag-card-title">Por dónde empezar</h3>
                 <p class="ag-card-sub">Quick wins: alto impacto y poco esfuerzo.</p>
-                ${qw.length ? `<ul class="ag-list">${qw.map(x => `<li><span class="ag-list-ic">${ic('zap')}</span>
-                    <div><div class="ag-list-title">${esc(x.advice.titulo)}</div><div class="ag-list-body">${esc(x.advice.como)}</div></div></li>`).join('')}</ul>`
+                ${qw.length ? `<ol class="ag-steps">${qw.slice().sort((a, b) => (IMPORD[a.advice.impacto] ?? 3) - (IMPORD[b.advice.impacto] ?? 3)).map((x, i) => `
+                    <li class="ag-step t${Math.min(IMPORD[x.advice.impacto] ?? 3, 3)}"><span class="ag-qn">${i + 1}</span>
+                    <div><div class="ag-step-title">${esc(x.advice.titulo)}</div><div class="ag-step-body">${esc(x.advice.como)}</div>
+                    <div class="ag-step-meta">Impacto <b>${esc(x.advice.impacto)}</b> · esfuerzo <b>${esc(x.advice.esfuerzo)}</b> · check ${esc(x.id)}</div></div></li>`).join('')}</ol>`
                 : '<p class="ag-help">Sin quick wins pendientes: los fallos restantes requieren más esfuerzo.</p>'}
-                <button type="button" class="ag-link-btn" data-rep-tab="2">Ver el plan de acción completo ${ic('arrow-right')}</button>
+                <div class="ag-cta-row"><button type="button" class="btn-secondary" data-rep-tab="2">Ver el plan de acción completo ${ic('arrow-right')}</button></div>
             </div></div>`;
     }
 
@@ -979,6 +995,7 @@
         const mixto = tipos.length > 1;
         const best = (!mixto && conNota.length) ? Math.max(...conNota.map(a => a.score)) : null;
         const avisoMixto = mixto ? alertHTML({
+            tone: 'warn',
             icon: 'scale',
             title: 'Tipologías distintas: las notas no son comparables',
             body: `Estás comparando ${tipos.map(t => `<b>${esc(typ(t))}</b>`).join(' y ')}. Cada tipología se puntúa con pesos distintos (la categoría de ficha de producto solo cuenta en e-commerce) y la tarea que un agente debe completar no tiene la misma dificultad: al validar con agentes reales, los SaaS completaron entre el 25% y el 100% del recorrido y las tiendas entre el 0% y el 55%. Por eso <b>no se señala una ganadora</b>. Compara cada dominio con otros de su misma tipología, o quédate con el desglose por categoría, que sí es comparable.`
@@ -991,7 +1008,7 @@
                 <td class="ag-muted">${i === 0 ? 'Tu web' : 'Competidor ' + i}</td>
                 <td>${esc(typ(a.typology))}</td>
                 <td>${esc(a.level.name)}${win ? ` <span class="ag-muted" data-tip="Mejor puntuación||Entre dominios de la misma tipología y con nota completa.">${ic('trophy')}</span>` : ''}</td>
-                <td class="ag-num"><span class="ag-hist-score"><span class="ag-bar ag-bar-sm"><i style="width:${a.score}%;background:${SERIES[i % 3]}"></i></span><b>${a.score}</b></span></td>
+                <td class="ag-num"><span class="ag-hist-score"><span class="ag-bar ag-bar-sm"><i style="width:${a.score}%;background:${SERIES[i % 3]}"></i></span><b class="is-${scoreTone(a.score)}-text">${a.score}</b></span></td>
             </tr>`;
         }).join('');
 
@@ -1001,12 +1018,15 @@
         const heatCats = Object.keys(CATS).filter(c => audits.some(a => a.category_scores?.[c] != null));
         const matrix = heatCats.map(cat => {
             const vals = audits.map(a => a.category_scores?.[cat]);
-            const mx = Math.max(...vals.filter(v => v != null));
+            const conValor = vals.filter(v => v != null);
+            const mx = Math.max(...conValor);
+            // resaltar la mejor solo si hay con quién comparar y no es un 0
+            const resalta = conValor.length > 1 && mx > 0;
             return `<tr><td><b>${cat}</b> <span class="ag-muted">${esc(CATS[cat])}</span></td>${audits.map((a, i) => {
                 const v = vals[i];
                 if (v == null) return '<td class="ag-num ag-muted">n/a</td>';
                 const p = pct(v);
-                return `<td class="ag-num"><span class="ag-hist-score"><span class="ag-bar ag-bar-sm"><i style="width:${p}%;background:${SERIES[i % 3]}"></i></span>${v === mx ? `<b>${p}</b>` : `<span>${p}</span>`}</span></td>`;
+                return `<td class="ag-num"><span class="ag-cell${v === mx && resalta ? ' is-best' : ''}"><span class="ag-bar ag-bar-sm"><i style="width:${p}%;background:${SERIES[i % 3]}"></i></span><b class="v is-${toneOf(p)}-text">${p}</b></span></td>`;
             }).join('')}</tr>`;
         }).join('');
 
@@ -1054,8 +1074,8 @@
             </div>
             <div class="ag-card ag-section">
                 <h3 class="ag-card-title">Categoría a categoría</h3>
-                <p class="ag-card-sub">Mismos checks y mismos pesos para todos. En negrita, el mejor de cada fila.</p>
-                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Categoría</th>${head}</tr></thead><tbody>${matrix}</tbody></table></div>
+                <p class="ag-card-sub">Mismos checks y mismos pesos para todos. Cifra en verde (≥75), ámbar (50-74) o rojo (&lt;50); fondo lima en el mejor de cada fila.</p>
+                <div class="ag-table-wrap"><table class="ag-table ag-matrix"><thead><tr><th>Categoría</th>${head}</tr></thead><tbody>${matrix}</tbody></table></div>
             </div>
             <div class="ag-card ag-section">
                 <h3 class="ag-card-title">Detalle check a check</h3>
@@ -1079,49 +1099,95 @@
     function bubbleChart(a) {
         const items = (a.checks || []).filter(c => c.score != null && c.score < 1 && c.advice);
         if (!items.length) return '';
-        const W = 820, H = 420, padL = 96, padB = 60, padT = 24, padR = 24;
+        // A ancho completo: el SVG escala con la tarjeta (viewBox + width 100%).
+        const W = 1120, H = 560, padL = 110, padB = 70, padT = 20, padR = 20;
         const plotW = W - padL - padR, plotH = H - padT - padB;
+        const cw = plotW / 3, ch = plotH / 4;
         const effOf = e => (e === 'Bajo' ? 0 : e === 'Medio' ? 1 : 2);
-        const impOf = i => 3 - Math.min(IMPORD[i] ?? 3, 3); // Crítico arriba
-        const cx = e => padL + (e + 0.5) * plotW / 3, cy = i => H - padB - (i + 0.5) * plotH / 4;
+        const impOf = i => 3 - Math.min(IMPORD[i] ?? 3, 3);          // Crítico arriba
+        const tierOf = c => Math.min(IMPORD[c.advice.impacto] ?? 3, 3);
         // tamaño = puntos de score recuperables (peso de su categoría repartido)
         const scoredInCat = {};
         (a.checks || []).forEach(c => { if (c.score != null) scoredInCat[c.cat] = (scoredInCat[c.cat] || 0) + 1; });
         const rec = c => { const catw = a.category_weights?.[c.cat] ?? 14; return catw / (scoredInCat[c.cat] || 1) * (1 - c.score); };
-        const offsets = [[0, 0], [30, -22], [-30, 22], [30, 22], [-30, -22], [0, -36], [0, 36], [58, 0], [-58, 0], [58, -30], [-58, 30], [58, 30]];
-        const cellCount = {};
-        let bubbles = '';
-        for (const c of items.slice().sort((x, y) => rec(y) - rec(x))) {
-            const e = effOf(String(c.advice.esfuerzo).split(' ')[0]), im = impOf(c.advice.impacto);
-            const key = e + '-' + im, k = cellCount[key] = (cellCount[key] || 0) + 1;
-            const [ox, oy] = offsets[Math.min(k - 1, offsets.length - 1)];
-            const r = Math.max(14, Math.min(32, 10 + rec(c) * 4.5));
-            const x = (cx(e) + ox).toFixed(0), y = (cy(im) + oy).toFixed(0);
-            bubbles += `<circle cx="${x}" cy="${y}" r="${r.toFixed(0)}" fill="${SERIES[0]}" fill-opacity="0.14" stroke="${SERIES[0]}" stroke-width="1.5"
-                data-tip="${esc(c.id + ' · ' + c.advice.titulo + '||Impacto ' + c.advice.impacto + ' · esfuerzo ' + c.advice.esfuerzo + ' · arreglarlo recupera unos ' + rec(c).toFixed(1) + ' puntos. Cómo: ' + c.advice.como)}"/>
-                <text x="${x}" y="${y}" text-anchor="middle" dy="4" fill="${C.text}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="700" style="pointer-events:none">${c.id}</text>`;
+
+        // Agrupar por celda y colocar SIN solapes: filas centradas dentro de la
+        // celda; si no caben, se reduce el radio de toda la celda.
+        const cells = {};
+        items.forEach(c => {
+            const k = effOf(String(c.advice.esfuerzo).split(' ')[0]) + '-' + impOf(c.advice.impacto);
+            (cells[k] = cells[k] || []).push(c);
+        });
+        const GAP = 8, PADC = 12;
+        function layout(list, scale) {
+            const rows = [[]];
+            let x = 0;
+            const maxW = cw - PADC * 2;
+            list.forEach(c => {
+                const d = 2 * Math.max(20, Math.min(40, 17 + rec(c) * 4)) * scale;
+                if (x > 0 && x + d > maxW) { rows.push([]); x = 0; }
+                rows[rows.length - 1].push({ c, d });
+                x += d + GAP;
+            });
+            const h = rows.reduce((t, r) => t + Math.max(...r.map(o => o.d)), 0) + GAP * (rows.length - 1);
+            return { rows, h };
         }
-        // zona "hazlo ya": esfuerzo bajo-medio × impacto alto-crítico
-        const zone = `<rect x="${padL + 4}" y="${padT + 4}" width="${plotW * 2 / 3 - 8}" height="${plotH / 2 - 8}" rx="12"
-            fill="none" stroke="${C.text3}" stroke-dasharray="5 5"/>
-            <text x="${padL + 18}" y="${padT + 26}" fill="${C.text}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">HAZLO YA</text>`;
+        const TIER_FILL = [C.bad, C.warn, C.accent, C.text3];
+        const TIER_STROKE = [C.badText, C.warnText, C.okText, C.text2];
+        const TIER_FILL_OP = [0.16, 0.16, 0.75, 0.18];
+        let bubbles = '';
+        Object.entries(cells).forEach(([k, list]) => {
+            const [e, im] = k.split('-').map(Number);
+            list.sort((x, y) => rec(y) - rec(x));
+            let scale = 1, L = layout(list, scale);
+            while (L.h > ch - PADC * 2 && scale > 0.45) { scale -= 0.05; L = layout(list, scale); }
+            const x0 = padL + e * cw, yTop = padT + (3 - im) * ch;
+            let y = yTop + (ch - L.h) / 2;
+            L.rows.forEach(row => {
+                const rh = Math.max(...row.map(o => o.d));
+                const rw = row.reduce((t, o) => t + o.d, 0) + GAP * (row.length - 1);
+                let x = x0 + (cw - rw) / 2;
+                row.forEach(({ c, d }) => {
+                    const cx = x + d / 2, cy = y + rh / 2, r = d / 2, t = tierOf(c);
+                    bubbles += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${TIER_FILL[t]}" fill-opacity="${TIER_FILL_OP[t]}" stroke="${TIER_STROKE[t]}" stroke-width="1.5"
+                        data-tip="${esc(c.id + ' · ' + c.advice.titulo + '||Impacto ' + c.advice.impacto + ' · esfuerzo ' + c.advice.esfuerzo + ' · arreglarlo recupera unos ' + rec(c).toFixed(1) + ' puntos. Cómo: ' + c.advice.como)}"/>
+                        <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dy="4" fill="${TIER_STROKE[t]}" font-family="Inter Tight, sans-serif" font-size="${r < 18 ? 11 : 13}" font-weight="700" style="pointer-events:none">${c.id}</text>`;
+                    x += d + GAP;
+                });
+                y += rh + GAP;
+            });
+        });
+        // Cuadrantes: «Hazlo ya» (esfuerzo bajo-medio × impacto alto-crítico)
+        // en lima de marca; el resto rotulado en gris para orientar la lectura.
+        const zone = (x, y, w, h, fill, op) => `<rect x="${x + 3}" y="${y + 3}" width="${w - 6}" height="${h - 6}" rx="14" fill="${fill}" fill-opacity="${op}"/>`;
+        const label = (x, y, t, col) => `<text x="${x}" y="${y}" fill="${col}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="700" letter-spacing="1.4">${t}</text>`;
+        const zones = zone(padL, padT, cw * 2, ch * 2, C.accent, 0.45)
+            + zone(padL + cw * 2, padT, cw, ch * 2, C.grid, 0.9)
+            + zone(padL, padT + ch * 2, cw * 2, ch * 2, C.grid, 0.5)
+            + label(padL + 16, padT + 24, 'HAZLO YA', C.okText)
+            + label(padL + cw * 2 + 16, padT + 24, 'PLANIFÍCALO', C.text2)
+            + label(padL + 16, padT + ch * 2 + 24, 'CUANDO PUEDAS', C.text3)
+            + label(padL + cw * 2 + 16, padT + ch * 2 + 24, 'AL FINAL', C.text3);
         const xLabels = ['BAJO', 'MEDIO', 'ALTO'].map((t, i) =>
-            `<text x="${cx(i)}" y="${H - padB + 24}" text-anchor="middle" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600">${t}</text>`).join('');
+            `<text x="${padL + (i + 0.5) * cw}" y="${H - padB + 26}" text-anchor="middle" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600">${t}</text>`).join('');
         const yLabels = ['BAJO', 'MEDIO', 'ALTO', 'CRÍTICO'].map((t, i) =>
-            `<text x="${padL - 14}" y="${cy(i)}" text-anchor="end" dy="4" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="10" font-weight="600">${t}</text>`).join('');
-        const grid = [1, 2].map(i => `<line x1="${padL + i * plotW / 3}" y1="${padT}" x2="${padL + i * plotW / 3}" y2="${H - padB}" stroke="${C.grid}"/>`).join('')
-            + [1, 2, 3].map(i => `<line x1="${padL}" y1="${padT + i * plotH / 4}" x2="${W - padR}" y2="${padT + i * plotH / 4}" stroke="${C.grid}"/>`).join('');
+            `<text x="${padL - 14}" y="${padT + (3 - i + 0.5) * ch}" text-anchor="end" dy="4" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="10" font-weight="600">${t}</text>`).join('');
+        const grid = [1, 2].map(i => `<line x1="${padL + i * cw}" y1="${padT}" x2="${padL + i * cw}" y2="${H - padB}" stroke="${C.border}" stroke-dasharray="3 4"/>`).join('')
+            + [1, 2, 3].map(i => `<line x1="${padL}" y1="${padT + i * ch}" x2="${W - padR}" y2="${padT + i * ch}" stroke="${C.border}" stroke-dasharray="3 4"/>`).join('');
+        const legend = TIERS.filter(t => items.some(c => tierOf(c) === t.ord)).map(t =>
+            `<span><span class="ag-dot" style="background:${TIER_FILL[t.ord]};${t.ord === 2 ? `box-shadow:inset 0 0 0 1.5px ${C.okText}` : ''}"></span>${t.title}</span>`).join('');
         return `<div class="ag-card">
             <h3 class="ag-card-title">Mapa de prioridades</h3>
-            <p class="ag-card-sub">Cada burbuja es un problema detectado. Altura = impacto en el negocio; horizontal = esfuerzo de arreglo; tamaño = puntos que recuperas al arreglarlo. <b>Empieza por la zona punteada.</b> Pasa el ratón por una burbuja para ver el detalle.</p>
-            <div class="ag-chart-scroll"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Matriz impacto por esfuerzo">
-                ${grid}${zone}
+            <p class="ag-card-sub">Cada burbuja es un problema detectado. Altura = impacto en el negocio; horizontal = esfuerzo de arreglo; tamaño = puntos que recuperas al arreglarlo. <b>Empieza por la zona «Hazlo ya».</b> Pasa el ratón por una burbuja para ver el detalle.</p>
+            <div class="ag-chart-full"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Matriz impacto por esfuerzo">
+                ${zones}${grid}
                 <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="${C.border}"/>
                 <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="${C.border}"/>
-                <text x="${padL + plotW / 2}" y="${H - 12}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">ESFUERZO DE ARREGLO →</text>
-                <text transform="rotate(-90 22 ${padT + plotH / 2})" x="22" y="${padT + plotH / 2}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">IMPACTO EN EL NEGOCIO →</text>
+                <text x="${padL + plotW / 2}" y="${H - 14}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">ESFUERZO DE ARREGLO →</text>
+                <text transform="rotate(-90 26 ${padT + plotH / 2})" x="26" y="${padT + plotH / 2}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">IMPACTO EN EL NEGOCIO →</text>
                 ${xLabels}${yLabels}${bubbles}
-            </svg></div></div>`;
+            </svg></div>
+            <div class="ag-legend">${legend}</div></div>`;
     }
 
     function findingHTML(c) {
@@ -1154,7 +1220,7 @@
         const groups = TIERS.map((t, gi) => {
             const inTier = items.filter(c => Math.min(IMPORD[c.advice.impacto] ?? 3, 3) === t.ord);
             if (!inTier.length) return '';
-            return `<details class="ag-tier"${gi < 2 ? ' open' : ''}>
+            return `<details class="ag-tier t${t.ord}"${gi < 2 ? ' open' : ''}>
                 <summary><span class="ag-tier-mark t${t.ord}"></span>
                     <span class="ag-tier-name">${t.title}</span>
                     <span class="ag-tier-count">${inTier.length} ${inTier.length === 1 ? 'punto' : 'puntos'}</span>
@@ -1173,8 +1239,8 @@
         const o = r.outcome || '?';
         const label = o.replace(/_/g, ' ');
         if (o === 'conseguido') return [`${ic('circle-check')} ${esc(label)}`, 'is-ok'];
-        if (o === 'conseguido_con_friccion') return [`${ic('circle-check')} ${esc(label)}`, ''];
-        if (o === 'inconsistente') return [`${ic('circle-dashed')} ${esc(label)}`, ''];
+        if (o === 'conseguido_con_friccion') return [`${ic('circle-check')} ${esc(label)}`, 'is-warn'];
+        if (o === 'inconsistente') return [`${ic('circle-dashed')} ${esc(label)}`, 'is-warn'];
         if (o === 'no_disponible') return [`${ic('circle-slash')} ${esc(label)}`, 'is-na'];
         return [`${ic('circle-x')} ${esc(label)}`, 'is-bad'];
     }
@@ -1224,6 +1290,26 @@
 
     let EV_SEL = 0, FB_SEL = 0, REPORT = null;
 
+    /* Señales de tipología en lista legible. Antes se pintaba el JSON crudo
+       y se salía de la tarjeta. */
+    const SIGNAL_NAMES = {
+        schema_offer: 'schema Offer', schema_product: 'schema Product', schema_software: 'schema SoftwareApplication',
+        add_to_cart: 'botón añadir al carrito', cart_url: 'URL de carrito', checkout_url: 'URL de checkout',
+        login_url: 'URL de login', pricing_url: 'página de precios', signup_url: 'página de registro',
+        free_trial: 'prueba gratuita', no_card: '«sin tarjeta»', saas_words: 'vocabulario SaaS'
+    };
+    function typologyHTML(a) {
+        const ev = a.typology_evidence || {};
+        const tipos = Object.entries(ev).filter(([, v]) => v && typeof v === 'object');
+        if (!tipos.length) return '<p class="ag-help">Sin señales registradas.</p>';
+        const sig = arr => (arr || []).map(x => SIGNAL_NAMES[x] || String(x).replace(/_/g, ' ')).join(', ');
+        return `<ul class="ag-typo">${tipos.map(([t, v]) => `
+            <li class="${t === a.typology ? 'is-picked' : ''}"><b>${esc(typ(t))}</b> · ${esc(v.puntos ?? 0)} ${(v.puntos === 1) ? 'punto' : 'puntos'}
+                ${(v.fuertes || []).length ? `<span class="ag-typo-sig">Fuertes: ${esc(sig(v.fuertes))}</span>` : ''}
+                ${(v.debiles || []).length ? `<span class="ag-typo-sig">Débiles: ${esc(sig(v.debiles))}</span>` : ''}
+                ${!(v.fuertes || []).length && !(v.debiles || []).length ? '<span class="ag-typo-sig">Ninguna señal</span>' : ''}</li>`).join('')}</ul>`;
+    }
+
     function paneEvidencias(d) {
         const audits = [d.client, ...(d.competitors || []).filter(a => !a.error)];
         const a = audits[EV_SEL] || audits[0];
@@ -1242,7 +1328,7 @@
             <td class="ag-center">${mark(c.score)}</td><td class="ag-evidence">${esc(c.evidence)}</td></tr>`).join('');
         const ag = d.agentes || {};
         const sinAgentes = !(a.agent_tests && a.agent_tests.agents) && ag.solicitados && (ag.estado === 'completado' || ag.estado === 'error')
-            ? alertHTML({ icon: 'bot-off', title: 'Sin evidencia agéntica en este dominio',
+            ? alertHTML({ tone: 'warn', icon: 'bot-off', title: 'Sin evidencia agéntica en este dominio',
                 body: 'La simulación con agentes no pudo completarse aquí, así que el check 6.3 de ' + esc(a.host) + ' sigue sin comprobar. No cuenta como fallo.' })
             : '';
         return `<div class="ag-pane">${domainSwitcher(audits, EV_SEL, 'data-ev')}
@@ -1257,7 +1343,8 @@
                     <h3 class="ag-card-title">Superficie agéntica encontrada</h3>
                     ${wk}
                     <h3 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Tipología detectada</h3>
-                    <p class="ag-help" style="margin-top:0"><b>${esc(typ(a.typology))}</b>. Señales: <span class="ag-mono">${esc(JSON.stringify(a.typology_evidence || {}))}</span></p>
+                    <p class="ag-help" style="margin-top:0">Clasificada como <b>${esc(typ(a.typology))}</b> por estas señales:</p>
+                    ${typologyHTML(a)}
                     <p class="ag-help">Render JS: ${a.render_ok ? 'ejecutado' : 'no ejecutado'} · Vista LLM (Jina): ${a.jina_ok ? 'sí' : 'no'}</p>
                 </div>
             </div>
@@ -1300,8 +1387,8 @@
             const informational = (a.checks || []).filter(x => x.score == null && !x.manual);
             let v;
             if (n.fail > 0) v = { tone: 'bad', icon: 'circle-x', title: 'Análisis incompleto', msg: `${n.fail} proceso(s) fallaron y hay checks sin evidencia. No entregar sin revisar o relanzar.` };
-            else if (n.warn > 0 || n.skipped > 0) v = { tone: '', icon: 'triangle-alert', title: 'Fiable con avisos', msg: `Todos los procesos corrieron, pero ${n.warn} con evidencia degradada y ${n.skipped} desactivados. Revisa los avisos antes de entregar.` };
-            else v = { tone: 'ok', icon: 'circle-check', title: 'Análisis completo y fiable', msg: 'Todos los procesos se ejecutaron con evidencia directa. Lo que dice el informe está respaldado.' };
+            else if (n.warn > 0 || n.skipped > 0) v = { tone: 'warn', icon: 'triangle-alert', title: 'Fiable con avisos', msg: `Todos los procesos corrieron, pero ${n.warn} con evidencia degradada y ${n.skipped} desactivados. Revisa los avisos antes de entregar.` };
+            else v = { tone: 'good', icon: 'circle-check', title: 'Análisis completo y fiable', msg: 'Todos los procesos se ejecutaron con evidencia directa. Lo que dice el informe está respaldado.' };
             const IC = { ok: ['✓', 'is-ok'], warn: ['◐', 'is-part'], fail: ['✕', 'is-bad'], skipped: ['○', 'is-na'] };
             const steps = a.trail.map(t => {
                 const [g, cls] = IC[t.status] || ['?', 'is-na'];
@@ -1425,7 +1512,7 @@
         $('#agRepTitle').innerHTML = `¿Está <span class="ag-hl">${esc(c.host)}</span> lista para la IA?`;
         $('#agRepSub').textContent = comps.length ? 'Comparada con ' + comps.join(' y ') : 'Sin competidores en este análisis';
         $('#agRepTabs').innerHTML = TABS.map((t, i) =>
-            `<button type="button" class="nav-tab${i === ACTIVE_TAB ? ' active' : ''}" data-rep-tab="${i}" role="tab">${ic(t[1])} ${t[0]}</button>`).join('');
+            `<button type="button" class="nav-tab${i === ACTIVE_TAB ? ' active' : ''}" data-rep-tab="${i}" role="tab">${t[0]}</button>`).join('');
         document.title = `${c.host} · Agent Readiness - ClicAndSEO`;
         show('#agReport');
         repaint(ACTIVE_TAB);
@@ -1434,7 +1521,7 @@
         const ag = d.agentes || {};
         if (!AGENTS_POLL) {
             if (ag.detalle && (ag.estado === 'completado' || ag.estado === 'error')) {
-                bannerAgentes(`<b>Simulación agéntica:</b> ${esc(ag.detalle)}`, ag.estado === 'error' ? 'error' : 'info');
+                bannerAgentes(`<b>Simulación agéntica:</b> ${esc(ag.detalle)}`, ag.estado === 'error' ? 'error' : 'warn');
             } else {
                 $('#agAgentsBanner').hidden = true;
             }
@@ -1555,8 +1642,8 @@
     function bannerAgentes(html, estado) {
         const el = $('#agAgentsBanner');
         el.hidden = false;
-        const icon = estado === 'error' ? 'circle-x' : estado === 'done' ? 'circle-check' : estado === 'info' ? 'info' : 'loader-circle';
-        el.innerHTML = `<div class="ag-banner${estado === 'error' ? ' is-bad' : estado === 'done' ? ' is-ok' : ''}">
+        const icon = estado === 'error' ? 'circle-x' : estado === 'done' ? 'circle-check' : estado === 'warn' ? 'triangle-alert' : estado === 'info' ? 'info' : 'loader-circle';
+        el.innerHTML = `<div class="ag-banner${estado === 'error' ? ' is-bad' : estado === 'done' ? ' is-good' : estado === 'warn' ? ' is-warn' : ''}">
             ${ic(icon, estado === 'running' ? 'ag-spin' : '')}<div>${html}</div></div>`;
         refreshIcons();
     }
@@ -1586,7 +1673,7 @@
                 const nuevo = await rr.json();
                 renderReport(nuevo, CURRENT_JOB);
                 const det = (nuevo.agentes || {}).detalle;
-                bannerAgentes(`<b>Simulación agéntica completada.</b> El check 6.3 y la puntuación global están actualizados. El detalle paso a paso de cada agente está en la pestaña <b>Evidencias</b>.${det ? ' ' + esc(det) : ''}`, 'done');
+                bannerAgentes(`<b>Simulación agéntica completada.</b> El check 6.3 y la puntuación global están actualizados. El detalle paso a paso de cada agente está en la pestaña <b>Evidencias</b>.${det ? ' ' + esc(det) : ''}`, det ? 'warn' : 'done');
             }
         }, 4000);
     }

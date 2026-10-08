@@ -48,10 +48,25 @@ MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto
          "septiembre", "octubre", "noviembre", "diciembre"]
 
 # Tokens del brandbook (brand-dashboard-tokens.css / brand_palette.py).
-SERIES = ["#2a78d6", "#1baf7a", "#eb6834"]   # slot 1 = tu web, siempre
+# Slot 1 = tu web, siempre; competidores en violeta y magenta (slots 4 y 6):
+# verde, ámbar y rojo quedan para el semáforo de estado, como en el panel.
+SERIES = ["#2a78d6", "#4a3aa7", "#e87ba4"]
 TEXT, TEXT2, TEXT3 = "#0F172A", "#64748B", "#94A3B8"
 GRID, BORDER = "#EEF2F7", "#E2E8F0"
 OK, BAD, ACCENT = "#3CB371", "#E05252", "#d9f9b8"
+WARN = "#eda100"            # --cs-series-5, el "regular" del semáforo
+OK_TEXT, WARN_TEXT, BAD_TEXT = "#287A4C", "#8F6100", "#D13B3B"
+
+
+def _tone(p):
+    """Semáforo de porcentajes: ≥75 bien, 50-74 regular, <50 mal."""
+    return "good" if p >= 75 else "warn" if p >= 50 else "bad"
+
+
+def _score_tone(s):
+    """Semáforo de la nota global por tramos: 0-50 mal, 51-75 regular, 76+ bien."""
+    s = s or 0
+    return "good" if s > 75 else "warn" if s > 50 else "bad"
 
 _TEMPLATE = os.path.join(os.path.dirname(__file__), "templates", "informe_pdf.html")
 
@@ -81,9 +96,9 @@ def _estado(p):
     if p >= 75:
         return "Fuerte", "good"
     if p >= 50:
-        return "Mejorable", ""
+        return "Mejorable", "warn"
     if p >= 25:
-        return "Flojo", ""
+        return "Flojo", "bad"
     return "Crítico", "bad"
 
 
@@ -93,8 +108,8 @@ def _stages(audit):
     for name, desc, cats in STAGES:
         vals = [cs[c] for c in cats if cs.get(c) is not None]
         if vals:
-            out.append({"name": name, "desc": desc, "cats": " + ".join(cats),
-                        "p": round(sum(vals) / len(vals) * 100)})
+            p = round(sum(vals) / len(vals) * 100)
+            out.append({"name": name, "desc": desc, "cats": " + ".join(cats), "p": p, "tone": _tone(p)})
     if len(out) > 1:
         weakest = min(out, key=lambda s: s["p"])
         weakest["weak"] = True
@@ -134,8 +149,7 @@ def gauge_svg(score, parcial=False, dark=False, size=220):
     if dark:
         track, col, num, sub, tick = "rgba(255,255,255,0.08)", ACCENT, "#F8FAFC", "rgba(255,255,255,0.4)", "#0A0A0B"
     else:
-        b = _band(score)
-        col = TEXT3 if parcial else BAD if b == 0 else OK if b == 3 else TEXT
+        col = TEXT3 if parcial else {"good": OK, "warn": WARN, "bad": BAD}[_score_tone(score)]
         track, num, sub, tick = GRID, TEXT, TEXT3, "#FFFFFF"
     arc = f"M {cx - r:.1f} {cy:.1f} A {r:.1f} {r:.1f} 0 0 1 {cx + r:.1f} {cy:.1f}"
     ticks = ""
@@ -244,7 +258,7 @@ def _agentes(audits):
         for name, r in at["agents"].items():
             o = str(r.get("outcome") or "?")
             tone = ("ok" if o == "conseguido" else "na" if o == "no_disponible"
-                    else "" if o in ("conseguido_con_friccion", "inconsistente") else "bad")
+                    else "warn" if o in ("conseguido_con_friccion", "inconsistente") else "bad")
             p = r.get("progreso") or {}
             hechos = {h.get("nombre") for h in (p.get("hitos") or [])}
             todos = at.get("hitos_tarea") or [h.get("nombre") for h in (p.get("hitos") or [])] + list(p.get("pendientes") or [])
@@ -272,9 +286,9 @@ def _veredicto_fiabilidad(audit):
         return {"tone": "bad", "titulo": "Análisis incompleto",
                 "msg": f"{n['fail']} proceso(s) fallaron y hay checks sin evidencia."}
     if n["warn"] or n["skipped"]:
-        return {"tone": "", "titulo": "Fiable con avisos",
+        return {"tone": "warn", "titulo": "Fiable con avisos",
                 "msg": f"Todos los procesos corrieron; {n['warn']} con evidencia degradada y {n['skipped']} desactivados."}
-    return {"tone": "ok", "titulo": "Análisis completo y fiable",
+    return {"tone": "good", "titulo": "Análisis completo y fiable",
             "msg": "Todos los procesos se ejecutaron con evidencia directa."}
 
 
@@ -307,6 +321,7 @@ def build_context(data):
     ranking = [{"host": a.get("host"), "color": SERIES[i % 3], "rol": "Tu web" if i == 0 else f"Competidor {i}",
                 "typology": TYPOLOGY.get(a.get("typology"), a.get("typology")),
                 "level": (a.get("level") or {}).get("name", ""), "score": a.get("score", 0),
+                "tone": _score_tone(a.get("score", 0)),
                 "win": best is not None and len(audits) > 1 and a.get("score") == best
                 and not (a.get("level") or {}).get("cobertura_parcial")} for i, a in enumerate(audits)]
     matriz = []
@@ -314,9 +329,12 @@ def build_context(data):
         vals = [(a.get("category_scores") or {}).get(c) for a in audits]
         if all(v is None for v in vals):
             continue
-        mx = max(v for v in vals if v is not None)
+        con_valor = [v for v in vals if v is not None]
+        mx = max(con_valor)
+        resalta = len(con_valor) > 1 and mx > 0
         matriz.append({"id": c, "name": nombre, "celdas": [
-            None if v is None else {"p": _pct(v), "best": v == mx, "color": SERIES[i % 3]}
+            None if v is None else {"p": _pct(v), "best": resalta and v == mx, "color": SERIES[i % 3],
+                                    "tone": _tone(_pct(v))}
             for i, v in enumerate(vals)]})
     gaps = []
     for c, nombre in CAT_NAMES.items():
@@ -357,7 +375,7 @@ def build_context(data):
         "fecha": _fecha_larga(data.get("generated")),
         "typology": TYPOLOGY.get(client.get("typology"), client.get("typology") or "—"),
         "competidores": [c.get("host") for c in comps],
-        "score": score, "parcial": parcial,
+        "score": score, "parcial": parcial, "score_tone": _score_tone(score),
         "level_name": lvl.get("name", ""), "level_msg": lvl.get("msg", ""),
         "band": band, "scale": SCALE, "marker": max(0, min(100, score)),
         "gauge_cover": gauge_svg(score, parcial, dark=True, size=250),
@@ -370,7 +388,10 @@ def build_context(data):
         "penalties": [{"name": p[0], "v": p[1]} for p in (client.get("penalties") or [])],
         "stages": _stages(client),
         "categorias": categorias,
-        "quick": [{"titulo": c["advice"]["titulo"], "como": c["advice"]["como"]} for c in quick[:6]],
+        "quick": [{"titulo": c["advice"]["titulo"], "como": c["advice"]["como"],
+                   "tier": min(IMPORD.get(c["advice"].get("impacto"), 3), 3),
+                   "impacto": c["advice"].get("impacto"), "esfuerzo": c["advice"].get("esfuerzo")}
+                  for c in sorted(quick, key=lambda c: IMPORD.get(c["advice"].get("impacto"), 3))[:6]],
         "n_checks": len(checks),
         "competencia": len(audits) > 1,
         "mixto": mixto, "tipos": [TYPOLOGY.get(t, t) for t in tipos],

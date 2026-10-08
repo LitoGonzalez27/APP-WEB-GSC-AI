@@ -30,6 +30,30 @@
   font-family: var(--cs-font-sans);
   color: var(--cs-text-primary);
   background: var(--cs-bg-subtle);
+
+  /* ── Semáforo de estado (pedido de Carlos, oct-2026) ──────────────────────
+     Verde = bien, ámbar = regular, rojo = mal. Verde y rojo son los
+     utilitarios del brandbook con su paso oscuro para texto. El ámbar es el
+     de la paleta de datos (--cs-series-5; el naranja --cs-series-3 se probó y
+     sus fondos suaves se confundían con los rojos) y su paso de texto se
+     calcula igual que el brandbook hizo con los otros dos: mismo tono, más
+     oscuro, 5,4:1 sobre blanco y 4,95:1 sobre su fondo suave. Los fondos suaves son esos mismos colores con opacidad
+     (textura por opacidad, §15), no colores nuevos. */
+  --ag-good: var(--cs-success);
+  --ag-good-text: var(--cs-success-text);
+  --ag-good-soft: rgba(60, 179, 113, 0.10);
+  --ag-good-line: rgba(60, 179, 113, 0.35);
+  --ag-warn: var(--cs-series-5);
+  --ag-warn-text: #8F6100;
+  --ag-warn-soft: rgba(237, 161, 0, 0.12);
+  --ag-warn-line: rgba(237, 161, 0, 0.45);
+  --ag-bad: var(--cs-error);
+  --ag-bad-text: var(--cs-error-text);
+  --ag-bad-soft: rgba(224, 82, 82, 0.09);
+  --ag-bad-line: rgba(224, 82, 82, 0.35);
+  --ag-lime-soft: rgba(217, 249, 184, 0.45);
+  --ag-lime-line: rgba(40, 122, 76, 0.25);
+  --ag-mute-soft: rgba(148, 163, 184, 0.12);
 }
 
 .ag-app [hidden] { display: none !important; }
@@ -1418,6 +1442,7 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 .ag-outcome.is-ok { color: var(--cs-success-text); }
 .ag-outcome.is-bad { color: var(--cs-error-text); }
 .ag-outcome.is-na { color: var(--cs-text-tertiary); }
+.ag-outcome.is-warn { color: var(--ag-warn-text); }
 
 .ag-agent-detail {
   margin: 6px 0 0;
@@ -1773,6 +1798,172 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 }
 
 [data-tip] { cursor: help; }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   COLOR DE ESTADO Y JERARQUÍA (segunda iteración, oct-2026)
+   Más color para escanear: semáforo verde/naranja/rojo en lo que es bueno,
+   regular o malo, y el lima de marca en lo accionable (pestaña activa, zona
+   «Hazlo ya», mejoras recomendadas).
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* pestaña activa con el subrayado lima de marca */
+.ag-app .nav-tab.active {
+  border-bottom: 3px solid var(--cs-accent);
+  color: var(--cs-text-primary);
+  font-weight: var(--cs-weight-bold);
+}
+
+.ag-app .nav-tab:focus { outline: none; }
+.ag-app .nav-tab:focus-visible { outline: 2px solid var(--cs-text-primary); outline-offset: -2px; }
+
+/* el formulario: el botón vive bajo los dominios */
+.ag-app .ag-go {
+  width: 100%;
+  margin-top: var(--cs-space-sm);
+}
+
+.ag-app .ag-go + .ag-error { margin-top: var(--cs-space-sm); }
+
+/* utilidades de tono */
+.ag-app .is-good-text { color: var(--ag-good-text) !important; }
+.ag-app .is-warn-text { color: var(--ag-warn-text) !important; }
+.ag-app .is-bad-text { color: var(--ag-bad-text) !important; }
+
+.ag-state.is-warn { color: var(--ag-warn-text); }
+.ag-mark.is-part { color: var(--ag-warn-text); }
+.ag-balance-bar > i.is-part,
+.ag-sw.is-part { background: var(--ag-warn); }
+
+/* avisos con tono: fondo suave + icono y título del color de estado */
+.ag-alert.is-good { background: var(--ag-good-soft); border-color: var(--ag-good-line); }
+.ag-alert.is-good .ag-alert-ic { background: var(--cs-bg-paper); color: var(--ag-good-text); }
+.ag-alert.is-good .ag-alert-title { color: var(--ag-good-text); }
+.ag-alert.is-warn { background: var(--ag-warn-soft); border-color: var(--ag-warn-line); }
+.ag-alert.is-warn .ag-alert-ic { background: var(--cs-bg-paper); color: var(--ag-warn-text); }
+.ag-alert.is-warn .ag-alert-title { color: var(--ag-warn-text); }
+.ag-alert.is-bad { background: var(--ag-bad-soft); border-color: var(--ag-bad-line); }
+.ag-alert.is-bad .ag-alert-ic { background: var(--cs-bg-paper); color: var(--ag-bad-text); }
+.ag-alert.is-bad .ag-alert-title { color: var(--ag-bad-text); }
+.ag-alert.is-ok { background: var(--ag-good-soft); border-color: var(--ag-good-line); }
+.ag-alert.is-ok .ag-alert-ic { background: var(--cs-bg-paper); }
+
+.ag-banner.is-good, .ag-banner.is-ok { background: var(--ag-good-soft); border-color: var(--ag-good-line); }
+.ag-banner.is-good b, .ag-banner.is-good svg.lucide, .ag-banner.is-ok svg.lucide { color: var(--ag-good-text); }
+.ag-banner.is-warn { background: var(--ag-warn-soft); border-color: var(--ag-warn-line); }
+.ag-banner.is-warn b, .ag-banner.is-warn svg.lucide { color: var(--ag-warn-text); }
+.ag-banner.is-bad { background: var(--ag-bad-soft); border-color: var(--ag-bad-line); }
+.ag-banner.is-bad svg.lucide { color: var(--ag-bad-text); }
+
+/* escala de niveles: el tramo activo toma el color de su estado */
+.ag-scale-track > i.is-active.is-good { background: var(--ag-good); }
+.ag-scale-track > i.is-active.is-warn { background: var(--ag-warn); }
+.ag-scale-track > i.is-active.is-bad { background: var(--ag-bad); }
+.ag-level.is-good { color: var(--ag-good-text); }
+.ag-level.is-warn { color: var(--ag-warn-text); }
+.ag-level.is-bad { color: var(--ag-bad-text); }
+
+/* viaje del agente: cada etapa con su tono */
+.ag-stage.is-good { background: var(--ag-good-soft); border-color: var(--ag-good-line); }
+.ag-stage.is-warn { background: var(--ag-warn-soft); border-color: var(--ag-warn-line); }
+.ag-stage.is-bad { background: var(--ag-bad-soft); border-color: var(--ag-bad-line); }
+.ag-stage.is-weak { box-shadow: 0 0 0 2px var(--cs-text-primary); }
+.ag-stage .ag-bar { background: var(--cs-bg-paper); }
+
+/* «Por dónde empezar»: numeración con color de prioridad */
+.ag-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--cs-space-sm); }
+
+.ag-step {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--cs-space-md);
+  padding: var(--cs-space-md) var(--cs-space-lg) var(--cs-space-md) var(--cs-space-md);
+  border-radius: var(--cs-radius-sm);
+  border: 1px solid var(--cs-border-subtle);
+  background: var(--cs-bg-paper);
+}
+
+.ag-qn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: var(--cs-text-base);
+  font-weight: var(--cs-weight-extrabold);
+  font-variant-numeric: tabular-nums;
+}
+
+.ag-step.t0 .ag-qn { background: var(--ag-bad-soft); color: var(--ag-bad-text); box-shadow: inset 0 0 0 1.5px var(--ag-bad-line); }
+.ag-step.t1 .ag-qn { background: var(--ag-warn-soft); color: var(--ag-warn-text); box-shadow: inset 0 0 0 1.5px var(--ag-warn-line); }
+.ag-step.t2 .ag-qn { background: var(--ag-lime-soft); color: var(--ag-good-text); box-shadow: inset 0 0 0 1.5px var(--ag-lime-line); }
+.ag-step.t3 .ag-qn { background: var(--ag-mute-soft); color: var(--cs-text-secondary); }
+
+.ag-step-title { font-size: var(--cs-text-base); font-weight: var(--cs-weight-bold); }
+.ag-step-body { margin-top: 4px; font-size: var(--cs-text-sm); line-height: 1.6; color: var(--cs-text-secondary); }
+.ag-step-meta { margin-top: 6px; font-size: var(--cs-text-xs); color: var(--cs-text-tertiary); }
+.ag-step-meta b { font-weight: var(--cs-weight-semibold); }
+
+.ag-cta-row { margin-top: var(--cs-space-xl); display: flex; justify-content: flex-start; }
+
+/* bloques de prioridad del plan de acción, cada uno con su tono suave */
+.ag-tier > summary:focus { outline: none; }
+.ag-tier > summary:focus-visible { outline: 2px solid var(--cs-text-primary); outline-offset: -2px; border-radius: var(--cs-radius-md); }
+.ag-tier.t0 { background: var(--ag-bad-soft); border-color: var(--ag-bad-line); }
+.ag-tier.t1 { background: var(--ag-warn-soft); border-color: var(--ag-warn-line); }
+.ag-tier.t2 { background: var(--ag-lime-soft); border-color: var(--ag-lime-line); }
+.ag-tier.t3 { background: var(--cs-bg-paper); border-color: var(--cs-border); }
+.ag-tier > summary:hover { background: transparent; }
+.ag-tier.t0 .ag-tier-name, .ag-tier.t0 .ag-tier-count { color: var(--ag-bad-text); }
+.ag-tier.t1 .ag-tier-name, .ag-tier.t1 .ag-tier-count { color: var(--ag-warn-text); }
+.ag-tier.t2 .ag-tier-name, .ag-tier.t2 .ag-tier-count { color: var(--ag-good-text); }
+.ag-tier-mark.t1 { background: var(--ag-warn); }
+.ag-tier-mark.t2 { background: var(--ag-good); }
+.ag-tier-mark.t3 { background: var(--cs-text-tertiary); }
+.ag-tier-body { display: flex; flex-direction: column; gap: var(--cs-space-sm); padding: 0 var(--cs-space-md) var(--cs-space-md); }
+.ag-tier .ag-finding {
+  padding: var(--cs-space-lg);
+  border-top: none;
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-bg-paper);
+}
+.ag-meta .is-qw { color: var(--ag-good-text); }
+
+/* mapa de prioridades a ancho completo */
+.ag-chart-full svg { display: block; width: 100%; height: auto; }
+
+/* matriz categoría × dominio: cifra coloreada por estado y la mejor resaltada */
+.ag-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.ag-cell.is-best { background: var(--ag-lime-soft); }
+.ag-cell .ag-bar { width: 64px; }
+.ag-matrix td { vertical-align: middle; }
+.ag-matrix .ag-num b, .ag-matrix .ag-num span.v { min-width: 26px; display: inline-block; text-align: right; }
+
+/* tipología detectada en lista legible (antes un JSON que se salía) */
+.ag-typo { list-style: none; margin: 0; padding: 0; }
+.ag-typo li { padding: 8px 0; border-bottom: 1px solid var(--cs-border-subtle); font-size: var(--cs-text-sm); }
+.ag-typo li:last-child { border-bottom: none; }
+.ag-typo li.is-picked b { color: var(--ag-good-text); }
+.ag-typo .ag-typo-sig { display: block; margin-top: 2px; font-size: var(--cs-text-xs); color: var(--cs-text-secondary); overflow-wrap: anywhere; }
+.ag-mono { overflow-wrap: anywhere; word-break: break-word; }
+.ag-card { min-width: 0; }
+
+/* barras del historial y tablas coloreadas por estado */
+.ag-bar > i.is-good { background: var(--ag-good); }
+.ag-bar > i.is-warn { background: var(--ag-warn); }
+.ag-bar > i.is-bad { background: var(--ag-bad); }
+
+/* glifos de resultado más visibles en las tablas */
+.ag-table .ag-center .ag-mark { font-size: 15px; }
 
 /* ── Animaciones ───────────────────────────────────────────────────── */
 @keyframes agSpin { to { transform: rotate(360deg); } }
