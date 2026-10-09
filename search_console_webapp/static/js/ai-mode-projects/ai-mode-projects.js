@@ -57,172 +57,49 @@ export function renderProjects() {
     this.hideElement(this.elements.projectsEmptyState);
     this.showElement(this.elements.projectsContainer);
 
-    this.elements.projectsContainer.innerHTML = this.projects.map(project => {
+    // Tarjeta común de proyecto (static/js/project-cards.js), la misma que
+    // AI Mode y LLM Visibility. La cifra principal es la de AI Visibility Summary.
+    const items = this.projects.map(project => {
         const canEdit = project.can_edit !== false;
         const isActive = project.is_active !== false;
         const isPausedByQuota = !!project.is_paused_by_quota;
-        // Paused projects (manual or quota) stay clickable: analytics keeps
-        // serving their accumulated history even though no new analyses run.
-        // The dimmed style + status indicator still signal the paused state.
-        const isRunning = isActive && !isPausedByQuota;
-        const cardOnClick = `onclick="aiModeSystem.goToProjectAnalytics(${project.id})"`;
-        const cardStyle = isRunning
-            ? 'cursor: pointer;'
-            : 'cursor: pointer; opacity: 0.78;';
+        const competitors = Array.isArray(project.selected_competitors) ? project.selected_competitors.length : 0;
+        const pausedUntil = formatPauseDate(project.paused_until);
+        const showFirstRunCta = canEdit && isActive && !isPausedByQuota
+            && !project.last_analysis_date && (project.total_keywords || 0) > 0;
+        return {
+            id: project.id,
+            name: project.name,
+            domain: '',                      // AI Mode monitoriza una marca, no un dominio
+            subtitle: [project.brand_name, project.country_code].filter(Boolean).join(' · '),
+            href: `/ai-mode-projects/?project=${project.id}`,
+            status: !isActive ? 'paused' : (isPausedByQuota ? 'quota' : 'active'),
+            statusNote: isPausedByQuota && pausedUntil ? `until ${pausedUntil}` : '',
+            shared: !canEdit,
+            stats: [
+                { label: 'Keywords', value: project.total_keywords || 0 },
+                { label: 'Competitors', value: competitors },
+                { label: 'Last analysis', value: window.ClicandseoProjectCards.formatDate(project.last_analysis_date) },
+            ],
+            cta: showFirstRunCta ? { action: 'analyze', label: 'Run first analysis', title: 'Run the first analysis for this project' } : null,
+            menu: canEdit ? [
+                { action: 'settings', label: 'Project settings' },
+                isActive ? { action: 'pause', label: 'Pause project' } : null,
+                !isActive ? { action: 'resume', label: 'Resume project' } : null,
+                !isActive ? { action: 'delete', label: 'Delete project', danger: true } : null,
+            ] : [],
+        };
+    });
 
-        // HTML-safe form for inline onclick attribute. JSON.stringify alone leaves bare
-        // double quotes that would terminate the onclick="..." attribute prematurely
-        // and silently kill our handler — including the event.stopPropagation() that
-        // prevents the card click from firing. Same trick LLM Monitor uses.
-        const safeName = globalThis.ClicandseoHtml.jsArg(project.name || '');  // también escapa & (antes &quot; en el nombre inyectaba)
-        const pausedUntilLabel = formatPauseDate(project.paused_until);
-
-        // Brandbook rule: no pill-shaped badges for status indicators.
-        // State is communicated with plain text + icon + system color.
-        // - Manual pause → Slate-500 (text-secondary), neutral state.
-        // - Quota pause  → Error #E05252 (action required from the user).
-        let statusIndicator = '';
-        if (!isActive) {
-            statusIndicator = `
-                <span class="project-status-indicator" title="This project is paused. It will not run in automatic analyses." style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;font-weight:600;color:#64748B;">
-                    <span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:#64748B;"></span>
-                    <i class="fas fa-pause" style="font-size:0.75rem;"></i>
-                    Paused
-                </span>
-            `;
-        } else if (isPausedByQuota) {
-            statusIndicator = `
-                <span class="project-status-indicator" title="Paused automatically because the monthly quota is exhausted." style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;font-weight:600;color:#E05252;">
-                    <span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:#E05252;"></span>
-                    <i class="fas fa-pause" style="font-size:0.75rem;"></i>
-                    Paused (quota)${pausedUntilLabel ? ` · resumes ${pausedUntilLabel}` : ''}
-                </span>
-            `;
-        }
-
-        const hasInitialAnalysis = !!project.last_analysis_date;
-        const hasKeywords = (project.total_keywords || 0) > 0;
-        const showFirstRunCta = canEdit && isRunning && !hasInitialAnalysis && hasKeywords;
-        const showPauseBtn = canEdit && isActive;
-        const showResumeBtn = canEdit && !isActive;
-        const showDeleteBtn = canEdit && !isActive;
-
-        // Brandbook button system — pill-shaped, font-weight 600, brand transition.
-        // Variants used here:
-        //   • Pause  → Secondary  (transparent bg, slate-200 border, slate-900 text)
-        //   • Resume → Primary    (#0F172A bg, slate-50 text)
-        //   • Delete → Secondary tinted with --color-error for destructive intent
-        const btnBase = "display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:9999px;font-family:'Inter Tight',-apple-system,BlinkMacSystemFont,sans-serif;font-size:0.8125rem;font-weight:600;line-height:1.2;cursor:pointer;transition:all 0.3s cubic-bezier(0.2,0.8,0.2,1);";
-        const btnPause = btnBase + "background:transparent;color:#0F172A;border:1.5px solid #E2E8F0;";
-        const btnResume = btnBase + "background:#0F172A;color:#F8FAFC;border:1.5px solid #0F172A;";
-        const btnDelete = btnBase + "background:transparent;color:#E05252;border:1.5px solid #E05252;";
-
-        return `
-        <div class="project-card${!isRunning ? ' project-card--paused' : ''}" data-project-id="${project.id}" ${cardOnClick} style="${cardStyle}">
-            <div class="project-header">
-                <h3>${escapeHtml(project.name)}</h3>
-                ${(canEdit === false) ? `
-                    <div class="project-actions" style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                        <span class="badge badge-language">Shared (view only)</span>
-                        ${statusIndicator}
-                    </div>
-                ` : `
-                    <div class="project-actions" style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                        ${statusIndicator}
-                        <button type="button" class="btn-icon" onclick="event.stopPropagation(); aiModeSystem.showProjectModal(${project.id})"
-                                title="Project settings" aria-label="Open project settings">
-                            <i class="fas fa-cog" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                `}
-            </div>
-            <div class="project-details">
-                <div class="project-meta">
-                    <span class="project-brand-name" title="Brand: ${escapeHtml(project.brand_name)}">
-                        <i class="fas fa-tag"></i>
-                        <span class="user-brand-highlight">${escapeHtml(project.brand_name)}</span>
-                    </span>
-                    <span class="project-country">
-                        <i class="fas fa-flag"></i>
-                        ${project.country_code}
-                    </span>
-                </div>
-                ${project.description ? `<p class="project-description">${escapeHtml(project.description)}</p>` : ''}
-            </div>
-            <div class="project-stats">
-                <div class="stat">
-                    <span class="stat-number">${project.total_keywords || 0}</span>
-                    <span class="stat-label">Total Keywords</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">${project.total_mentions || 0}</span>
-                    <span class="stat-label">Brand Mentions</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">${project.visibility_percentage ? Math.round(project.visibility_percentage) + '%' : '0%'}</span>
-                    <span class="stat-label">Visibility (%)</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">${project.avg_position ? Math.round(project.avg_position * 10) / 10 : '-'}</span>
-                    <span class="stat-label">Average Position</span>
-                </div>
-            </div>
-            <div class="project-meta-sections">
-                ${this.renderProjectCompetitorsHorizontal(project)}
-                ${this.renderProjectClustersHorizontal(project)}
-            </div>
-            <div class="project-footer">
-                <small class="last-analysis">
-                    Last analysis: ${project.last_analysis_date ?
-                        new Date(project.last_analysis_date).toLocaleDateString() : 'Never'}
-                </small>
-                <div class="project-footer-actions" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-                    ${showFirstRunCta ? `
-                        <button type="button" class="btn-primary btn-small"
-                                onclick="event.stopPropagation(); aiModeSystem.analyzeProject(${project.id})"
-                                title="Run the first analysis for this project">
-                            <i class="fas fa-play"></i>
-                            Run first analysis now
-                        </button>
-                    ` : ''}
-                    ${showPauseBtn ? `
-                        <button type="button"
-                                style="${btnPause}"
-                                onmouseover="this.style.background='#F1F5F9';"
-                                onmouseout="this.style.background='transparent';"
-                                onclick="event.stopPropagation(); aiModeSystem.pauseProject(${project.id}, ${safeName})"
-                                title="Pause this project — it will stop running in automatic analyses and stop consuming quota.">
-                            <i class="fas fa-pause"></i>
-                            Pause
-                        </button>
-                    ` : ''}
-                    ${showResumeBtn ? `
-                        <button type="button"
-                                style="${btnResume}"
-                                onmouseover="this.style.transform='translateY(-2px)';"
-                                onmouseout="this.style.transform='none';"
-                                onclick="event.stopPropagation(); aiModeSystem.resumeProject(${project.id}, ${safeName})"
-                                title="Resume this project. Requires available monthly quota.">
-                            <i class="fas fa-play"></i>
-                            Resume
-                        </button>
-                    ` : ''}
-                    ${showDeleteBtn ? `
-                        <button type="button"
-                                style="${btnDelete}"
-                                onmouseover="this.style.background='rgba(224,82,82,0.08)';"
-                                onmouseout="this.style.background='transparent';"
-                                onclick="event.stopPropagation(); aiModeSystem.deleteProjectPermanently(${project.id}, ${safeName})"
-                                title="Permanently delete this project and all its data.">
-                            <i class="fas fa-trash"></i>
-                            Delete
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-    }).join('');
+    const byId = id => this.projects.find(p => String(p.id) === String(id)) || {};
+    window.ClicandseoProjectCards.render(this.elements.projectsContainer, items, {
+        open: id => this.goToProjectAnalytics(Number(id)),
+        settings: id => this.showProjectModal(Number(id)),
+        analyze: id => this.analyzeProject(Number(id)),
+        pause: id => this.pauseProject(Number(id), byId(id).name || ''),
+        resume: id => this.resumeProject(Number(id), byId(id).name || ''),
+        delete: id => this.deleteProjectPermanently(Number(id), byId(id).name || ''),
+    }, { module: 'ai_mode', metricLabel: 'AI Mode visibility · 30d' });
 }
 
 function formatPauseDate(value) {
@@ -401,17 +278,13 @@ export function goToProjectAnalytics(projectId) {
     if (selectedProject) {
         this.currentProject = selectedProject;
     }
-
-    // Switch to Analytics tab
-    this.switchTab('analytics');
-    
-    // Select the project in the analytics dropdown
+    // Se elige el proyecto ANTES de cambiar de pestaña: switchTab('analytics')
+    // ya carga Analytics y fija ?project=<id> en la URL (antes cargaba dos
+    // veces, la primera con el proyecto anterior).
     if (this.elements.analyticsProjectSelect) {
         this.elements.analyticsProjectSelect.value = projectId;
-        
-        // Trigger the analytics loading
-        this.loadAnalytics();
     }
+    this.switchTab('analytics');
 }
 
 // ================================

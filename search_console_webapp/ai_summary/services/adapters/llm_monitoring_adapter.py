@@ -31,7 +31,9 @@ PROVIDER_LABELS = {
 }
 
 
-def get_channel_summary(project_id: int, period: str = '30') -> Dict:
+def get_channel_summary(project_id: int, period: str = '30',
+                        include_competitors: bool = True) -> Dict:
+    # include_competitors=False: solo cifra y delta (tarjetas de proyecto).
     summary = empty_channel(CHANNEL)
     summary['project_id'] = project_id
 
@@ -106,7 +108,7 @@ def get_channel_summary(project_id: int, period: str = '30') -> Dict:
         'position_delta': delta(position, avg([r['avg_position'] for r in previous])),
         'timeseries': _daily_series(current),
         'last_date': current[-1]['snapshot_date'].isoformat(),
-        'competitors': _competitor_sov(project, current),
+        'competitors': _competitor_sov(project, current) if include_competitors else [],
         'extras': {
             'share_of_voice': rounded(sov),
             'sov_delta': delta(sov, _weighted_rate(previous, 'share_of_voice')),

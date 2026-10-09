@@ -1,0 +1,311 @@
+/* ============================================================================
+   CLICANDSEO — Tarjeta de proyecto común (static/js/project-cards.js)
+   AI Overview, AI Mode y LLM Visibility. Misma familia visual que las
+   tarjetas de marca de AI Visibility Summary (ai-summary.css .brand-card):
+   rejilla de 3, logo + nombre, cifra grande con subrayado lima, datos
+   pequeños y pie con la acción principal.
+   Va ANTES de partials/panel_brand_assets.html (los tokens --cs-* llegan de
+   brand-dashboard-tokens.css, que se carga el último).
+   ========================================================================= */
+
+.pc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.pc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--cs-bg-paper, #FFFFFF);
+  border: 1px solid var(--cs-border, #E2E8F0);
+  border-radius: 16px;
+  padding: 20px 22px 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.pc-card:hover,
+.pc-card:focus-within {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  transform: translateY(-2px);
+}
+
+.pc-card.is-dimmed { background: #FBFCFD; }
+.pc-card.is-dimmed .pc-value { color: var(--cs-text-secondary, #64748B); }
+
+/* ── Cabecera ──────────────────────────────────────────────────────────── */
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pc-logo {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--cs-bg-subtle, #F1F5F9);
+}
+
+.pc-logo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #FFFFFF;
+  z-index: 1;
+}
+
+.pc-logo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--cs-text-primary, #0F172A);
+}
+
+.pc-id { min-width: 0; flex: 1; }
+
+.pc-name {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pc-name a {
+  color: var(--cs-text-primary, #0F172A);
+  text-decoration: none;
+}
+
+.pc-name a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.pc-sub {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--cs-text-secondary, #64748B);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pc-sep { margin: 0 6px; opacity: 0.6; }
+
+/* ── Menú «⋯» ──────────────────────────────────────────────────────────── */
+.pc-menu { position: relative; flex-shrink: 0; align-self: flex-start; }
+
+.pc-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cs-text-secondary, #64748B);
+  cursor: pointer;
+}
+
+.pc-menu-btn:hover,
+.pc-menu-btn[aria-expanded="true"] {
+  background: var(--cs-bg-subtle, #F1F5F9);
+  color: var(--cs-text-primary, #0F172A);
+}
+
+.pc-menu-btn:focus-visible,
+.pc-menu-item:focus-visible,
+.pc-open:focus-visible,
+.pc-cta:focus-visible,
+.pc-name a:focus-visible {
+  outline: 2px solid var(--cs-text-primary, #0F172A);
+  outline-offset: 2px;
+}
+
+.pc-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  padding: 6px;
+  background: #FFFFFF;
+  border: 1px solid var(--cs-border, #E2E8F0);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+}
+
+.pc-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  color: var(--cs-text-primary, #0F172A);
+  cursor: pointer;
+}
+
+.pc-menu-item:hover,
+.pc-menu-item:focus { background: var(--cs-bg-subtle, #F1F5F9); outline: none; }
+.pc-menu-item.is-danger { color: #A52727; }
+.pc-menu-item.is-danger:hover { background: #FCECEC; }
+
+/* ── Cifra principal ───────────────────────────────────────────────────── */
+.pc-metric {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding-bottom: 14px;
+}
+
+.pc-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--cs-text-primary, #0F172A);
+  box-shadow: inset 0 -0.28em 0 var(--cs-accent, #D9F9B8);
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-value.is-empty { box-shadow: none; color: var(--cs-text-secondary, #64748B); }
+
+.pc-delta {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-delta.is-up { color: #287A4C; }
+.pc-delta.is-down { color: #A52727; }
+.pc-delta.is-flat { color: var(--cs-text-secondary, #64748B); font-weight: 500; }
+
+.pc-metric-label {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--cs-text-secondary, #64748B);
+}
+
+/* ── Datos pequeños ────────────────────────────────────────────────────── */
+.pc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--cs-border-subtle, #EEF2F7);
+}
+
+.pc-stats > div { min-width: 0; }
+
+.pc-stats dt {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--cs-text-secondary, #64748B);
+}
+
+.pc-stats dd {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--cs-text-primary, #0F172A);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Acción destacada (primer análisis) ───────────────────────────────── */
+.pc-cta {
+  align-self: flex-start;
+  margin: 0 0 12px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--cs-text-primary, #0F172A);
+  color: #F8FAFC;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pc-cta:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Pie ───────────────────────────────────────────────────────────────── */
+.pc-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--cs-border-subtle, #EEF2F7);
+  font-size: 0.8rem;
+}
+
+.pc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--cs-text-secondary, #64748B);
+  min-width: 0;
+}
+
+.pc-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.pc-status.is-active { color: #287A4C; }
+.pc-status.is-active .pc-dot { background: #3CB371; }
+.pc-status.is-paused .pc-dot { background: #94A3B8; }
+.pc-status.is-quota { color: #A52727; }
+.pc-status.is-quota .pc-dot { background: #E05252; }
+.pc-status-note { font-weight: 500; color: var(--cs-text-secondary, #64748B); }
+
+.pc-shared {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--cs-text-secondary, #64748B);
+}
+
+.pc-open {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--cs-text-secondary, #64748B);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pc-card:hover .pc-open,
+.pc-open:hover { color: var(--cs-text-primary, #0F172A); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-card { transition: none; }
+  .pc-card:hover, .pc-card:focus-within { transform: none; }
+}
