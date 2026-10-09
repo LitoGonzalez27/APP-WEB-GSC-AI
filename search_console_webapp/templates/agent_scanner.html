@@ -303,9 +303,11 @@
 
                     <!-- ───────────── Nuevo análisis ───────────── -->
                     <section class="tab-content active" id="agTab-nuevo">
-                        <div class="ag-intro">
-                            <h2 class="ag-display">¿Está tu web lista para que la use <span class="ag-hl">la IA</span>?</h2>
-                            <p class="ag-lead">Introduce tu dominio y hasta dos competidores. Medimos con la misma vara si los sistemas de IA pueden <b>leer</b>, <b>entender</b> y <b>actuar</b> en cada web.</p>
+                        <div class="projects-header ag-section-head">
+                            <div>
+                                <h2>Nuevo análisis</h2>
+                                <p class="ag-help">Introduce tu dominio y hasta dos competidores. Medimos con la misma vara si los sistemas de IA pueden <b>leer</b>, <b>entender</b> y <b>actuar</b> en cada web.</p>
+                            </div>
                         </div>
 
                         <div class="ag-setup">
@@ -313,20 +315,20 @@
                                 <div class="ag-card">
                                     <h3 class="ag-card-title">Dominios</h3>
                                     <div class="ag-field">
-                                        <label class="ag-label" for="agU0">Tu proyecto</label>
+                                        <label class="ag-label" for="agU0"><span class="ag-label-hl">Tu proyecto</span> *</label>
                                         <input type="url" id="agU0" placeholder="https://tucliente.com" autocomplete="off" spellcheck="false">
                                     </div>
                                     <div class="ag-field-row">
                                         <div class="ag-field">
-                                            <label class="ag-label" for="agU1">Competidor 1 <span class="ag-optional">opcional</span></label>
+                                            <label class="ag-label" for="agU1"><span class="ag-label-hl">Competidor 1</span> <span class="ag-optional">opcional</span></label>
                                             <input type="url" id="agU1" placeholder="https://competidor1.com" autocomplete="off" spellcheck="false">
                                         </div>
                                         <div class="ag-field">
-                                            <label class="ag-label" for="agU2">Competidor 2 <span class="ag-optional">opcional</span></label>
+                                            <label class="ag-label" for="agU2"><span class="ag-label-hl">Competidor 2</span> <span class="ag-optional">opcional</span></label>
                                             <input type="url" id="agU2" placeholder="https://competidor2.com" autocomplete="off" spellcheck="false">
                                         </div>
                                     </div>
-                                    <button type="button" class="btn-primary ag-btn-lg ag-go" id="agGo">
+                                    <button type="button" class="btn-primary ag-go" id="agGo">
                                         Comprobar viabilidad agéntica
                                         <i data-lucide="arrow-right"></i>
                                     </button>
@@ -339,7 +341,7 @@
                                         <span class="ag-muted" id="agFacSummary">Auditoría completa</span>
                                     </div>
                                     <div class="ag-field" style="margin-top:var(--cs-space-md)">
-                                        <label class="ag-label" for="agTyp">Tipología</label>
+                                        <label class="ag-label" for="agTyp"><span class="ag-label-hl">Tipología</span></label>
                                         <select id="agTyp" class="ag-select">
                                             <option value="">Detectar automáticamente</option>
                                             <option value="ecommerce">E-commerce</option>
@@ -449,7 +451,7 @@
                             </div>
                         </div>
                         <div class="ag-card">
-                            <label class="ag-label" for="agAccEmail">Dar acceso a un email</label>
+                            <label class="ag-label" for="agAccEmail"><span class="ag-label-hl">Dar acceso a un email</span></label>
                             <div class="ag-inline-form">
                                 <input type="email" id="agAccEmail" placeholder="persona@empresa.com" autocomplete="off">
                                 <button type="button" class="btn-primary" id="agAccAdd"><i data-lucide="user-plus"></i> Dar acceso</button>
