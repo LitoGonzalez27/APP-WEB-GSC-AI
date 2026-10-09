@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 CHANNEL = 'ai_mode'
 
 
-def get_channel_summary(project_id: int, period: str = '30') -> Dict:
+def get_channel_summary(project_id: int, period: str = '30',
+                        include_competitors: bool = True) -> Dict:
+    # include_competitors=False: solo cifra y delta (tarjetas de proyecto),
+    # sin el ranking de dominios, que es la parte cara.
     summary = empty_channel(CHANNEL)
     summary['project_id'] = project_id
 
@@ -75,7 +78,8 @@ def get_channel_summary(project_id: int, period: str = '30') -> Dict:
         },
     })
 
-    summary['competitors'] = _get_competitors(project_id, ranking_days(current_start))
+    if include_competitors:
+        summary['competitors'] = _get_competitors(project_id, ranking_days(current_start))
     return summary
 
 

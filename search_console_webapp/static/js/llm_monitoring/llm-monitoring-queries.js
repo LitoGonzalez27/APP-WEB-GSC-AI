@@ -554,7 +554,7 @@ async getSuggestions() {
         try {
             // Create timeout promise (30 seconds)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Request timeout - Gemini está tardando demasiado. Intenta de nuevo.')), 30000)
+                setTimeout(() => reject(new Error('Request timeout - Gemini is taking too long. Please try again.')), 30000)
             );
 
             // Create fetch promise

@@ -16,7 +16,7 @@
     gobierna static/js/sidebar-navigation.js por id (navConfiguration,
     navPerformance, navKeywords, navPages, navAI y sus status*), así que esos
     ids y la estructura nav-icon/nav-text/section-status NO se tocan. Fuera de
-    /app es una sola entrada que lleva a /app: los pasos sin un análisis
+    /app es una sola entrada («GSC Analysis») que lleva a /app: los pasos sin un análisis
     cargado salían siempre en gris.
   - El resto son enlaces <a> (cmd+clic, copiar enlace) y la sección actual
     lleva aria-current="page".
@@ -49,7 +49,7 @@
 {%- endmacro %}
 
 {% macro nav_locked(id, icon, label) -%}
-                <span class="nav-item disabled" id="{{ id }}" aria-disabled="true" title="Inicia sesión para usarlo">
+                <span class="nav-item disabled" id="{{ id }}" aria-disabled="true" title="Log in to use it">
                     <span class="nav-icon">{{ nav_icon(icon) }}</span>
                     <span class="nav-text">{{ label }}</span>
                 </span>
@@ -65,26 +65,26 @@
 
 {% set _activo = nav_activo|default('') %}
     <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
-    <button type="button" class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-controls="sidebarContainer" aria-expanded="false" aria-label="Abrir navegación">{{ nav_icon('menu') }}</button>
+    <button type="button" class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-controls="sidebarContainer" aria-expanded="false" aria-label="Open navigation">{{ nav_icon('menu') }}</button>
 
     <aside class="sidebar-container" id="sidebarContainer">
-        <nav class="sidebar-nav" aria-label="Navegación principal">
+        <nav class="sidebar-nav" aria-label="Main navigation">
 
             <div class="nav-section">
                 <div class="nav-section-title">Search Console</div>
                 {% if _activo == 'gsc' %}
-                {{ gsc_step('configuration', 'navConfiguration', 'statusConfiguration', 'sliders-horizontal', 'Configuración', ready=true) }}
-                {{ gsc_step('performance', 'navPerformance', 'statusPerformance', 'gauge', 'Rendimiento') }}
+                {{ gsc_step('configuration', 'navConfiguration', 'statusConfiguration', 'sliders-horizontal', 'Configuration', ready=true) }}
+                {{ gsc_step('performance', 'navPerformance', 'statusPerformance', 'gauge', 'Overview') }}
                 {{ gsc_step('keywords', 'navKeywords', 'statusKeywords', 'key-round', 'Keywords') }}
-                {{ gsc_step('pages', 'navPages', 'statusPages', 'file-text', 'Páginas') }}
+                {{ gsc_step('pages', 'navPages', 'statusPages', 'file-text', 'Pages') }}
                 {{ gsc_step('ai-overview', 'navAI', 'statusAI', 'scan-text', 'AI Overview') }}
                 {% else %}
-                {{ nav_link('gsc', _activo, '/app', 'navGSC', 'chart-line', 'Análisis GSC') }}
+                {{ nav_link('gsc', _activo, '/app', 'navGSC', 'chart-line', 'GSC Analysis') }}
                 {% endif %}
             </div>
 
             <div class="nav-section">
-                <div class="nav-section-title">Monitorización IA</div>
+                <div class="nav-section-title">AI Monitoring</div>
                 {% if user %}
                 {{ nav_link('aio', _activo, '/manual-ai/', 'navManualAI', 'sparkles', 'AI Overview') }}
                 {{ nav_link('aimode', _activo, '/ai-mode-projects/', 'navAIMode', 'message-square-text', 'AI Mode') }}
@@ -97,7 +97,7 @@
             </div>
 
             <div class="nav-section">
-                <div class="nav-section-title">Informes</div>
+                <div class="nav-section-title">Reports</div>
                 {% if user %}
                 {{ nav_link('summary', _activo, '/ai-summary/', 'navAISummary', 'chart-pie', 'AI Visibility Summary') }}
                 {% else %}
@@ -108,7 +108,7 @@
             {#- Misma regla que protege /agent (agent_scanner/access.py) -#}
             {% if agent_readiness_access is defined and agent_readiness_access(user) %}
             <div class="nav-section">
-                <div class="nav-section-title">Auditoría</div>
+                <div class="nav-section-title">Audit</div>
                 {{ nav_link('agent', _activo, '/agent/', 'navAgentScanner', 'bot', 'Agent Readiness') }}
             </div>
             {% endif %}

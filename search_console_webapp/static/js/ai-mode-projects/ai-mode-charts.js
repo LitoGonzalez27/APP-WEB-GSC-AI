@@ -496,7 +496,7 @@ export function showEventAnnotations(chart, annotations) {
             } else {
                 // ✅ Casos existentes para eventos de keywords
                 if (eventType === 'keywords_added') {
-                    tooltipTitle = `⚠️ Keywords Añadidas (${keywordsAffected})`;
+                    tooltipTitle = `⚠️ Keywords Added (${keywordsAffected})`;
                 } else if (eventType === 'keyword_deleted') {
                     tooltipTitle = `⚠️ Keyword Eliminada`;
                 } else if (eventType === 'keywords_removed') {

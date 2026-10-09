@@ -4107,6 +4107,14 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Could not register admin costs endpoint: {e}")
 
+# 🗂️ Cifra principal de las tarjetas de proyecto (AI Overview, AI Mode, LLM)
+try:
+    from project_cards_routes import project_cards_bp
+    app.register_blueprint(project_cards_bp)
+    logger.info("✅ Project cards KPIs endpoint registered at /api/project-cards/kpis")
+except Exception as e:
+    logger.warning(f"⚠️ Could not register project cards endpoint: {e}")
+
 # 🤖 Agent-Ready Scanner (auditoría de preparación agéntica de webs), solo admin
 try:
     from agent_routes import agent_bp

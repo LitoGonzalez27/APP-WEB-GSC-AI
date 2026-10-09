@@ -56,8 +56,8 @@
         return (
             '<div class="pi-item" data-invitation-id="' + esc(inv.id) + '">' +
             '<span class="pi-module">' + esc(inv.module_label || inv.module_name) + '</span>' +
-            '<strong>' + esc(inv.project_name || ('Proyecto ' + inv.project_id)) + '</strong>' +
-            '<button type="button" class="pi-resend">Reenviarme el email</button>' +
+            '<strong>' + esc(inv.project_name || ('Project ' + inv.project_id)) + '</strong>' +
+            '<button type="button" class="pi-resend">Resend me the email</button>' +
             '</div>'
         );
     }
@@ -68,7 +68,7 @@
                 var item = btn.closest('[data-invitation-id]');
                 if (!item) return;
                 btn.disabled = true;
-                btn.textContent = 'Enviando…';
+                btn.textContent = 'Sending…';
                 fetch('/api/project-access/my-invitations/' + item.dataset.invitationId + '/resend', {
                     method: 'POST',
                     credentials: 'same-origin'
@@ -76,12 +76,12 @@
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
                         btn.textContent = data.success && data.email_sent !== false
-                            ? 'Enviado ✓ — revisa tu buzón'
-                            : 'No se pudo enviar';
+                            ? 'Sent ✓ — check your inbox'
+                            : 'Could not send';
                         if (!data.success) btn.disabled = false;
                     })
                     .catch(function () {
-                        btn.textContent = 'Error de red';
+                        btn.textContent = 'Network error';
                         btn.disabled = false;
                     });
             });
@@ -93,16 +93,16 @@
         if (!modal) return false;
 
         modal.innerHTML =
-            '<h2 style="color:#D8F9B8;">Tienes ' + invitations.length +
-            (invitations.length === 1 ? ' invitación pendiente' : ' invitaciones pendientes') + '</h2>' +
-            '<p class="llm-blocked-description">Te han invitado a ver estos proyectos. ' +
-            'Para activar el acceso, abre el email de invitación y pulsa el enlace de aceptación. ' +
-            'Si no lo encuentras, reenvíatelo desde aquí:</p>' +
+            '<h2 style="color:#D8F9B8;">You have ' + invitations.length +
+            (invitations.length === 1 ? ' pending invitation' : ' pending invitations') + '</h2>' +
+            '<p class="llm-blocked-description">You have been invited to view these projects. ' +
+            'To activate access, open the invitation email and click the acceptance link. ' +
+            'If you can\'t find it, resend it to yourself from here:</p>' +
             '<div class="pi-overlay-list">' + invitations.map(invitationRow).join('') + '</div>' +
-            '<p class="llm-blocked-notify" style="font-size:12px;">Consejo: si entras con Google usando este mismo email, ' +
-            'las invitaciones se aceptan automáticamente.</p>' +
+            '<p class="llm-blocked-notify" style="font-size:12px;">Tip: if you log in with Google using this same email, ' +
+            'invitations are accepted automatically.</p>' +
             '<div class="llm-blocked-actions">' +
-            '<a href="/dashboard" class="btn-secondary">Volver al dashboard</a>' +
+            '<a href="/dashboard" class="btn-secondary">Back to dashboard</a>' +
             '</div>';
         wireResendButtons(modal);
         return true;
@@ -116,12 +116,12 @@
         banner.innerHTML =
             '<span class="pi-icon">✉️</span>' +
             '<div class="pi-body">' +
-            '<p class="pi-title">Tienes ' + invitations.length +
-            (invitations.length === 1 ? ' invitación pendiente' : ' invitaciones pendientes') + '</p>' +
+            '<p class="pi-title">You have ' + invitations.length +
+            (invitations.length === 1 ? ' pending invitation' : ' pending invitations') + '</p>' +
             invitations.map(invitationRow).join('') +
-            '<p class="pi-hint">Acepta desde el enlace del email de invitación. Si entras con Google con este email, se aceptan solas.</p>' +
+            '<p class="pi-hint">Accept from the link in the invitation email. If you log in with Google with this email, they are accepted automatically.</p>' +
             '</div>' +
-            '<button type="button" class="pi-close" title="Ocultar">✕</button>';
+            '<button type="button" class="pi-close" title="Dismiss">✕</button>';
 
         banner.querySelector('.pi-close').addEventListener('click', function () {
             sessionStorage.setItem(DISMISS_KEY, '1');

@@ -62,8 +62,7 @@ async loadProjects() {
         empty.style.display = 'none';
 
         // Remove old project cards
-        const oldCards = grid.querySelectorAll('.project-card');
-        oldCards.forEach(card => card.remove());
+        grid.querySelectorAll('.pc-card').forEach(card => card.remove());
 
         try {
             const response = await fetch(`${this.baseUrl}/projects`, {
@@ -99,14 +98,7 @@ async loadProjects() {
 
             console.log('📦 Rendering', data.projects.length, 'projects...');
 
-            // Clear existing cards
-            grid.innerHTML = '';
-
-            // Render project cards
-            data.projects.forEach((project, index) => {
-                console.log(`  → Rendering project ${index + 1}:`, project.name);
-                this.renderProjectCard(project, grid);
-            });
+            this.renderProjects(data.projects, grid);
 
             console.log(`✅ Successfully rendered ${data.projects.length} projects`);
 
@@ -123,107 +115,62 @@ async loadProjects() {
         }
     },
 
-renderProjectCard(project, container) {
-        const card = document.createElement('div');
-        card.className = 'project-card';
-        const safeProjectName = window.ClicandseoHtml.jsArg(project.name || '');  // también escapa &
-        const competitorCount = Array.isArray(project.selected_competitors)
-            ? project.selected_competitors.length
-            : (project.competitors?.length || 0);
-        const configuredQueries = Number(project.total_queries || 0);
-        const hasConfiguredPrompts = configuredQueries > 0;
-        const canEdit = project.can_edit !== false;
-        const shouldShowInitialAnalysisButton = !!project.is_active && !project.last_analysis_date;
-        const isInitialAnalysisRunning = !!project.initial_analysis_in_progress;
-        card.innerHTML = `
-            <div class="project-card-header">
-                <h3>${this.escapeHtml(project.name)}</h3>
-                <div class="project-status ${project.is_active ? 'active' : 'inactive'}">
-                    ${project.is_active ? 'Active' : 'Inactive'}
-                </div>
-                ${!canEdit ? '<span class="badge badge-language" style="margin-left: 8px;">Shared (view only)</span>' : ''}
-            </div>
-            <div class="project-card-body">
-                <div class="project-info">
-                    <div class="info-item">
-                        <i class="fas fa-tag"></i>
-                        <span>${this.escapeHtml(project.brand_name)}</span>
-                    </div>
-                    <div class="info-item">
-                        <i class="fas fa-industry"></i>
-                        <span>${this.escapeHtml(project.industry)}</span>
-                    </div>
-                    <div class="info-item">
-                        <i class="fas fa-robot"></i>
-                        <span>${project.enabled_llms.length} LLMs</span>
-                    </div>
-                    <div class="info-item">
-                        <i class="fas fa-users"></i>
-                        <span>${competitorCount} Competitors</span>
-                    </div>
-                </div>
-                ${project.last_analysis_date ? `
-                    <div class="project-meta">
-                        <small>
-                            <i class="fas fa-clock"></i>
-                            Last analysis: ${this.formatDate(project.last_analysis_date)}
-                        </small>
-                    </div>
-                ` : `
-                    <div class="project-meta">
-                        <small>
-                            <i class="fas fa-hourglass-half"></i>
-                            No analysis yet
-                        </small>
-                    </div>
-                `}
-            </div>
-            <div class="project-card-footer">
-                <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.viewProject(${project.id})">
-                    <i class="fas fa-eye"></i>
-                    View Metrics
-                </button>
-                ${canEdit ? `
-                    <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${window.ClicandseoHtml.jsArg(project)})">
-                        <i class="fas fa-list"></i>
-                        View/Edit Prompts
-                    </button>
-                    <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${window.ClicandseoHtml.jsArg(project)})">
-                        <i class="fas fa-edit"></i>
-                        Edit
-                    </button>
-                ` : ''}
-                ${(canEdit && shouldShowInitialAnalysisButton) ? `
-                    <button
-                        class="btn btn-success btn-sm"
-                        id="btnInitialAnalysis-${project.id}"
-                        onclick="window.llmMonitoring.runInitialAnalysis(${project.id}, ${safeProjectName}, ${configuredQueries})"
-                        ${(isInitialAnalysisRunning || !hasConfiguredPrompts) ? 'disabled' : ''}
-                    >
-                        <i class="fas ${isInitialAnalysisRunning ? 'fa-spinner fa-spin' : (hasConfiguredPrompts ? 'fa-play-circle' : 'fa-list')}"></i>
-                        ${isInitialAnalysisRunning ? 'First analysis running...' : (hasConfiguredPrompts ? 'Run First Analysis' : 'Add Prompts First')}
-                    </button>
-                ` : ''}
-                ${(canEdit && project.is_active) ? `
-                    <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, ${safeProjectName})">
-                        <i class="fas fa-pause"></i>
-                        Pause
-                    </button>
-                ` : ''}
-                ${(canEdit && !project.is_active) ? `
-                    <button class="btn btn-ghost btn-sm btn-success" onclick="window.llmMonitoring.activateProject(${project.id}, ${safeProjectName})">
-                        <i class="fas fa-play"></i>
-                        Resume
-                    </button>
-                    <button class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.deleteProject(${project.id}, ${safeProjectName}, true)">
-                        <i class="fas fa-trash"></i>
-                        Delete
-                    </button>
-                ` : ''}
-            </div>
-        `;
+renderProjects(projects, container) {
+        // Tarjeta común de proyecto (static/js/project-cards.js), la misma que
+        // AI Overview y AI Mode. La cifra principal (mention rate 30 días) es
+        // la de AI Visibility Summary.
+        this.projectsList = projects;
+        const byId = id => projects.find(p => String(p.id) === String(id)) || {};
+        const items = projects.map(project => {
+            const canEdit = project.can_edit !== false;
+            const configuredQueries = Number(project.total_queries || 0);
+            const running = !!project.initial_analysis_in_progress;
+            const needsFirstRun = canEdit && !!project.is_active && !project.last_analysis_date;
+            return {
+                id: project.id,
+                name: project.name,
+                domain: project.brand_domain,
+                subtitle: project.brand_name,
+                href: `/llm-monitoring?project=${project.id}`,
+                status: !project.is_active ? 'paused' : (project.is_paused_by_quota ? 'quota' : 'active'),
+                shared: !canEdit,
+                stats: [
+                    { label: 'Prompts', value: configuredQueries },
+                    { label: 'LLMs', value: (project.enabled_llms || []).length },
+                    { label: 'Last analysis', value: window.ClicandseoProjectCards.formatDate(project.last_analysis_date) },
+                ],
+                cta: needsFirstRun ? {
+                    action: 'firstRun',
+                    id: `btnInitialAnalysis-${project.id}`,
+                    label: running ? 'First analysis running…' : (configuredQueries > 0 ? 'Run first analysis' : 'Add prompts first'),
+                    disabled: running,
+                } : null,
+                menu: canEdit ? [
+                    { action: 'prompts', label: 'View / edit prompts' },
+                    { action: 'edit', label: 'Edit project' },
+                    project.is_active ? { action: 'pause', label: 'Pause project' } : null,
+                    !project.is_active ? { action: 'resume', label: 'Resume project' } : null,
+                    !project.is_active ? { action: 'delete', label: 'Delete project', danger: true } : null,
+                ] : [],
+            };
+        });
 
-        container.appendChild(card);
+        window.ClicandseoProjectCards.render(container, items, {
+            open: id => this.viewProject(Number(id)),
+            prompts: id => this.openPromptsManagementForProject(byId(id)),
+            edit: id => this.editProject(Number(id), byId(id)),
+            firstRun: id => {
+                const p = byId(id);
+                if (Number(p.total_queries || 0) > 0) {
+                    this.runInitialAnalysis(Number(id), p.name || '', Number(p.total_queries || 0));
+                } else {
+                    this.openPromptsManagementForProject(p);
+                }
+            },
+            pause: id => this.deactivateProject(Number(id), byId(id).name || ''),
+            resume: id => this.activateProject(Number(id), byId(id).name || ''),
+            delete: id => this.deleteProject(Number(id), byId(id).name || '', true),
+        }, { module: 'llm', metricLabel: 'Mention rate · 30d' });
     },
 
 async editProject(projectId, fallbackProject = null) {
@@ -259,8 +206,35 @@ async editProject(projectId, fallbackProject = null) {
         }
     },
 
+syncProjectUrl(projectId, { replace = false } = {}) {
+        const params = new URLSearchParams(window.location.search);
+        const next = projectId ? String(projectId) : '';
+        if ((params.get('project') || '') === next && !params.has('open_project')) return;
+        params.delete('open_project');
+        if (next) params.set('project', next); else params.delete('project');
+        const query = params.toString();
+        const url = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+        window.history[replace ? 'replaceState' : 'pushState']({ project: next || null }, '', url);
+    },
+
+/** Pone la vista de acuerdo con la URL (carga inicial y «atrás/adelante»). */
+applyUrlState() {
+        const projectId = Number(new URLSearchParams(window.location.search).get('project') || 0);
+        this._applyingUrl = true;
+        try {
+            if (projectId) {
+                if (Number(this.currentProject?.id) !== projectId) this.viewProject(projectId);
+            } else {
+                this.showProjectsList();
+            }
+        } finally {
+            this._applyingUrl = false;
+        }
+    },
+
 async viewProject(projectId) {
         console.log(`📊 Loading metrics for project ${projectId}...`);
+        if (!this._applyingUrl) this.syncProjectUrl(projectId);
 
         // Always reset responses state when loading a project
         this.responsesLoaded = false;
@@ -398,6 +372,7 @@ async refreshProjectKPIs() {
     },
 
 showProjectsList() {
+        if (!this._applyingUrl) this.syncProjectUrl(null);
         const llmProjectsView = document.getElementById('llmProjectsView');
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');

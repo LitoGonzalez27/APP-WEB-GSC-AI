@@ -13,16 +13,15 @@ init() {
 
         this.handleInvitationFeedbackFromUrl();
 
-        // Deep link desde AI Visibility Summary: /llm-monitoring?open_project=<id>
-        // abre directamente ese proyecto tras cargar la lista.
+        // URL propia del dashboard de cada proyecto: /llm-monitoring?project=<id>
+        // (recargar, compartir, «atrás» vuelve a la lista). ?open_project=
+        // (enlaces desde AI Visibility Summary) se acepta igual.
+        window.addEventListener('popstate', () => this.applyUrlState());
         const params = new URLSearchParams(window.location.search);
-        const openProjectId = Number(params.get('open_project') || 0);
+        const openProjectId = Number(params.get('project') || params.get('open_project') || 0);
         if (openProjectId) {
-            params.delete('open_project');
-            const nextQuery = params.toString();
-            window.history.replaceState({}, '',
-                nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname);
-            Promise.resolve(this.loadProjects()).then(() => this.viewProject(openProjectId));
+            this.syncProjectUrl(openProjectId, { replace: true });
+            Promise.resolve(this.loadProjects()).then(() => this.applyUrlState());
         } else {
             // Load projects
             this.loadProjects();
@@ -1706,8 +1705,8 @@ updateCompareView() {
                     <div class="compare-column-header ${llm}">
                         <span class="llm-name">${llmName}</span>
                         <div class="llm-badges">
-                            <span class="mini-badge ${mentionClass}" title="${response.brand_mentioned ? 'Tu marca fue mencionada' : 'Tu marca NO fue mencionada'}">${response.brand_mentioned ? '✓' : '✗'}</span>
-                            ${response.position_in_list ? `<span class="mini-badge ${positionClass}" title="Posición #${response.position_in_list} en la lista">#${response.position_in_list}</span>` : ''}
+                            <span class="mini-badge ${mentionClass}" title="${response.brand_mentioned ? 'Your brand was mentioned' : 'Your brand was NOT mentioned'}">${response.brand_mentioned ? '✓' : '✗'}</span>
+                            ${response.position_in_list ? `<span class="mini-badge ${positionClass}" title="Position #${response.position_in_list} in the list">#${response.position_in_list}</span>` : ''}
                         </div>
                     </div>
                     <div class="compare-column-body">

@@ -1059,6 +1059,13 @@
   ]
  },
  {
+  "rule": "/api/project-cards/kpis",
+  "endpoint": "project_cards.get_kpis",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
   "rule": "/api/quota/status",
   "endpoint": "get_quota_status",
   "methods": [

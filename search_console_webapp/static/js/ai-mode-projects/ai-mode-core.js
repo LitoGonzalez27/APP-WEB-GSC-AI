@@ -381,25 +381,51 @@ export class AIModeSystem {
     }
 
     /**
-     * Deep link desde AI Visibility Summary: /ai-mode-projects/?open_project=<id>
-     * abre directamente el tab Analytics con ese proyecto seleccionado.
+     * URL propia del dashboard de cada proyecto: /ai-mode-projects/?project=<id>.
+     * Se puede recargar, compartir o abrir en otra pestaña, y «atrás» vuelve a
+     * la lista. ?open_project=<id> (enlaces desde AI Visibility Summary) se
+     * acepta igual y se reescribe a ?project=.
      */
-    handleOpenProjectFromUrl() {
+    syncProjectUrl(projectId, { replace = false } = {}) {
         const params = new URLSearchParams(window.location.search);
-        const openProjectId = Number(params.get('open_project') || 0);
-        if (!openProjectId) return;
-
+        const next = projectId ? String(projectId) : '';
+        if ((params.get('project') || '') === next && !params.has('open_project')) return;
         params.delete('open_project');
-        const nextQuery = params.toString();
-        window.history.replaceState({}, '',
-            nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname);
+        if (next) params.set('project', next); else params.delete('project');
+        const query = params.toString();
+        const url = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+        window.history[replace ? 'replaceState' : 'pushState']({ project: next || null }, '', url);
+    }
 
+    handleOpenProjectFromUrl() {
+        if (!this._popstateBound) {
+            this._popstateBound = true;
+            window.addEventListener('popstate', () => this.applyUrlState());
+        }
+        const params = new URLSearchParams(window.location.search);
+        const projectId = Number(params.get('project') || params.get('open_project') || 0);
+        if (!projectId) return;
+        this.syncProjectUrl(projectId, { replace: true });
+        this.applyUrlState();
+    }
+
+    /** Pone la vista de acuerdo con la URL (carga inicial y «atrás/adelante»). */
+    applyUrlState() {
+        const projectId = new URLSearchParams(window.location.search).get('project');
         const select = this.elements.analyticsProjectSelect;
-        if (!select) return;
-        select.value = String(openProjectId);
-        // Si el proyecto no pertenece al usuario, el value no casa con
-        // ninguna option y Analytics carga su selección por defecto.
-        this.switchTab('analytics');
+        this._applyingUrl = true;
+        try {
+            if (projectId && select) {
+                // Si el proyecto no es del usuario, el value no casa con
+                // ninguna option y Analytics queda sin proyecto.
+                select.value = String(projectId);
+                this.switchTab('analytics');
+            } else {
+                this.switchTab('projects');
+            }
+        } finally {
+            this._applyingUrl = false;
+        }
     }
 
     handleInvitationFeedbackFromUrl() {
@@ -455,6 +481,11 @@ export class AIModeSystem {
         this.elements.tabContents.forEach(content => {
             content.classList.toggle('active', content.id === `${tabName}Tab`);
         });
+
+        // La lista de proyectos no lleva ?project= en la URL
+        if (tabName === 'projects' && !this._applyingUrl) {
+            this.syncProjectUrl(null);
+        }
 
         // Load specific tab data
         if (tabName === 'analytics') {

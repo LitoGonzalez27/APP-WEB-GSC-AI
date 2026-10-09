@@ -24,6 +24,12 @@ export async function loadAnalytics() {
     const projectId = this.elements.analyticsProjectSelect?.value;
     const days = this.elements.analyticsTimeRange?.value || 30;
 
+    // URL propia del dashboard (?project=<id>); no se toca mientras se
+    // aplica una URL (carga inicial o «atrás»)
+    if (!this._applyingUrl && typeof this.syncProjectUrl === 'function') {
+        this.syncProjectUrl(projectId || null);
+    }
+
     if (!projectId) {
         this.currentProject = null;
         this.elements.analyticsContent.innerHTML = `

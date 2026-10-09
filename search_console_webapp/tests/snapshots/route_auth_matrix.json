@@ -544,6 +544,12 @@
   "paid": "403",
   "user": "403"
  },
+ "GET /api/project-cards/kpis [project_cards.get_kpis]": {
+  "admin": "400",
+  "anon": "401",
+  "paid": "400",
+  "user": "400"
+ },
  "GET /api/quota/status [get_quota_status]": {
   "admin": "200",
   "anon": "401",
