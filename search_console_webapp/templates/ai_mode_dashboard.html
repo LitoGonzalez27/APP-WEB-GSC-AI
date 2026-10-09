@@ -429,26 +429,25 @@
                                 <option value="90">Last 90 days</option>
                             </select>
                         </div>
-                        <!-- Exportación: antes en el sidebar; ahora junto a los datos que exporta.
-                             La muestra ai-mode-core.js (showDownloadButton) al cargar un proyecto. -->
-                        <div class="export-tools-group" id="exportTools" style="display: none;">
-                            <span class="selector-label">
-                                <i class="fas fa-download"></i>
-                                Export
-                            </span>
-                            <div class="export-tools">
-                                <button type="button" class="export-btn" id="exportExcelBtn" style="display: none;" title="Export AI Mode data to Excel" aria-label="Export AI Mode data to Excel">
+                    </div>
+                </div>
+
+                <!-- Exportación: antes en el sidebar; ahora en su propia barra bajo los
+                     controles (en la fila de selectores no cabía). La muestra
+                     ai-mode-core.js (showDownloadButton) al cargar un proyecto. -->
+                <div class="export-tools-bar export-tools-bar--panel" id="exportTools" style="display: none;">
+                    <span class="export-tools-label">Export</span>
+                    <div class="export-tools">
+                        <button type="button" class="export-btn" id="exportExcelBtn" style="display: none;" title="Export AI Mode data to Excel" aria-label="Export AI Mode data to Excel">
                                     <i class="fas fa-file-excel"></i>
                                     <span>Excel</span>
                                     <div class="download-spinner" style="display: none;"><i class="fas fa-spinner fa-spin"></i></div>
                                 </button>
-                                <button type="button" class="export-btn" id="exportPdfBtn" style="display: none;" title="Export the current AI Mode view to PDF" aria-label="Export the current AI Mode view to PDF">
+                        <button type="button" class="export-btn" id="exportPdfBtn" style="display: none;" title="Export the current AI Mode view to PDF" aria-label="Export the current AI Mode view to PDF">
                                     <i class="fas fa-file-pdf"></i>
                                     <span>PDF</span>
                                     <div class="download-spinner" style="display: none;"><i class="fas fa-spinner fa-spin"></i></div>
                                 </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
 

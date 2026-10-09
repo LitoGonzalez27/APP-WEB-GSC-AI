@@ -242,20 +242,8 @@
   color: #287A4C;
 }
 
-/* AI Overview / AI Mode: un control más junto a proyecto y rango de fechas
-   (.analytics-controls alinea abajo; mismo relleno que .time-range-selector
-   y botones de la altura de los selects para que todo quede en una línea) */
-.export-tools-group {
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-}
-
-.export-tools-group .export-btn { min-height: 46px; padding: 8px 18px; }
-/* los selects vecinos llevan 24px de margen inferior (base-y-componentes.css) */
-.export-tools-group .export-tools { margin-bottom: 24px; }
-
-/* /app: barra discreta alineada a la derecha sobre el contenido */
+/* Barra discreta alineada a la derecha: sobre el contenido en /app y bajo los
+   controles de Analytics en AI Overview / AI Mode (--panel) */
 .export-tools-bar {
   display: flex;
   align-items: center;
@@ -263,6 +251,8 @@
   gap: 12px;
   padding: 12px 24px 0;
 }
+
+.export-tools-bar--panel { padding: 0 0 16px; }
 
 .export-tools-label {
   font-size: 0.75rem;

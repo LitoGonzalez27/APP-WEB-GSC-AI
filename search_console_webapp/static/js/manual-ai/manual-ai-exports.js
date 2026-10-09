@@ -223,14 +223,14 @@ export async function handleDownloadPDF() {
             timestamp: new Date().toISOString()
         });
 
-        // Show success state
+        // Show success state (se vuelve a «PDF»: el texto de ese momento era
+        // «Generating PDF...» y se quedaba así tras la descarga)
         if (btnText) {
-            const originalText = btnText.textContent;
             btnText.textContent = 'Downloaded!';
             downloadBtn?.classList.add('success');
 
             setTimeout(() => {
-                btnText.textContent = originalText;
+                btnText.textContent = 'PDF';
                 downloadBtn?.classList.remove('success');
             }, 2000);
         }
@@ -244,7 +244,7 @@ export async function handleDownloadPDF() {
         // Reset loading state
         if (downloadBtn) downloadBtn.disabled = false;
         if (spinner) spinner.style.display = 'none';
-        if (btnText) btnText.textContent = 'PDF';
+        if (btnText && btnText.textContent !== 'Downloaded!') btnText.textContent = 'PDF';
     }
 }
 
