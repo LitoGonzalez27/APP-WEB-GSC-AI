@@ -34,6 +34,25 @@ body {
   color: var(--cs-text-primary);
 }
 
+/* Gana a manual-ai.css:66, que fija la fuente del sistema en el contenedor de
+   AI Overview, AI Mode y LLM Monitoring: cabecera, títulos y tarjetas salían
+   en San Francisco/Segoe mientras pestañas y formularios iban en Inter Tight. */
+.manual-ai-app,
+#chart-annotation-tooltip {   /* y a manual-ai.css:4680 */
+  font-family: var(--cs-font-sans);
+}
+
+/* Los controles de formulario no heredan la fuente: el navegador les pone la
+   suya (Arial / fuente del sistema). Afectaba a todo lo que es <button> sin
+   fuente propia: items del sidebar, menú de usuario del navbar, botones de
+   los paneles. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* Cifras que se alinean en columna (tablas, ticks) con ancho fijo; las cifras
    grandes y sueltas van proporcionales, que a tamaño display se leen mejor. */
 table td,
