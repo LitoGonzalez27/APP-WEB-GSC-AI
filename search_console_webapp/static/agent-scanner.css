@@ -83,11 +83,6 @@
   flex-wrap: wrap;
 }
 
-.ag-app .header-left h1 {
-  font-weight: var(--cs-weight-extrabold);
-  letter-spacing: var(--cs-tracking-tight);
-}
-
 /* seis pestañas en el informe: en pantallas estrechas se desplazan dentro de
    su barra en vez de ensanchar la página */
 .ag-app .nav-tabs {
@@ -1810,13 +1805,6 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
    «Hazlo ya», mejoras recomendadas).
    ════════════════════════════════════════════════════════════════════════ */
 
-/* pestaña activa con el subrayado lima de marca */
-.ag-app .nav-tab.active {
-  border-bottom: 3px solid var(--cs-accent);
-  color: var(--cs-text-primary);
-  font-weight: var(--cs-weight-bold);
-}
-
 .ag-app .nav-tab:focus { outline: none; }
 .ag-app .nav-tab:focus-visible { outline: 2px solid var(--cs-text-primary); outline-offset: -2px; }
 
@@ -2291,3 +2279,73 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
   .ag-display { font-size: var(--cs-text-2xl); }
   .ag-rep-title { font-size: var(--cs-text-2xl) !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   CONSISTENCIA CON EL RESTO DE PANELES (AI Overview, AI Mode, LLM Monitoring)
+   Medido sobre manual-ai.css: misma cabecera y pestañas (las reglas propias
+   se han quitado), mismo título de sección (.projects-header h2: 1.5rem/600),
+   tarjetas como .project-card y campos como los del modal «Create New
+   Project» (.enhanced-label con subrayado lima, .enhanced-input).
+   ════════════════════════════════════════════════════════════════════════ */
+.ag-app .nav-tab svg.lucide { width: 14px; height: 14px; }
+
+/* la portada del panel con el mismo ancho de contenido que los demás */
+#agHome .manual-ai-main { max-width: 1100px; }
+
+.ag-app .ag-section-head h2 {
+  font-size: 1.5rem;
+  font-weight: var(--cs-weight-semibold);
+  letter-spacing: normal;
+}
+
+#agHome .ag-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: var(--cs-space-lg);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+#agHome .ag-card.ag-card-quiet { box-shadow: none; }
+#agHome .ag-card-title {
+  font-size: 1.125rem;
+  font-weight: var(--cs-weight-semibold);
+  letter-spacing: normal;
+}
+
+.ag-app .ag-label {
+  margin-bottom: 0.5rem;
+  font-weight: var(--cs-weight-medium);
+  color: #374151;
+}
+.ag-label-hl {
+  background: linear-gradient(to top, var(--cs-accent) 40%, transparent 40%);
+  padding: 2px 4px;
+}
+
+.ag-app.manual-ai-app input[type=url],
+.ag-app.manual-ai-app input[type=email],
+.ag-app.manual-ai-app input[type=text],
+.ag-app.manual-ai-app select.ag-select {
+  padding: 0 1rem;
+  font-size: 0.9rem;
+  border-color: #E5E7EB;
+  border-radius: 8px;
+}
+.ag-app.manual-ai-app select.ag-select { padding-right: 36px; }
+.ag-app.manual-ai-app input:focus,
+.ag-app.manual-ai-app select.ag-select:focus {
+  border-color: var(--cs-accent);
+  box-shadow: 0 0 0 3px rgba(216, 249, 184, 0.2);
+}
+.ag-app input::placeholder { color: #9CA3AF; }
+
+/* el botón de lanzar, del mismo tamaño que «Create New Project» */
+.ag-app .ag-go {
+  width: auto;
+  margin-top: var(--cs-space-xs);
+}
+#agHome .btn-primary:not(.ag-btn-sm):not(.ag-btn-xs) {
+  padding: 12px 24px;
+  font-size: 0.8333rem;
+}
+/* vacío no ocupa sitio, pero sigue en el DOM para que role=alert se anuncie */
+#agHome .ag-error:empty { min-height: 0; margin: 0 !important; }
