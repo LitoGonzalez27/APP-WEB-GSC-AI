@@ -2350,9 +2350,8 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 /* vacío no ocupa sitio, pero sigue en el DOM para que role=alert se anuncie */
 #agHome .ag-error:empty { min-height: 0; margin: 0 !important; }
 
-/* «Qué mide» en horizontal, justo bajo el título: los tres pasos del viaje
-   del agente a la vista antes de rellenar nada */
-#agHome .ag-measure { margin-bottom: var(--cs-space-md); }
+/* «Qué mide» en horizontal, al pie de la portada: contexto, no protagonista */
+#agHome .ag-measure { margin-top: var(--cs-space-lg); }
 #agHome .ag-measure .ag-card-title { margin-bottom: var(--cs-space-sm); }
 .ag-measure .ag-journey-mini {
   display: grid;
