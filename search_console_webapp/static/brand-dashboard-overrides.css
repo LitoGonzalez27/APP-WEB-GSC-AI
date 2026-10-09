@@ -861,3 +861,35 @@ svg.lucide-spin {
   border-color: var(--cs-border-subtle);
   box-shadow: none;
 }
+
+/* ── Modal «Create New Project» (AI Overview, AI Mode y LLM) ─────────────────
+   Los tres comparten carcasa (.create-project-modal) pero heredaban dos
+   reglas globales de base-y-componentes.css: .form-row como rejilla de DOS
+   columnas (un campo solo ocupaba media fila, y cada fila un ancho distinto)
+   y 24px de margen bajo cada input (ayuda muy separada de su campo).
+   Gana a base-y-componentes.css:293 (0,2,2) con (0,3,0).
+   ─────────────────────────────────────────────────────────────────────────── */
+.create-project-modal .form-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.create-project-modal .form-row.form-row-split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.create-project-modal .form-row > .form-group {
+  width: 100%;
+  min-width: 0;
+}
+
+.create-project-modal .form-group .enhanced-input,
+.create-project-modal .form-group .enhanced-textarea,
+.create-project-modal .form-group .enhanced-select {
+  width: 100%;
+  margin: 6px 0 0;
+  box-sizing: border-box;
+}
+
+.create-project-modal .form-group .form-help {
+  margin-top: 6px;
+}
