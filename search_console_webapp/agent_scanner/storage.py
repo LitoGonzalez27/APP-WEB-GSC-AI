@@ -98,7 +98,7 @@ def guardar(job_id, data, user_email=None):
 
 
 def refrescar_consejos(data):
-    """Consejos (por qué / cómo / esfuerzo / impacto) con el texto ACTUAL.
+    """Consejos, veredicto y penalizaciones con el texto ACTUAL.
 
     advice_for() depende solo del id del check, así que se puede regenerar al
     abrir un informe: los guardados antes de oct-2026 traían los consejos en
@@ -108,13 +108,46 @@ def refrescar_consejos(data):
     if not isinstance(data, dict):
         return data
     from .knowledge import advice_for
+    from . import scoring
+    # Veredicto y penalizaciones: textos fijos guardados en español en los
+    # informes anteriores; se sustituyen por los actuales (mismo nivel).
+    niveles = {lvl[3]: lvl for lvl in scoring.LEVELS}
+    nivel_antiguo = {
+        "Invisible para agentes": scoring.LEVELS[0], "Legible, no operable": scoring.LEVELS[1],
+        "Agent-aware": scoring.LEVELS[2], "Agent-ready": scoring.LEVELS[3],
+    }
+    especiales = {
+        "Puerta cerrada a agentes": scoring.NIVEL_PUERTA_CERRADA,
+        "No evaluable desde nuestra red": scoring.NIVEL_NO_EVALUABLE,
+    }
+    penalizaciones = {
+        "Sin politica de bots documentada": "No documented bot policy",
+        "Precio inconsistente (riesgo de alucinacion)": "Inconsistent price (hallucination risk)",
+    }
     auditorias = [data.get("client")] + list(data.get("competitors") or [])
     for audit in auditorias:
-        for check in (audit or {}).get("checks") or []:
+        if not isinstance(audit, dict):
+            continue
+        for check in audit.get("checks") or []:
             if isinstance(check, dict) and check.get("advice"):
                 actual = advice_for(check.get("id"))
                 if actual:
                     check["advice"] = actual
+        nivel = audit.get("level")
+        if isinstance(nivel, dict) and nivel.get("name"):
+            if nivel["name"] in especiales:
+                nuevo = especiales[nivel["name"]]
+                nivel["name"], nivel["msg"] = nuevo["name"], nuevo["msg"]
+            else:
+                fila = nivel_antiguo.get(nivel["name"]) or niveles.get(nivel["name"])
+                if fila:
+                    nivel["name"], nivel["msg"] = fila[3], fila[4]
+        pens = audit.get("penalties")
+        if isinstance(pens, list):
+            audit["penalties"] = [
+                [penalizaciones.get(p[0], p[0]), p[1]] if isinstance(p, (list, tuple)) and len(p) == 2 else p
+                for p in pens
+            ]
     return data
 
 

@@ -29,3 +29,15 @@ def test_consejos_antiguos_se_regeneran_y_las_evidencias_no():
 def test_tolera_datos_raros():
     assert storage.refrescar_consejos(None) is None
     assert storage.refrescar_consejos({"client": None}) == {"client": None}
+
+
+def test_veredicto_y_penalizaciones_antiguos_pasan_a_ingles():
+    from agent_scanner import scoring
+    data = {"client": {"checks": [],
+                       "level": {"emoji": "🔴", "name": "Invisible para agentes", "msg": "Ni te leen ni te usan. Riesgo alto."},
+                       "penalties": [["Sin politica de bots documentada", -5]]},
+            "competitors": [{"checks": [], "level": {"emoji": "🚫", "name": "Puerta cerrada a agentes", "msg": "x"}}]}
+    storage.refrescar_consejos(data)
+    assert data["client"]["level"] == {"emoji": "🔴", "name": scoring.LEVELS[0][3], "msg": scoring.LEVELS[0][4]}
+    assert data["client"]["penalties"] == [["No documented bot policy", -5]]
+    assert data["competitors"][0]["level"]["name"] == scoring.NIVEL_PUERTA_CERRADA["name"]
