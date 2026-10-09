@@ -1266,16 +1266,15 @@
             <div class="ag-legend">${legend}</div></div>`;
     }
 
-    function findingHTML(c) {
+    // El bloque ya dice la prioridad: el título de cada acción lleva su color
+    // (rojo en Crítico e Importante, naranja en Mejoras) y sobra repetir
+    // impacto y esfuerzo en cada una. Solo se marca lo que se arregla rápido.
+    function findingHTML(c, ord) {
         const a = c.advice;
         const qw = a.esfuerzo === 'Bajo' && (IMPORD[a.impacto] ?? 3) <= 2;
         return `<article class="ag-finding">
-            <div class="ag-finding-top"><h3 class="ag-finding-title">${esc(a.titulo)}</h3></div>
-            <div class="ag-meta">
-                <span>${ic('gauge')} Impacto <b>${esc(a.impacto)}</b></span>
-                <span>${ic('wrench')} Esfuerzo <b>${esc(a.esfuerzo)}</b></span>
-                ${qw ? `<span class="is-qw">${ic('zap')} Arreglo rápido</span>` : ''}
-            </div>
+            <div class="ag-finding-top"><h3 class="ag-finding-title t${ord}">${esc(a.titulo)}</h3>
+                ${qw ? `<span class="ag-qw">${ic('zap')} Arreglo rápido</span>` : ''}</div>
             <div class="ag-finding-cols">
                 <div><div class="ag-subhead">Por qué te importa</div><p>${esc(a.por_que)}</p></div>
                 <div class="is-fix"><div class="ag-subhead">Cómo se arregla</div><p>${esc(a.como)}</p></div>
@@ -1301,7 +1300,7 @@
                     <span class="ag-tier-count">${plural(inTier.length, 'punto', 'puntos')}</span>
                     <span class="ag-tier-hint">${t.hint}</span>
                     ${ic('chevron-right', 'ag-caret')}</summary>
-                <div class="ag-tier-body">${inTier.map(findingHTML).join('')}</div>
+                <div class="ag-tier-body">${inTier.map(c => findingHTML(c, t.ord)).join('')}</div>
             </details>`;
         }).join('');
         return `<div class="ag-pane">${bubbleChart(d.client)}

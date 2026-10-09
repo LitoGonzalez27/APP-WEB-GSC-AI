@@ -2156,6 +2156,30 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
   .ag-hist-host, .ag-entity { word-break: normal; overflow-wrap: anywhere; }
 }
 
+/* Análisis en curso: radar y estado a la izquierda (en vertical), registro
+   de comprobaciones a la derecha, a toda la altura */
+.ag-run-stage { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); align-items: stretch; }
+.ag-run-left { display: flex; flex-direction: column; align-items: stretch; }
+.ag-run-left .ag-radar-wrap { margin-bottom: var(--cs-space-lg); }
+.ag-run-left .ag-radar { width: 100%; max-width: 280px; height: auto; aspect-ratio: 1; margin: 0 auto; }
+.ag-run-left .ag-run-phase { text-align: left; }
+.ag-run-right { display: flex; flex-direction: column; min-width: 0; }
+.ag-run-log-title { margin: 0 0 var(--cs-space-sm); font-size: var(--cs-text-sm); font-weight: var(--cs-weight-semibold); color: rgba(255, 255, 255, 0.6); }
+.ag-run-right .ag-console { flex: 1; height: auto; min-height: 320px; margin-top: 0; font-size: 0.8rem; }
+
+/* Plan de acción: título de cada acción con el color de su bloque */
+.ag-finding-title.t0, .ag-finding-title.t1 { color: var(--ag-bad-text); }
+.ag-finding-title.t2 { color: var(--ag-warn-text); }
+.ag-finding-top { align-items: center; }
+.ag-qw { display: inline-flex; align-items: center; gap: 5px; font-size: var(--cs-text-xs); font-weight: var(--cs-weight-semibold); color: var(--cs-text-primary); white-space: nowrap; }
+.ag-qw svg.lucide { width: 14px; height: 14px; }
+.ag-finding .ag-finding-cols { margin-top: var(--cs-space-sm); }
+
+@media (max-width: 1100px) {
+  .ag-run-stage { grid-template-columns: minmax(0, 1fr); }
+  .ag-run-right .ag-console { min-height: 200px; }
+}
+
 /* ── Animaciones ───────────────────────────────────────────────────── */
 @keyframes agSpin { to { transform: rotate(360deg); } }
 
