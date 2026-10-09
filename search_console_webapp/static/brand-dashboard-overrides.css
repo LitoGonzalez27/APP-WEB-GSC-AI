@@ -866,14 +866,15 @@ svg.lucide-spin {
    Los tres comparten carcasa (.create-project-modal) pero heredaban dos
    reglas globales de base-y-componentes.css: .form-row como rejilla de DOS
    columnas (un campo solo ocupaba media fila, y cada fila un ancho distinto)
-   y 24px de margen bajo cada input (ayuda muy separada de su campo).
-   Gana a base-y-componentes.css:293 (0,2,2) con (0,3,0).
+   y 24px de margen bajo cada input (ayuda muy separada de su campo); además
+   .form-row:nth-child(3) fuerza «2fr 1fr» en la tercera fila de cualquier
+   formulario. Gana a base-y-componentes.css con (0,3,0) o más.
    ─────────────────────────────────────────────────────────────────────────── */
-.create-project-modal .form-row {
+.create-project-modal .modal-body .form-row {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.create-project-modal .form-row.form-row-split {
+.create-project-modal .modal-body .form-row.form-row-split {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
