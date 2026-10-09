@@ -1075,12 +1075,12 @@ bindDetailButtonsDelegation(container) {
     },
 
 showDownloadButtons(show = true) {
-        const toolsSection = document.getElementById('navSectionTools');
+        const toolsSection = document.getElementById('exportTools');
         const excelBtn = document.getElementById('llmDownloadExcelBtn');
         const pdfBtn = document.getElementById('llmDownloadPdfBtn');
 
         if (toolsSection) {
-            toolsSection.style.display = show ? 'block' : 'none';
+            toolsSection.style.display = show ? '' : 'none';  // '' = el flex de su CSS
         }
         if (excelBtn) {
             excelBtn.style.display = show ? 'flex' : 'none';
@@ -1146,7 +1146,7 @@ async downloadExcel() {
 
             setTimeout(() => {
                 if (btn) btn.classList.remove('success');
-                if (btnText) btnText.textContent = 'Download Excel';
+                if (btnText) btnText.textContent = 'Excel';
             }, 2000);
 
             console.log('✅ Excel downloaded successfully');
@@ -1154,7 +1154,7 @@ async downloadExcel() {
         } catch (error) {
             console.error('❌ Error downloading Excel:', error);
             this.showError('Failed to download Excel. Please try again.');
-            if (btnText) btnText.textContent = 'Download Excel';
+            if (btnText) btnText.textContent = 'Excel';
         } finally {
             if (spinner) spinner.style.display = 'none';
             if (btn) btn.disabled = false;
@@ -1204,7 +1204,7 @@ async downloadPdf() {
             if (btnText) btnText.textContent = 'Downloaded!';
             setTimeout(() => {
                 if (btn) btn.classList.remove('success');
-                if (btnText) btnText.textContent = 'Download PDF';
+                if (btnText) btnText.textContent = 'PDF';
             }, 2000);
 
             this.showSuccess('PDF generated successfully!');
@@ -1213,7 +1213,7 @@ async downloadPdf() {
         } catch (error) {
             console.error('❌ Error generating PDF:', error);
             this.showError('Failed to generate PDF. Please try again.');
-            if (btnText) btnText.textContent = 'Download PDF';
+            if (btnText) btnText.textContent = 'PDF';
         } finally {
             if (spinner) spinner.style.display = 'none';
             if (btn) btn.disabled = false;

@@ -133,9 +133,9 @@ class SidebarNavigation {
     });
 
     // ✅ NUEVO: Event listener para botón de descarga Excel
-    const sidebarDownloadBtn = document.getElementById('sidebarDownloadBtn');
-    if (sidebarDownloadBtn) {
-      sidebarDownloadBtn.addEventListener('click', (e) => {
+    const exportExcelBtn = document.getElementById('exportExcelBtn');
+    if (exportExcelBtn) {
+      exportExcelBtn.addEventListener('click', (e) => {
         e.preventDefault();
         console.log('🖱️ Click en botón de descarga Excel del sidebar');
         this.handleDownloadClick();
@@ -143,9 +143,9 @@ class SidebarNavigation {
       console.log('✅ Event listener agregado para botón de descarga Excel');
     }
 
-    const sidebarDownloadJsonBtn = document.getElementById('sidebarDownloadJsonBtn');
-    if (sidebarDownloadJsonBtn) {
-      sidebarDownloadJsonBtn.addEventListener('click', (e) => {
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    if (exportJsonBtn) {
+      exportJsonBtn.addEventListener('click', (e) => {
         e.preventDefault();
         console.log('🖱️ Click en botón de descarga JSON del sidebar');
         this.handleDownloadJsonClick();
@@ -154,9 +154,9 @@ class SidebarNavigation {
     }
 
     // ✅ NUEVO: Event listener para botón de descarga PDF
-    const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
-    if (sidebarDownloadPdfBtn) {
-      sidebarDownloadPdfBtn.addEventListener('click', (e) => {
+    const exportPdfBtn = document.getElementById('exportPdfBtn');
+    if (exportPdfBtn) {
+      exportPdfBtn.addEventListener('click', (e) => {
         e.preventDefault();
         console.log('🖱️ Click en botón de descarga PDF del sidebar');
         this.handleDownloadPdfClick();
@@ -675,31 +675,42 @@ class SidebarNavigation {
 
   // ✅ NUEVO: Mostrar/ocultar botón de descarga Excel
   showDownloadButton(show = true) {
-    const sidebarDownloadBtn = document.getElementById('sidebarDownloadBtn');
-    const sidebarDownloadJsonBtn = document.getElementById('sidebarDownloadJsonBtn');
+    const exportExcelBtn = document.getElementById('exportExcelBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
     
-    if (sidebarDownloadBtn) {
-      sidebarDownloadBtn.style.display = show ? 'flex' : 'none';
+    if (exportExcelBtn) {
+      exportExcelBtn.style.display = show ? 'flex' : 'none';
       console.log(`📥 Botón de descarga Excel ${show ? 'mostrado' : 'ocultado'}`);
     }
 
-    if (sidebarDownloadJsonBtn) {
-      sidebarDownloadJsonBtn.style.display = show ? 'flex' : 'none';
+    if (exportJsonBtn) {
+      exportJsonBtn.style.display = show ? 'flex' : 'none';
       console.log(`🧾 Botón de descarga JSON ${show ? 'mostrado' : 'ocultado'}`);
     }
+    this.syncExportTools();
+  }
+
+  // La barra de exportación (antes en el sidebar) solo se ve si muestra algún
+  // botón: Excel/JSON tras el análisis, PDF en AI Overview con datos.
+  syncExportTools() {
+    const bar = document.getElementById('exportTools');
+    if (!bar) return;
+    const anyVisible = [...bar.querySelectorAll('button')].some(b => b.style.display !== 'none');
+    bar.style.display = anyVisible ? '' : 'none';
   }
 
   // ✅ NUEVO: Mostrar/ocultar botón de descarga PDF (solo para AI Overview)
   showPdfDownloadButton(show = true) {
-    const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+    const exportPdfBtn = document.getElementById('exportPdfBtn');
     
-    if (sidebarDownloadPdfBtn) {
-      const currentDisplay = sidebarDownloadPdfBtn.style.display;
-      sidebarDownloadPdfBtn.style.display = show ? 'flex' : 'none';
+    if (exportPdfBtn) {
+      const currentDisplay = exportPdfBtn.style.display;
+      exportPdfBtn.style.display = show ? 'flex' : 'none';
       console.log(`📄 [PDF BUTTON] ${show ? 'MOSTRANDO' : 'OCULTANDO'} botón PDF (display: ${currentDisplay} → ${show ? 'flex' : 'none'})`);
     } else {
-      console.warn('⚠️ [PDF BUTTON] Elemento sidebarDownloadPdfBtn NO encontrado en el DOM');
+      console.warn('⚠️ [PDF BUTTON] Elemento exportPdfBtn NO encontrado en el DOM');
     }
+    this.syncExportTools();
   }
 
   getDownloadButtonElements(buttonId) {
@@ -801,7 +812,7 @@ class SidebarNavigation {
 
   // ✅ NUEVO: Manejar click del botón de descarga Excel
   async handleDownloadClick() {
-    const buttonId = 'sidebarDownloadBtn';
+    const buttonId = 'exportExcelBtn';
     const { button } = this.getDownloadButtonElements(buttonId);
     if (!button) return;
 
@@ -847,7 +858,7 @@ class SidebarNavigation {
 
   // ✅ NUEVO: Manejar click del botón de descarga JSON
   async handleDownloadJsonClick() {
-    const buttonId = 'sidebarDownloadJsonBtn';
+    const buttonId = 'exportJsonBtn';
     const { button } = this.getDownloadButtonElements(buttonId);
     if (!button) return;
 
@@ -1030,7 +1041,7 @@ function updatePdfButtonVisibility() {
 // ✅ DEBUG: Función para forzar mostrar botón PDF (debug)
 function debugShowPdfButton() {
   console.log('🔧 [DEBUG] Forzando mostrar botón PDF...');
-  const pdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+  const pdfBtn = document.getElementById('exportPdfBtn');
   if (pdfBtn) {
     pdfBtn.style.display = 'flex';
     console.log('✅ [DEBUG] Botón PDF forzado a mostrar');

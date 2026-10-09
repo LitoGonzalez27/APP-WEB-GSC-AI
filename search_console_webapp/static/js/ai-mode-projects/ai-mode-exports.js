@@ -14,7 +14,7 @@ export async function handleDownloadExcel() {
     }
 
     const { projectId, days } = this.currentAnalyticsData;
-    const downloadBtn = document.getElementById('sidebarDownloadBtn');
+    const downloadBtn = document.getElementById('exportExcelBtn');
     const spinner = downloadBtn?.querySelector('.download-spinner');
     const btnText = downloadBtn?.querySelector('span');
 
@@ -117,7 +117,7 @@ export async function handleDownloadPDF() {
     let chartsContainerOriginalDisplay = null;
     
     try {
-        const btn = document.getElementById('sidebarDownloadPdfBtn');
+        const btn = document.getElementById('exportPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
         if (spinner && btnText) {
@@ -325,7 +325,7 @@ export async function handleDownloadPDF() {
         const fileName = `ai_mode_monitoring_${Date.now()}.pdf`;
         pdf.save(fileName);
         
-        if (btnText) btnText.textContent = 'Download PDF';
+        if (btnText) btnText.textContent = 'PDF';
         this.showSuccess('PDF generated successfully!');
         
         // Restaurar elementos excluidos
@@ -344,12 +344,12 @@ export async function handleDownloadPDF() {
             chartsContainer.style.display = chartsContainerOriginalDisplay;
         }
     } finally {
-        const btn = document.getElementById('sidebarDownloadPdfBtn');
+        const btn = document.getElementById('exportPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
         if (spinner && btnText) {
             spinner.style.display = 'none';
-            btnText.textContent = 'Download PDF';
+            btnText.textContent = 'PDF';
         }
     }
 }

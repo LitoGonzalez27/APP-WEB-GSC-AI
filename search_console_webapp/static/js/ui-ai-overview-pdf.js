@@ -308,7 +308,7 @@ export async function generateAIOverviewPDF() {
     let paginationOriginals = [];
 
     try {
-        const btn = document.getElementById('sidebarDownloadPdfBtn');
+        const btn = document.getElementById('exportPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
 
@@ -529,10 +529,10 @@ export async function generateAIOverviewPDF() {
         if (paginationOriginals.length) try { restorePagination(paginationOriginals); } catch (e) {}
     } finally {
         document.body.classList.remove('pdf-capture-mode');
-        const btn = document.getElementById('sidebarDownloadPdfBtn');
+        const btn = document.getElementById('exportPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
-        if (spinner && btnText) { spinner.style.display = 'none'; btnText.textContent = 'Download PDF'; }
+        if (spinner && btnText) { spinner.style.display = 'none'; btnText.textContent = 'PDF'; }
         if (btn) btn.disabled = false;
     }
 }

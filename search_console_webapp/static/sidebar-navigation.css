@@ -91,74 +91,58 @@
 
 
 /*=============================================
-  NAVIGATION ITEMS
+  NAVIGATION ITEMS — sidebar único (templates/partials/sidebar.html)
+  Grupos con título, entradas en una línea, activa en negro con texto lima
+  (brandbook) y sin animación de entrada: es la misma barra en las seis
+  secciones y no debe «moverse» al cambiar de página.
 =============================================*/
+.sidebar-container {
+  font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 .sidebar-nav {
-  padding: 16px 0;
+  padding: 20px 0 24px;
 }
 
-.nav-section {
-  margin-bottom: 8px;
+.nav-section + .nav-section {
+  margin-top: 20px;
 }
 
-/* ✅ NUEVO: Títulos de sección */
 .nav-section-title {
-  font-size: 0.7rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--sidebar-text);
-  opacity: 0.7;
-  margin-bottom: var(--spacing-xs);
-  padding: 0 16px;
-}
-
-/* ✅ NUEVO: Separador visual entre secciones */
-.nav-section-analysis {
-  border-bottom: 1px solid var(--sidebar-border);
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-}
-
-/* ✅ NUEVO: Enlaces de navegación (Dashboard, Mi Perfil) */
-.nav-item-link {
-  text-decoration: none;
-  color: inherit;
-  border-radius: 8px;
-  width: 100%;
-}
-
-.nav-item-link:hover {
-  text-decoration: none;
-  background: var(--sidebar-hover-bg);
-}
-
-.nav-item-link:focus {
-  outline: 2px solid var(--sidebar-active-bg);
-  outline-offset: 2px;
+  letter-spacing: 0.06em;
+  color: #64748B;           /* 4,8:1 sobre blanco */
+  margin: 0 0 6px;
+  padding: 0 20px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
-  color: var(--sidebar-text);
-  text-decoration: none;
-  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
-  cursor: pointer;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  position: relative;
-  min-height: 44px; /* Altura fija para evitar movimiento */
+  width: calc(100% - 16px);
+  margin: 1px 8px;
+  padding: 8px 12px;
+  min-height: 38px;
   box-sizing: border-box;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--sidebar-text);
+  font-family: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.nav-item:hover:not(.disabled) {
-  background: var(--sidebar-hover-bg);
+.nav-item:hover:not(.disabled):not(.active) {
+  background: #F1F5F9;
   color: var(--sidebar-text-active);
+  text-decoration: none;
 }
 
 .nav-item.active {
@@ -171,113 +155,119 @@
   color: var(--sidebar-active-text);
 }
 
-/* Estilo especial para el botón de descarga Excel */
-.sidebar-download-btn {
-  background: #D8F9B8 !important;
-  color: #161616 !important;
-  border: 1px solid #c5e5a3 !important;
-  border-radius: 25px !important;
-  padding: 12px 12px !important;
-  margin: var(--spacing-sm) var(--spacing-sm) 0 var(--spacing-sm) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-weight: 400;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  width: calc(100% - 32px);
-  box-sizing: border-box;
-}
-
-.sidebar-download-btn:hover {
-  background: #c5e5a3 !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-download-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-download-btn i {
-  color: #161616 !important;
-  font-size: 1rem;
-}
-
-.sidebar-download-btn span {
-  color: #161616 !important;
-}
-
-.sidebar-download-btn .download-spinner {
-  color: #161616 !important;
-}
-
-.sidebar-download-btn.success {
-  background: #4CAF50 !important;
-  color: white !important;
-}
-
-.sidebar-download-btn.success i,
-.sidebar-download-btn.success span {
-  color: white !important;
-}
-
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--sidebar-active-text);
-}
-
 .nav-item.disabled {
-  background: var(--sidebar-disabled-bg);
-  color: var(--sidebar-disabled-text);
+  background: none;
+  color: #94A3B8;
   cursor: not-allowed;
-  opacity: 0.6;
 }
 
-.nav-item.disabled .nav-icon {
-  opacity: 0.4;
-}
+.nav-item.disabled .nav-icon { opacity: 0.6; }
 
 .nav-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   flex-shrink: 0;
 }
 
+.nav-icon .nav-svg { width: 16px; height: 16px; display: block; }
+
 .nav-text {
-  font-size: 0.85rem;
-  font-weight: 500;
   flex: 1;
-  transition: opacity var(--transition-speed) ease;
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Texto siempre visible en sidebar */
+.nav-item.active .nav-text { font-weight: 600; }
 
-.nav-badge {
-  background: #ef4444;
-  color: white;
-  font-size: 0.7rem;
+.nav-item:focus { outline: none; }
+.nav-item:focus-visible {
+  outline: 2px solid var(--sidebar-active-bg);
+  outline-offset: 1px;
+}
+
+/* El botón para abrir el sidebar solo existe en pantallas estrechas */
+.mobile-sidebar-toggle { display: none; }
+.mobile-sidebar-toggle .nav-svg { width: 18px; height: 18px; display: block; }
+
+/*=============================================
+  BARRA DE EXPORTACIÓN (antes en el sidebar)
+  Vive junto a los datos que exporta: /app (arriba del contenido), AI Overview
+  y AI Mode (controles de Analytics) y LLM Monitoring (toolbar del proyecto).
+  Va en esta hoja porque la cargan las seis páginas con sidebar.
+  Los ids y la estructura i + span + .download-spinner los usa el JS de
+  exportación de cada panel (spinner, «Generating PDF...», .success).
+=============================================*/
+.export-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 9999px;
+  background: #FFFFFF;
+  color: #0F172A;
+  font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.8125rem;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  min-width: 18px;
-  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.nav-item.active .nav-badge {
-  background: rgba(255, 255, 255, 0.2);
+.export-btn:hover:not(:disabled) { border-color: #0F172A; }
+.export-btn:focus-visible { outline: 2px solid #0F172A; outline-offset: 2px; }
+.export-btn:disabled { opacity: 0.6; cursor: progress; }
+.export-btn i, .export-btn svg { font-size: 0.875rem; width: 14px; height: 14px; }
+.export-btn .download-spinner { display: inline-flex; }
+
+.export-btn.success {
+  border-color: #3CB371;
+  background: #E8F6EE;
+  color: #287A4C;
+}
+
+/* AI Overview / AI Mode: un control más junto a proyecto y rango de fechas
+   (.analytics-controls alinea abajo; mismo relleno que .time-range-selector
+   y botones de la altura de los selects para que todo quede en una línea) */
+.export-tools-group {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.export-tools-group .export-btn { min-height: 46px; padding: 8px 18px; }
+/* los selects vecinos llevan 24px de margen inferior (base-y-componentes.css) */
+.export-tools-group .export-tools { margin-bottom: 24px; }
+
+/* /app: barra discreta alineada a la derecha sobre el contenido */
+.export-tools-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 24px 0;
+}
+
+.export-tools-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748B;
 }
 
 /*=============================================
@@ -346,6 +336,7 @@
   }
   
   .mobile-sidebar-toggle {
+    display: flex;
     position: fixed;
     top: 70px;
     left: 16px;
@@ -399,37 +390,11 @@
   50% { opacity: 0.5; }
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.nav-item {
-  animation: slideIn 0.3s ease forwards;
-}
-
-.nav-item:nth-child(1) { animation-delay: 0.1s; }
-.nav-item:nth-child(2) { animation-delay: 0.2s; }
-.nav-item:nth-child(3) { animation-delay: 0.3s; }
-.nav-item:nth-child(4) { animation-delay: 0.4s; }
+/* (sin animación de entrada en las entradas del sidebar: ver NAVIGATION ITEMS) */
 
 /*=============================================
   ACCESSIBILITY
 =============================================*/
-.nav-item:focus {
-  outline: 2px solid var(--sidebar-active-bg);
-  outline-offset: -2px;
-}
-
-.nav-item:focus:not(.active) {
-  background: var(--sidebar-hover-bg);
-}
 
 /*=============================================
   SCROLLBAR STYLING
@@ -472,15 +437,4 @@
 .analysis-complete .nav-item.disabled:hover {
   background: var(--sidebar-hover-bg);
   color: var(--sidebar-text-active);
-} 
-/* ── Badge "new" para items del sidebar (azul complementario al Bio-Lime) ── */
-.nav-text .nav-badge-new {
-  font-style: italic;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #3b82f6;
-  margin-left: 4px;
-  letter-spacing: 0.02em;
-  text-transform: lowercase;
-  vertical-align: super;
 }

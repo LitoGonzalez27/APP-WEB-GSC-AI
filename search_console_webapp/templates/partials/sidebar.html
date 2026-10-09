@@ -1,0 +1,135 @@
+{#
+  CLICANDSEO — Sidebar único de la app.
+
+  Antes había seis copias (~110 líneas cada una) en index, AI Overview, AI Mode,
+  LLM Monitoring, AI Visibility Summary y Agent Readiness, y ya no coincidían:
+  etiquetas distintas, una entrada mal rotulada en AI Mode, cuatro formas de
+  navegar y botones en vez de enlaces. Ahora todas incluyen este fichero.
+
+  USO (antes del include, en la plantilla):
+      {% set nav_activo = 'llm' %}
+      {% include 'partials/sidebar.html' %}
+  Valores: gsc (/app) · aio · aimode · llm · summary · agent
+
+  ESTRUCTURA
+  - Search Console: en /app se despliegan sus cinco pasos como botones; los
+    gobierna static/js/sidebar-navigation.js por id (navConfiguration,
+    navPerformance, navKeywords, navPages, navAI y sus status*), así que esos
+    ids y la estructura nav-icon/nav-text/section-status NO se tocan. Fuera de
+    /app es una sola entrada que lleva a /app: los pasos sin un análisis
+    cargado salían siempre en gris.
+  - El resto son enlaces <a> (cmd+clic, copiar enlace) y la sección actual
+    lleva aria-current="page".
+  - Iconos Lucide incrustados como SVG: /app no carga lucide y así se ven
+    iguales en las seis páginas sin depender de ningún script.
+#}
+{% macro nav_icon(n) -%}
+    {%- set paths = {
+        'bot': '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+        'chart-line': '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+        'chart-pie': '<path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>',
+        'eye': '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+        'file-text': '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+        'gauge': '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+        'key-round': '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+        'menu': '<path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/>',
+        'message-square-text': '<path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/>',
+        'scan-text': '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/>',
+        'sliders-horizontal': '<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>',
+        'sparkles': '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>'
+    } -%}
+    <svg class="nav-svg" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ paths[n]|safe }}</svg>
+{%- endmacro %}
+
+{% macro nav_link(key, activo, href, id, icon, label) -%}
+                <a class="nav-item{% if key == activo %} active{% endif %}" id="{{ id }}" href="{{ href }}"{% if key == activo %} aria-current="page"{% endif %}>
+                    <span class="nav-icon">{{ nav_icon(icon) }}</span>
+                    <span class="nav-text">{{ label }}</span>
+                </a>
+{%- endmacro %}
+
+{% macro nav_locked(id, icon, label) -%}
+                <span class="nav-item disabled" id="{{ id }}" aria-disabled="true" title="Inicia sesión para usarlo">
+                    <span class="nav-icon">{{ nav_icon(icon) }}</span>
+                    <span class="nav-text">{{ label }}</span>
+                </span>
+{%- endmacro %}
+
+{% macro gsc_step(section, id, status_id, icon, label, ready=false) -%}
+                <button type="button" class="nav-item nav-step{% if not ready %} disabled{% endif %}{% if ready %} active{% endif %}" id="{{ id }}" data-section="{{ section }}">
+                    <span class="nav-icon">{{ nav_icon(icon) }}</span>
+                    <span class="nav-text">{{ label }}</span>
+                    <span class="section-status"><span class="status-dot {{ 'status-ready' if ready else 'status-disabled' }}" id="{{ status_id }}"></span></span>
+                </button>
+{%- endmacro %}
+
+{% set _activo = nav_activo|default('') %}
+    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
+    <button type="button" class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-controls="sidebarContainer" aria-expanded="false" aria-label="Abrir navegación">{{ nav_icon('menu') }}</button>
+
+    <aside class="sidebar-container" id="sidebarContainer">
+        <nav class="sidebar-nav" aria-label="Navegación principal">
+
+            <div class="nav-section">
+                <div class="nav-section-title">Search Console</div>
+                {% if _activo == 'gsc' %}
+                {{ gsc_step('configuration', 'navConfiguration', 'statusConfiguration', 'sliders-horizontal', 'Configuración', ready=true) }}
+                {{ gsc_step('performance', 'navPerformance', 'statusPerformance', 'gauge', 'Rendimiento') }}
+                {{ gsc_step('keywords', 'navKeywords', 'statusKeywords', 'key-round', 'Keywords') }}
+                {{ gsc_step('pages', 'navPages', 'statusPages', 'file-text', 'Páginas') }}
+                {{ gsc_step('ai-overview', 'navAI', 'statusAI', 'scan-text', 'AI Overview') }}
+                {% else %}
+                {{ nav_link('gsc', _activo, '/app', 'navGSC', 'chart-line', 'Análisis GSC') }}
+                {% endif %}
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Monitorización IA</div>
+                {% if user %}
+                {{ nav_link('aio', _activo, '/manual-ai/', 'navManualAI', 'sparkles', 'AI Overview') }}
+                {{ nav_link('aimode', _activo, '/ai-mode-projects/', 'navAIMode', 'message-square-text', 'AI Mode') }}
+                {{ nav_link('llm', _activo, '/llm-monitoring', 'navLLMMonitoring', 'eye', 'LLM Visibility') }}
+                {% else %}
+                {{ nav_locked('navManualAI', 'sparkles', 'AI Overview') }}
+                {{ nav_locked('navAIMode', 'message-square-text', 'AI Mode') }}
+                {{ nav_locked('navLLMMonitoring', 'eye', 'LLM Visibility') }}
+                {% endif %}
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Informes</div>
+                {% if user %}
+                {{ nav_link('summary', _activo, '/ai-summary/', 'navAISummary', 'chart-pie', 'AI Visibility Summary') }}
+                {% else %}
+                {{ nav_locked('navAISummary', 'chart-pie', 'AI Visibility Summary') }}
+                {% endif %}
+            </div>
+
+            {#- Misma regla que protege /agent (agent_scanner/access.py) -#}
+            {% if agent_readiness_access is defined and agent_readiness_access(user) %}
+            <div class="nav-section">
+                <div class="nav-section-title">Auditoría</div>
+                {{ nav_link('agent', _activo, '/agent/', 'navAgentScanner', 'bot', 'Agent Readiness') }}
+            </div>
+            {% endif %}
+        </nav>
+    </aside>
+{% if _activo != 'gsc' %}
+    {#- En /app el botón móvil lo gobierna sidebar-navigation.js -#}
+    <script>
+    (function () {
+        var sb = document.getElementById('sidebarContainer');
+        var ov = document.getElementById('sidebarMobileOverlay');
+        var bt = document.getElementById('mobileSidebarToggle');
+        if (!sb || !bt) return;
+        function set(open) {
+            sb.classList.toggle('mobile-open', open);
+            if (ov) ov.classList.toggle('active', open);
+            bt.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        bt.addEventListener('click', function () { set(!sb.classList.contains('mobile-open')); });
+        if (ov) ov.addEventListener('click', function () { set(false); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') set(false); });
+    })();
+    </script>
+{% endif %}

@@ -144,121 +144,10 @@
         <div class="navbar-overlay" id="navbarOverlay"></div>
     </nav>
 
-    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
 
     <div class="app-layout">
-        <aside class="sidebar-container" id="sidebarContainer">
-            <div class="sidebar-header">
-            </div>
-
-            <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
-                <div class="nav-section nav-section-analysis">
-                    <div class="nav-section-title">Análisis</div>
-                    <button type="button" class="nav-item" id="navConfiguration" onclick="navigateToConfiguration()">
-                        <div class="nav-icon">
-                            <i class="fas fa-cog"></i>
-                        </div>
-                        <div class="nav-text">Configuration</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusConfiguration"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navPerformance" onclick="navigateToSection('performance')">
-                        <div class="nav-icon">
-                            <i class="fas fa-tachometer-alt"></i>
-                        </div>
-                        <div class="nav-text">Overview</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusPerformance"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navKeywords" onclick="navigateToSection('keywords')">
-                        <div class="nav-icon">
-                            <i class="fas fa-key"></i>
-                        </div>
-                        <div class="nav-text">Keywords</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusKeywords"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navPages" onclick="navigateToSection('pages')">
-                        <div class="nav-icon">
-                            <i class="fas fa-file-alt"></i>
-                        </div>
-                        <div class="nav-text">Pages</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusPages"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navAI" onclick="navigateToSection('ai-overview')">
-                        <div class="nav-icon">
-                            <i class="fas fa-robot"></i>
-                        </div>
-                        <div class="nav-text">AI Overview</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusAI"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
-                        <div class="nav-icon">
-                            <i class="fas fa-cogs"></i>
-                        </div>
-                        <div class="nav-text">AI Overview Monitoring</div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusManualAI"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
-                        <div class="nav-icon">
-                            <i class="fas fa-brain"></i>
-                        </div>
-                        <div class="nav-text">AI Mode Monitoring</div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusAIMode"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item" id="navLLMMonitoring" onclick="openLLMMonitoring()">
-                        <div class="nav-icon">
-                            <i class="fas fa-eye"></i>
-                        </div>
-                        <div class="nav-text">LLM Visibility Monitor</div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusLLMMonitoring"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item" id="navAISummary" onclick="window.location.href='/ai-summary/'">
-                        <div class="nav-icon">
-                            <i class="fas fa-chart-pie"></i>
-                        </div>
-                        <div class="nav-text">AI Visibility Summary <span class="nav-badge-new">new</span></div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusAISummary"></div>
-                        </div>
-                    </button>
-                    <button type="button" class="nav-item active" id="navAgentScanner" aria-current="page">
-                        <div class="nav-icon">
-                            <i class="fas fa-robot"></i>
-                        </div>
-                        <div class="nav-text">Agent Readiness</div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusAgentScanner"></div>
-                        </div>
-                    </button>
-                </div>
-
-                <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
-                    <div class="nav-section-title">Herramientas</div>
-                </div>
-            </nav>
-        </aside>
+        {% set nav_activo = 'agent' %}
+        {% include 'partials/sidebar.html' %}
 
         <main class="main-content-area">
         <div class="manual-ai-app ag-app" id="agApp" data-initial-tab="{{ initial_tab or 'nuevo' }}" data-is-admin="{{ 'true' if is_admin else 'false' }}">
@@ -567,52 +456,8 @@
             role: '{{ user.role }}'
         };
 
-        // Navegación del sidebar: mismo comportamiento que el resto de paneles
-        function navigateToConfiguration() {
-            window.location.href = '/app';
-        }
-
-        function navigateToSection(section) {
-            const hasAnalysisData = sessionStorage.getItem('analysisData') || localStorage.getItem('lastAnalysisData');
-            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
-            if (hasAnalysisData || navigationState.hasAnalysisData) {
-                window.location.href = `/app#${section}`;
-            } else {
-                alert('No hay datos de análisis disponibles. Ejecuta un análisis primero desde Configuration.');
-            }
-        }
-
-        function checkAnalysisState() {
-            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
-            const hasAnalysisData = sessionStorage.getItem('analysisData')
-                || localStorage.getItem('lastAnalysisData')
-                || navigationState.hasAnalysisData;
-            if (hasAnalysisData || navigationState.source === 'main-app') {
-                const statusConfig = document.getElementById('statusConfiguration');
-                const navConfig = document.getElementById('navConfiguration');
-                if (statusConfig && navConfig) {
-                    statusConfig.className = 'status-dot status-ready';
-                    navConfig.classList.remove('disabled');
-                }
-                if (hasAnalysisData) {
-                    ['Performance', 'Keywords', 'Pages', 'AI'].forEach(section => {
-                        const statusElement = document.getElementById(`status${section}`);
-                        const navElement = document.getElementById(`nav${section}`);
-                        if (statusElement && navElement) {
-                            statusElement.className = 'status-dot status-ready';
-                            navElement.classList.remove('disabled');
-                        }
-                    });
-                }
-            }
-        }
-
-        function openManualAI() { window.location.href = '/manual-ai/'; }
-        function openAIMode() { window.location.href = '/ai-mode-projects/'; }
-        function openLLMMonitoring() { window.location.href = '/llm-monitoring'; }
-
-        // navbar.js crea window.navbar por su cuenta en DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', checkAnalysisState);
+        // La navegación es partials/sidebar.html (enlaces); navbar.js crea
+        // window.navbar por su cuenta en DOMContentLoaded
     </script>
     <!-- Banner de invitaciones pendientes (compartido) -->
     <script src="{{ url_for('static', filename='js/html-escape.js') }}?v={{ ASSET_V }}"></script>
