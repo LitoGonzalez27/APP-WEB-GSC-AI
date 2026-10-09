@@ -477,53 +477,159 @@
         svg.innerHTML = s;
     }
 
-    /* Pantalla de espera didáctica: mientras el análisis corre, se repasan las
-       siete categorías con sus factores. Rota sola y se puede pinchar. */
-    let LEARN_TIMER = null, LEARN_IDX = 0, CATALOG = null;
+    /* «Mientras esperas» sigue al análisis en directo. El motor no dice en qué
+       factor está, pero cada paso escribe una línea fija en el registro
+       (engine.py: "robots.txt…", "sitemap…", "render de la home…"). Cada línea
+       se asocia aquí a los factores que alimenta: así la tarjeta salta sola a
+       la categoría en curso y marca qué factores ya están revisados. Es una
+       aproximación honesta: un factor se da por revisado cuando su paso ya
+       terminó (empezó el siguiente), no antes. */
+    const LIVE_STEPS = [
+        { re: /robots\.txt/i, ids: ['1.1', '1.2', '2.1'] },
+        { re: /sitemap/i, ids: ['1.4'] },
+        { re: /(^|:\s*)home…/i, ids: ['1.5', '1.8', '3.2', '3.5', '5.1'] },
+        { re: /matriz de acceso|acceso real/i, ids: ['1.3', '2.2'] },
+        { re: /superficie agéntica/i, ids: ['6.1', '2.3', '4.5', '5.5'] },
+        { re: /muestreo/i, ids: ['1.6', '3.1', '3.3', '3.4', '3.6', '4.3', '4.4', '5.2', '5.3', '5.8', '6.2', '7.5', '7.6'] },
+        { re: /fichas de producto/i, ids: ['7.1', '7.2', '7.3'] },
+        { re: /render de la home|render JS/i, ids: ['4.1', '4.2', '4.6'] },
+        { re: /zonas de clic/i, ids: ['4.7'] },
+        { re: /área de acceso/i, ids: ['6.4'] },
+        { re: /estados de error|soft-404/i, ids: ['4.8', '4.9'] },
+        { re: /markdown|dns-aid/i, ids: ['5.6', '1.7'] },
+        { re: /wikidata|páginas de confianza/i, ids: ['3.7', '5.7'] },
+        { re: /pruebas agénticas/i, ids: ['6.3'] },
+        { re: /rate limiting/i, ids: ['2.4'] }
+    ];
+    const CAT_KEYS = Object.keys(CATS);
+    const catOfId = id => 'C' + String(id).split('.')[0];
+    let CATALOG = null, LEARN_IDX = 0, LEARN_MANUAL_UNTIL = 0, LOG_OPEN = false;
+    let LIVE = { domain: -1, done: new Set(), current: [], step: '', host: '' };
+
+    function resetLive() { LIVE = { domain: -1, done: new Set(), current: [], step: '', host: '' }; }
+
+    function updateLive(s) {
+        const domains = s.domains || [];
+        let idx = domains.findIndex(d => d.state === 'running');
+        if (idx < 0) idx = domains.length - 1;
+        if (idx !== LIVE.domain) { LIVE = { domain: idx, done: new Set(), current: [], step: '', host: (domains[idx] || {}).host || '' }; }
+        if ((domains[idx] || {}).state === 'done') {
+            Object.values(CATALOG || {}).forEach(fs => fs.forEach(f => { if (f.id !== '6.3') LIVE.done.add(f.id); }));
+            LIVE.current = []; LIVE.step = '';
+            return;
+        }
+        const log = s.log || [];
+        // solo las líneas del dominio en curso: empiezan en su "robots.txt…"
+        let start = 0;
+        for (let k = log.length - 1; k >= 0; k--) { if (/(^|:\s*)robots\.txt/i.test(log[k])) { start = k; break; } }
+        const seen = [];
+        log.slice(start).forEach(line => {
+            const st = LIVE_STEPS.find(r => r.re.test(line));
+            if (st && seen[seen.length - 1] !== st) seen.push(st);
+        });
+        if (!seen.length) return;
+        seen.slice(0, -1).forEach(st => st.ids.forEach(id => LIVE.done.add(id)));
+        const cur = seen[seen.length - 1];
+        LIVE.current = cur.ids.filter(id => !LIVE.done.has(id));
+        LIVE.step = (log.slice(start).reverse().find(l => cur.re.test(l)) || '').replace(/^[^:]*:\s*(?=\S)/, m => (m.includes('.') ? '' : m)).replace(/…$/, '');
+    }
+
+    function catState(k) {
+        const fs = (CATALOG && CATALOG[k]) || [];
+        if (!fs.length) return 'pending';
+        if (fs.some(f => LIVE.current.includes(f.id))) return 'current';
+        if (fs.every(f => LIVE.done.has(f.id) || f.id === '6.3')) return LIVE.done.size ? 'done' : 'pending';
+        return fs.some(f => LIVE.done.has(f.id)) ? 'partial' : 'pending';
+    }
+
     function renderLearn(i) {
         LEARN_IDX = i;
-        const k = Object.keys(CATS)[i];
+        const k = CAT_KEYS[i];
         $$('#agLearnDots button').forEach((b, j) => {
-            b.classList.toggle('is-active', j === i);
+            const st = catState(CAT_KEYS[j]);
+            b.className = 'is-' + st + (j === i ? ' is-active' : '');
             b.setAttribute('aria-pressed', j === i ? 'true' : 'false');
+            b.setAttribute('aria-label', `${CATS[CAT_KEYS[j]]}: ${{ done: 'revisada', current: 'en curso', partial: 'en parte', pending: 'pendiente' }[st]}`);
         });
         const facs = (CATALOG && CATALOG[k]) || [];
+        const total = Object.values(CATALOG || {}).reduce((n, fs) => n + fs.length, 0);
+        const hechos = LIVE.done.size;
+        $('#agLearnStatus').innerHTML = total
+            ? `<div class="ag-learn-progress"><span>${LIVE.host ? `Revisando <b>${esc(LIVE.host)}</b>` : 'Preparando la revisión'}</span><span><b>${Math.min(hechos, total)}</b> de ${total} factores</span></div>
+               <div class="ag-bar ag-bar-sm"><i style="width:${Math.min(100, Math.round(hechos / total * 100))}%"></i></div>
+               ${LIVE.step ? `<p class="ag-learn-now">${ic('loader-circle', 'ag-spin')} Ahora: ${esc(LIVE.step)}</p>` : ''}`
+            : '';
+        const fstate = f => LIVE.done.has(f.id) ? 'done' : LIVE.current.includes(f.id) ? 'current' : 'pending';
+        const ficon = { done: ic('check'), current: ic('loader-circle', 'ag-spin'), pending: ic('circle-dashed') };
         $('#agLearnBody').innerHTML = `
             <div>
                 <h3>${esc(CATS[k])}</h3>
                 <p class="ag-learn-meta">Categoría ${i + 1} de 7 · ${k}</p>
                 <p>${esc(CAT_DESC[k])}</p>
             </div>
-            <ul class="ag-learn-checks">${facs.slice(0, 6).map(f => `<li><span>${esc(f.id)}</span>${esc(f.nombre)}</li>`).join('')
-            || '<li>Cargando factores…</li>'}</ul>`;
-        // reinicia la animación de entrada
-        const body = $('#agLearnBody');
-        body.style.animation = 'none';
-        void body.offsetWidth;
-        body.style.animation = '';
+            <ul class="ag-learn-checks">${facs.map(f => {
+                const st = fstate(f);
+                return `<li class="is-${st}"><span class="ag-learn-ic">${ficon[st]}</span><span class="ag-learn-name">${esc(f.nombre)}</span><span class="ag-sr">${{ done: ' (revisado)', current: ' (en curso)', pending: ' (pendiente)' }[st]}</span></li>`;
+            }).join('') || '<li>Cargando factores…</li>'}</ul>`;
+        refreshIcons();
     }
+
+    /* Tras cada sondeo: la tarjeta salta sola a la categoría en curso, salvo
+       que el usuario acabe de elegir otra (se respeta 20 s). */
+    function syncLearn(s) {
+        if (!CATALOG) return;
+        updateLive(s);
+        const cur = CAT_KEYS.findIndex(k => catState(k) === 'current');
+        const target = Date.now() < LEARN_MANUAL_UNTIL || cur < 0 ? LEARN_IDX : cur;
+        const prev = LEARN_IDX;
+        renderLearn(target);
+        if (target !== prev) {
+            const body = $('#agLearnBody');
+            body.style.animation = 'none'; void body.offsetWidth; body.style.animation = '';
+        }
+    }
+
     function startLearn() {
-        $('#agLearnDots').innerHTML = Object.keys(CATS).map((k, i) =>
+        resetLive();
+        LEARN_MANUAL_UNTIL = 0;
+        $('#agLearnDots').innerHTML = CAT_KEYS.map((k, i) =>
             `<button type="button" data-learn="${i}" aria-label="${esc(CATS[k])}" aria-pressed="false">${k}</button>`).join('');
-        if (!CATALOG) {
-            CATALOG_P.then(d => {
+        CATALOG_P.then(d => {
+            if (!CATALOG) {
                 CATALOG = {};
                 (d.categorias || []).forEach(g => { CATALOG[g.categoria] = g.factores; });
-                renderLearn(LEARN_IDX);
-            });
-        }
+            }
+            renderLearn(LEARN_IDX);
+        });
         renderLearn(0);
-        stopLearn();
-        LEARN_TIMER = setInterval(() => renderLearn((LEARN_IDX + 1) % 7), 9000);
     }
-    function stopLearn() { if (LEARN_TIMER) { clearInterval(LEARN_TIMER); LEARN_TIMER = null; } }
+    function stopLearn() { /* la tarjeta ya no rota sola: sigue al análisis */ }
     document.addEventListener('click', e => {
         const b = e.target.closest('[data-learn]');
-        if (!b) return;
-        renderLearn(parseInt(b.dataset.learn, 10));
-        stopLearn();
-        LEARN_TIMER = setInterval(() => renderLearn((LEARN_IDX + 1) % 7), 9000);
+        if (b) {
+            LEARN_MANUAL_UNTIL = Date.now() + 20000;
+            renderLearn(parseInt(b.dataset.learn, 10));
+            return;
+        }
+        const t = e.target.closest('#agLogToggle');
+        if (t) {
+            LOG_OPEN = !LOG_OPEN;
+            t.setAttribute('aria-expanded', String(LOG_OPEN));
+            t.querySelector('span').textContent = LOG_OPEN ? 'Ver solo lo último' : 'Ver registro completo';
+            $('#agConsole').classList.toggle('is-open', LOG_OPEN);
+            renderConsole(LAST_LOG);
+        }
     });
+
+    // Registro: por defecto las últimas líneas; completo bajo demanda
+    let LAST_LOG = [];
+    function renderConsole(lines) {
+        LAST_LOG = lines || [];
+        const con = $('#agConsole');
+        const vis = LOG_OPEN ? LAST_LOG : LAST_LOG.slice(-5);
+        con.innerHTML = vis.map(l => `<div>${esc(l)}</div>`).join('');
+        con.scrollTop = con.scrollHeight;
+    }
 
     function startRunning(id, urls) {
         ANALISIS_EN_CURSO = id;
@@ -532,7 +638,8 @@
         $('#agPhase').textContent = 'Preparando análisis…';
         $('#agElapsed').textContent = '0:00';
         $('#agRunDomains').innerHTML = '';
-        $('#agConsole').innerHTML = '';
+        LOG_OPEN = false;
+        renderConsole([]);
         drawRadar();
         startLearn();
         show('#agRunning');
@@ -582,9 +689,8 @@
             const m = Math.floor(s.elapsed / 60), sec = String(s.elapsed % 60).padStart(2, '0');
             $('#agElapsed').textContent = `${m}:${sec}`;
             renderRunDomains(s.domains);
-            const con = $('#agConsole');
-            con.innerHTML = (s.log || []).map(l => `<div>${esc(l)}</div>`).join('');
-            con.scrollTop = con.scrollHeight;
+            renderConsole(s.log || []);
+            syncLearn(s);
             refreshIcons();
             if (s.status === 'done') {
                 ANALISIS_EN_CURSO = null; stopLearn();
