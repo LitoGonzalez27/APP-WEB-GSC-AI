@@ -61,7 +61,7 @@ def ensure_table():
         return True
     except Exception as exc:
         DISPONIBLE = False
-        logger.warning(f"agent_scanner_reports: no se pudo crear la tabla: {exc}")
+        logger.warning(f"agent_scanner_reports: could not create the table: {exc}")
         return False
 
 
@@ -93,7 +93,7 @@ def guardar(job_id, data, user_email=None):
             conn.commit()
         return True
     except Exception as exc:
-        logger.warning(f"agent_scanner_reports: fallo al guardar {job_id}: {exc}")
+        logger.warning(f"agent_scanner_reports: failed to save {job_id}: {exc}")
         return False
 
 
@@ -120,7 +120,7 @@ def cargar(job_id):
             data["generated"] = creado.isoformat() if hasattr(creado, "isoformat") else str(creado)
         return data
     except Exception as exc:
-        logger.warning(f"agent_scanner_reports: fallo al cargar {job_id}: {exc}")
+        logger.warning(f"agent_scanner_reports: failed to load {job_id}: {exc}")
         return None
 
 
@@ -152,7 +152,7 @@ def historial(user_email=None, limite=30):
                         "fecha": v[7].isoformat() if v[7] else None})
         return out
     except Exception as exc:
-        logger.warning(f"agent_scanner_reports: fallo al listar historial: {exc}")
+        logger.warning(f"agent_scanner_reports: failed to list history: {exc}")
         return []
 
 
@@ -172,5 +172,5 @@ def borrar(job_id, user_email=None):
             conn.commit()
         return borradas > 0
     except Exception as exc:
-        logger.warning(f"agent_scanner_reports: fallo al borrar {job_id}: {exc}")
+        logger.warning(f"agent_scanner_reports: failed to delete {job_id}: {exc}")
         return False

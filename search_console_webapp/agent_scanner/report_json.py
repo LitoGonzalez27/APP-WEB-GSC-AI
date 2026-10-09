@@ -13,9 +13,9 @@ Así se puede pegar en un prompt y pedir "hazme un plan", "compara", "prioriza".
 # del catálogo de factores. Tenerlos duplicados en tres módulos era pedir
 # que se desincronizaran al renombrar una categoría.
 from .catalog import CATEGORIES as CAT_NAMES
-STAGES = [("leer", "¿Te leen?", ["C1", "C2"]),
-          ("entender", "¿Te entienden?", ["C3", "C4", "C5"]),
-          ("usar", "¿Pueden usarte?", ["C6", "C7"])]
+STAGES = [("leer", "Can they read you?", ["C1", "C2"]),
+          ("entender", "Do they understand you?", ["C3", "C4", "C5"]),
+          ("usar", "Can they use you?", ["C6", "C7"])]
 
 
 def _estado(score, manual=False):
@@ -38,10 +38,10 @@ def _bloque_llms(a):
     at = a.get("agent_tests")
     if not at:
         return {"ejecutada": False,
-                "como_ejecutarla": "Pulsa «Simular agentes» en el informe (10-15 min).",
-                "por_que_importa": ("La verificación de factores dice si tienes las "
-                                    "piezas puestas; esta prueba dice si un agente "
-                                    "real consigue completar la tarea.")}
+                "como_ejecutarla": "Click «Simulate agents» in the report (10-15 min).",
+                "por_que_importa": ("The factor check tells you whether you have the "
+                                    "pieces in place; this test tells you whether a real "
+                                    "agent manages to complete the task.")}
     agentes = at.get("agents") or {}
     medidos = {k: v for k, v in agentes.items()
                if v.get("outcome") not in ("no_disponible", "no_verificable", None)}
@@ -62,17 +62,17 @@ def _bloque_llms(a):
                 "detalle": v.get("detail")}
             for k, v in agentes.items()},
         "sin_evidencia_por_bloqueo": ciegos,
-        "lectura": ("Ningún modelo pudo ver la web: esta capa no aporta evidencia "
-                    "ni a favor ni en contra." if not medidos else
-                    "Compara este resultado con la nota de factores: una web puede "
-                    "tener las piezas puestas y aun así atascar al agente."),
+        "lectura": ("No model could see the site: this layer provides no evidence "
+                    "either for or against." if not medidos else
+                    "Compare this result with the factor score: a site can "
+                    "have the pieces in place and still get the agent stuck."),
         "envio_de_formularios_reales": at.get("envios_reales", 0),
     }
 
 
 def _domain_block(a):
     if not a or "error" in (a or {}):
-        return {"error": (a or {}).get("error", "sin datos"), "domain": (a or {}).get("domain")}
+        return {"error": (a or {}).get("error", "no data"), "domain": (a or {}).get("domain")}
     cats = a.get("category_scores") or {}
     checks = []
     for c in a.get("checks") or []:
@@ -116,14 +116,14 @@ def _domain_block(a):
         # bloqueo desde nuestra red no es un veredicto sobre la web auditada.
         if parcial:
             aviso = ((a.get("level") or {}).get("msg")
-                     or "No evaluable desde nuestra red: la nota cubre solo lo verificado")
+                     or "Not assessable from our network: the score covers only what was verified")
         elif not fiable:
-            aviso = ("Lectura limitada: parte del contenido no fue observable desde "
-                     "nuestra red. Los factores afectados figuran como «no verificable», "
-                     "no como fallo. La nota cubre lo que sí se pudo comprobar")
+            aviso = ("Limited read: part of the content couldn't be observed from "
+                     "our network. The affected factors are listed as «not verifiable», "
+                     "not as failures. The score covers what could be checked")
         else:
-            aviso = ("Puntuación utilizable, con matiz: algunas sondas fueron "
-                     "bloqueadas y esas ausencias concretas no son afirmables")
+            aviso = ("Usable score, with a caveat: some probes were "
+                     "blocked, so those specific absences can't be asserted")
         fiabilidad.update({
             "aviso": aviso,
             "nivel_degradacion": deg.get("nivel"),
@@ -131,9 +131,9 @@ def _domain_block(a):
             "factores_degradados_a_no_verificable": deg.get("degradados"),
             "http_acceso_humano": deg.get("human_status"),
             "via_de_lectura": deg.get("via"),
-            "que_hacer": ("Repetir el análisis más tarde o desde otra red."
+            "que_hacer": ("Run the analysis again later or from another network."
                           if not fiable else
-                          "Los factores marcados 'no verificable' requieren revisión manual."),
+                          "Factors marked 'not verifiable' need manual review."),
         })
 
     return {
@@ -192,42 +192,43 @@ def build_json(data):
     comps = data.get("competitors") or []
     out = {
         "_meta": {
-            "informe": "Agent Readiness — auditoría de preparación de una web para la era agéntica",
+            "informe": "Agent Readiness — an audit of how ready a website is for the agentic era",
             "generado_por": "Clicandseo · Agent-Ready Scanner",
             "generado_en": data.get("generated"),
             "framework": data.get("framework_version"),
             "como_leer_esto": {
-                "puntuacion": "0-100. 0-25 invisible para agentes · 26-50 legible pero no operable · "
+                "puntuacion": "0-100. 0-25 invisible to agents · 26-50 readable but not operable · "
                               "51-75 agent-aware · 76-100 agent-ready.",
-                "checks": "Cada check tiene estado (cumple/parcial/falla/no_aplica_o_no_medido), "
-                          "evidencia bruta y, si no se cumple, un bloque 'accion' con por qué "
-                          "importa y cómo se arregla.",
-                "categorias": "C1 acceso · C2 control de bots · C3 datos estructurados · "
-                              "C4 renderizado · C5 contenido para LLMs · C6 capacidades/acciones · "
-                              "C7 comercio agéntico.",
-                "viaje_del_agente": "Continuum leer → entender → usar. La cadena se rompe en el "
-                                    "eslabón más débil.",
-                "trazabilidad_procesos": "Qué procesos corrieron y con qué evidencia. status ok/warn/"
-                                         "fail/skipped. Un 404 del sitio es un hallazgo, no un fallo "
-                                         "del análisis.",
-                "fiabilidad": "Cada dominio lleva un bloque 'fiabilidad'. Si "
-                              "'puntuacion_fiable' es false, el sitio bloqueó nuestro acceso: "
-                              "NO uses su puntuación ni lo compares contra otros. Los factores "
-                              "no comprobables figuran como 'no_aplica_o_no_medido', no como fallo.",
+                "checks": "Each check has a status (cumple = passes / parcial = partial / falla = fails / "
+                          "no_aplica_o_no_medido = not applicable or not measured), raw evidence "
+                          "and, if it doesn't pass, an 'accion' block with why it matters and "
+                          "how to fix it.",
+                "categorias": "C1 access · C2 bot control · C3 structured data · "
+                              "C4 rendering · C5 content for LLMs · C6 capabilities/actions · "
+                              "C7 agentic commerce.",
+                "viaje_del_agente": "Continuum read → understand → use. The chain breaks at its "
+                                    "weakest link.",
+                "trazabilidad_procesos": "Which processes ran and with what evidence. status ok/warn/"
+                                         "fail/skipped. A 404 from the site is a finding, not a failure "
+                                         "of the analysis.",
+                "fiabilidad": "Each domain has a 'fiabilidad' (reliability) block. If "
+                              "'puntuacion_fiable' is false, the site blocked our access: "
+                              "do NOT use its score or compare it against others. Factors that "
+                              "couldn't be checked are listed as 'no_aplica_o_no_medido', not as failures.",
                 "dos_capas": {
-                    "1_verificacion_de_factores": "Comprobación objetiva de qué tiene "
-                        "la web y si está bien puesto (robots, llms.txt, datos "
-                        "estructurados, formularios…). De aquí sale la puntuación.",
-                    "2_prueba_con_llms": "Se sueltan modelos reales a completar una "
-                        "tarea en la web y se mide qué consiguen. Va en "
-                        "'prueba_con_llms' de cada dominio. Es evidencia empírica, "
-                        "no una comprobación de ficheros: léelas por separado.",
+                    "1_verificacion_de_factores": "Objective check of what the site "
+                        "has and whether it's set up correctly (robots, llms.txt, structured "
+                        "data, forms…). This is where the score comes from.",
+                    "2_prueba_con_llms": "Real models are set loose to complete a "
+                        "task on the site and we measure what they achieve. It's in "
+                        "each domain's 'prueba_con_llms'. It's empirical evidence, "
+                        "not a file check: read the two layers separately.",
                 },
                 "sugerencias_de_uso_con_ia": [
-                    "Genera un plan de implementación priorizado por impacto/esfuerzo a partir de 'hallazgos_accionables'.",
-                    "Redacta tickets técnicos usando 'accion.como_se_arregla' y 'evidencia' de cada check.",
-                    "Compara 'cliente' contra 'competidores' categoría a categoría y explica las brechas.",
-                    "Estima el score alcanzable si se resuelven solo los hallazgos de esfuerzo Bajo.",
+                    "Build an implementation plan prioritized by impact/effort from 'hallazgos_accionables'.",
+                    "Write technical tickets using each check's 'accion.como_se_arregla' and 'evidencia'.",
+                    "Compare 'cliente' against 'competidores' category by category and explain the gaps.",
+                    "Estimate the achievable score if only the Low-effort findings are fixed.",
                 ],
             },
         },
@@ -270,12 +271,12 @@ def build_json(data):
         if excluidos:
             out["comparativa"]["excluidos_por_fiabilidad"] = {
                 "hosts": excluidos,
-                "motivo": ("Estos dominios bloquearon el análisis: su puntuación no es "
-                           "comparable y se han dejado fuera para no fabricar brechas falsas."),
+                "motivo": ("These domains blocked the analysis: their score isn't "
+                           "comparable and they've been left out to avoid fabricating false gaps."),
             }
     elif excluidos:
         out["comparativa_no_disponible"] = {
-            "motivo": ("No hay suficientes dominios con puntuación fiable para comparar. "
-                       f"Excluidos por bloqueo de acceso: {', '.join(h for h in excluidos if h)}."),
+            "motivo": ("There aren't enough domains with a reliable score to compare. "
+                       f"Excluded because access was blocked: {', '.join(h for h in excluidos if h)}."),
         }
     return out

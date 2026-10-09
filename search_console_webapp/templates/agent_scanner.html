@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,14 +58,14 @@
                                 {% endif %}
                             </div>
                             <div class="user-details">
-                                <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
+                                <div class="user-name-large" id="userNameLarge">{{ user.name or 'User' }}</div>
                                 <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
                             </div>
                         </div>
                         <div class="dropdown-divider"></div>
                         <a href="/profile" class="dropdown-item">
                             <i class="fas fa-user-circle"></i>
-                            <span>Mi Perfil</span>
+                            <span>My Profile</span>
                         </a>
                         <a href="/dashboard" class="dropdown-item">
                             <i class="fas fa-home"></i>
@@ -74,12 +74,12 @@
                         <div class="dropdown-divider"></div>
                         <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
                             <i class="fas fa-moon" id="dropdownThemeIcon"></i>
-                            <span id="dropdownThemeText">Modo Oscuro</span>
+                            <span id="dropdownThemeText">Dark Mode</span>
                         </button>
                         <div class="dropdown-divider" style="display: none;"></div>
                         <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
                             <i class="fas fa-sign-out-alt"></i>
-                            <span>Cerrar Sesión</span>
+                            <span>Log Out</span>
                         </button>
                     </div>
                 </div>
@@ -87,16 +87,16 @@
                 <div class="auth-buttons" id="authButtons" style="display: none;">
                     <button type="button" class="btn-auth btn-login" id="loginBtn">
                         <i class="fas fa-sign-in-alt"></i>
-                        <span>Iniciar Sesión</span>
+                        <span>Log In</span>
                     </button>
 
-                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar a modo oscuro" style="display: none;">
+                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Switch to dark mode" style="display: none;">
                         <i class="fas fa-moon" id="themeIcon"></i>
                     </button>
                 </div>
             </div>
 
-            <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Open navigation menu" aria-expanded="false">
                 <span class="hamburger-line"></span>
                 <span class="hamburger-line"></span>
                 <span class="hamburger-line"></span>
@@ -129,12 +129,12 @@
                     <div class="mobile-auth-section">
                         <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn" style="display: none;">
                             <i class="fas fa-sign-in-alt"></i>
-                            <span>Iniciar Sesión con Google</span>
+                            <span>Log In with Google</span>
                         </button>
 
                         <button type="button" class="mobile-btn mobile-btn-logout" id="mobileLogoutBtn" style="display: flex;">
                             <i class="fas fa-sign-out-alt"></i>
-                            <span>Cerrar Sesión</span>
+                            <span>Log Out</span>
                         </button>
                     </div>
                 </div>
@@ -163,7 +163,7 @@
                     <div class="header-content">
                         <div class="header-left">
                             <h1>Agent Readiness</h1>
-                            <p class="header-subtitle">Comprueba si los agentes de IA pueden leer, entender y usar una web, y compárala con tu competencia</p>
+                            <p class="header-subtitle">Check whether AI agents can read, understand and use a website, and compare it with your competitors</p>
                         </div>
                         <div class="header-right"></div>
                     </div>
@@ -173,16 +173,16 @@
                     <div class="nav-tabs" role="tablist">
                         <button type="button" class="nav-tab active" data-ag-tab="nuevo" role="tab" aria-selected="true">
                             <i data-lucide="scan-search"></i>
-                            Nuevo análisis
+                            New analysis
                         </button>
                         <button type="button" class="nav-tab" data-ag-tab="informes" role="tab">
                             <i data-lucide="folder-open"></i>
-                            Informes <span class="ag-tab-count" id="agHistCount"></span>
+                            Reports <span class="ag-tab-count" id="agHistCount"></span>
                         </button>
                         {% if is_admin %}
                         <button type="button" class="nav-tab" data-ag-tab="accesos" role="tab">
                             <i data-lucide="user-cog"></i>
-                            Accesos
+                            Access
                         </button>
                         {% endif %}
                     </div>
@@ -194,31 +194,31 @@
                     <section class="tab-content active" id="agTab-nuevo">
                         <div class="projects-header ag-section-head">
                             <div>
-                                <h2>Nuevo análisis</h2>
-                                <p class="ag-help">Introduce tu dominio y hasta dos competidores. Medimos con la misma vara si los sistemas de IA pueden <b>leer</b>, <b>entender</b> y <b>actuar</b> en cada web.</p>
+                                <h2>New analysis</h2>
+                                <p class="ag-help">Enter your domain and up to two competitors. We use the same yardstick to measure whether AI systems can <b>read</b>, <b>understand</b> and <b>act</b> on each site.</p>
                             </div>
                         </div>
 
                         <div class="ag-setup">
                             <div class="ag-setup-main">
                                 <div class="ag-card">
-                                    <h3 class="ag-card-title">Dominios</h3>
+                                    <h3 class="ag-card-title">Domains</h3>
                                     <div class="ag-field">
-                                        <label class="ag-label" for="agU0"><span class="ag-label-hl">Tu proyecto</span> *</label>
-                                        <input type="url" id="agU0" placeholder="https://tucliente.com" autocomplete="off" spellcheck="false">
+                                        <label class="ag-label" for="agU0"><span class="ag-label-hl">Your project</span> *</label>
+                                        <input type="url" id="agU0" placeholder="https://yourclient.com" autocomplete="off" spellcheck="false">
                                     </div>
                                     <div class="ag-field-row">
                                         <div class="ag-field">
-                                            <label class="ag-label" for="agU1"><span class="ag-label-hl">Competidor 1</span> <span class="ag-optional">opcional</span></label>
-                                            <input type="url" id="agU1" placeholder="https://competidor1.com" autocomplete="off" spellcheck="false">
+                                            <label class="ag-label" for="agU1"><span class="ag-label-hl">Competitor 1</span> <span class="ag-optional">optional</span></label>
+                                            <input type="url" id="agU1" placeholder="https://competitor1.com" autocomplete="off" spellcheck="false">
                                         </div>
                                         <div class="ag-field">
-                                            <label class="ag-label" for="agU2"><span class="ag-label-hl">Competidor 2</span> <span class="ag-optional">opcional</span></label>
-                                            <input type="url" id="agU2" placeholder="https://competidor2.com" autocomplete="off" spellcheck="false">
+                                            <label class="ag-label" for="agU2"><span class="ag-label-hl">Competitor 2</span> <span class="ag-optional">optional</span></label>
+                                            <input type="url" id="agU2" placeholder="https://competitor2.com" autocomplete="off" spellcheck="false">
                                         </div>
                                     </div>
                                     <button type="button" class="btn-primary ag-go" id="agGo">
-                                        Comprobar viabilidad agéntica
+                                        Check agent readiness
                                         <i data-lucide="arrow-right"></i>
                                     </button>
                                     <p class="ag-error" id="agErr" role="alert"></p>
@@ -226,74 +226,74 @@
 
                                 <div class="ag-card">
                                     <div class="ag-card-head">
-                                        <h3 class="ag-card-title">Qué verificar</h3>
-                                        <span class="ag-muted" id="agFacSummary">Auditoría completa</span>
+                                        <h3 class="ag-card-title">What to check</h3>
+                                        <span class="ag-muted" id="agFacSummary">Full audit</span>
                                     </div>
                                     <div class="ag-field" style="margin-top:var(--cs-space-md)">
-                                        <label class="ag-label" for="agTyp"><span class="ag-label-hl">Tipología</span></label>
+                                        <label class="ag-label" for="agTyp"><span class="ag-label-hl">Site type</span></label>
                                         <select id="agTyp" class="ag-select">
-                                            <option value="">Detectar automáticamente</option>
+                                            <option value="">Detect automatically</option>
                                             <option value="ecommerce">E-commerce</option>
                                             <option value="saas">SaaS</option>
-                                            <option value="corporativo">Corporativo</option>
+                                            <option value="corporativo">Corporate</option>
                                         </select>
                                     </div>
-                                    <p class="ag-help">Todo marcado es una auditoría completa. El comercio agéntico solo puntúa en e-commerce.</p>
+                                    <p class="ag-help">Everything ticked means a full audit. Agentic commerce is only scored for e-commerce.</p>
                                     <div class="ag-cats" id="agCats"></div>
 
                                     <details class="ag-factors" id="agFactorsBox">
                                         <summary>
                                             <i data-lucide="chevron-right" class="ag-caret"></i>
-                                            <span>Elegir factor a factor <span class="ag-muted">(<b id="agFacCount">40</b> factores)</span></span>
+                                            <span>Choose factor by factor <span class="ag-muted">(<b id="agFacCount">40</b> factors)</span></span>
                                             <span class="ag-factors-actions">
-                                                <button type="button" class="btn-ghost ag-btn-xs" id="agFacAll">Marcar todos</button>
-                                                <button type="button" class="btn-ghost ag-btn-xs" id="agFacNone">Desmarcar todos</button>
+                                                <button type="button" class="btn-ghost ag-btn-xs" id="agFacAll">Select all</button>
+                                                <button type="button" class="btn-ghost ag-btn-xs" id="agFacNone">Deselect all</button>
                                             </span>
                                         </summary>
-                                        <div id="agFacList" class="ag-fac-list"><p class="ag-help">Cargando factores…</p></div>
+                                        <div id="agFacList" class="ag-fac-list"><p class="ag-help">Loading factors…</p></div>
                                     </details>
                                 </div>
                             </div>
 
                             <aside class="ag-setup-side">
                                 <div class="ag-card">
-                                    <h3 class="ag-card-title">Opciones</h3>
+                                    <h3 class="ag-card-title">Options</h3>
                                     <div class="ag-opt">
                                         <div class="ag-opt-text">
                                             <div class="ag-opt-title">Render JavaScript</div>
-                                            <div class="ag-opt-desc">Compara lo que ven los bots con lo que ve un navegador real. Añade unos 2 minutos.</div>
+                                            <div class="ag-opt-desc">Compares what bots see with what a real browser sees. Adds about 2 minutes.</div>
                                         </div>
                                         <label class="ag-switch"><input type="checkbox" id="agOptRender" checked><span></span></label>
                                     </div>
                                     <div class="ag-opt">
                                         <div class="ag-opt-text">
-                                            <div class="ag-opt-title">Leer como Googlebot si nos bloquean</div>
-                                            <div class="ag-opt-desc">Solo sirve para <b>verificar los factores</b> cuando ninguna otra vía obtiene contenido. No cambia cómo medimos el acceso: qué bots de IA entran se sigue midiendo con su user-agent real y el bloqueo se reporta igual. Actívalo únicamente en dominios propios o con permiso del cliente: suplantar a Googlebot desde una IP que no es de Google puede bloquearse más, no menos.</div>
+                                            <div class="ag-opt-title">Read as Googlebot if we get blocked</div>
+                                            <div class="ag-opt-desc">Only used to <b>verify the factors</b> when no other method retrieves content. It does not change how we measure access: which AI bots get in is still measured with their real user-agent, and the block is reported all the same. Only enable it on your own domains or with the client's permission: impersonating Googlebot from a non-Google IP can get you blocked more, not less.</div>
                                         </div>
                                         <label class="ag-switch"><input type="checkbox" id="agOptGooglebot"><span></span></label>
                                     </div>
                                     <div class="ag-opt">
                                         <div class="ag-opt-text">
-                                            <div class="ag-opt-title">Pruebas agénticas reales <span class="ag-muted">check 6.3</span></div>
-                                            <div class="ag-opt-desc">ChatGPT, Gemini y Claude pilotan un navegador real e intentan una tarea en tu web y en la de los competidores (carrito y checkout con datos rellenos, formulario o plan más barato). <b>Nunca se paga ni se crean cuentas</b>: los campos de tarjeta están bloqueados por código. No frena el análisis: en el informe aparecerá el botón «Simular agentes» para lanzarlas cuando quieras.</div>
+                                            <div class="ag-opt-title">Real agentic tests <span class="ag-muted">check 6.3</span></div>
+                                            <div class="ag-opt-desc">ChatGPT, Gemini and Claude drive a real browser and attempt a task on your site and on your competitors' (cart and checkout with filled-in details, a form, or the cheapest plan). <b>Nothing is ever paid and no accounts are created</b>: card fields are blocked in code. It does not slow down the analysis: the report will show a “Simulate agents” button so you can run them whenever you like.</div>
                                         </div>
                                         <label class="ag-switch"><input type="checkbox" id="agOptAgents"><span></span></label>
                                     </div>
                                     <div class="ag-opt ag-opt-sub" id="agRowReps" hidden>
                                         <div class="ag-opt-text">
-                                            <div class="ag-opt-title">Intentos por agente</div>
-                                            <div class="ag-opt-desc">Los agentes no son deterministas: repetir la tarea distingue «la web funciona» de «esa vez tuvo suerte». Cada intento suma tiempo.</div>
+                                            <div class="ag-opt-title">Attempts per agent</div>
+                                            <div class="ag-opt-desc">Agents are not deterministic: repeating the task tells “the site works” apart from “it got lucky that time”. Each attempt adds time.</div>
                                         </div>
                                         <select id="agOptReps" class="ag-select ag-select-sm">
-                                            <option value="1">1 · rápido</option>
-                                            <option value="3" selected>3 · recomendado</option>
-                                            <option value="5">5 · máximo rigor</option>
+                                            <option value="1">1 · quick</option>
+                                            <option value="3" selected>3 · recommended</option>
+                                            <option value="5">5 · maximum rigour</option>
                                         </select>
                                     </div>
                                     <div class="ag-opt ag-opt-sub" id="agRowSubmit" hidden>
                                         <div class="ag-opt-text">
-                                            <div class="ag-opt-title">Autorizo el envío de formularios de prueba</div>
-                                            <div class="ag-opt-desc">Se envía <b>un solo formulario real</b> en todo el análisis y únicamente en tu dominio: recibirás un aviso a nombre de «Test Auditoria». Nunca en competidores, nunca pagos, nunca cuentas.</div>
+                                            <div class="ag-opt-title">I authorise submitting test forms</div>
+                                            <div class="ag-opt-desc"><b>Only one real form</b> is submitted during the whole analysis, and only on your domain: you will receive a notification in the name of “Test Auditoria”. Never on competitors, never payments, never accounts.</div>
                                         </div>
                                         <label class="ag-switch"><input type="checkbox" id="agOptSubmit"><span></span></label>
                                     </div>
@@ -303,13 +303,13 @@
                         </div>
 
                         <div class="ag-card ag-card-quiet ag-measure">
-                            <h3 class="ag-card-title">Qué mide</h3>
+                            <h3 class="ag-card-title">What it measures</h3>
                             <ol class="ag-journey-mini">
-                                <li><span class="ag-step-n">1</span><div><b>¿Te leen?</b><span>Acceso real de bots, robots.txt, sitemap, firewall</span></div></li>
-                                <li><span class="ag-step-n">2</span><div><b>¿Te entienden?</b><span>Datos estructurados, render sin JS, contenido citable</span></div></li>
-                                <li><span class="ag-step-n">3</span><div><b>¿Pueden usarte?</b><span>MCP/A2A, formularios operables, comercio agéntico</span></div></li>
+                                <li><span class="ag-step-n">1</span><div><b>Can they read you?</b><span>Real bot access, robots.txt, sitemap, firewall</span></div></li>
+                                <li><span class="ag-step-n">2</span><div><b>Do they understand you?</b><span>Structured data, render without JS, citable content</span></div></li>
+                                <li><span class="ag-step-n">3</span><div><b>Can they use you?</b><span>MCP/A2A, operable forms, agentic commerce</span></div></li>
                             </ol>
-                            <p class="ag-help">La visibilidad en respuestas de IA (menciones, citas, share of voice) se mide en <a href="/llm-monitoring">LLM Visibility Monitor</a>.</p>
+                            <p class="ag-help">Visibility in AI answers (mentions, citations, share of voice) is measured in <a href="/llm-monitoring">LLM Visibility Monitor</a>.</p>
                         </div>
 
                     </section>
@@ -318,16 +318,16 @@
                     <section class="tab-content" id="agTab-informes">
                         <div class="projects-header ag-section-head">
                             <div>
-                                <h2>Informes</h2>
-                                <p class="ag-help" id="agHistScope">Los análisis se guardan para que puedas reabrirlos y descargarlos cuando quieras.</p>
+                                <h2>Reports</h2>
+                                <p class="ag-help" id="agHistScope">Analyses are saved so you can reopen and download them whenever you like.</p>
                             </div>
                             <button type="button" class="btn-primary" data-ag-goto="nuevo">
                                 <i data-lucide="plus"></i>
-                                Nuevo análisis
+                                New analysis
                             </button>
                         </div>
                         <div id="agHistBody">
-                            <div class="loading-container"><div class="loading-spinner"><i data-lucide="loader-circle" class="ag-spin"></i></div><p>Cargando informes…</p></div>
+                            <div class="loading-container"><div class="loading-spinner"><i data-lucide="loader-circle" class="ag-spin"></i></div><p>Loading reports…</p></div>
                         </div>
                     </section>
 
@@ -336,23 +336,23 @@
                     <section class="tab-content" id="agTab-accesos">
                         <div class="projects-header ag-section-head">
                             <div>
-                                <h2>Quién puede usar Agent Readiness</h2>
-                                <p class="ag-help">Los administradores siempre tienen acceso. Aquí das acceso a usuarios concretos; solo los administradores ven esta pestaña.</p>
+                                <h2>Who can use Agent Readiness</h2>
+                                <p class="ag-help">Administrators always have access. Here you grant access to specific users; only administrators can see this tab.</p>
                             </div>
                         </div>
                         <div class="ag-card">
-                            <label class="ag-label" for="agAccEmail"><span class="ag-label-hl">Dar acceso a un email</span></label>
+                            <label class="ag-label" for="agAccEmail"><span class="ag-label-hl">Grant access to an email</span></label>
                             <div class="ag-inline-form">
-                                <input type="email" id="agAccEmail" placeholder="persona@empresa.com" autocomplete="off">
-                                <button type="button" class="btn-primary" id="agAccAdd"><i data-lucide="user-plus"></i> Dar acceso</button>
+                                <input type="email" id="agAccEmail" placeholder="person@company.com" autocomplete="off">
+                                <button type="button" class="btn-primary" id="agAccAdd"><i data-lucide="user-plus"></i> Grant access</button>
                             </div>
-                            <p class="ag-help">El usuario necesita una cuenta de Clicandseo con ese email. Al darle acceso le llega un email de invitación con el enlace.</p>
+                            <p class="ag-help">The user needs a Clicandseo account with that email. Once you grant access, they receive an invitation email with the link.</p>
                             <p class="ag-error" id="agAccErr" role="alert"></p>
                             <p class="ag-feedback" id="agAccMsg" role="status"></p>
                         </div>
                         <div class="ag-card">
-                            <h3 class="ag-card-title">Con acceso concedido</h3>
-                            <div id="agAccList"><p class="ag-help">Cargando…</p></div>
+                            <h3 class="ag-card-title">Access granted</h3>
+                            <div id="agAccList"><p class="ag-help">Loading…</p></div>
                         </div>
                     </section>
                     {% endif %}
@@ -368,11 +368,11 @@
                 <header class="manual-ai-header">
                     <div class="header-content">
                         <div class="header-left">
-                            <h1>Analizando <span id="agRunHost"></span></h1>
-                            <p class="header-subtitle">Puedes dejar esta pestaña abierta mientras trabajas en otra cosa. Si la cierras, el análisis se cancela.</p>
+                            <h1>Analysing <span id="agRunHost"></span></h1>
+                            <p class="header-subtitle">You can leave this tab open while you work on something else. If you close it, the analysis is cancelled.</p>
                         </div>
                         <div class="header-right">
-                            <button type="button" class="btn-secondary" id="agCancel"><i data-lucide="x"></i> Cancelar análisis</button>
+                            <button type="button" class="btn-secondary" id="agCancel"><i data-lucide="x"></i> Cancel analysis</button>
                         </div>
                     </div>
                 </header>
@@ -383,19 +383,19 @@
                             <div class="ag-radar-wrap" aria-hidden="true">
                                 <svg class="ag-radar" viewBox="0 0 240 240" id="agRadar"></svg>
                             </div>
-                            <p class="ag-run-phase" id="agPhase">Preparando análisis…</p>
+                            <p class="ag-run-phase" id="agPhase">Preparing analysis…</p>
                             <p class="ag-run-elapsed"><i data-lucide="timer"></i> <span id="agElapsed">0:00</span></p>
                             <ul class="ag-run-domains" id="agRunDomains"></ul>
-                            <p class="ag-run-log-title">Registro en directo</p>
+                            <p class="ag-run-log-title">Live log</p>
                             <div class="ag-console" id="agConsole"></div>
-                            <button type="button" class="ag-log-toggle" id="agLogToggle" aria-expanded="false" aria-controls="agConsole"><i data-lucide="chevrons-up-down"></i> <span>Ver registro completo</span></button>
+                            <button type="button" class="ag-log-toggle" id="agLogToggle" aria-expanded="false" aria-controls="agConsole"><i data-lucide="chevrons-up-down"></i> <span>View full log</span></button>
                         </section>
 
                         <!-- derecha: qué se comprueba, categoría a categoría -->
                         <section class="ag-card ag-learn" id="agLearn">
-                            <h2 class="ag-card-title">Mientras esperas: qué estamos comprobando</h2>
+                            <h2 class="ag-card-title">While you wait: what we are checking</h2>
                             <div class="ag-learn-status" id="agLearnStatus" aria-live="polite"></div>
-                            <div class="ag-learn-dots" id="agLearnDots" role="group" aria-label="Categorías"></div>
+                            <div class="ag-learn-dots" id="agLearnDots" role="group" aria-label="Categories"></div>
                             <div class="ag-learn-body" id="agLearnBody"></div>
                         </section>
                     </div>
@@ -409,15 +409,15 @@
                 <header class="manual-ai-header ag-report-header">
                     <div class="header-content">
                         <div class="header-left">
-                            <button type="button" class="btn-ghost ag-back" id="agBack"><i data-lucide="arrow-left"></i> Informes</button>
+                            <button type="button" class="btn-ghost ag-back" id="agBack"><i data-lucide="arrow-left"></i> Reports</button>
                             <h1 class="ag-rep-title" id="agRepTitle"></h1>
                             <p class="header-subtitle" id="agRepSub"></p>
                         </div>
                         <div class="header-right ag-actions rep-actions">
-                            <button type="button" class="btn-accent" id="btnAgents" hidden><i data-lucide="bot"></i> <span>Simular agentes</span></button>
-                            <button type="button" class="btn-primary" id="dlPdf"><i data-lucide="file-down"></i> <span>Informe PDF</span></button>
-                            <button type="button" class="btn-ghost" id="dlJson" title="Datos completos del análisis para trabajar con IA"><i data-lucide="braces"></i> <span>Descargar JSON</span></button>
-                            <button type="button" class="btn-ghost js-superprompt" title="Prompt para revisar o completar el análisis con ChatGPT o Claude"><i data-lucide="clipboard-copy"></i> <span>Copiar prompt IA</span></button>
+                            <button type="button" class="btn-accent" id="btnAgents" hidden><i data-lucide="bot"></i> <span>Simulate agents</span></button>
+                            <button type="button" class="btn-primary" id="dlPdf"><i data-lucide="file-down"></i> <span>PDF report</span></button>
+                            <button type="button" class="btn-ghost" id="dlJson" title="Full analysis data to work with AI"><i data-lucide="braces"></i> <span>Download JSON</span></button>
+                            <button type="button" class="btn-ghost js-superprompt" title="Prompt to review or complete the analysis with ChatGPT or Claude"><i data-lucide="clipboard-copy"></i> <span>Copy AI prompt</span></button>
                         </div>
                     </div>
                 </header>
@@ -435,9 +435,9 @@
                 <main class="manual-ai-main">
                     <div class="empty-state ag-empty">
                         <div class="empty-icon"><i data-lucide="file-question"></i></div>
-                        <h2 id="agMissingTitle">No encontramos este análisis</h2>
-                        <p id="agMissingMsg">Puede que se cancelara o que el servidor se reiniciara antes de terminar.</p>
-                        <button type="button" class="btn-primary" data-ag-goto="informes"><i data-lucide="folder-open"></i> Ver informes</button>
+                        <h2 id="agMissingTitle">We couldn't find this analysis</h2>
+                        <p id="agMissingMsg">It may have been cancelled, or the server may have restarted before it finished.</p>
+                        <button type="button" class="btn-primary" data-ag-goto="informes"><i data-lucide="folder-open"></i> View reports</button>
                     </div>
                 </main>
             </div>

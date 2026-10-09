@@ -55,20 +55,20 @@ def datos_prueba():
 
 
 TASKS = {
-    "ecommerce": ("Busca un producto del catálogo, ábrelo, añádelo al carrito, abre el "
-                  "carrito y avanza hasta el checkout. En el checkout RELLENA los datos "
-                  "de contacto y envío: nombre '{nombre}', email '{email}', teléfono "
-                  "'{telefono}', dirección '{direccion}', código postal '{cp}', ciudad "
-                  "'{ciudad}'. Avanza todo lo que puedas SIN pagar. Cuando llegues a los "
-                  "datos de tarjeta, marca la tarea como terminada: NO introduzcas "
-                  "NINGÚN dato de pago ni completes la compra."),
-    "corporativo": ("Localiza la página de contacto, identifica un teléfono o email de "
-                    "contacto, y rellena el formulario con: nombre 'Test Auditoria', "
-                    "email 'test-auditoria@example.com', mensaje 'Prueba de auditoria "
-                    "tecnica, ignorar por favor'. {submit_rule}"),
-    "saas": ("Encuentra la página de precios, identifica el plan de pago más barato e "
-             "inicia su contratación. Cuando se pidan datos de pago o crear cuenta, marca "
-             "la tarea como terminada: NO registres cuenta ni introduzcas datos de pago."),
+    "ecommerce": ("Find a product in the catalog, open it, add it to the cart, open the "
+                  "cart and proceed to the checkout. At the checkout, FILL IN the contact "
+                  "and shipping details: name '{nombre}', email '{email}', phone "
+                  "'{telefono}', address '{direccion}', postcode '{cp}', city "
+                  "'{ciudad}'. Get as far as you can WITHOUT paying. When you reach the "
+                  "card details, mark the task as done: do NOT enter ANY payment "
+                  "details and do NOT complete the purchase."),
+    "corporativo": ("Find the contact page, identify a contact phone number or email, "
+                    "and fill in the form with: name 'Test Auditoria', "
+                    "email 'test-auditoria@example.com', message 'Technical audit "
+                    "test, please ignore'. {submit_rule}"),
+    "saas": ("Find the pricing page, identify the cheapest paid plan and start "
+             "signing up for it. When you are asked for payment details or to create an "
+             "account, mark the task as done: do NOT register an account or enter payment details."),
 }
 
 # Hitos intermedios: la tarea deja de ser un binario y pasa a ser un recorrido.
@@ -77,7 +77,7 @@ TASKS = {
 # carrito pero la URL no lo confirma, el hito no cuenta.
 MILESTONES = {
     "ecommerce": [
-        {"clave": "ficha_producto", "nombre": "Abrir una ficha de producto",
+        {"clave": "ficha_producto", "nombre": "Open a product page",
          "url": r"/(productos?|products?|item|dp|p|produkte?|produits?|prodotti?)/|-p-\d+",
          # el marcado Product es la señal más fiable de que estamos en una ficha:
          # noel.es abría un producto y no lo contábamos porque su URL y su texto
@@ -86,7 +86,7 @@ MILESTONES = {
                  r"a[ñn]adir a la bolsa|in den warenkorb|ajouter au panier|"
                  r"aggiungi al carrello|adicionar ao carrinho|in winkelwagen|"
                  r"\"@type\"\s*:\s*\"Product\")"},
-        {"clave": "anadir_carrito", "nombre": "Añadir el producto al carrito",
+        {"clave": "anadir_carrito", "nombre": "Add the product to the cart",
          # PREORDER/reservar son el botón de compra en preventa: pompeii lo
          # pulsó y no se lo contábamos.
          # DE/FR/IT/PT/NL: sin ellos, un agente que SÍ añade al carrito en una
@@ -102,47 +102,47 @@ MILESTONES = {
         # El carrito de Shopify y muchos temas modernos se abre como PANEL
         # LATERAL sin cambiar la URL: comprobar solo la URL daba el hito por no
         # alcanzado aunque el agente lo hubiera abierto correctamente.
-        {"clave": "ver_carrito", "nombre": "Abrir el carrito",
+        {"clave": "ver_carrito", "nombre": "Open the cart",
          "url": r"/(carrito|cart|cesta|basket|warenkorb|panier|carrello|carrinho|winkelwagen)",
          "html": r"(?i)(cart-drawer|cart__drawer|mini-?cart|drawer--cart|"
                  r"id=[\"']?CartDrawer|(subtotal|total)[^<]{0,40}(carrito|cart|cesta))"},
-        {"clave": "checkout", "nombre": "Llegar al checkout",
+        {"clave": "checkout", "nombre": "Reach the checkout",
          "url": r"/(checkout|pago|caja|finalizar|payment|kasse|bezahlen|"
                 r"commande|paiement|pagamento|cassa|betalen)"},
         # se detecta por haber escrito un email: es el campo que pide todo
         # checkout y no aparece al buscar producto (evita falsos positivos
         # con el buscador, que también genera acciones "type")
-        {"clave": "datos_checkout", "nombre": "Rellenar los datos del checkout",
+        {"clave": "datos_checkout", "nombre": "Fill in the checkout details",
          "accion": r"(?i)^type .*@"},
     ],
     "corporativo": [
-        {"clave": "pagina_contacto", "nombre": "Llegar a la página de contacto",
+        {"clave": "pagina_contacto", "nombre": "Reach the contact page",
          "url": r"/(contacto|contact|contactanos|contactenos)"},
-        {"clave": "datos_contacto", "nombre": "Encontrar teléfono o email de contacto",
+        {"clave": "datos_contacto", "nombre": "Find a contact phone or email",
          "html": r"(?i)(mailto:|tel:|\+34[\s\d]{9,})"},
-        {"clave": "formulario_relleno", "nombre": "Rellenar el formulario",
+        {"clave": "formulario_relleno", "nombre": "Fill in the form",
          "accion": r"^type "},
         # Solo se evalúa si el envío está autorizado: si se lo prohibimos
         # nosotros, marcarlo como "no alcanzado" acusaría a la web de un
         # atasco que en realidad es una restricción NUESTRA.
-        {"clave": "envio", "nombre": "Alcanzar el botón de envío",
+        {"clave": "envio", "nombre": "Reach the submit button",
          "requiere_submit": True,
-         "accion": r"(?i)(BLOQUEADO env[ií]o|click.*(enviar|send|submit))"},
+         "accion": r"(?i)(BLOQUEADO env[ií]o|BLOCKED submit|click.*(enviar|send|submit))"},
     ],
     "saas": [
-        {"clave": "pagina_precios", "nombre": "Llegar a la página de precios",
+        {"clave": "pagina_precios", "nombre": "Reach the pricing page",
          "url": r"/(precios|pricing|planes|plans)"},
-        {"clave": "precio_visible", "nombre": "Ver los precios de los planes",
+        {"clave": "precio_visible", "nombre": "See the plan prices",
          "html": r"(€|\$|USD|EUR)\s*\d+|\d+\s*(€|\$)\s*/\s*(mes|month|user)"},
-        {"clave": "plan_elegido", "nombre": "Seleccionar un plan",
+        {"clave": "plan_elegido", "nombre": "Select a plan",
          "accion": r"(?i)click.*(plan|contratar|empezar|elegir|comenzar|get started|choose)"},
-        {"clave": "alta", "nombre": "Alcanzar el alta o el pago",
+        {"clave": "alta", "nombre": "Reach sign-up or payment",
          "url": r"/(signup|sign-up|registro|register|checkout|subscribe)",
-         "accion": r"(?i)BLOQUEADO por ética"},
+         "accion": r"(?i)(BLOQUEADO por ética|BLOCKED on ethical grounds)"},
     ],
 }
-SUBMIT_OK = "Cuando esté relleno, envíalo con el botón de enviar."
-SUBMIT_NO = "Cuando esté relleno, marca la tarea como terminada SIN pulsar enviar."
+SUBMIT_OK = "Once it is filled in, submit it with the send button."
+SUBMIT_NO = "Once it is filled in, mark the task as done WITHOUT clicking send."
 
 
 def hitos_aplicables(typology, allow_submit):
@@ -159,9 +159,9 @@ def _check_milestones(hitos, reached, url, html, last_action):
         if m.get("url") and re.search(m["url"], url or "", re.I):
             reached[m["clave"]] = {"nombre": m["nombre"], "via": f"URL: {url[:90]}"}
         elif m.get("html") and re.search(m["html"], (html or "")[:400_000]):
-            reached[m["clave"]] = {"nombre": m["nombre"], "via": "contenido de la página"}
+            reached[m["clave"]] = {"nombre": m["nombre"], "via": "page content"}
         elif m.get("accion") and last_action and re.search(m["accion"], last_action):
-            reached[m["clave"]] = {"nombre": m["nombre"], "via": f"acción: {last_action[:70]}"}
+            reached[m["clave"]] = {"nombre": m["nombre"], "via": f"action: {last_action[:70]}"}
 
 # Controles que NUNCA se pulsan (defensa en código, no confiamos solo en el LLM)
 # Estas tres expresiones son la defensa EN CÓDIGO, no una preferencia de estilo:
@@ -211,17 +211,18 @@ CARD_FIELD = re.compile(
     r")\b")
 
 SYSTEM = (
-    "Eres un agente que navega una web real para comprobar si una tarea puede completarse. "
-    "En cada paso recibes la URL actual y una lista NUMERADA de elementos interactivos. "
-    "Respondes SOLO con un JSON válido, sin texto alrededor, con esta forma:\n"
-    '{\"accion\": \"click\"|\"type\"|\"done\", \"indice\": <n>, \"texto\": \"<si type>\", '
-    '\"friccion\": \"<describe cualquier dificultad, o vacío>\", '
-    '\"resultado\": \"<solo si done: CONSEGUIDO o NO_CONSEGUIDO y por qué>\"}\n'
-    "Reglas: rechaza cookies si aparecen. No pagues ni crees cuentas. Si una acción falla, "
-    "PRUEBA OTRA RUTA antes de rendirte (el buscador, el menú, otra categoría, otro "
-    "producto): tienes pasos de sobra y abandonar pronto falsea el resultado. Solo "
-    "responde done con NO_CONSEGUIDO cuando hayas agotado al menos 4 alternativas "
-    "distintas, y explica cuáles probaste."
+    "You are an agent browsing a real website to check whether a task can be completed. "
+    "At each step you receive the current URL and a NUMBERED list of interactive elements. "
+    "Reply ONLY with valid JSON, with no text around it, in this shape:\n"
+    '{\"accion\": \"click\"|\"type\"|\"done\", \"indice\": <n>, \"texto\": \"<if type>\", '
+    '\"friccion\": \"<describe any difficulty, or empty>\", '
+    '\"resultado\": \"<only if done: CONSEGUIDO or NO_CONSEGUIDO and why>\"}\n'
+    "Write friccion and resultado in English (keep the CONSEGUIDO / NO_CONSEGUIDO tokens as they are). "
+    "Rules: reject cookies if a banner appears. Do not pay or create accounts. If an action fails, "
+    "TRY ANOTHER ROUTE before giving up (the search box, the menu, another category, another "
+    "product): you have plenty of steps and giving up early skews the result. Only "
+    "reply done with NO_CONSEGUIDO once you have exhausted at least 4 different "
+    "alternatives, and explain which ones you tried."
 )
 
 _ELEMENTS_JS = r"""
@@ -495,15 +496,15 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
             page.goto(url, wait_until="domcontentloaded", timeout=45000)
         except Exception as exc:
             browser.close()
-            return {"outcome": "error", "detail": f"no se pudo abrir la web: {exc}"[:200],
+            return {"outcome": "error", "detail": f"could not open the website: {exc}"[:200],
                     "steps": 0, "action_log": [], "progreso": _progress()}
         # cookies y paneles abiertos fuera antes de empezar: si no, los clics
         # fallan por "elemento tapado" y el informe culpa a la web
         page.wait_for_timeout(1200)
         if _despejar(page):
-            steps.append("cerrado un banner/overlay inicial para poder operar")
+            steps.append("closed an initial banner/overlay to be able to operate")
         messages = [{"role": "system", "content": SYSTEM},
-                    {"role": "user", "content": f"Tarea: {task}"}]
+                    {"role": "user", "content": f"Task: {task}"}]
         # ¿Hemos llegado a tener alguna vez una página con la que operar? Sin
         # esto, un bloqueo del WAF al navegador headless se registraba como
         # "la web no dejó al agente" (ver el retorno no_verificable más abajo).
@@ -524,21 +525,21 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                 pass
             listing = "\n".join(
                 f"[{e['i']}] <{e['tag']}{('/'+e['type']) if e['type'] else ''}> "
-                f"{e['name'] or '(sin texto)'}"
+                f"{e['name'] or '(no text)'}"
                 + (f"  -> {e['href']}" if e.get("href") else "")
-                for e in elements) or "(sin elementos)"
+                for e in elements) or "(no elements)"
             messages.append({"role": "user",
-                             "content": f"URL: {page.url}\nElementos:\n{listing}\n"
-                                        "Responde con el JSON de la próxima acción."})
+                             "content": f"URL: {page.url}\nElements:\n{listing}\n"
+                                        "Reply with the JSON for the next action."})
             try:
                 raw = ask(messages, key)
             except Exception as exc:
-                return {"outcome": "error", "detail": f"fallo del LLM: {exc}"[:200],
+                return {"outcome": "error", "detail": f"LLM failure: {exc}"[:200],
                         "steps": len(steps), "action_log": steps}
             messages.append({"role": "assistant", "content": raw[:500]})
             act = _parse_action(raw)
             if not act:
-                steps.append(f"respuesta no parseable: {raw[:80]}")
+                steps.append(f"unparseable response: {raw[:80]}")
                 continue
             if act.get("friccion"):
                 frictions.append(act["friccion"])
@@ -567,26 +568,26 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
             # GUARDARRAÍL: jamás se escribe en un campo de pago, aunque el LLM
             # lo pida. Rellenar contacto y envío sí; tarjeta nunca.
             if action == "type" and CARD_FIELD.search(label):
-                steps.append(f"BLOQUEADO campo de pago: '{label[:50]}' — no se escriben "
-                             "datos de tarjeta bajo ninguna circunstancia")
+                steps.append(f"BLOCKED payment field: '{label[:50]}' — card details are never "
+                             "entered under any circumstances")
                 outcome = "conseguido"  # llegar al pago ES el éxito de la prueba
                 break
             # GUARDARRAÍL en código: nunca pagar/crear cuenta
             if action == "click" and FORBIDDEN_CLICK.search(label):
                 outcome = _parar_por_guardarrail(
-                    f"BLOQUEADO por ética (pago/cuenta): '{label[:50]}' — se detiene aquí")
+                    f"BLOCKED on ethical grounds (payment/account): '{label[:50]}' — stopping here")
                 break
             # GUARDARRAÍL: submit solo si autorizado
             if action == "click" and not allow_submit and SUBMIT_HINT.search(label) \
                     and (target or {}).get("tag") in ("button", "input", "a"):
                 outcome = _parar_por_guardarrail(
-                    f"BLOQUEADO envío (no autorizado): '{label[:50]}' — se detiene aquí")
+                    f"BLOCKED submit (not authorized): '{label[:50]}' — stopping here")
                 break
 
             try:
                 if action == "type" and target is not None:
                     page.fill(f"[data-agent-idx='{idx}']", act.get("texto", ""))
-                    steps.append(f"type [{idx}] '{act.get('texto','')[:40]}' en '{label[:40]}'")
+                    steps.append(f"type [{idx}] '{act.get('texto','')[:40]}' into '{label[:40]}'")
                 elif action == "click" and target is not None:
                     try:
                         page.click(f"[data-agent-idx='{idx}']", timeout=6000)
@@ -598,10 +599,10 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                         try:
                             _despejar(page)
                             page.click(f"[data-agent-idx='{idx}']", timeout=6000)
-                            steps.append(f"click [{idx}] '{label[:50]}' (tras cerrar un overlay)")
+                            steps.append(f"click [{idx}] '{label[:50]}' (after closing an overlay)")
                             frictions.append(
-                                f"un elemento superpuesto tapaba '{label[:35]}': hubo que "
-                                "cerrarlo antes de poder pulsar")
+                                f"an overlapping element was covering '{label[:35]}': it had to be "
+                                "closed before it could be clicked")
                         except Exception:
                             # 3º intento: los selectores de talla/color son
                             # <input> visualmente ocultos con su <label> al lado.
@@ -610,22 +611,22 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
                             # para un humano. Esto es emulación fiel, no trampa.
                             if not _click_via_label(page, idx):
                                 raise
-                            steps.append(f"click [{idx}] '{label[:50]}' (vía su etiqueta)")
+                            steps.append(f"click [{idx}] '{label[:50]}' (via its label)")
                 else:
-                    steps.append(f"acción inválida o índice inexistente: {act}")
+                    steps.append(f"invalid action or non-existent index: {act}")
             except Exception as exc:
-                steps.append(f"fallo al ejecutar [{idx}]: {type(exc).__name__}")
-                frictions.append(f"el elemento '{label[:40]}' no respondió")
+                steps.append(f"failed to execute [{idx}]: {type(exc).__name__}")
+                frictions.append(f"the element '{label[:40]}' did not respond")
                 # Sin decírselo, el modelo reintenta el mismo elemento una y otra
                 # vez (hawkersco: 6 intentos sobre el mismo botón) y quema los
                 # pasos disponibles sin explorar alternativas.
                 fallidos[idx] = fallidos.get(idx, 0) + 1
                 if fallidos[idx] >= 2:
                     messages.append({"role": "user", "content":
-                                     f"AVISO: el elemento [{idx}] ha fallado "
-                                     f"{fallidos[idx]} veces y no va a funcionar. "
-                                     "NO lo vuelvas a intentar: busca otra ruta "
-                                     "(el buscador, el menú, otro producto)."})
+                                     f"WARNING: element [{idx}] has failed "
+                                     f"{fallidos[idx]} times and is not going to work. "
+                                     "Do NOT try it again: look for another route "
+                                     "(the search box, the menu, another product)."})
             # el hito puede consumarse por la acción recién ejecutada
             try:
                 _check_milestones(hitos, reached, page.url, page.content(),
@@ -655,14 +656,14 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
         bloqueo = re.search(r"(?i)access denied|forbidden|are you a robot|"
                             r"unusual traffic|captcha|acceso denegado",
                             (cascara.get("t", "") + " " + cascara.get("txt", "")))
-        motivo = (f"el navegador recibió una página de bloqueo "
-                  f"(«{cascara.get('t', '')[:60]}»)" if bloqueo else
-                  f"la página no expuso un solo control con el que operar "
-                  f"({cascara.get('n', 0)} bytes de HTML)")
+        motivo = (f"the browser received a block page "
+                  f"(“{cascara.get('t', '')[:60]}”)" if bloqueo else
+                  f"the page did not expose a single control to operate "
+                  f"({cascara.get('n', 0)} bytes of HTML)")
         return {"outcome": "no_verificable",
-                "detail": ("NO VERIFICABLE — " + motivo + ". No es posible afirmar "
-                           "que un agente no pueda usar esta web: no hemos llegado a "
-                           "verla. Compruébalo a mano o repite desde otra red."),
+                "detail": ("NOT VERIFIABLE — " + motivo + ". We cannot claim "
+                           "that an agent is unable to use this website: we never got to "
+                           "see it. Check it manually or run it again from another network."),
                 "steps": len(steps), "action_log": steps[:25], "progreso": _progress(),
                 "limite_de_metodo": True, "timeouts": 0}
 
@@ -680,27 +681,27 @@ def _browser_task(url, task, ask, key, allow_submit, typology="corporativo"):
     # perdía el 39% de sus pasos así (mailchimp.com, 13 de 14), y la web cargaba
     # con el "no conseguido". Si una parte grande de la tarea se fue en eso, el
     # intento no es concluyente aunque la web nunca diera un problema.
-    ilegibles = sum(1 for s in steps if "no parseable" in s)
+    ilegibles = sum(1 for s in steps if "unparseable" in s)
     ruido_llm = bool(steps) and ilegibles / len(steps) >= 0.3
     limitado = (not outcome.startswith("conseguido")) and (timeouts >= 2 or ruido_llm)
-    detail = ("OBJETIVO CONSEGUIDO. " if outcome.startswith("conseguido") else "NO CONSEGUIDO. ")
+    detail = ("GOAL ACHIEVED. " if outcome.startswith("conseguido") else "NOT ACHIEVED. ")
     if total_hitos:
-        detail += f"Recorrido: {prog['alcanzados']}/{total_hitos} pasos completados"
+        detail += f"Progress: {prog['alcanzados']}/{total_hitos} steps completed"
         if prog["pendientes"]:
-            detail += f" (se atascó en: {prog['pendientes'][0]})"
+            detail += f" (got stuck at: {prog['pendientes'][0]})"
         detail += ". "
-    detail += ("Fricciones: " + "; ".join(dict.fromkeys(frictions))) if frictions else "Sin fricciones."
+    detail += ("Friction: " + "; ".join(dict.fromkeys(frictions))) if frictions else "No friction."
     if ruido_llm and not outcome.startswith("conseguido"):
-        detail += (f" AVISO DE MÉTODO: {ilegibles} de {len(steps)} pasos se perdieron "
-                   "porque el modelo que pilota al agente devolvió una respuesta "
-                   "ilegible. Eso es un límite NUESTRO, no un problema de la web: "
-                   "el intento no es concluyente.")
+        detail += (f" METHOD WARNING: {ilegibles} of {len(steps)} steps were lost "
+                   "because the model driving the agent returned an unreadable "
+                   "response. That is a limitation on OUR side, not a problem with the website: "
+                   "the attempt is inconclusive.")
     elif limitado:
-        detail += (f" AVISO DE MÉTODO: {timeouts} controles no respondieron al clic "
-                   "programático. Puede ser hostilidad real al automatismo, pero también "
-                   "un límite de nuestro harness (clicamos por selector; los agentes "
-                   "comerciales usan visión y toleran mejor los controles a medida). "
-                   "No concluyas que la web es inoperable sin comprobarlo a mano.")
+        detail += (f" METHOD WARNING: {timeouts} controls did not respond to the "
+                   "programmatic click. It may be genuine hostility to automation, but also "
+                   "a limitation of our harness (we click by selector; commercial agents "
+                   "use vision and cope better with custom controls). "
+                   "Do not conclude that the website is unusable without checking it manually.")
     return {"outcome": outcome, "detail": detail[:800], "steps": len(steps),
             "action_log": steps[:25], "progreso": prog,
             "limite_de_metodo": limitado, "timeouts": timeouts}
@@ -725,7 +726,7 @@ def _aggregate(runs):
                          for r in runs]}
     if not validos:
         return {"outcome": "error", "intentos": len(runs),
-                "detail": (runs[0].get("detail") if runs else "sin ejecuciones"),
+                "detail": (runs[0].get("detail") if runs else "no runs"),
                 "runs": runs}
     exitos = [r for r in validos if str(r["outcome"]).startswith("conseguido")]
     limpios = [r for r in validos if r["outcome"] == "conseguido"]
@@ -739,12 +740,12 @@ def _aggregate(runs):
     progs = [r.get("progreso") or {} for r in validos]
     ratios = [p["alcanzados"] / p["total"] for p in progs if p.get("total")]
     mejor = max(validos, key=lambda r: (r.get("progreso") or {}).get("alcanzados", 0))
-    detail = f"{len(exitos)}/{n} intentos con éxito"
+    detail = f"{len(exitos)}/{n} successful attempts"
     if ratios:
-        detail += f" · recorrido medio {sum(ratios)/len(ratios):.0%}"
+        detail += f" · average progress {sum(ratios)/len(ratios):.0%}"
     if outcome == "inconsistente":
-        detail += (". LA WEB FUNCIONA A VECES: para un agente esto es peor que un fallo "
-                   "claro, porque el resultado no es predecible")
+        detail += (". THE WEBSITE ONLY WORKS SOMETIMES: for an agent this is worse than a clear "
+                   "failure, because the outcome is unpredictable")
     detail += ". " + (mejor.get("detail") or "")
     limitado = all(r.get("limite_de_metodo") for r in validos) and not exitos
     return {"outcome": outcome, "intentos": n, "exitos": len(exitos),
@@ -779,14 +780,14 @@ def run_agent_tests(url, typology, providers=("chatgpt", "gemini", "claude"),
     for prov in providers:
         key = get_key(_KEY_NAMES[prov])
         if not key:
-            agents[prov] = {"outcome": "no_disponible", "detail": f"sin API key de {prov}"}
+            agents[prov] = {"outcome": "no_disponible", "detail": f"no API key for {prov}"}
             continue
         runs = []
         for i in range(reps):
             envia_esta = envio_disponible
             envio_disponible = False       # se consume en la primera pasada
-            _log(f"agente {prov} intentando la tarea… (intento {i+1}/{reps})"
-                 + (" [con envío real autorizado]" if envia_esta else ""))
+            _log(f"agent {prov} attempting the task… (attempt {i+1}/{reps})"
+                 + (" [real submission authorized]" if envia_esta else ""))
             try:
                 runs.append(_browser_task(url, build_task(typology, envia_esta),
                                           _ADAPTERS[prov], key, envia_esta, typology))
@@ -794,11 +795,11 @@ def run_agent_tests(url, typology, providers=("chatgpt", "gemini", "claude"),
                 runs.append({"outcome": "error", "detail": str(exc)[:200]})
             prog = (runs[-1].get("progreso") or {})
             _log(f"  {prov} #{i+1}: {runs[-1].get('outcome')}"
-                 + (f" ({prog.get('alcanzados')}/{prog.get('total')} hitos)"
+                 + (f" ({prog.get('alcanzados')}/{prog.get('total')} milestones)"
                     if prog.get("total") else ""))
         agents[prov] = _aggregate(runs)
         _log(f"  {prov}: {agents[prov]['outcome']} "
-             f"({agents[prov].get('exitos')}/{agents[prov].get('intentos')} intentos)")
+             f"({agents[prov].get('exitos')}/{agents[prov].get('intentos')} attempts)")
     return {"url": url, "typology": typology, "allow_submit": allow_submit,
             "envios_reales": 1 if allow_submit else 0,
             "repeticiones": reps, "agents": agents,

@@ -35,19 +35,19 @@ def _tarea_agentica(typology):
     o describa paso a paso con la web delante."""
     from .agents import MILESTONES, datos_prueba
     tareas = {
-        "ecommerce": ("Como si fueras un agente de compra de un usuario: busca un "
-                      "producto del catálogo, ábrelo, añádelo al carrito, abre el "
-                      "carrito y avanza hasta el checkout. NO completes el pago ni "
-                      "introduzcas datos de tarjeta: describe hasta dónde llega un "
-                      "agente y dónde se atasca."),
-        "saas": ("Como si fueras un agente: encuentra la página de precios, "
-                 "identifica el plan de pago más barato e inicia su contratación. "
-                 "NO crees cuenta ni introduzcas datos de pago: describe hasta "
-                 "dónde llega y dónde se rompe el flujo."),
-        "corporativo": ("Como si fueras un agente: localiza la página de contacto, "
-                        "identifica un teléfono o email, y localiza el formulario. "
-                        "NO envíes nada: describe si un agente podría rellenarlo y "
-                        "operarlo, y qué se lo impediría."),
+        "ecommerce": ("Act as a user's shopping agent: search for a product in "
+                      "the catalog, open it, add it to the cart, open the cart and "
+                      "proceed to checkout. Do NOT complete the payment or enter "
+                      "card details: describe how far an agent gets and where it "
+                      "gets stuck."),
+        "saas": ("Act as an agent: find the pricing page, identify the cheapest "
+                 "paid plan and start signing up for it. Do NOT create an account "
+                 "or enter payment details: describe how far you get and where "
+                 "the flow breaks."),
+        "corporativo": ("Act as an agent: find the contact page, identify a phone "
+                        "number or email, and find the form. Do NOT submit anything: "
+                        "describe whether an agent could fill it in and operate it, "
+                        "and what would stop it."),
     }
     hitos = [m["nombre"] for m in MILESTONES.get(typology, MILESTONES["corporativo"])]
     return tareas.get(typology, tareas["corporativo"]), hitos
@@ -87,28 +87,28 @@ def _bloque_factores(client):
             como = kb.get("como", "")
             res = por_check.get(cid)
             partes.append(f"\n[{cid}] {nombre}")
-            partes.append(f"  · Qué mide: {desc}")
+            partes.append(f"  · What it measures: {desc}")
             if como:
-                partes.append(f"  · Se cumple (nota 1) cuando: {como}")
+                partes.append(f"  · Passes (score 1) when: {como}")
             verificado = (res and res.get("score") is not None
                           and not res.get("manual"))
             if bloqueo_fuerte and cid in ACCESO_CONFIRMA_BLOQUEO and res \
                     and res.get("score") is not None:
                 # dato de campo: el bloqueo lo prueba, y el LLM no lo reproduce
-                partes.append(f"  · ✓ CONFIRMADO EN CAMPO (nota {res['score']}): el sitio "
-                              f"bloqueó nuestro acceso automatizado. {str(res.get('evidence'))[:180]}")
-                partes.append("    → NO lo reevalúes NI lo subas: a ti quizá no te bloqueen, "
-                              "pero el hallazgo es que a un agente/IP de datacenter SÍ.")
+                partes.append(f"  · ✓ CONFIRMED IN THE FIELD (score {res['score']}): the site "
+                              f"blocked our automated access. {str(res.get('evidence'))[:180]}")
+                partes.append("    → Do NOT re-evaluate it or raise it: you may not be blocked, "
+                              "but the finding is that an agent/datacenter IP IS.")
             elif verificado and not bloqueo_fuerte:
                 # el scanner SÍ lo verificó con fiabilidad: se da hecho
-                partes.append(f"  · ✓ YA VERIFICADO por el scanner (nota {res['score']}): "
+                partes.append(f"  · ✓ ALREADY VERIFIED by the scanner (score {res['score']}): "
                               f"{str(res.get('evidence'))[:220]}")
-                partes.append("    → NO lo reevalúes: usa este resultado tal cual.")
+                partes.append("    → Do NOT re-evaluate it: use this result as is.")
             else:
-                partes.append("  · ⧗ PENDIENTE: complétalo tú con la web delante. Puntúa "
-                              "1 (cumple) / 0,5 (parcial) / 0 (no cumple) / N/A (no aplica "
-                              "a este tipo de negocio). CITA la evidencia exacta que ves; "
-                              "si no puedes observarlo, escribe «no verificable».")
+                partes.append("  · ⧗ PENDING: complete it yourself with the site in front of you. "
+                              "Score 1 (passes) / 0.5 (partial) / 0 (fails) / N/A (not applicable "
+                              "to this type of business). QUOTE the exact evidence you see; "
+                              "if you can't observe it, write «not verifiable».")
     return "\n".join(partes)
 
 
@@ -128,19 +128,20 @@ def _bloque_competidores(competitors):
         return ""
     partes = [f"""
 ═══════════════════════════════════════════════════════════════════════
-COMPETIDORES — AUDÍTALOS TAMBIÉN ({len(validos)}). La comparativa es el entregable.
+COMPETITORS — AUDIT THEM TOO ({len(validos)}). The comparison is the deliverable.
 ═══════════════════════════════════════════════════════════════════════
-El cliente añadió competidores para compararse. Aplícales EXACTAMENTE las mismas
-reglas de fidelidad y la misma escala 0-100: los 40 factores, reutilizando lo «YA
-VERIFICADO»/«CONFIRMADO EN CAMPO» y completando los «PENDIENTE» con la web
-delante. Para el factor 6.3 de cada competidor, reproduce la misma tarea agéntica
-descrita arriba pero sobre SU web. Sin comparar contra el cliente no hay informe."""]
+The client added competitors to compare against. Apply EXACTLY the same fidelity
+rules and the same 0-100 scale to them: the 40 factors, reusing what is «ALREADY
+VERIFIED»/«CONFIRMED IN THE FIELD» and completing the «PENDING» ones with the site
+in front of you. For each competitor's factor 6.3, reproduce the same agentic task
+described above but on THEIR site. Without a comparison against the client there
+is no report."""]
     for i, comp in enumerate(validos, 1):
-        chost = comp.get("host", "competidor")
+        chost = comp.get("host", "competitor")
         ctyp = comp.get("typology", "corporativo")
         partes.append(f"""
 ───────────────────────────────────────────────────────────────────────
-COMPETIDOR {i}: {chost}  (tipología: {ctyp})
+COMPETITOR {i}: {chost}  (site type: {ctyp})
 ───────────────────────────────────────────────────────────────────────
 {_bloque_factores(comp)}""")
     return "\n".join(partes)
@@ -149,96 +150,95 @@ COMPETIDOR {i}: {chost}  (tipología: {ctyp})
 def construir(data):
     """Genera el super prompt a partir del resultado del análisis."""
     client = data.get("client") or {}
-    host = client.get("host", "el dominio")
+    host = client.get("host", "the domain")
     typ = client.get("typology", "corporativo")
     cob = client.get("cobertura_score")
     deg = client.get("acceso_degradado") or {}
     nivel = deg.get("nivel")
     bloqueo_fuerte = nivel in ("total", "marcado")
     tarea, hitos = _tarea_agentica(typ)
-    cob_txt = (f"{round(cob * 100)}%" if isinstance(cob, (int, float)) else "parcial")
+    cob_txt = (f"{round(cob * 100)}%" if isinstance(cob, (int, float)) else "partial")
 
     comp_validos = _competidores_validos(data)
     comp_hosts = [c["host"] for c in comp_validos]
-    con_comp = (f" El cliente añadió {len(comp_hosts)} competidor(es) para "
-                f"compararse ({', '.join(comp_hosts)}): tienes que auditarlos TAMBIÉN "
-                f"(su sección va más abajo) — la comparativa es el objetivo."
+    con_comp = (f" The client added {len(comp_hosts)} competitor(s) to compare "
+                f"against ({', '.join(comp_hosts)}): you must audit them TOO "
+                f"(their section is further down) — the comparison is the goal."
                 if comp_hosts else "")
 
     # En bloqueo fuerte NO nos fiamos de lo poco que "vimos": el análisis entero
     # pasa al LLM. En bloqueo leve (sondas) sí se reutiliza lo verificado.
     if bloqueo_fuerte:
-        encargo = f"""Tienes que hacer la auditoría COMPLETA del dominio **{host}** (tipología
-detectada: {typ}). Una herramienta automática lo intentó pero el sitio BLOQUEÓ
-su acceso por IP (típico de Shopify/Akamai/Cloudflare): no pudo leer la web con
-fiabilidad, así que NO damos por bueno casi nada de lo que creyó ver. Evalúa TÚ
-los 40 factores, uno a uno, con la web delante.
+        encargo = f"""You must carry out the FULL audit of the domain **{host}** (detected
+site type: {typ}). An automated tool tried, but the site BLOCKED its access by
+IP (typical of Shopify/Akamai/Cloudflare): it couldn't read the site reliably,
+so we accept almost nothing of what it thought it saw. YOU evaluate the 40
+factors, one by one, with the site in front of you.
 
-IMPORTANTE: a la herramienta le bloquearon por usar una IP de datacenter; a ti,
-con una IP limpia, es probable que el sitio SÍ te deje entrar. Aprovéchalo. La
-ÚNICA excepción son los factores marcados «CONFIRMADO EN CAMPO» (la hostilidad
-al acceso): esos los probó la herramienta en sus carnes y a ti no te pasará, así
-que respétalos tal cual — no los bajes por el hecho de que a ti te dejen entrar.{con_comp}"""
+IMPORTANT: the tool was blocked for using a datacenter IP; you, with a clean IP,
+will probably be let IN by the site. Make the most of it. The ONLY exception is
+the factors marked «CONFIRMED IN THE FIELD» (hostility to access): the tool
+experienced those first-hand and it won't happen to you, so respect them as they
+are — don't lower them just because the site lets you in.{con_comp}"""
     else:
-        encargo = f"""Tienes que completar la auditoría del dominio **{host}** (tipología detectada:
-{typ}). Una herramienta automática ya verificó el {cob_txt} del modelo a
-distancia (robots, sitemap, cabeceras, DNS, .well-known) y dejó pendiente lo que
-necesita ver el contenido renderizado. Completa TÚ los factores pendientes.{con_comp}"""
+        encargo = f"""You must complete the audit of the domain **{host}** (detected site type:
+{typ}). An automated tool already verified {cob_txt} of the model remotely
+(robots, sitemap, headers, DNS, .well-known) and left pending what requires
+seeing the rendered content. YOU complete the pending factors.{con_comp}"""
 
-    return f"""Eres un auditor experto en PREPARACIÓN AGÉNTICA de sitios web (agent-readiness):
-mides si un agente de IA (ChatGPT, Claude, Perplexity, un asistente de compra…)
-puede ENCONTRAR, LEER, INTERPRETAR y USAR una web. No es SEO clásico: es si un
-agente puede operar el sitio.
+    return f"""You are an expert auditor of websites' AGENT READINESS: you measure
+whether an AI agent (ChatGPT, Claude, Perplexity, a shopping assistant…) can
+FIND, READ, INTERPRET and USE a website. This isn't classic SEO: it's whether
+an agent can operate the site.
 
 {encargo}
 
 ═══════════════════════════════════════════════════════════════════════
-REGLAS DE FIDELIDAD — INNEGOCIABLES. El informe se lo va a dar un CMO a su
-equipo técnico: un dato inventado hace daño real.
+FIDELITY RULES — NON-NEGOTIABLE. A CMO is going to hand this report to their
+technical team: a made-up data point does real damage.
 ═══════════════════════════════════════════════════════════════════════
-1. NO inventes NADA. Para cada factor pendiente, CITA la evidencia concreta que
-   observas (la etiqueta, el texto, el fichero). Si no puedes observarlo,
-   escribe literalmente «no verificable» — nunca un número a ojo.
-2. Los factores marcados «YA VERIFICADO» o «CONFIRMADO EN CAMPO» los midió la
-   herramienta con evidencia real: úsalos tal cual, NO los reevalúes. Todo lo
-   marcado «PENDIENTE» lo evalúas tú.
-3. Para VER el contenido: intenta abrir {host} tú mismo. Si tu acceso también
-   está bloqueado, PIDE al usuario que pegue aquí el HTML de la portada y de una
-   página clave (una ficha de producto si es tienda, la de precios si es SaaS,
-   la de contacto si es corporativa). Trabaja solo con lo que tengas delante.
-4. Puntúa cada factor: 1 = cumple · 0,5 = parcial · 0 = no cumple · N/A = no
-   aplica a este tipo de negocio.
+1. Do NOT make ANYTHING up. For each pending factor, QUOTE the specific evidence
+   you observe (the tag, the text, the file). If you can't observe it, write
+   literally «not verifiable» — never a number by eye.
+2. The factors marked «ALREADY VERIFIED» or «CONFIRMED IN THE FIELD» were
+   measured by the tool with real evidence: use them as they are, do NOT
+   re-evaluate them. Everything marked «PENDING» is for you to evaluate.
+3. To SEE the content: try to open {host} yourself. If your access is also
+   blocked, ASK the user to paste here the HTML of the home page and of a key
+   page (a product page if it's a store, the pricing page if it's SaaS, the
+   contact page if it's corporate). Work only with what you have in front of you.
+4. Score each factor: 1 = passes · 0.5 = partial · 0 = fails · N/A = not
+   applicable to this type of business.
 
 ═══════════════════════════════════════════════════════════════════════
-LOS 40 FACTORES (los ✓ ya están hechos; completa los ⧗)
+THE 40 FACTORS (the ✓ ones are done; complete the ⧗ ones)
 ═══════════════════════════════════════════════════════════════════════
 {_bloque_factores(client)}
 
 ═══════════════════════════════════════════════════════════════════════
-COMPORTAMIENTO AGÉNTICO REAL (factor 6.3 — el más importante)
+REAL AGENTIC BEHAVIOR (factor 6.3 — the most important one)
 ═══════════════════════════════════════════════════════════════════════
-Reproduce, con la web delante, lo que haría un agente:
+With the site in front of you, reproduce what an agent would do:
 {tarea}
-Hitos que hay que ir alcanzando (marca cuáles se logran y dónde se atasca):
+Milestones to reach along the way (mark which are achieved and where it gets stuck):
 {chr(10).join('  · ' + h for h in hitos)}
-Describe el recorrido PASO A PASO y en qué eslabón se rompe (esa rotura es el
-hallazgo). Un agente se pierde cuando un control no tiene nombre claro, cuando
-pulsa algo y no pasa lo que esperaba, o cuando un flujo exige registro/JS.
+Describe the journey STEP BY STEP and at which link it breaks (that break is the
+finding). An agent gets lost when a control has no clear name, when it presses
+something and what it expected doesn't happen, or when a flow requires sign-up/JS.
 {_bloque_competidores(comp_validos)}
 ═══════════════════════════════════════════════════════════════════════
-ENTREGA — SIEMPRE UN INFORME EN PDF
+DELIVERY — ALWAYS A PDF REPORT
 ═══════════════════════════════════════════════════════════════════════
-Entrega el resultado como un DOCUMENTO PDF descargable, sin preguntar formato ni
-ofrecer alternativas: genéralo directamente. Si tu entorno no puede producir un
-PDF, entrégalo en Markdown COMPLETO y listo para exportar a PDF (y dilo en una
-línea), pero nunca te quedes solo en preguntar. El informe debe contener:
-1. Veredicto y nota estimada 0-100 del cliente ({host}), según esta escala:
+Deliver the result as a downloadable PDF DOCUMENT, without asking about the format
+or offering alternatives: generate it directly. If your environment can't produce
+a PDF, deliver it as COMPLETE Markdown ready to export to PDF (and say so in one
+line), but never stop at just asking. The report must contain:
+1. Verdict and estimated 0-100 score for the client ({host}), using this scale:
 {_escala()}
-2. Tabla de los 40 factores del cliente: id · nombre · nota · evidencia (o «no verificable»).
-3. Resumen del comportamiento agéntico: hasta dónde llega un agente y por qué se
-   atasca.
-4. Los 3-5 arreglos de mayor impacto y menor esfuerzo.{_bloque_entrega_comp(comp_hosts, host)}
-Recuerda: cada nota, con su evidencia observada. Sin evidencia, «no verificable».
+2. Table of the client's 40 factors: id · name · score · evidence (or «not verifiable»).
+3. Summary of agentic behavior: how far an agent gets and why it gets stuck.
+4. The 3-5 fixes with the highest impact and lowest effort.{_bloque_entrega_comp(comp_hosts, host)}
+Remember: every score, with its observed evidence. No evidence, «not verifiable».
 """.strip()
 
 
@@ -248,8 +248,8 @@ def _bloque_entrega_comp(comp_hosts, host):
     if not comp_hosts:
         return ""
     return (f"""
-5. Nota 0-100 y tabla de los 40 factores de cada competidor ({', '.join(comp_hosts)}),
-   con la misma exigencia de evidencia.
-6. COMPARATIVA {host} vs competidores: tabla por categoría (C1-C7) con la nota de
-   cada dominio, quién gana cada categoría, y las brechas donde el cliente PIERDE
-   frente a un competidor y por qué (ese es el hallazgo accionable).""")
+5. 0-100 score and table of the 40 factors for each competitor ({', '.join(comp_hosts)}),
+   with the same evidence requirement.
+6. COMPARISON {host} vs competitors: table by category (C1-C7) with each domain's
+   score, who wins each category, and the gaps where the client LOSES to a
+   competitor and why (that's the actionable finding).""")

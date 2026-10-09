@@ -158,7 +158,7 @@ def test_sitemap_bloqueado_no_es_ausente():
     ctx["sitemap"] = {"urls": [], "lastmods": [], "found": False,
                       "bloqueado": True, "estados": [0, 403]}
     r = by_id(checks.run_c1(ctx), "1.4")
-    t("sitemap_bloqueado", r["score"] is None and "no es afirmable" in r["evidence"],
+    t("sitemap_bloqueado", r["score"] is None and "can't claim it's missing" in r["evidence"],
       f"score={r['score']}")
     ctx["sitemap"] = {"urls": [], "lastmods": [], "found": False,
                       "bloqueado": False, "estados": [404]}
@@ -230,7 +230,7 @@ def test_bloqueo_5xx():
     ctx["bot_matrix"] = {"GPTBot": 503, "ClaudeBot": 200, "_human": 200}
     r = by_id(checks.run_c1(ctx), "1.3")
     t("bloqueo_5xx_score", r["score"] == 0, f"score={r['score']}")
-    t("bloqueo_5xx_reintento", "reintentara" in r["evidence"],
+    t("bloqueo_5xx_reintento", "will retry" in r["evidence"],
       "no explica el peligro del 503")
 
 
@@ -276,7 +276,7 @@ def test_zonas_clic_inline():
     ctx = ctx_base()
     ctx["rendered_home"] = {"ok": True, "html": "<html></html>", "boxes": inline + controles}
     r = by_id(checks.run_c4(ctx), "4.7")
-    t("clic_inline_excluidos", r["score"] == 1 and "10 enlaces en linea excluidos" in r["evidence"],
+    t("clic_inline_excluidos", r["score"] == 1 and "10 inline links excluded" in r["evidence"],
       f"score={r['score']} ev={r['evidence'][:80]}")
 
 
@@ -315,9 +315,9 @@ def test_politicas_comercio():
                                "Devolucion en 30 dias.</body></html>"}}]
     res = checks.run_c7(ctx)
     r75, r76 = by_id(res, "7.5"), by_id(res, "7.6")
-    t("envio_humano_no_schema", r75["score"] == 0 and "existe para un humano" in r75["evidence"],
+    t("envio_humano_no_schema", r75["score"] == 0 and "exists for a human" in r75["evidence"],
       f"s={r75['score']} ev={r75['evidence'][:60]}")
-    t("devol_humano_no_schema", r76["score"] == 0 and "existe para un humano" in r76["evidence"],
+    t("devol_humano_no_schema", r76["score"] == 0 and "exists for a human" in r76["evidence"],
       f"s={r76['score']} ev={r76['evidence'][:60]}")
 
 
@@ -402,7 +402,7 @@ def test_politicas_comercio_multiidioma():
         res = checks.run_c7(ctx)
         for cid in ("7.5", "7.6"):
             r = by_id(res, cid)
-            t(f"politica_{cid}_{idioma}", "existe para un humano" in r["evidence"],
+            t(f"politica_{cid}_{idioma}", "exists for a human" in r["evidence"],
               f"{idioma} {cid}: {r['evidence'][:90]}")
 
 
@@ -545,10 +545,10 @@ def test_sin_ficha_producto_no_puntua_cero():
     t("sin_ficha_conserva_31", d["3.1"] == 0, f"3.1={d['3.1']}")
     t("sin_ficha_avisa", bool(ctx.get("cobertura_producto_degradada")),
       "no se registró la degradación de cobertura")
-    t("sin_ficha_trail", any("cobertura de catálogo" in x.get("step", "")
+    t("sin_ficha_trail", any("catalogue coverage" in x.get("step", "")
                              for x in ctx["trail"]), "sin rastro en el trail")
     t("sin_ficha_evidencia_honesta",
-      all("NO VERIFICABLE" in r["evidence"]
+      all("NOT VERIFIABLE" in r["evidence"]
           for r in res if r["id"] in ("7.5", "7.6")),
       "la evidencia sigue afirmando una ausencia no comprobada")
     # tienda CON ficha alcanzada: nada se toca
@@ -688,7 +688,7 @@ def test_datos_prueba_dominio_reservado():
     tarea = build_task("ecommerce", False)
     t("checkout_pide_datos", d["email"] in tarea and d["cp"] in tarea,
       "la tarea de e-commerce no incluye los datos de checkout")
-    t("checkout_prohibe_pago", "NO introduzcas" in tarea and "tarjeta" in tarea,
+    t("checkout_prohibe_pago", "do NOT enter" in tarea and "card" in tarea,
       "la tarea no prohíbe explícitamente el pago")
 
 
@@ -737,8 +737,8 @@ def test_hitos_submit():
     éramos NOSOTROS quienes prohibíamos enviar."""
     sin = [m["nombre"] for m in hitos_aplicables("corporativo", False)]
     con = [m["nombre"] for m in hitos_aplicables("corporativo", True)]
-    t("hitos_sin_submit", len(sin) == 3 and "Alcanzar el botón de envío" not in sin, str(sin))
-    t("hitos_con_submit", len(con) == 4, str(con))
+    t("hitos_sin_submit", len(sin) == 3 and "Reach the submit button" not in sin, str(sin))
+    t("hitos_con_submit", len(con) == 4 and "Reach the submit button" in con, str(con))
 
 
 # ---------------------------------------------------------- scoring y catálogo
@@ -886,12 +886,12 @@ def test_informe_pdf_con_marca():
         portada, cuerpo = _split(html)
         t(clave + "_portada_aparte", portada is not None and "cover" in portada
           and 'class="cover"' not in cuerpo, "la portada se imprime a sangre y sin pie")
-        t(clave + "_fecha", "8 de octubre de 2026" in html, "la fecha del análisis va en la portada")
+        t(clave + "_fecha", "8 Oct 2026" in html, "la fecha del análisis va en la portada")
     html = render_html(escenarios["cliente degradado"])
-    t("pdf_marca_aviso_del_veredicto", "No evaluable desde nuestra red" in html
-      and "no cuentan como fallo" in html, "mismo aviso informativo que el panel")
+    t("pdf_marca_aviso_del_veredicto", "Not assessable from our network" in html
+      and "do not count as failures" in html, "mismo aviso informativo que el panel")
     html = render_html(escenarios["con competidores"])
-    t("pdf_marca_tipologias_mixtas", "no son comparables" in html and "mejor puntuación" not in html,
+    t("pdf_marca_tipologias_mixtas", "not comparable" in html and "top score" not in html.lower(),
       "con tipologías distintas no se corona a nadie, igual que en el panel")
     try:
         pdf = build_pdf_reportlab(escenarios["solo cliente"]).getvalue()
@@ -957,12 +957,13 @@ def test_dns_vs_bloqueo_total():
     ruta = os.path.join(os.path.dirname(__file__), "engine.py")
     with open(ruta) as f:
         cuerpo = f.read()
-    t("dns_distingue_no_resuelve", "no resuelve en DNS" in cuerpo,
+    t("dns_distingue_no_resuelve", "resolves in DNS but rejects" in cuerpo,
       "no se distingue 'no resuelve' de 'resuelve y nos bloquea'")
     t("dns_no_culpa_al_dominio",
-      "no responde (DNS/conexión). Verifica el dominio." not in cuerpo,
+      "no responde (DNS/conexión). Verifica el dominio." not in cuerpo
+      and "not responding (DNS/connection). Check the domain." not in cuerpo,
       "sigue el mensaje que manda a revisar un DNS correcto")
-    t("dns_explica_bloqueo", "rechaza o deja sin respuesta" in cuerpo,
+    t("dns_explica_bloqueo", "rejects or leaves unanswered" in cuerpo,
       "el bloqueo total no se explica como lo que es")
 
 
@@ -1108,7 +1109,8 @@ def test_dominio_pelado_no_es_fallo_de_dns():
     src = open(os.path.join(os.path.dirname(__file__), "engine.py")).read()
     t("gather_context_normaliza", "discovery.normalize(base)" in cuerpo,
       "gather_context vuelve a confiar en que le den la base ya normalizada")
-    t("sin_mensaje_dns_generico", 'no resuelve en DNS. Verifica el dominio.' not in src,
+    t("sin_mensaje_dns_generico", 'no resuelve en DNS. Verifica el dominio.' not in src
+      and 'does not resolve in DNS. Check the domain.' not in src,
       "se sigue atribuyendo a DNS cualquier BlockedURLError (esquema, IP privada)")
 
 
@@ -1239,7 +1241,7 @@ def test_sin_senales_no_culpa_al_acceso():
     # y cuando de verdad estamos ciegos, el aviso se mantiene
     ciego = trail_de("x", 403)
     t("sin_senales_bloqueado_sigue_avisando",
-      ciego["status"] == "warn" and "poco/ningún contenido" in ciego["detail"],
+      ciego["status"] == "warn" and "little or no content" in ciego["detail"],
       f"con la portada bloqueada el aviso debe seguir: {ciego}")
 
 
@@ -1351,7 +1353,7 @@ def test_veredicto_de_acceso_usa_la_matriz_de_bots():
     t("nivel_cerrada_no_es_parcial", not lv_c.get("cobertura_parcial"),
       "la puerta cerrada está evidenciada: la nota es real, no parcial")
     t("nivel_no_evaluable_es_parcial", lv_n.get("cobertura_parcial") is True, str(lv_n))
-    t("nivel_no_evaluable_no_acusa", "no podemos distinguirlo" in lv_n["msg"],
+    t("nivel_no_evaluable_no_acusa", "we can't tell which" in lv_n["msg"],
       "no se puede afirmar que el sitio bloquee si puede ser nuestra IP")
 
 
@@ -1470,7 +1472,7 @@ def test_comparativa_no_corona_entre_tipologias():
       "el panel debe mirar cuántas tipologías distintas hay")
     t("comparativa_corona_solo_si_homogenea", "!mixto&&conNota.length" in frag,
       "el 'mejor' solo puede calcularse cuando todas comparten tipología")
-    t("comparativa_avisa_al_usuario", "nosoncomparables" in frag,
+    t("comparativa_avisa_al_usuario", "notcomparable" in frag,
       "sin aviso, el usuario compara dos varas distintas sin saberlo")
     # el aviso tiene que llegar al HTML devuelto, no quedarse en una variable
     funcion = src[src.index("functionpaneComparativa"):src.index("functionbubbleChart")]
@@ -1510,7 +1512,7 @@ def test_ruido_del_llm_no_es_fallo_de_la_web():
       "hay que medir qué parte del intento se fue en respuestas ilegibles")
     t("ruido_llm_marca_limite", "timeouts >= 2 or ruido_llm" in src,
       "el ruido del LLM tiene que marcar límite de método, como los timeouts")
-    t("ruido_llm_se_explica", "límite NUESTRO, no un problema de la web" in src,
+    t("ruido_llm_se_explica", "limitation on OUR side, not a problem with the website" in src,
       "el informe debe decir de quién es el problema")
 
 
@@ -1575,9 +1577,9 @@ def test_escalera_de_lectura():
       "Googlebot solo entra en la escalera si quien audita lo activa")
     t("escalera_registra_intentos", 'ctx["escalera_intentos"] = intentos' in src,
       "sin el registro de intentos no sabremos si el bloqueo es por IP o por UA")
-    t("escalera_distingue_ip_de_ua", "RANGO DE IP" in src and "por USER AGENT" in src,
+    t("escalera_distingue_ip_de_ua", "IP RANGE" in src and "by USER AGENT" in src,
       "el trail debe decir cuál de las dos cosas está pasando")
-    t("escalera_no_tapa_el_bloqueo", "sigue medido aparte en la matriz" in src,
+    t("escalera_no_tapa_el_bloqueo", "still measured separately in the matrix" in src,
       "hay que dejar dicho que el acceso real se mide con el UA de cada bot")
 
     # la vía usada viaja al informe: un 40 leído como Googlebot no es un 40
@@ -1637,7 +1639,7 @@ def test_36_lee_el_arbol_de_accesibilidad_real():
     perfecto = con_ax({"nodos": 303, "accionables": 189, "sin_nombre": 0,
                        "nombre_generico": 0, "ejemplos": []})
     t("ax_perfecto_puntua_1", perfecto["score"] == 1, str(perfecto))
-    t("ax_cita_el_arbol_real", "Arbol de accesibilidad real" in perfecto["evidence"],
+    t("ax_cita_el_arbol_real", "Real accessibility tree" in perfecto["evidence"],
       "la evidencia debe dejar claro que se leyó el árbol, no una estimación")
 
     # caso real medido: noel.es, 13 de 82 controles sin nombre
@@ -1645,7 +1647,7 @@ def test_36_lee_el_arbol_de_accesibilidad_real():
                    "nombre_generico": 0,
                    "ejemplos": [{"rol": "link", "nombre": None, "problema": "sin nombre"}]})
     t("ax_16pct_suspende", malo["score"] == 0, f"16% sin nombre es un fallo: {malo}")
-    t("ax_da_ejemplos", "Ejemplos:" in malo["evidence"],
+    t("ax_da_ejemplos", "Examples:" in malo["evidence"],
       "sin ejemplos concretos el cliente no sabe qué arreglar")
 
     leve = con_ax({"nodos": 50, "accionables": 40, "sin_nombre": 2,
@@ -1659,7 +1661,7 @@ def test_36_lee_el_arbol_de_accesibilidad_real():
                    "nombre_generico": 1, "ejemplos": []})
     t("ax_1_de_189_sigue_siendo_bueno", casi["score"] == 1,
       f"0.5% de controles flojos no es un fallo: {casi}")
-    t("ax_no_afirma_que_esten_todos", "de 189 controles" in casi["evidence"],
+    t("ax_no_afirma_que_esten_todos", "of 189 actionable controls" in casi["evidence"],
       f"con el umbral en 2% no se puede decir 'todos': {casi['evidence'][:120]}")
 
     # un nombre que existe pero no dice nada cuenta como ilegible
@@ -1675,7 +1677,7 @@ def test_36_lee_el_arbol_de_accesibilidad_real():
     ctx = ctx_base()
     ctx["rendered_home"] = None
     sin = by_id(checks.run_c3(ctx), "3.6")
-    t("ax_sin_render_avisa", "APROXIMADO" in sin["evidence"],
+    t("ax_sin_render_avisa", "APPROXIMATE" in sin["evidence"],
       f"sin árbol hay que decir que la medida es peor: {sin['evidence'][-80:]}")
 
 
@@ -1800,7 +1802,7 @@ def test_jina_entra_cuando_la_pagina_de_error_es_grande():
     t("sin_body_no_revienta", not engine._home_creible({"status": 200}), "")
 
     src = open(os.path.join(os.path.dirname(__file__), "engine.py")).read()
-    ini = src.index('_log("home…")')
+    ini = src.index('_log("homepage…")')
     bloque = src[ini:src.index('via = ctx["home"].get("_via", "http")')]
     t("jina_gate_usa_credibilidad", 'if not _home_creible(ctx["home"]):' in bloque,
       "el rescate debe decidirse por credibilidad de la portada, no por peso")
@@ -1822,7 +1824,8 @@ def test_aviso_degradado_informa_sin_alarmar():
     veredicto, en naranja, y explican qué se verificó y qué no.
     """
     web = _web_src()
-    t("web_sin_no_entregar", "no entregar este informe" not in web,
+    t("web_sin_no_entregar", "no entregar este informe" not in web
+      and "do not deliver this report" not in web.lower(),
       "el texto alarmista no puede seguir en el panel")
     t("web_titulo_del_veredicto", "${esc(c.level.name)}" in web,
       "el título del banner debe salir del veredicto, no estar cableado")
@@ -1835,16 +1838,16 @@ def test_aviso_degradado_informa_sin_alarmar():
     frag = web[web.index("const deg = c.acceso_degradado"):web.index("const pens")]
     t("web_banner_no_es_error", "tone: 'bad'" not in frag and "shield-alert" in frag,
       "el aviso de acceso degradado informa, no se pinta como error")
-    t("web_dice_que_no_cuentan_como_fallo", "no cuentan como fallo" in web,
+    t("web_dice_que_no_cuentan_como_fallo", "do not count as failures" in web,
       "lo tranquilizador es explicar qué pasa con los factores no verificables")
 
     pdf = open(os.path.join(os.path.dirname(__file__), "report_pdf.py")).read()
-    t("pdf_sin_grito", "PUNTUACIÓN NO FIABLE" not in pdf,
+    t("pdf_sin_grito", "PUNTUACIÓN NO FIABLE" not in pdf and "SCORE NOT RELIABLE" not in pdf,
       "el PDF viaja solo: menos aún puede gritar")
-    t("pdf_titulo_del_veredicto", 'lvl.get("name", "No evaluable desde nuestra red")' in pdf, "")
+    t("pdf_titulo_del_veredicto", 'lvl.get("name", "Not assessable from our network")' in pdf, "")
     pdf_html = open(os.path.join(os.path.dirname(__file__), "report_pdf_html.py")).read()
     t("pdf_marca_titulo_del_veredicto",
-      'lvl.get("name", "No evaluable desde nuestra red")' in pdf_html,
+      'lvl.get("name", "Not assessable from our network")' in pdf_html,
       "el PDF con marca cuenta lo mismo que el panel y el JSON")
 
     # el JSON, que consumen IAs, lleva el mismo mensaje del veredicto
@@ -1946,7 +1949,7 @@ def test_46_cls_se_mide_sin_pagespeed():
     c = by_id(checks.run_c4(ctx), "4.6")
     t("cls_render_puntua", c["score"] == 1,
       f"CLS 0.02 medido en el navegador debe puntuar, no quedar NULL: {c}")
-    t("cls_render_dice_la_fuente", "navegador" in c["evidence"],
+    t("cls_render_dice_la_fuente", "browser" in c["evidence"],
       "hay que decir que es dato de laboratorio, no de campo")
 
     # umbrales de Web Vitals
@@ -1959,7 +1962,7 @@ def test_46_cls_se_mide_sin_pagespeed():
     ctx["psi_cls"] = 0.05
     ctx["render_cls"] = 0.9
     c = by_id(checks.run_c4(ctx), "4.6")
-    t("cls_psi_manda", c["score"] == 1 and "campo" in c["evidence"],
+    t("cls_psi_manda", c["score"] == 1 and "field" in c["evidence"],
       "el dato de campo (PageSpeed) manda sobre el de laboratorio")
 
     # sin render Y sin PSI, sigue siendo no medido (honesto)
@@ -2006,7 +2009,7 @@ def test_53_eeat_se_mide_sin_blog():
     t("eeat_sin_senales_no_castiga_a_cero", c["score"] == 0.5,
       f"sin señales no baja de 0.5: castigar con 0 culparía a la web de nuestro "
       f"muestreo: {c}")
-    t("eeat_sin_senales_lo_explica", "muestra" in c["evidence"].lower(),
+    t("eeat_sin_senales_lo_explica", "sample" in c["evidence"].lower(),
       "hay que decir que su blog pudo no entrar en la muestra")
 
 
@@ -2047,7 +2050,7 @@ def test_53_eeat_byline_visible_y_hubs():
     c = by_id(checks.run_c5(ctx_blog(firmado, hub)), "5.3")
     t("eeat_hub_no_diluye", c["score"] == 1,
       f"1/1 articulos firmados; el indice queda excluido del denominador: {c}")
-    t("eeat_hub_excluido_se_explica", "indice" in c["evidence"],
+    t("eeat_hub_excluido_se_explica", "index" in c["evidence"],
       f"la evidencia debe decir que el indice se excluyo: {c['evidence']}")
 
 
@@ -2088,7 +2091,7 @@ def test_quick_wins_ora():
     c["home"]["body"] = "<html>" + "texto " * 200 + "</html>"
     r = by_id(checks.run_c1(c), "1.8")
     t("meta_cita_vacios_es_0", r["score"] == 0, str(r))
-    t("meta_cita_dice_que_falta", "faltan" in r["evidence"], r["evidence"])
+    t("meta_cita_dice_que_falta", "missing" in r["evidence"], r["evidence"])
 
     # --- 3.7 Wikidata: fuente externa, tres estados + no verificable
     c = ctx_base(); c["wikidata"] = {"qid": "Q42", "sitelinks": 12, "error": None}
@@ -2355,16 +2358,16 @@ def test_super_prompt_de_rescate():
     t("prompt_menciona_el_dominio", "latiendahero.es" in p, "")
     faltan = [c[0] for c in CHECKS if f"[{c[0]}]" not in p]
     t("prompt_cubre_los_40_factores", not faltan, f"faltan: {faltan}")
-    t("prompt_prohibe_inventar", "NO inventes" in p and "no verificable" in p.lower(),
+    t("prompt_prohibe_inventar", "Do NOT make" in p and "not verifiable" in p.lower(),
       "sin esta regla el LLM alucinaría")
     t("prompt_reutiliza_lo_verificado",
-      "YA VERIFICADO" in p and "robots.txt 200 y parseable" in p, "")
-    t("prompt_marca_lo_pendiente", "PENDIENTE" in p, "")
+      "ALREADY VERIFIED" in p and "robots.txt 200 y parseable" in p, "")
+    t("prompt_marca_lo_pendiente", "PENDING" in p, "")
     t("prompt_incluye_comportamiento_agentico",
-      "COMPORTAMIENTO AGÉNTICO" in p and "carrito" in p.lower(),
+      "AGENTIC BEHAVIOR" in p and "cart" in p.lower(),
       "debe cubrir el comportamiento de los agentes")
-    t("prompt_lleva_la_escala", "Agent-ready" in p and "Invisible para agentes" in p, "")
-    t("prompt_siempre_pide_pdf", "PDF" in p and "sin preguntar" in p,
+    t("prompt_lleva_la_escala", "Agent-ready" in p and "Invisible to agents" in p, "")
+    t("prompt_siempre_pide_pdf", "PDF" in p and "without asking" in p,
       "Carlos: el informe debe entregarse SIEMPRE en PDF, sin preguntar formato")
     import os
     rt = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -2407,10 +2410,10 @@ def test_super_prompt_bloqueo_total_delega_todo():
     p = superprompt.construir(data)
     faltan = [c[0] for c in CHECKS if f"[{c[0]}]" not in p]
     t("bloqueo_total_estan_los_40", not faltan, f"faltan: {faltan}")
-    conf = set(_re.findall(r"\[(\d\.\d)\][^\[]*?CONFIRMADO EN CAMPO", p))
+    conf = set(_re.findall(r"\[(\d\.\d)\][^\[]*?CONFIRMED IN THE FIELD", p))
     t("bloqueo_total_confirma_solo_acceso", conf == {"1.6", "2.4", "4.4"},
       f"confirmados: {sorted(conf)} (debe ser exactamente los de hostilidad)")
-    pend = set(_re.findall(r"\[(\d\.\d)\][^\[]*?PENDIENTE", p))
+    pend = set(_re.findall(r"\[(\d\.\d)\][^\[]*?PENDING", p))
     # todos los del catálogo menos los 3 de hostilidad confirmados en campo
     t("bloqueo_total_delega_el_resto", len(pend) == len(CHECKS) - 3,
       f"pendientes: {len(pend)} (esperados {len(CHECKS) - 3})")
@@ -2418,7 +2421,7 @@ def test_super_prompt_bloqueo_total_delega_todo():
       {"1.1", "4.1", "6.3"} <= pend,
       "un factor de contenido leído sobre la página de bloqueo NO puede darse por verificado")
     t("bloqueo_total_avisa_ip_limpia",
-      "IP limpia" in p and "CONFIRMADO EN CAMPO" in p,
+      "clean IP" in p and "CONFIRMED IN THE FIELD" in p,
       "el LLM debe saber que a él quizá no le bloqueen")
 
 
@@ -2451,21 +2454,21 @@ def test_super_prompt_incluye_competidores():
     t("comp_mencionados_en_encargo",
       "rival-a.com" in p[:1400] and "rival-b.com" in p[:1400],
       "el encargo debe avisar de que hay competidores que auditar")
-    t("comp_seccion_presente", "COMPETIDOR 1: rival-a.com" in p and "COMPETIDOR 2: rival-b.com" in p, "")
+    t("comp_seccion_presente", "COMPETITOR 1: rival-a.com" in p and "COMPETITOR 2: rival-b.com" in p, "")
     t("comp_caido_excluido", "caido.com" not in p,
       "un competidor que no se pudo cargar no debe aparecer")
     t("comp_cada_uno_40_factores", p.count("[1.1]") == 3,
       f"cliente + 2 competidores = 3 bloques de 40 factores, [1.1] x{p.count('[1.1]')}")
     t("comp_entrega_pide_comparativa",
-      "COMPARATIVA mitienda.es vs competidores" in p and "cada competidor" in p,
+      "COMPARISON mitienda.es vs competitors" in p and "each competitor" in p,
       "la entrega debe pedir nota de cada competidor y la comparativa por categoría")
     t("comp_respeta_bloqueo_por_dominio",
-      "rival-b.com ok" in p and p.count("CONFIRMADO EN CAMPO") >= 2,
+      "rival-b.com ok" in p and p.count("CONFIRMED IN THE FIELD") >= 2,
       "cada dominio aplica su propio nivel: rival-b (limpio) reutiliza, rival-a (bloqueado) confirma acceso")
     # sin competidores, ni sección ni comparativa
     p0 = superprompt.construir({"client": _audit("solo.es", bloqueado=True), "competitors": []})
     t("comp_ausentes_sin_seccion",
-      "AUDÍTALOS TAMBIÉN" not in p0 and "COMPARATIVA" not in p0, "")
+      "AUDIT THEM TOO" not in p0 and "COMPARISON" not in p0, "")
 
 
 def main():

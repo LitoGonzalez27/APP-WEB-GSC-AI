@@ -19,13 +19,22 @@ from io import BytesIO
 # del catálogo de factores. Tenerlos duplicados en tres módulos era pedir
 # que se desincronizaran al renombrar una categoría.
 from .catalog import CATEGORIES as CAT_NAMES
+# Claves en español (informes guardados antes de la traducción) y en inglés
+# (knowledge.py actual), con el mismo orden.
 IMPORD = {"Crítico": 0, "Alto": 1, "Alto (apuesta de futuro)": 1,
           "Alto (ventana de oportunidad)": 1, "Medio": 2, "Medio (creciente)": 2,
-          "Bajo": 3, "Bajo (hoy)": 3, "Diagnóstico": 4}
-TIERS = [(0, "Crítico", "Está frenando a los agentes hoy. Arreglar lo primero."),
-         (1, "Importante", "Alto impacto en visibilidad y capacidad de ser usado."),
-         (2, "Mejoras recomendadas", "Suman puntos y pulen la experiencia del agente."),
-         (3, "Menor", "Poca urgencia: para cuando el resto esté hecho.")]
+          "Bajo": 3, "Bajo (hoy)": 3, "Diagnóstico": 4,
+          "Critical": 0, "High": 1, "High (future bet)": 1,
+          "High (window of opportunity)": 1, "Medium": 2, "Medium (growing)": 2,
+          "Low": 3, "Low (today)": 3, "Diagnostic": 4}
+TIERS = [(0, "Critical", "Holding agents back today. Fix this first."),
+         (1, "Important", "High impact on visibility and on your ability to be used."),
+         (2, "Recommended improvements", "They add points and polish the agent experience."),
+         (3, "Minor", "Low urgency: for when everything else is done.")]
+# Tablas compartidas con el PDF de marca (valores antiguos -> inglés)
+from .report_pdf_html import (IMPACT_EN, LEVEL_EN, LOW_EFFORT, OUTCOME_EN,  # noqa: E402
+                              TYPOLOGY, _fecha_larga)
+from .report_pdf_html import CHECK_NAMES  # noqa: E402
 
 
 def build_pdf(data):
@@ -42,7 +51,7 @@ def build_pdf(data):
         return BytesIO(build_pdf_html(data))
     except Exception as exc:
         logging.getLogger(__name__).warning(
-            f"PDF con Chromium no disponible, se usa ReportLab: {type(exc).__name__}: {exc}")
+            f"Chromium PDF unavailable, falling back to ReportLab: {type(exc).__name__}: {exc}")
     return build_pdf_reportlab(data)
 
 
@@ -124,7 +133,7 @@ def build_pdf_reportlab(data):
         d.add(Circle(cx, cy, r * 0.68, fillColor=colors.white, strokeColor=None))
         d.add(String(cx, cy + 1, f"{pct:g}", fontName="Helvetica-Bold", fontSize=21,
                      fillColor=DARK, textAnchor="middle"))
-        d.add(String(cx, cy - 11, "parcial" if parcial else "de 100",
+        d.add(String(cx, cy - 11, "partial" if parcial else "of 100",
                      fontName="Helvetica", fontSize=7,
                      fillColor=GREY, textAnchor="middle"))
         return d
@@ -140,9 +149,9 @@ def build_pdf_reportlab(data):
         r, cx, cy = size / 2, size / 2, size / 2
         d.add(Circle(cx, cy, r, fillColor=colors.HexColor("#EEF2F7"), strokeColor=None))
         d.add(Circle(cx, cy, r * 0.68, fillColor=colors.white, strokeColor=None))
-        d.add(String(cx, cy + 2, "SIN", fontName="Helvetica-Bold", fontSize=13,
+        d.add(String(cx, cy + 2, "NO", fontName="Helvetica-Bold", fontSize=13,
                      fillColor=GREY, textAnchor="middle"))
-        d.add(String(cx, cy - 11, "NOTA", fontName="Helvetica-Bold", fontSize=13,
+        d.add(String(cx, cy - 11, "SCORE", fontName="Helvetica-Bold", fontSize=13,
                      fillColor=GREY, textAnchor="middle"))
         return d
 
@@ -167,15 +176,15 @@ def build_pdf_reportlab(data):
         story.append(Paragraph("CLICANDSEO · AGENT READINESS", ParagraphStyle(
             "kick", parent=MUTED, fontName="Helvetica-Bold", fontSize=9, textColor=LIMA)))
         story.append(Spacer(1, 0.3 * cm))
-        story.append(Paragraph("Auditoría de preparación para la era agéntica", H1))
-        story.append(Paragraph(f"<b>{esc(host)}</b> · {esc(data.get('generated', '')[:10])}", LEAD))
+        story.append(Paragraph("Readiness audit for the agentic era", H1))
+        story.append(Paragraph(f"<b>{esc(host)}</b> · {esc(_fecha_larga(data.get('generated')))}", LEAD))
         story.append(Spacer(1, 0.8 * cm))
 
         lvl_color = color_for(score)
         etapas_txt = []
-        for _k, label, cs in [("leer", "¿Te leen?", ["C1", "C2"]),
-                              ("entender", "¿Te entienden?", ["C3", "C4", "C5"]),
-                              ("usar", "¿Pueden usarte?", ["C6", "C7"])]:
+        for _k, label, cs in [("leer", "Can they read you?", ["C1", "C2"]),
+                              ("entender", "Do they understand you?", ["C3", "C4", "C5"]),
+                              ("usar", "Can they use you?", ["C6", "C7"])]:
             vals = [client["category_scores"][c] for c in cs
                     if c in (client.get("category_scores") or {})]
             if vals:
@@ -186,7 +195,7 @@ def build_pdf_reportlab(data):
             lvl_color = GREY
         verdict = Table([[
             donut(score, parcial=parcial),
-            Paragraph(f'<b><font size="14" color="{lvl_color.hexval()}">{esc(lvl.get("name",""))}</font></b><br/>'
+            Paragraph(f'<b><font size="14" color="{lvl_color.hexval()}">{esc(LEVEL_EN.get(lvl.get("name"), lvl.get("name","")))}</font></b><br/>'
                       f'<font size="9.5" color="#0F172A">{esc(lvl.get("msg",""))}</font><br/><br/>'
                       f'<font size="8.5" color="#64748B">{" &nbsp;·&nbsp; ".join(etapas_txt)}</font>', BODY),
         ]], colWidths=[4.6 * cm, 11.4 * cm])
@@ -213,21 +222,21 @@ def build_pdf_reportlab(data):
                 return None
             lvl = dom.get("level") or {}
             if lvl.get("cobertura_parcial"):
-                titulo = lvl.get("name", "No evaluable desde nuestra red")
+                titulo = LEVEL_EN.get(lvl.get("name"), lvl.get("name", "Not assessable from our network"))
                 cuerpo = lvl.get("msg", "")
             else:
-                titulo = "Lectura limitada"
+                titulo = "Limited reading"
                 cuerpo = deg.get("motivo", "")
             cob = dom.get("cobertura_score")
-            extra = (f' Esta nota cubre el <b>{round(cob * 100)}%</b> del modelo.'
+            extra = (f' This score covers <b>{round(cob * 100)}%</b> of the model.'
                      if isinstance(cob, (int, float)) else "")
             warn_tbl = Table([[Paragraph(
                 f'<b><font color="{WARN.hexval()}" size="11">⚠ {esc(titulo)}</font></b><br/>'
                 f'<font size="9">{esc(etiqueta)}: {esc(cuerpo)} '
-                f'Hay <b>{deg.get("degradados", 0)}</b> factores marcados como '
-                f'«no verificable» porque no se pudieron comprobar — no cuentan como '
-                f'fallo.{extra} Puedes repetir el análisis más tarde o desde otra '
-                f'red.</font>', BODY)]],
+                f'<b>{deg.get("degradados", 0)}</b> factor(s) marked as '
+                f'“not verifiable” because they could not be checked — they do not count as '
+                f'failures.{extra} You can run the analysis again later or from another '
+                f'network.</font>', BODY)]],
                 colWidths=[16 * cm])
             warn_tbl.setStyle(TableStyle([
                 ("BOX", (0, 0), (-1, -1), 1.2, WARN),
@@ -238,8 +247,8 @@ def build_pdf_reportlab(data):
             return warn_tbl
 
         avisos = [w for w in
-                  [_aviso_fiabilidad(client, "Tu dominio")]
-                  + [_aviso_fiabilidad(comp, comp.get("host", "competidor"))
+                  [_aviso_fiabilidad(client, "Your domain")]
+                  + [_aviso_fiabilidad(comp, comp.get("host", "competitor"))
                      for comp in (data.get("competitors") or [])]
                   if w is not None]
         for w in avisos:
@@ -248,25 +257,25 @@ def build_pdf_reportlab(data):
 
         story.append(Spacer(1, 0.5 * cm))
         story.append(Paragraph(
-            "Este informe mide si los sistemas de IA pueden <b>leer</b> tu web, <b>entenderla</b> "
-            "sin equivocarse y <b>actuar</b> en ella (comprar, reservar, contactar). No es SEO "
-            "clásico: es la capa que determina si tu marca existe cuando un agente de IA hace el trabajo "
-            "por el usuario.", BODY))
+            "This report measures whether AI systems can <b>read</b> your site, <b>understand</b> it "
+            "without getting it wrong, and <b>act</b> on it (buy, book, get in touch). This is not classic "
+            "SEO: it is the layer that determines whether your brand exists when an AI agent does the work "
+            "for the user.", BODY))
         story.append(Spacer(1, 0.3 * cm))
         story.append(Paragraph(
-            "<b>Cómo usar este documento:</b> las secciones 1–3 son de decisión (para dirección/marketing). "
-            "El <b>Anexo técnico</b> del final contiene la evidencia bruta de cada comprobación, pensado "
-            "para pasárselo directamente al equipo técnico o a la agencia.", MUTED))
+            "<b>How to use this document:</b> sections 1–3 are for decision-making (leadership/marketing). "
+            "The <b>Technical appendix</b> at the end contains the raw evidence for every check, meant "
+            "to be handed straight to your tech team or agency.", MUTED))
 
     def seccion_resumen():
         story.append(PageBreak())
-        story.append(Paragraph("1. Resumen ejecutivo", H2))
+        story.append(Paragraph("1. Executive summary", H2))
 
         cats = [(c, client["category_scores"][c]) for c in CAT_NAMES
                 if c in (client.get("category_scores") or {})]
-        rows = [[Paragraph('<b><font color="white" size="9">CATEGORÍA</font></b>', BODY),
-                 Paragraph('<b><font color="white" size="9">PUNTUACIÓN</font></b>', BODY),
-                 Paragraph('<b><font color="white" size="9">ESTADO</font></b>', BODY)]]
+        rows = [[Paragraph('<b><font color="white" size="9">CATEGORY</font></b>', BODY),
+                 Paragraph('<b><font color="white" size="9">SCORE</font></b>', BODY),
+                 Paragraph('<b><font color="white" size="9">STATUS</font></b>', BODY)]]
         style = [("BACKGROUND", (0, 0), (-1, 0), DARK),
                  ("FONTSIZE", (0, 0), (-1, -1), 9),
                  ("LINEBELOW", (0, 0), (-1, -1), 0.4, LIGHT),
@@ -274,7 +283,7 @@ def build_pdf_reportlab(data):
                  ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]
         for i, (c, v) in enumerate(cats, start=1):
             pct = round(v * 100)
-            estado = "Fuerte" if pct >= 75 else "Mejorable" if pct >= 50 else "Flojo" if pct >= 25 else "Crítico"
+            estado = "Strong" if pct >= 75 else "Needs work" if pct >= 50 else "Weak" if pct >= 25 else "Critical"
             col = color_for(pct)
             rows.append([Paragraph(f"<b>{c}</b> · {CAT_NAMES[c]}", BODY), bar(pct),
                          Paragraph(f'<font color="{col.hexval()}"><b>{estado}</b></font>', BODY)])
@@ -285,8 +294,8 @@ def build_pdf_reportlab(data):
         story.append(t)
 
         # continuum
-        stages = [("¿Te leen?", ["C1", "C2"]), ("¿Te entienden?", ["C3", "C4", "C5"]),
-                  ("¿Pueden usarte?", ["C6", "C7"])]
+        stages = [("Can they read you?", ["C1", "C2"]), ("Do they understand you?", ["C3", "C4", "C5"]),
+                  ("Can they use you?", ["C6", "C7"])]
         srow, hrow = [], []
         for name, cs in stages:
             vals = [client["category_scores"][c] for c in cs if c in (client.get("category_scores") or {})]
@@ -297,7 +306,7 @@ def build_pdf_reportlab(data):
             srow.append(Paragraph(f'<font size="18"><b>{p}%</b></font>', CENTER))
         if hrow:
             story.append(Spacer(1, 0.5 * cm))
-            story.append(Paragraph("El viaje del agente por tu web", H3))
+            story.append(Paragraph("The agent's journey through your site", H3))
             ct = Table([hrow, srow], colWidths=[16 * cm / len(hrow)] * len(hrow))
             ct.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.5, LIGHT),
                                     ("INNERGRID", (0, 0), (-1, -1), 0.5, LIGHT),
@@ -305,35 +314,35 @@ def build_pdf_reportlab(data):
                                     ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
             story.append(ct)
             story.append(Paragraph(
-                "Un agente primero tiene que poder leerte, luego entenderte sin equivocarse, y solo "
-                "entonces puede usarte. La cadena se rompe en el eslabón más débil.", MUTED))
+                "An agent first has to be able to read you, then understand you without getting it wrong, "
+                "and only then can it use you. The chain breaks at its weakest link.", MUTED))
 
         n_ok = sum(1 for c in checks if c.get("score") == 1)
         n_part = sum(1 for c in checks if c.get("score") not in (None, 0, 1))
         n_bad = sum(1 for c in checks if c.get("score") == 0)
         story.append(Spacer(1, 0.4 * cm))
         story.append(Paragraph(
-            f"De <b>{len(checks)} comprobaciones</b>: <font color='{OK.hexval()}'><b>{n_ok} se cumplen</b></font>, "
-            f"<font color='{WARN.hexval()}'><b>{n_part} a medias</b></font> y "
-            f"<font color='{BAD.hexval()}'><b>{n_bad} fallan</b></font>.", BODY))
+            f"Of <b>{len(checks)} checks</b>: <font color='{OK.hexval()}'><b>{n_ok} pass</b></font>, "
+            f"<font color='{WARN.hexval()}'><b>{n_part} partially pass</b></font> and "
+            f"<font color='{BAD.hexval()}'><b>{n_bad} fail</b></font>.", BODY))
         for pen, val in (client.get("penalties") or []):
-            story.append(Paragraph(f"⚠ Penalización aplicada: {esc(pen)} ({val} puntos)", MUTED))
+            story.append(Paragraph(f"⚠ Penalty applied: {esc(pen)} ({val} points)", MUTED))
 
         quick = [c for c in checks if c.get("advice") and c.get("score") is not None
-                 and c["score"] < 1 and c["advice"].get("esfuerzo") == "Bajo"
+                 and c["score"] < 1 and c["advice"].get("esfuerzo") in LOW_EFFORT
                  and IMPORD.get(c["advice"].get("impacto"), 3) <= 2]
         if quick:
             story.append(Spacer(1, 0.3 * cm))
-            story.append(Paragraph("Por dónde empezar (quick wins: alto impacto, poco esfuerzo)", H3))
+            story.append(Paragraph("Where to start (quick wins: high impact, low effort)", H3))
             for c in quick[:5]:
                 story.append(Paragraph(f"• <b>{esc(c['advice']['titulo'])}</b> — {esc(c['advice']['como'])}", BODY))
 
     def seccion_comparativa():
         if comps:
             story.append(PageBreak())
-            story.append(Paragraph("2. Comparativa con la competencia", H2))
-            story.append(Paragraph("Mismos checks, mismos pesos, misma vara de medir para todos los dominios.", BODY))
-            head = ["Categoría"] + [a.get("host", "?") for a in audits]
+            story.append(Paragraph("2. Comparison with competitors", H2))
+            story.append(Paragraph("Same checks, same weights, same yardstick for every domain.", BODY))
+            head = ["Category"] + [a.get("host", "?") for a in audits]
             rows = [head]
             for c in CAT_NAMES:
                 if not any(c in (a.get("category_scores") or {}) for a in audits):
@@ -343,7 +352,7 @@ def build_pdf_reportlab(data):
                     v = (a.get("category_scores") or {}).get(c)
                     row.append(f"{round(v*100)}%" if v is not None else "n/a")
                 rows.append(row)
-            rows.append(["PUNTUACIÓN GLOBAL"] + [str(a.get("score", "—")) for a in audits])
+            rows.append(["OVERALL SCORE"] + [str(a.get("score", "—")) for a in audits])
             w = [7 * cm] + [(9 * cm) / len(audits)] * len(audits)
             ct = Table(rows, colWidths=w)
             heat = [("BACKGROUND", (0, 0), (-1, 0), DARK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -376,21 +385,21 @@ def build_pdf_reportlab(data):
                 for comp in comps:
                     v = (comp.get("category_scores") or {}).get(c)
                     if v is not None and v - mine >= 0.15:
-                        gaps.append(f"• <b>{c} · {CAT_NAMES[c]}</b>: {esc(comp.get('host'))} te saca "
-                                    f"{round((v-mine)*100)} puntos ({round(v*100)}% vs tu {round(mine*100)}%).")
-            story.append(Paragraph("Dónde te sacan ventaja", H3))
+                        gaps.append(f"• <b>{c} · {CAT_NAMES[c]}</b>: {esc(comp.get('host'))} is "
+                                    f"{round((v-mine)*100)} points ahead ({round(v*100)}% vs. your {round(mine*100)}%).")
+            story.append(Paragraph("Where they are ahead of you", H3))
             if gaps:
                 for g in gaps:
                     story.append(Paragraph(g, BODY))
             else:
-                story.append(Paragraph("Sin brechas relevantes: ninguna categoría con desventaja ≥15 puntos.", BODY))
+                story.append(Paragraph("No significant gaps: no category where you trail by ≥15 points.", BODY))
 
     def seccion_plan_de_accion():
         story.append(PageBreak())
-        story.append(Paragraph("3. Plan de acción priorizado", H2))
+        story.append(Paragraph("3. Prioritised action plan", H2))
         story.append(Paragraph(
-            "Cada punto explica <b>qué falla</b>, <b>por qué le importa al negocio</b> y "
-            "<b>cómo se arregla</b> (esta última línea es la que puede ir directa al equipo técnico).", BODY))
+            "Each item explains <b>what is failing</b>, <b>why it matters to the business</b> and "
+            "<b>how to fix it</b> (that last line is the one that can go straight to your tech team).", BODY))
         items = [c for c in checks if c.get("advice") and c.get("score") is not None and c["score"] < 1]
         for ord_, tier_name, tier_desc in TIERS:
             tier_items = [c for c in items if min(IMPORD.get(c["advice"].get("impacto"), 3), 3) == ord_]
@@ -410,8 +419,8 @@ def build_pdf_reportlab(data):
             story.append(Spacer(1, 0.2 * cm))
             for c in tier_items:
                 a = c["advice"]
-                meta = Table([[chip(f"Impacto {a['impacto']}", tier_col),
-                               chip(f"Esfuerzo {a['esfuerzo']}", GREY),
+                meta = Table([[chip(f"Impact {IMPACT_EN.get(a['impacto'], a['impacto'])}", tier_col),
+                               chip(f"Effort {IMPACT_EN.get(a['esfuerzo'], a['esfuerzo'])}", GREY),
                                Paragraph(f"<font color='#94A3B8' size='7.5'>check {esc(c['id'])}</font>", MUTED)]],
                              colWidths=[3.3 * cm, 3.3 * cm, 3 * cm])
                 meta.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -420,8 +429,8 @@ def build_pdf_reportlab(data):
                                           ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
                 card = Table([[Paragraph(f"<b>{esc(a['titulo'])}</b>", BODY)],
                               [meta],
-                              [Paragraph(f"<font color='#64748B'><b>POR QUÉ IMPORTA</b></font><br/>{esc(a['por_que'])}", BODY)],
-                              [Paragraph(f"<font color='#64748B'><b>CÓMO SE ARREGLA</b></font><br/>{esc(a['como'])}", BODY)]],
+                              [Paragraph(f"<font color='#64748B'><b>WHY IT MATTERS</b></font><br/>{esc(a['por_que'])}", BODY)],
+                              [Paragraph(f"<font color='#64748B'><b>HOW TO FIX IT</b></font><br/>{esc(a['como'])}", BODY)]],
                              colWidths=[16 * cm])
                 card.setStyle(TableStyle([
                     ("LINEBEFORE", (0, 0), (0, -1), 2, tier_col),
@@ -433,15 +442,15 @@ def build_pdf_reportlab(data):
 
     def seccion_anexo_tecnico():
         story.append(PageBreak())
-        story.append(Paragraph("4. Anexo técnico — evidencia de cada comprobación", H2))
+        story.append(Paragraph("4. Technical appendix — evidence for every check", H2))
         story.append(Paragraph(
-            "Para el equipo técnico: resultado y evidencia bruta de las "
-            f"{len(checks)} comprobaciones sobre {esc(host)}.", BODY))
-        rows = [["Check", "Resultado", "Evidencia"]]
+            "For the tech team: result and raw evidence of the "
+            f"{len(checks)} checks on {esc(host)}.", BODY))
+        rows = [["Check", "Result", "Evidence"]]
         for c in checks:
             s = c.get("score")
-            res = "CUMPLE" if s == 1 else "PARCIAL" if (s or 0) > 0 else "FALLA" if s == 0 else "N/A"
-            rows.append([Paragraph(f"<b>{esc(c['id'])}</b> {esc(c['name'])}", MUTED),
+            res = "PASS" if s == 1 else "PARTIAL" if (s or 0) > 0 else "FAIL" if s == 0 else "N/A"
+            rows.append([Paragraph(f"<b>{esc(c['id'])}</b> {esc(CHECK_NAMES.get(c.get('id'), c.get('name', '')))}", MUTED),
                          Paragraph(res, MUTED),
                          Paragraph(esc(c.get("evidence", ""))[:300], MONO)])
         at = Table(rows, colWidths=[4.6 * cm, 1.9 * cm, 9.5 * cm], repeatRows=1)
@@ -457,31 +466,32 @@ def build_pdf_reportlab(data):
         at_data = client.get("agent_tests") or {}
         if at_data.get("agents"):
             story.append(Spacer(1, 0.4 * cm))
-            story.append(Paragraph("Prueba con agentes de IA reales (check 6.3)", H3))
+            story.append(Paragraph("Test with real AI agents (check 6.3)", H3))
             story.append(Paragraph(
-                f"Tarea de tipología <b>{esc(at_data.get('typology'))}</b>. Cada agente controla un "
-                "navegador real e intenta completarla. Nunca se pagan compras ni se crean cuentas.", BODY))
+                f"Task for site type <b>{esc(TYPOLOGY.get(at_data.get('typology'), at_data.get('typology')))}</b>. "
+                "Each agent controls a real browser and tries to complete it. No purchase is ever paid and "
+                "no account is ever created.", BODY))
             for name, r in at_data["agents"].items():
                 story.append(Paragraph(
-                    f"• <b>{esc(name)}</b>: {esc(str(r.get('outcome','')).replace('_',' '))}"
-                    f"{' · ' + str(r.get('steps')) + ' pasos' if r.get('steps') else ''} — "
+                    f"• <b>{esc(name)}</b>: {esc(OUTCOME_EN.get(str(r.get('outcome', '')), str(r.get('outcome', '')).replace('_', ' ')))}"
+                    f"{' · ' + str(r.get('steps')) + (' step' if r.get('steps') == 1 else ' steps') if r.get('steps') else ''} — "
                     f"{esc(r.get('detail',''))[:220]}", BODY))
 
     def seccion_metodologia():
         story.append(PageBreak())
-        story.append(Paragraph("5. Metodología y fiabilidad", H2))
+        story.append(Paragraph("5. Methodology and reliability", H2))
         story.append(Paragraph(
-            f"Tipología detectada: <b>{esc(client.get('typology'))}</b>. "
+            f"Detected site type: <b>{esc(TYPOLOGY.get(client.get('typology'), client.get('typology')))}</b>. "
             f"Framework: {esc(data.get('framework_version',''))}.", BODY))
         cov = client.get("coverage") or {}
         story.append(Paragraph(
-            f"Cobertura del muestreo: {cov.get('sampled_ok','?')}/{cov.get('sampled','?')} páginas "
-            f"accesibles de {cov.get('sitemap_urls','?')} URLs del sitemap. El muestreo es "
-            "representativo (hasta 2 páginas por plantilla), no exhaustivo.", BODY))
+            f"Sampling coverage: {cov.get('sampled_ok','?')}/{cov.get('sampled','?')} pages "
+            f"accessible out of {cov.get('sitemap_urls','?')} sitemap URLs. The sample is "
+            "representative (up to 2 pages per template), not exhaustive.", BODY))
         trail = client.get("trail") or []
         if trail:
-            story.append(Paragraph("Procesos ejecutados y su resultado", H3))
-            rows = [["Proceso", "Estado", "Detalle"]]
+            story.append(Paragraph("Processes run and their result", H3))
+            rows = [["Process", "Status", "Detail"]]
             for t in trail:
                 rows.append([Paragraph(esc(t.get("step")), MUTED),
                              Paragraph(esc(t.get("status")).upper(), MUTED),
@@ -495,11 +505,11 @@ def build_pdf_reportlab(data):
             ]))
             story.append(tt)
             story.append(Paragraph(
-                "OK = ejecutado con evidencia · WARN = evidencia degradada · FAIL = el proceso no obtuvo "
-                "evidencia · SKIPPED = desactivado. Un 404 del sitio es un hallazgo, no un fallo del análisis.", MUTED))
+                "OK = ran with evidence · WARN = degraded evidence · FAIL = the process obtained no "
+                "evidence · SKIPPED = disabled. A 404 from the site is a finding, not an analysis failure.", MUTED))
         story.append(Spacer(1, 0.4 * cm))
         story.append(Paragraph(
-            "El campo agéntico evoluciona por trimestres: se recomienda repetir esta auditoría cada 90 días.", MUTED))
+            "The agentic field evolves quarter by quarter: we recommend repeating this audit every 90 days.", MUTED))
 
 
     # Orden del documento. Cada sección es autónoma y comparte estilos y
@@ -516,7 +526,7 @@ def build_pdf_reportlab(data):
         canvas.setFont("Helvetica", 7.5)
         canvas.setFillColor(GREY)
         canvas.drawString(2 * cm, 1.2 * cm, f"Clicandseo · Agent Readiness · {host}")
-        canvas.drawRightString(A4[0] - 2 * cm, 1.2 * cm, f"Página {doc_.page}")
+        canvas.drawRightString(A4[0] - 2 * cm, 1.2 * cm, f"Page {doc_.page}")
         canvas.restoreState()
 
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,

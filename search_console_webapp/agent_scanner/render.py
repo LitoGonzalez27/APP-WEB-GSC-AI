@@ -91,7 +91,7 @@ def render(url, timeout=90, interactive=False):
         return _render_playwright(url, timeout, interactive)
     if backend == "camoufox":
         return _render_camoufox(url, timeout)
-    return {"ok": False, "error": "sin backend de render disponible", "html": "", "status": 0}
+    return {"ok": False, "error": "no render backend available", "html": "", "status": 0}
 
 
 # Roles del árbol que un agente puede ACCIONAR. Un nodo con uno de estos roles
@@ -129,12 +129,12 @@ def _resumen_ax(nodo):
             if not nombre:
                 sin_nombre += 1
                 if len(ejemplos) < 8:
-                    ejemplos.append({"rol": rol, "nombre": None, "problema": "sin nombre"})
+                    ejemplos.append({"rol": rol, "nombre": None, "problema": "no name"})
             elif nombre.lower().strip(" .:·-") in NOMBRES_VACIOS:
                 generico += 1
                 if len(ejemplos) < 8:
                     ejemplos.append({"rol": rol, "nombre": nombre[:40],
-                                     "problema": "nombre genérico"})
+                                     "problema": "generic name"})
         for h in (n.get("children") or []):
             rec(h, profundidad + 1)
 
@@ -147,7 +147,7 @@ def _render_playwright(url, timeout, interactive=False):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        return {"ok": False, "error": "playwright no instalado", "html": "", "status": 0}
+        return {"ok": False, "error": "playwright not installed", "html": "", "status": 0}
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox"],
@@ -201,13 +201,13 @@ def _render_playwright(url, timeout, interactive=False):
 
 def _render_camoufox(url, timeout):
     if not os.path.exists(_CAMOUFOX_PY):
-        return {"ok": False, "error": "venv camoufox no encontrado", "html": "", "status": 0}
+        return {"ok": False, "error": "camoufox venv not found", "html": "", "status": 0}
     try:
         proc = subprocess.run([_CAMOUFOX_PY, _CAMOUFOX_PROBE, url],
                               capture_output=True, text=True, timeout=timeout + 90)
         line = proc.stdout.strip().splitlines()[-1] if proc.stdout.strip() else "{}"
         return json.loads(line)
     except subprocess.TimeoutExpired:
-        return {"ok": False, "error": "timeout renderizando", "html": "", "status": 0}
+        return {"ok": False, "error": "render timed out", "html": "", "status": 0}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:300], "html": "", "status": 0}

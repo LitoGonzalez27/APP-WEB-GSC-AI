@@ -56,25 +56,55 @@ ICONS = {
                           '<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'),
 }
 
+# Claves en español (informes guardados antes de la traducción) y en inglés
+# (knowledge.py actual), con el mismo orden.
 IMPORD = {"Crítico": 0, "Alto": 1, "Alto (apuesta de futuro)": 1,
           "Alto (ventana de oportunidad)": 1, "Medio": 2, "Medio (creciente)": 2,
-          "Bajo": 3, "Bajo (hoy)": 3, "Diagnóstico": 4}
-TIERS = [(0, "Crítico", "Está frenando a los agentes hoy. Arreglar lo primero."),
-         (1, "Importante", "Alto impacto en visibilidad y en la capacidad de ser usado."),
-         (2, "Mejoras recomendadas", "Suman puntos y pulen la experiencia del agente."),
-         (3, "Menor", "Poca urgencia: para cuando el resto esté hecho.")]
-STAGES = [("¿Te leen?", "Acceso y rastreo", ["C1", "C2"]),
-          ("¿Te entienden?", "Datos y contenido", ["C3", "C4", "C5"]),
-          ("¿Pueden usarte?", "Acciones y compra", ["C6", "C7"])]
-SCALE = [(0, 25, "Invisible para agentes", "Ni te leen ni te usan."),
-         (26, 50, "Legible, no operable", "Te leen, no te entienden bien, no te usan."),
-         (51, 75, "Agent-aware", "Bien posicionado; faltan capacidades ejecutables."),
-         (76, 100, "Agent-ready", "Ventaja competitiva real.")]
-TYPOLOGY = {"ecommerce": "E-commerce", "saas": "SaaS", "corporativo": "Corporativo"}
+          "Bajo": 3, "Bajo (hoy)": 3, "Diagnóstico": 4,
+          "Critical": 0, "High": 1, "High (future bet)": 1,
+          "High (window of opportunity)": 1, "Medium": 2, "Medium (growing)": 2,
+          "Low": 3, "Low (today)": 3, "Diagnostic": 4}
+# Valores de impacto/esfuerzo de informes antiguos -> texto en inglés
+IMPACT_EN = {"Crítico": "Critical", "Alto": "High", "Alto (apuesta de futuro)": "High (future bet)",
+             "Alto (ventana de oportunidad)": "High (window of opportunity)", "Medio": "Medium",
+             "Medio (creciente)": "Medium (growing)", "Bajo": "Low", "Bajo (hoy)": "Low (today)",
+             "Diagnóstico": "Diagnostic"}
+LOW_EFFORT = ("Bajo", "Low")
+TIERS = [(0, "Critical", "Holding agents back today. Fix this first."),
+         (1, "Important", "High impact on visibility and on your ability to be used."),
+         (2, "Recommended improvements", "They add points and polish the agent experience."),
+         (3, "Minor", "Low urgency: for when everything else is done.")]
+STAGES = [("Can they read you?", "Access and crawling", ["C1", "C2"]),
+          ("Do they understand you?", "Data and content", ["C3", "C4", "C5"]),
+          ("Can they use you?", "Actions and purchase", ["C6", "C7"])]
+SCALE = [(0, 25, "Invisible to agents", "They neither read you nor use you."),
+         (26, 50, "Readable, not operable", "They read you, don't understand you well, don't use you."),
+         (51, 75, "Agent-aware", "Well positioned; executable capabilities are missing."),
+         (76, 100, "Agent-ready", "A real competitive advantage.")]
+TYPOLOGY = {"ecommerce": "E-commerce", "saas": "SaaS", "corporativo": "Corporate",
+            "generico": "Generic"}
 AGENT_NAMES = {"chatgpt": "ChatGPT", "claude": "Claude", "gemini": "Gemini",
                "perplexity": "Perplexity"}
-MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
-         "septiembre", "octubre", "noviembre", "diciembre"]
+# Códigos de desenlace (se guardan en español) -> etiqueta visible
+OUTCOME_EN = {"conseguido": "achieved", "conseguido_con_friccion": "achieved with friction",
+              "no_conseguido": "not achieved", "inconsistente": "inconsistent",
+              "no_verificable": "not verifiable", "no_disponible": "not available",
+              "error": "error"}
+# Nombres de nivel de informes antiguos (scoring.py LEVELS) -> inglés
+LEVEL_EN = {"Invisible para agentes": "Invisible to agents",
+            "Legible, no operable": "Readable, not operable",
+            "Puerta cerrada a agentes": "Closed to agents",
+            "No evaluable desde nuestra red": "Not assessable from our network"}
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _en(v):
+    return IMPACT_EN.get(v, v)
+
+
+def _level_name(lvl):
+    n = (lvl or {}).get("name", "")
+    return LEVEL_EN.get(n, n)
 
 # Tokens del brandbook (brand-dashboard-tokens.css / brand_palette.py).
 # Slot 1 = tu web, siempre; competidores en violeta y magenta (slots 4 y 6):
@@ -116,19 +146,19 @@ def _fecha_larga(iso):
         return ""
     try:
         d = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        return f"{d.day} de {MESES[d.month - 1]} de {d.year}"
+        return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
     except ValueError:
         return str(iso)[:10]
 
 
 def _estado(p):
     if p >= 75:
-        return "Fuerte", "good"
+        return "Strong", "good"
     if p >= 50:
-        return "Mejorable", "warn"
+        return "Needs work", "warn"
     if p >= 25:
-        return "Flojo", "bad"
-    return "Crítico", "bad"
+        return "Weak", "bad"
+    return "Critical", "bad"
 
 
 def _stages(audit):
@@ -188,7 +218,7 @@ def gauge_svg(score, parcial=False, dark=False, size=220):
         ticks += (f'<line x1="{cx + (r - 9) * math.cos(a):.1f}" y1="{cy - (r - 9) * math.sin(a):.1f}" '
                   f'x2="{cx + (r + 9) * math.cos(a):.1f}" y2="{cy - (r + 9) * math.sin(a):.1f}" '
                   f'stroke="{tick}" stroke-width="3"/>')
-    etiqueta = "nota parcial" if parcial else "de 100"
+    etiqueta = "partial score" if parcial else "of 100"
     return (f'<svg width="{w:.0f}" height="{h:.0f}" viewBox="0 0 {w:.0f} {h:.0f}" role="img">'
             f'<path d="{arc}" fill="none" stroke="{track}" stroke-width="15" stroke-linecap="round"/>'
             f'<path d="{arc}" fill="none" stroke="{col}" stroke-width="15" stroke-linecap="round" '
@@ -249,10 +279,10 @@ def _aviso_fiabilidad(dom, etiqueta):
         return None
     lvl = dom.get("level") or {}
     if lvl.get("cobertura_parcial"):
-        titulo = lvl.get("name", "No evaluable desde nuestra red")
+        titulo = LEVEL_EN.get(lvl.get("name"), lvl.get("name", "Not assessable from our network"))
         cuerpo = lvl.get("msg", "")
     else:
-        titulo = "Lectura limitada"
+        titulo = "Limited reading"
         cuerpo = deg.get("motivo", "")
     cob = dom.get("cobertura_score")
     return {"titulo": titulo, "etiqueta": etiqueta, "cuerpo": cuerpo,
@@ -263,7 +293,7 @@ def _aviso_fiabilidad(dom, etiqueta):
 def _findings(checks):
     items = [c for c in checks if c.get("advice") and c.get("score") is not None and c["score"] < 1]
     items.sort(key=lambda c: (IMPORD.get(c["advice"].get("impacto"), 3), c["score"],
-                              0 if c["advice"].get("esfuerzo") == "Bajo" else 1))
+                              0 if c["advice"].get("esfuerzo") in LOW_EFFORT else 1))
     tiers = []
     for ord_, name, hint in TIERS:
         t_items = [c for c in items if min(IMPORD.get(c["advice"].get("impacto"), 3), 3) == ord_]
@@ -271,9 +301,9 @@ def _findings(checks):
             tiers.append({"ord": ord_, "name": name, "hint": hint, "hallazgos": [{
                 "id": c.get("id"), "name": _name(c),
                 "titulo": c["advice"].get("titulo", ""), "por_que": c["advice"].get("por_que", ""),
-                "como": c["advice"].get("como", ""), "impacto": c["advice"].get("impacto", ""),
-                "esfuerzo": c["advice"].get("esfuerzo", ""),
-                "qw": c["advice"].get("esfuerzo") == "Bajo" and IMPORD.get(c["advice"].get("impacto"), 3) <= 2,
+                "como": c["advice"].get("como", ""), "impacto": _en(c["advice"].get("impacto", "")),
+                "esfuerzo": _en(c["advice"].get("esfuerzo", "")),
+                "qw": c["advice"].get("esfuerzo") in LOW_EFFORT and IMPORD.get(c["advice"].get("impacto"), 3) <= 2,
             } for c in t_items]})
     return tiers, len(items)
 
@@ -293,7 +323,7 @@ def _agentes(audits):
             hechos = {h.get("nombre") for h in (p.get("hitos") or [])}
             todos = at.get("hitos_tarea") or [h.get("nombre") for h in (p.get("hitos") or [])] + list(p.get("pendientes") or [])
             agentes.append({
-                "name": AGENT_NAMES.get(name, name), "outcome": o.replace("_", " "), "tone": tone,
+                "name": AGENT_NAMES.get(name, name), "outcome": OUTCOME_EN.get(o, o.replace("_", " ")), "tone": tone,
                 "steps": r.get("steps"), "detail": r.get("detail") or "",
                 "intentos": r.get("intentos") or 0, "exitos": r.get("exitos") or 0,
                 "runs": [str(x.get("outcome") or "").startswith("conseguido") for x in (r.get("runs") or [])],
@@ -301,7 +331,7 @@ def _agentes(audits):
                 "hitos": [{"nombre": h, "ok": h in hechos,
                            "stuck": h not in hechos and h == (list(p.get("pendientes") or []) or [None])[0]}
                           for h in todos] if p.get("total") else [],
-                "steps_txt": _plural(r.get("steps"), "paso", "pasos") if r.get("steps") else "",
+                "steps_txt": _plural(r.get("steps"), "step", "steps") if r.get("steps") else "",
             })
         out.append({"host": a.get("host"), "color": SERIES[i % 3], "typology": TYPOLOGY.get(at.get("typology"), at.get("typology")),
                     "allow_submit": at.get("allow_submit"), "agentes": agentes})
@@ -316,13 +346,13 @@ def _veredicto_fiabilidad(audit):
     for t in trail:
         n[t.get("status")] = n.get(t.get("status"), 0) + 1
     if n["fail"]:
-        return {"tone": "bad", "titulo": "Análisis incompleto",
-                "msg": f"{n['fail']} proceso(s) fallaron y hay checks sin evidencia."}
+        return {"tone": "bad", "titulo": "Incomplete analysis",
+                "msg": f"{_plural(n['fail'], 'process', 'processes')} failed and some checks have no evidence."}
     if n["warn"] or n["skipped"]:
-        return {"tone": "warn", "titulo": "Fiable con avisos",
-                "msg": f"Todos los procesos corrieron; {n['warn']} con evidencia degradada y {n['skipped']} desactivados."}
-    return {"tone": "good", "titulo": "Análisis completo y fiable",
-            "msg": "Todos los procesos se ejecutaron con evidencia directa."}
+        return {"tone": "warn", "titulo": "Reliable with warnings",
+                "msg": f"All processes ran; {n['warn']} with degraded evidence and {n['skipped']} disabled."}
+    return {"tone": "good", "titulo": "Complete and reliable analysis",
+            "msg": "All processes ran with direct evidence."}
 
 
 def build_context(data):
@@ -344,16 +374,16 @@ def build_context(data):
         categorias.append({"id": c, "name": nombre, "p": p, "estado": est, "tone": tone})
 
     quick = [c for c in checks if c.get("advice") and c.get("score") is not None
-             and c["score"] < 1 and c["advice"].get("esfuerzo") == "Bajo"
+             and c["score"] < 1 and c["advice"].get("esfuerzo") in LOW_EFFORT
              and IMPORD.get(c["advice"].get("impacto"), 3) <= 2]
 
     tipos = sorted({a.get("typology") for a in audits})
     mixto = len(tipos) > 1
     con_nota = [a for a in audits if not (a.get("level") or {}).get("cobertura_parcial")]
     best = max((a.get("score", 0) for a in con_nota), default=None) if (not mixto and con_nota) else None
-    ranking = [{"host": a.get("host"), "color": SERIES[i % 3], "rol": "Tu web" if i == 0 else f"Competidor {i}",
+    ranking = [{"host": a.get("host"), "color": SERIES[i % 3], "rol": "Your site" if i == 0 else f"Competitor {i}",
                 "typology": TYPOLOGY.get(a.get("typology"), a.get("typology")),
-                "level": (a.get("level") or {}).get("name", ""), "score": a.get("score", 0),
+                "level": _level_name(a.get("level")), "score": a.get("score", 0),
                 "tone": _score_tone(a.get("score", 0)),
                 "win": best is not None and len(audits) > 1 and a.get("score") == best
                 and not (a.get("level") or {}).get("cobertura_parcial")} for i, a in enumerate(audits)]
@@ -382,8 +412,8 @@ def build_context(data):
     gaps.sort(key=lambda g: -g["diff"])
 
     tiers, n_findings = _findings(checks)
-    avisos = [w for w in [_aviso_fiabilidad(client, "Tu dominio")]
-              + [_aviso_fiabilidad(c, c.get("host", "competidor")) for c in comps] if w]
+    avisos = [w for w in [_aviso_fiabilidad(client, "Your domain")]
+              + [_aviso_fiabilidad(c, c.get("host", "competitor")) for c in comps] if w]
 
     anexo = []
     for c in checks:
@@ -409,7 +439,7 @@ def build_context(data):
         "typology": TYPOLOGY.get(client.get("typology"), client.get("typology") or "—"),
         "competidores": [c.get("host") for c in comps],
         "score": score, "parcial": parcial, "score_tone": _score_tone(score),
-        "level_name": lvl.get("name", ""), "level_msg": lvl.get("msg", ""),
+        "level_name": _level_name(lvl), "level_msg": lvl.get("msg", ""),
         "band": band, "scale": SCALE, "marker": max(0, min(100, score)),
         "gauge_cover": gauge_svg(score, parcial, dark=True, size=250),
         "gauge": gauge_svg(score, parcial, size=210),
@@ -423,7 +453,7 @@ def build_context(data):
         "categorias": categorias,
         "quick": [{"titulo": c["advice"]["titulo"], "como": c["advice"]["como"],
                    "tier": min(IMPORD.get(c["advice"].get("impacto"), 3), 3),
-                   "impacto": c["advice"].get("impacto"), "esfuerzo": c["advice"].get("esfuerzo")}
+                   "impacto": _en(c["advice"].get("impacto")), "esfuerzo": _en(c["advice"].get("esfuerzo"))}
                   for c in sorted(quick, key=lambda c: IMPORD.get(c["advice"].get("impacto"), 3))[:3]],
         "quick_mas": max(0, len(quick) - 3),
         "n_checks": len(checks),
@@ -456,7 +486,7 @@ def render_html(data):
 
 _FOOTER = """<div style="width:100%;padding:0 16mm;font-family:'Inter Tight',Helvetica,Arial,sans-serif;
 font-size:7.5px;color:#94A3B8;display:flex;justify-content:space-between;">
-<span>Clicandseo · Agent Readiness · {host}</span><span>Página <span class="pageNumber"></span></span></div>"""
+<span>Clicandseo · Agent Readiness · {host}</span><span>Page <span class="pageNumber"></span></span></div>"""
 
 
 def html_to_pdf(html, host="", timeout_ms=45000):

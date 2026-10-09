@@ -31,6 +31,11 @@ class AnalisisCancelado(Exception):
     """El usuario abandonó el análisis (cerró la pestaña, volvió atrás…)."""
 
 
+# Rótulo en inglés de las plantillas del muestreo (el código se guarda en español)
+_BUCKET_EN = {"producto": "product", "categoria": "category", "servicio": "service",
+              "blog": "blog", "otras": "other", "legal": "legal", "home": "home"}
+
+
 def _log(msg):
     # Cada mensaje de progreso es también un punto de cancelación: si quien
     # pidió el análisis ya no está, no gastamos más red en un informe que nadie
@@ -144,11 +149,11 @@ def _trail_tipologia(ctx, typology_override):
     coló en producción (ver test_sin_senales_no_culpa_al_acceso).
     """
     def T(status, detail):
-        ctx["trail"].append({"step": "detección de tipología", "status": status,
+        ctx["trail"].append({"step": "site type detection", "status": status,
                              "detail": str(detail)[:300]})
 
     if typology_override:
-        T("ok", f"{ctx['typology']} (forzada por configuración)")
+        T("ok", f"{ctx['typology']} (forced by configuration)")
         return
 
     typ_ev = ctx.get("typology_evidence") or {}
@@ -176,14 +181,14 @@ def _trail_tipologia(ctx, typology_override):
                                          or _via in ("render", "jina", "jina-html")
                                          or _via.startswith("ua:")))
     if portada_vista:
-        T("ok", det + " — sin señales de e-commerce ni de SaaS en una portada que "
-                      f"sí se leyó ({len(hb)} bytes): se clasifica como 'corporativo', "
-                      "que es lo normal en banca, sector público, medios y ONG. "
-                      "Si no lo es, fuerza la tipología en el formulario.")
+        T("ok", det + " — no e-commerce or SaaS signals on a homepage that "
+                      f"was read ({len(hb)} bytes): classified as 'corporativo' (corporate), "
+                      "which is normal for banking, public sector, media and NGOs. "
+                      "If that is wrong, force the site type in the form.")
     else:
-        T("warn", det + " — SIN señales: la web devuelve poco/ningún contenido a "
-                        "accesos automatizados. Se asume 'corporativo' por defecto; "
-                        "si no lo es, fuerza la tipología en el formulario.")
+        T("warn", det + " — NO signals: the site returns little or no content to "
+                        "automated access. 'corporativo' (corporate) is assumed by default; "
+                        "if that is wrong, force the site type in the form.")
 
 
 def _abs_url(base, url):
@@ -304,10 +309,10 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     ctx["robots"] = discovery.get_robots(base)
     rb = ctx["robots"]
     if rb["status"] == 0:
-        T("robots.txt", "fail", "sin respuesta: checks 1.1-1.3 y 2.1 sin evidencia directa")
+        T("robots.txt", "fail", "no response: checks 1.1-1.3 and 2.1 have no direct evidence")
     else:
         T("robots.txt", "ok", f"HTTP {rb['status']}, {len(rb['raw'])} bytes"
-          + (", devuelve HTML (hallazgo del sitio)" if rb["is_html"] else ""))
+          + (", returns HTML (a finding about the site)" if rb["is_html"] else ""))
 
     _log("sitemap…")
     ctx["sitemap"] = discovery.get_sitemap_urls(base, ctx["robots"])
@@ -315,9 +320,9 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     if ctx["sitemap"]["found"]:
         T("sitemap", "ok", f"{len(ctx['sitemap']['urls'])} URLs, {len(ctx['sitemap']['lastmods'])} lastmod")
     else:
-        T("sitemap", "warn", "no localizado: muestreo limitado a la home (cobertura reducida)")
+        T("sitemap", "warn", "not found: sampling limited to the homepage (reduced coverage)")
 
-    _log("home…")
+    _log("homepage…")
     ctx["home"] = fetch(base + "/", ua=UA_HUMAN)
     if not _home_creible(ctx["home"]):
         if not skip_render:
@@ -347,26 +352,26 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
                 ctx["home"]["status"] = 200
     via = ctx["home"].get("_via", "http")
     if len(ctx["home"].get("body", "")) < 500:
-        T("home", "fail", "sin contenido por ninguna vía: checks de contenido sin evidencia")
+        T("home", "fail", "no content through any route: content checks have no evidence")
     elif via != "http":
-        T("home", "warn", f"obtenida vía {via} (acceso simple bloqueado/vacío): dato relevante")
+        T("home", "warn", f"fetched via {via} (plain access blocked/empty): relevant fact")
     elif ctx["home"]["status"] != 200:
         # Un cuerpo grande con estado de error es la página del WAF, no la
         # portada. Decir "ok | HTTP 403" en el trail (mediamarkt.es, batería 5)
         # es justo lo que impide al analista ver que no vimos el sitio.
         T("home", "warn",
-          f"HTTP {ctx['home']['status']} con {len(ctx['home']['body'])} bytes: "
-          f"el cuerpo NO es la portada, es la respuesta de error/bloqueo del "
-          f"servidor. Los checks de contenido no pueden apoyarse en él")
+          f"HTTP {ctx['home']['status']} with {len(ctx['home']['body'])} bytes: "
+          f"the body is NOT the homepage, it is the server's error/block "
+          f"response. Content checks cannot rely on it")
     else:
         T("home", "ok", f"HTTP {ctx['home']['status']}, {len(ctx['home']['body'])} bytes, TTFB {ctx['home']['ttfb']}s")
 
-    _log("matriz de acceso de bots de IA…")
+    _log("AI bot access matrix…")
     ctx["bot_matrix"] = bot_access_matrix(base + "/")
     human = ctx["bot_matrix"].get("_human", 0)
     codes = ", ".join(f"{k}={v}" for k, v in ctx["bot_matrix"].items())
-    T("matriz de acceso de bots", "ok" if human == 200 else "warn",
-      codes + ("" if human == 200 else " — el UA humano no recibe 200: WAF puede distorsionar"))
+    T("bot access matrix", "ok" if human == 200 else "warn",
+      codes + ("" if human == 200 else " — the human UA does not get a 200: a WAF may distort results"))
 
     # ESCALERA DE LECTURA (capa 1: verificar QUÉ tiene la web).
     #
@@ -401,15 +406,15 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
         ctx["escalera_intentos"] = intentos
         entro = via.startswith("ua:")
         if intentos:
-            T("escalera de lectura", "ok" if entro else "warn",
-              ("entramos como " + via[3:] + f" tras probar: {', '.join(intentos)}. "
-               "El bloqueo era por USER AGENT: se audita el contenido por esta vía y "
-               "el acceso real de cada bot sigue medido aparte en la matriz."
+            T("reading ladder", "ok" if entro else "warn",
+              ("we got in as " + via[3:] + f" after trying: {', '.join(intentos)}. "
+               "The block was by USER AGENT: content is audited through this route and "
+               "each bot's real access is still measured separately in the matrix."
                if entro else
-               f"ninguna identidad obtuvo contenido ({', '.join(intentos)}). "
-               "Con el UA de navegador tampoco: el filtro no mira quién dices ser, "
-               "así que apunta a bloqueo por RANGO DE IP del servidor que escanea. "
-               "Cambiar de user agent no lo resuelve."))
+               f"no identity got content ({', '.join(intentos)}). "
+               "Not even with a browser UA: the filter doesn't care who you say you are, "
+               "so it points to blocking by the IP RANGE of the scanning server. "
+               "Changing the user agent won't fix it."))
 
     if ctx["home"]["status"] == 0 and all(v == 0 for v in ctx["bot_matrix"].values()):
         # "No resuelve" y "resuelve pero nos deja colgados" NO son lo mismo.
@@ -432,20 +437,20 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
             motivo_bloqueo = str(exc)
         if resuelve:
             raise RuntimeError(
-                f"{base} resuelve en DNS pero rechaza o deja sin respuesta TODAS "
-                f"nuestras peticiones (humano y bots). El dominio no está mal "
-                f"configurado: está bloqueando el acceso automatizado por completo. "
-                f"Eso mismo le ocurriría a un agente, pero no podemos auditar lo que "
-                f"no podemos ver: repite el análisis desde otra IP o con el sitio "
-                f"en lista blanca.")
-        raise RuntimeError(f"no se pudo acceder a {base}: {motivo_bloqueo}. "
-                           f"Verifica el dominio.")
+                f"{base} resolves in DNS but rejects or leaves unanswered ALL "
+                f"our requests (human and bots). The domain is not misconfigured: "
+                f"it is blocking automated access completely. "
+                f"An agent would hit the same wall, but we can't audit what we "
+                f"can't see: run the analysis again from another IP or with the site "
+                f"allowlisted.")
+        raise RuntimeError(f"could not access {base}: {motivo_bloqueo}. "
+                           f"Check the domain.")
 
-    _log("superficie agéntica (.well-known)…")
+    _log("agentic surface (.well-known)…")
     ctx["wellknown"], ctx["wellknown_meta"] = probe_wellknown(base)
     hits = [p for p, c in ctx["wellknown"].items() if c == 200]
-    T("superficie agéntica", "ok",
-      f"{len(WELLKNOWN_PATHS)} rutas con validación de contenido; válidas: {', '.join(hits) or 'ninguna'}")
+    T("agentic surface", "ok",
+      f"{len(WELLKNOWN_PATHS)} paths with content validation; valid: {', '.join(hits) or 'none'}")
 
     all_urls = ctx["sitemap"]["urls"]
     if not all_urls:
@@ -454,24 +459,24 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
         # internos de la portada son el plan B de cobertura.
         all_urls = discovery.harvest_links(base, ctx["home"]["body"])
         if all_urls:
-            T("descubrimiento por enlaces", "ok",
-              f"sin sitemap utilizable: {len(all_urls)} URLs internas extraídas "
-              "de la portada para poder muestrear contenido real")
+            T("link discovery", "ok",
+              f"no usable sitemap: {len(all_urls)} internal URLs extracted "
+              "from the homepage so real content can be sampled")
         else:
             # Ni sitemap ni UN SOLO enlace interno. Toda web real enlaza a algo:
             # esto significa que lo que nos han servido no es la portada, sino
             # una cáscara. Se marca aquí para que el guardarraíl lo recoja.
             ctx["cobertura_ciega"] = True
-            T("descubrimiento por enlaces", "warn",
-              "ni sitemap ni un solo enlace interno en lo que nos sirvieron como "
-              "portada: no es una web sin enlaces, es que no estamos viendo la web")
+            T("link discovery", "warn",
+              "no sitemap and not a single internal link in what we were served as "
+              "the homepage: it's not a site without links, it's that we aren't seeing the site")
     typ, typ_ev = discovery.detect_typology(ctx["home"]["body"], all_urls)
     ctx["typology"] = typology_override or typ
     ctx["typology_evidence"] = typ_ev
-    _log(f"tipología: {ctx['typology']}")
+    _log(f"site type: {ctx['typology']}")
     _trail_tipologia(ctx, typology_override)
 
-    _log("muestreo de páginas…")
+    _log("sampling pages…")
     buckets, sample = discovery.classify_and_sample(all_urls)
     ctx["buckets_size"] = {k: len(v) for k, v in buckets.items()}
     pages = []
@@ -494,13 +499,13 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     ok_pages = sum(1 for p in pages if p["fetch"]["status"] == 200)
     via_fb = sum(1 for p in pages if p["fetch"].get("_via"))
     if not pages:
-        T("muestreo de páginas", "warn", "0 páginas (sin sitemap): checks de contenido solo con la home")
+        T("page sampling", "warn", "0 pages (no sitemap): content checks use the homepage only")
     elif ok_pages < len(pages):
-        T("muestreo de páginas", "warn",
-          f"{ok_pages}/{len(pages)} accesibles ({via_fb} vía fallback); inaccesibles = hallazgo en 1.6")
+        T("page sampling", "warn",
+          f"{ok_pages}/{len(pages)} accessible ({via_fb} via fallback); inaccessible = finding in 1.6")
     else:
-        T("muestreo de páginas", "ok",
-          f"{len(pages)} páginas de {len(all_urls)} URLs del sitemap ({via_fb} vía fallback)")
+        T("page sampling", "ok",
+          f"{len(pages)} pages out of {len(all_urls)} sitemap URLs ({via_fb} via fallback)")
     # Promoción de fichas por CONTENIDO: muchas tiendas usan URLs propias
     # (pccomponentes.com/placa-base-..., hawkersco.com/gafas-...) que ningún
     # patrón de palabras clave reconoce. Si no hay bucket producto, se sondean
@@ -514,7 +519,7 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     if not any(p["bucket"] == "producto" and p["fetch"]["status"] == 200 for p in pages) \
             and len(buckets.get("otras", [])) >= 10 \
             and (ctx["typology"] == "ecommerce" or pts_ecom >= 1):
-        _log("buscando fichas de producto por contenido…")
+        _log("looking for product pages by content…")
         # las fichas suelen tener el slug más largo y descriptivo del sitio
         candidatos = sorted(buckets["otras"],
                             key=lambda u: -urlparse(u).path.count("-"))[:5]
@@ -535,47 +540,47 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
             if promovidas >= 2:
                 break
         if promovidas:
-            T("fichas de producto por contenido", "ok",
-              f"{promovidas} página(s) con Product schema encontradas fuera de los "
-              f"patrones de URL: promovidas al bucket producto")
+            T("product pages by content", "ok",
+              f"{promovidas} page(s) with Product schema found outside the "
+              f"URL patterns: promoted to the product bucket")
             # el cambio de tipología exige 2 fichas (una sola puede ser un
             # artículo de afiliación con Product schema); con 1, se promueve
             # la página para los checks pero la tipología no se toca
             if promovidas >= 2 and ctx["typology"] != "ecommerce" and not typology_override:
-                T("tipología (corregida por evidencia estructural)", "ok",
-                  f"{ctx['typology']} → ecommerce: hay fichas con Product schema, "
-                  "y eso pesa más que el vocabulario de la home")
+                T("site type (corrected by structural evidence)", "ok",
+                  f"{ctx['typology']} → ecommerce: there are product pages with Product schema, "
+                  "and that outweighs the homepage vocabulary")
                 ctx["typology"] = "ecommerce"
             # la evidencia estructural manda: que la re-evaluación por render
             # (que solo mira vocabulario) no la deshaga después
             ctx["typology_estructural"] = True
         else:
             # el intento fallido también se registra: silencio = agujero de fidelidad
-            T("fichas de producto por contenido", "warn",
-              f"sondeadas {len(sondeos)} URLs sin patrón de ficha (HTTP {sondeos}): "
-              "ninguna con Product schema en el HTML crudo. Si el sitio es una "
-              "tienda, sus fichas no son detectables automáticamente")
+            T("product pages by content", "warn",
+              f"probed {len(sondeos)} URLs without a product-page pattern (HTTP {sondeos}): "
+              "none with Product schema in the raw HTML. If the site is a "
+              "store, its product pages can't be detected automatically")
     ctx["sin_ficha_producto"] = (ctx["typology"] == "ecommerce"
                                  and not any(p["bucket"] == "producto" for p in pages))
     if ctx["sin_ficha_producto"]:
-        T("cobertura de producto", "warn",
-          "e-commerce sin NINGUNA ficha de producto en el muestreo: los checks que "
-          "dependen de una ficha se marcan NO VERIFICABLES, no se puntúan a 0")
+        T("product coverage", "warn",
+          "e-commerce with NO product page in the sample: checks that "
+          "depend on a product page are marked NOT VERIFIABLE, not scored 0")
 
     if not skip_render:
-        _log("render de la home (crudo vs JS + zonas de clic)…")
+        _log("rendering the homepage (raw vs JS + click targets)…")
         ctx["rendered_home"] = render_page(base + "/", interactive=True)
         if ctx["rendered_home"].get("ok"):
             T("render JS", "ok",
-              f"{len(ctx['rendered_home'].get('html', ''))} bytes: check 4.1 con comparación real")
+              f"{len(ctx['rendered_home'].get('html', ''))} bytes: check 4.1 with a real comparison")
         else:
             T("render JS", "fail",
-              f"{ctx['rendered_home'].get('error', '?')[:150]} — 4.1 degrada a heurístico")
+              f"{ctx['rendered_home'].get('error', '?')[:150]} — 4.1 falls back to a heuristic")
 
         # 4.7 en VARIAS plantillas: la home suele ser la página más cuidada del
         # sitio. Medir solo ahí daría un veredicto optimista que no representa
         # las fichas de producto ni las de servicio, que es donde el agente opera.
-        _log("zonas de clic en otras plantillas…")
+        _log("click targets on other templates…")
         ctx["rendered_pages"] = []
         vistos = set()
         for p in ctx["pages"]:
@@ -592,32 +597,33 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
                    if ctx["rendered_home"].get("boxes") else [])
         medidas += [(r["bucket"], r["boxes"]) for r in ctx["rendered_pages"]]
         if medidas:
-            T("geometría de controles (4.7)", "ok",
-              "medidas " + ", ".join(f"{n}: {len(b)} controles" for n, b in medidas))
+            T("control geometry (4.7)", "ok",
+              "measured " + ", ".join(f"{_BUCKET_EN.get(n, n)}: {len(b)} controls"
+                                      for n, b in medidas))
         else:
-            T("geometría de controles (4.7)", "warn",
-              "el backend de render no devolvió geometría: 4.7 queda sin evidencia")
+            T("control geometry (4.7)", "warn",
+              "the render backend returned no geometry: 4.7 has no evidence")
     else:
         ctx["rendered_home"] = None
         ctx["rendered_pages"] = []
-        T("render JS", "skipped", "desactivado: checks 4.1 y 4.7 sin evidencia")
+        T("render JS", "skipped", "disabled: checks 4.1 and 4.7 have no evidence")
 
-    _log("área de acceso (autenticación agéntica)…")
+    _log("login area (agentic authentication)…")
     ctx["login_probe"] = probe_login(base, ctx["home"]["body"], skip_render)
     lp = ctx["login_probe"]
     n_int = len(lp.get("intentos") or [])
-    T("área de acceso", "ok",
-      (f"login localizado en {lp['url']} (HTTP {lp['status']}, vía {lp.get('via')}) "
-       f"tras probar {n_int} candidato(s)") if lp.get("found")
-      else f"sin área de acceso accesible tras probar {n_int} candidato(s): 6.4 no aplica")
+    T("login area", "ok",
+      (f"login found at {lp['url']} (HTTP {lp['status']}, via {lp.get('via')}) "
+       f"after trying {n_int} candidate(s)") if lp.get("found")
+      else f"no accessible login area after trying {n_int} candidate(s): 6.4 not applicable")
 
-    _log("estados de error (soft-404)…")
+    _log("error states (soft-404)…")
     ctx["error_probe"] = probe_error_handling(base)
     ep = ctx["error_probe"]
-    T("estados de error", "ok" if ep["status"] else "fail",
-      f"URL inexistente -> HTTP {ep['status']}"
-      + (" con texto de 'no encontrado'" if ep["looks_missing"] else "")
-      + (" y vía de recuperación" if ep["has_recovery"] else ""))
+    T("error states", "ok" if ep["status"] else "fail",
+      f"non-existent URL -> HTTP {ep['status']}"
+      + (" with 'not found' text" if ep["looks_missing"] else "")
+      + (" and a recovery path" if ep["has_recovery"] else ""))
 
     # Reafinar tipología con el HTML renderizado: en SPAs (Zara y similares) el
     # HTML crudo viene casi vacío y la detección se quedaría sin señales.
@@ -626,11 +632,11 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
             and len(rh) > len(ctx["home"].get("body", "")) * 1.2:
         typ2, ev2 = discovery.detect_typology(rh, all_urls)
         if typ2 != ctx["typology"]:
-            T("tipología (re-evaluada con render)", "ok",
-              f"{ctx['typology']} → {typ2} tras renderizar JS (la home cruda no tenía señales)")
+            T("site type (re-evaluated with render)", "ok",
+              f"{ctx['typology']} → {typ2} after rendering JS (the raw homepage had no signals)")
             ctx["typology"], ctx["typology_evidence"] = typ2, ev2
 
-    _log("negociación Markdown y DNS-AID…")
+    _log("Markdown negotiation and DNS-AID…")
     md = fetch(base + "/", timeout=15, headers=["Accept: text/markdown"])
     ct = ""
     m = re.search(r"(?im)^content-type:\s*([^\r\n;]+)", md["headers"] or "")
@@ -639,37 +645,37 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     body_is_md = (md["status"] == 200 and "<html" not in (md["body"] or "")[:300].lower()
                   and bool(re.search(r"(?m)^#{1,3} \S", (md["body"] or "")[:2000])))
     ctx["md_negotiation"] = {"content_type": ct, "is_markdown": "markdown" in ct.lower() or body_is_md}
-    T("negociación Markdown", "ok" if md["status"] else "fail",
+    T("Markdown negotiation", "ok" if md["status"] else "fail",
       f"Accept: text/markdown -> HTTP {md['status']}, {ct or '?'}")
 
     ctx["dns_aid"] = discovery.dns_aid(base)
     T("DNS-AID", "ok" if ctx["dns_aid"] else "ok",
-      ctx["dns_aid"] or "consultados TXT _aid/_agent: sin registros (evidencia negativa válida)")
+      ctx["dns_aid"] or "queried TXT _aid/_agent: no records (valid negative evidence)")
 
-    _log("entidad Wikidata y páginas de confianza…")
+    _log("Wikidata entity and trust pages…")
     ctx["wikidata"] = discovery.wikidata_entity(urlparse(base).hostname or "")
     wd = ctx["wikidata"]
-    T("entidad Wikidata (3.7)", "warn" if wd.get("error") else "ok",
-      (f"item {wd['qid']} (P856 → dominio), {wd.get('sitelinks', 0)} sitelink(s)"
+    T("Wikidata entity (3.7)", "warn" if wd.get("error") else "ok",
+      (f"item {wd['qid']} (P856 → domain), {wd.get('sitelinks', 0)} sitelink(s)"
        if wd.get("qid") else
-       wd.get("error") or "sin item con P856 apuntando al dominio (fuente externa: "
-                          "evidencia válida aunque el sitio nos bloquease)"))
+       wd.get("error") or "no item with P856 pointing to the domain (external source: "
+                          "valid evidence even if the site blocked us)"))
 
     ctx["trust_pages"] = discovery.probe_trust_pages(
         base, ctx["home"].get("body") or "", ctx["sitemap"]["urls"])
     verificadas = [f"{k} ({v['url']})" for k, v in ctx["trust_pages"].items()
                    if v and v.get("ok")]
-    T("páginas de confianza (5.7)", "ok",
-      "verificadas con contenido real: " + ("; ".join(verificadas) or "ninguna"))
+    T("trust pages (5.7)", "ok",
+      "verified with real content: " + ("; ".join(verificadas) or "none"))
 
-    _log("vista LLM (Jina)…")
+    _log("LLM view (Jina)…")
     jina = jina_read(base + "/")
     cuerpo = jina["body"] if jina else ""
     ctx["jina_home_excerpt"] = cuerpo[:3000]
     ctx["jina_ok"] = bool(jina)
-    T("vista LLM (Jina)", "ok" if jina else "warn",
-      (f"{len(cuerpo)} chars" + (" (HTML con marcado)" if jina.get("html") else " (texto)"))
-      if jina else "Jina sin contenido (rate limit/bloqueo)")
+    T("LLM view (Jina)", "ok" if jina else "warn",
+      (f"{len(cuerpo)} chars" + (" (HTML with markup)" if jina.get("html") else " (text)"))
+      if jina else "Jina returned no content (rate limit/block)")
 
     # CLS: PageSpeed si se pidió (dato de campo, el mejor), y si no, el que midió
     # el navegador durante el render (dato de laboratorio, siempre disponible).
@@ -678,7 +684,7 @@ def gather_context(base, typology_override=None, skip_render=False, with_psi=Fal
     ctx["psi_cls"] = psi_cls(base + "/") if with_psi else None
     if with_psi:
         T("PageSpeed (CLS)", "ok" if ctx["psi_cls"] is not None else "fail",
-          f"CLS={ctx['psi_cls']}" if ctx["psi_cls"] is not None else "PSI sin respuesta")
+          f"CLS={ctx['psi_cls']}" if ctx["psi_cls"] is not None else "no PSI response")
     ctx["render_cls"] = (ctx.get("rendered_home") or {}).get("cls")
 
     ctx.setdefault("agent_tests", None)
@@ -741,10 +747,10 @@ def _degradar_sin_ficha_producto(results, ctx):
     """
     if not ctx.get("sin_ficha_producto"):
         return results
-    motivo = ("no se alcanzó ninguna ficha de producto en el muestreo, así que no "
-              "es posible afirmar qué contienen las fichas de esta tienda. No es "
-              "un defecto observado de la web: es una limitación de nuestra "
-              "cobertura del catálogo")
+    motivo = ("no product page was reached in the sample, so it isn't "
+              "possible to state what this store's product pages contain. It is "
+              "not an observed defect of the site: it is a limitation of our "
+              "catalogue coverage")
     n = 0
     for r in results:
         if r["id"] in CHECKS_DE_FICHA and r["score"] == 0:
@@ -754,14 +760,14 @@ def _degradar_sin_ficha_producto(results, ctx):
             # que medir" (no aplica, su peso se reparte) de "no hemos podido
             # medirlo" (no se reparte, o inflaría lo poco que quede en pie)
             r["no_verificable"] = True
-            r["evidence"] = f"NO VERIFICABLE — {motivo}. (Sonda: {r['evidence'][:120]})"
+            r["evidence"] = f"NOT VERIFIABLE — {motivo}. (Probe: {r['evidence'][:120]})"
             n += 1
     if n:
         ctx["cobertura_producto_degradada"] = {"degradados": n, "motivo": motivo}
         ctx["trail"].append({
-            "step": "guardarraíl de cobertura de catálogo", "status": "warn",
-            "detail": f"{n} checks de ficha degradados a 'no verificable'. {motivo}. "
-                      f"La puntuación de C7 cubre solo lo comprobable desde la portada"})
+            "step": "catalogue coverage guardrail", "status": "warn",
+            "detail": f"{n} product-page checks downgraded to 'not verifiable'. {motivo}. "
+                      f"The C7 score only covers what can be checked from the homepage"})
     return results
 
 
@@ -877,38 +883,38 @@ def _degradar_si_bloqueado(results, ctx):
         # de tipología, no hemos visto la web. Se degrada como bloqueo total y
         # la puntuación deja de ser entregable.
         nivel, objetivo = "total", CHECKS_POR_AUSENCIA
-        motivo = (f"lo que el sitio sirve a un acceso automatizado no contiene ni un "
-                  f"enlace interno ni señal alguna de su tipo de negocio (HTTP {human}, "
-                  f"{len((ctx.get('home') or {}).get('body') or '')} bytes). No es una "
-                  f"web vacía: es que no estamos viendo la web, así que ninguna "
-                  f"ausencia es afirmable")
+        motivo = (f"what the site serves to automated access contains neither a "
+                  f"single internal link nor any signal of its type of business (HTTP {human}, "
+                  f"{len((ctx.get('home') or {}).get('body') or '')} bytes). It's not an "
+                  f"empty site: we simply aren't seeing the site, so no absence "
+                  f"can be stated")
     elif not home_ok or (human != 200 and via == "render"):
         # sin portada creíble (un render con el humano bloqueado puede ser la
         # página del captcha: no nos fiamos de ese HTML)
         nivel, objetivo = "total", CHECKS_POR_AUSENCIA
-        motivo = (f"el sitio no sirve contenido a un acceso automatizado (UA humano "
-                  f"recibe HTTP {human}). No es posible afirmar que esto falte: no "
-                  f"hemos podido comprobarlo")
+        motivo = (f"the site serves no content to automated access (the human UA "
+                  f"gets HTTP {human}). We can't state that this is missing: we "
+                  f"weren't able to check it")
     elif via == "jina-html":
         # Jina devolvió HTML renderizado real: el marcado (JSON-LD, formularios)
         # SÍ es observable, así que NO se degrada. Solo caen las sondas directas,
         # que siguen bloqueadas desde nuestra red. Es el mejor rescate posible.
         nivel, objetivo = "sondas", CHECKS_DE_SONDA
-        motivo = ("la portada se leyó vía Jina en HTML, con su marcado intacto, "
-                  "pero las sondas directas (robots, sitemap, .well-known, matriz "
-                  "de bots) siguen bloqueadas desde nuestra red: solo esas "
-                  "ausencias concretas quedan sin afirmar")
+        motivo = ("the homepage was read via Jina as HTML, with its markup intact, "
+                  "but the direct probes (robots, sitemap, .well-known, bot "
+                  "matrix) are still blocked from our network: only those "
+                  "specific absences remain unconfirmed")
     elif via == "jina":
         nivel, objetivo = "marcado", CHECKS_DE_MARCADO | CHECKS_DE_SONDA
-        motivo = ("la página solo se pudo leer vía Jina en texto (sin marcado) "
-                  "y el acceso directo está limitado. El HTML real no es "
-                  "observable, así que no afirmamos nada sobre él")
+        motivo = ("the page could only be read via Jina as text (no markup) "
+                  "and direct access is limited. The real HTML is not "
+                  "observable, so we state nothing about it")
     else:
         # portada vista por HTTP normal, pero sondas posteriores bloqueadas
         nivel, objetivo = "sondas", CHECKS_DE_SONDA
-        motivo = (f"la portada se obtuvo con normalidad, pero el sitio devolvió "
-                  f"HTTP {human} a sondas posteriores del análisis: las ausencias "
-                  f"que dependen de esas sondas no son afirmables")
+        motivo = (f"the homepage was fetched normally, but the site returned "
+                  f"HTTP {human} to later probes in the analysis: absences "
+                  f"that depend on those probes can't be stated")
 
     n = 0
     for r in results:
@@ -936,20 +942,20 @@ def _degradar_si_bloqueado(results, ctx):
             # que medir" (no aplica, su peso se reparte) de "no hemos podido
             # medirlo" (no se reparte, o inflaría lo poco que quede en pie)
             r["no_verificable"] = True
-            r["evidence"] = f"NO VERIFICABLE — {motivo}. (Sonda: {r['evidence'][:120]})"
+            r["evidence"] = f"NOT VERIFIABLE — {motivo}. (Probe: {r['evidence'][:120]})"
             n += 1
     ctx["acceso_degradado"] = {"nivel": nivel, "motivo": motivo, "degradados": n,
                                "human_status": human, "via": via}
     if n:
-        aviso_final = ("La puntuación queda como PARCIAL: cubre solo lo que sí se "
-                       "pudo verificar. No comparar contra otros dominios sin "
-                       "repetir el análisis"
+        aviso_final = ("The score is PARTIAL: it only covers what could "
+                       "be verified. Don't compare it against other domains without "
+                       "running the analysis again"
                        if nivel in ("total", "marcado") else
-                       "La puntuación sigue siendo utilizable: cubre lo que sí se "
-                       "pudo comprobar")
+                       "The score is still usable: it covers what could "
+                       "be checked")
         ctx["trail"].append({
-            "step": "guardarraíl de fidelidad", "status": "warn",
-            "detail": f"{n} checks degradados a 'no verificable' (nivel {nivel}). "
+            "step": "fidelity guardrail", "status": "warn",
+            "detail": f"{n} checks downgraded to 'not verifiable' (level {nivel}). "
                       f"{motivo}. {aviso_final}"})
     return results
 
@@ -968,7 +974,7 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
     ctx["agentes_pendientes"] = bool(agentes_pendientes) and not with_agents
 
     if with_agents:
-        _log("pruebas agénticas reales (varios minutos)…")
+        _log("real agentic tests (several minutes)…")
         try:
             from .agents import run_agent_tests
             ctx["agent_tests"] = run_agent_tests(
@@ -976,30 +982,30 @@ def audit_domain(base, typology_override=None, skip_render=False, with_psi=False
                 repeticiones=agent_repeticiones)
             agents = ctx["agent_tests"].get("agents", {})
             ran = [k for k, v in agents.items() if v.get("outcome") != "no_disponible"]
-            det = (f"agentes ejecutados: {', '.join(ran) or 'ninguno'}"
-                   f" · {ctx['agent_tests'].get('repeticiones')} intentos por agente")
+            det = (f"agents run: {', '.join(ran) or 'none'}"
+                   f" · {ctx['agent_tests'].get('repeticiones')} attempts per agent")
             if allow_submit:
-                det += " [envío de formularios AUTORIZADO en este dominio]"
-            ctx["trail"].append({"step": "pruebas agénticas (6.3)",
+                det += " [form submission AUTHORISED on this domain]"
+            ctx["trail"].append({"step": "agentic tests (6.3)",
                                  "status": "ok" if ran else "fail", "detail": det})
         except Exception as exc:
             ctx["agent_tests"] = None
-            ctx["trail"].append({"step": "pruebas agénticas (6.3)", "status": "fail",
+            ctx["trail"].append({"step": "agentic tests (6.3)", "status": "fail",
                                  "detail": str(exc)[:200]})
     else:
-        ctx["trail"].append({"step": "pruebas agénticas (6.3)", "status": "skipped",
-                             "detail": "desactivadas: el check 6.3 queda como manual"})
+        ctx["trail"].append({"step": "agentic tests (6.3)", "status": "skipped",
+                             "detail": "disabled: check 6.3 stays manual"})
 
     # La sonda de rate limiting va la ULTIMA de todas a propósito: aporrear el
     # sitio con 10 peticiones seguidas al principio contaminaba las mediciones
     # posteriores (muestreo, render, sondas e incluso las pruebas agénticas) en
     # sitios con límite por IP. Detectado en calibración: perfumesclub devolvió
     # 429/418 al muestreo tras dispararse esta sonda, y acabamos baneados.
-    _log("rate limiting (última sonda, para no contaminar el resto)…")
+    _log("rate limiting (last probe, so it doesn't skew the rest)…")
     ctx["rapid"] = rapid_fire(base + "/", BOT_UAS["GPTBot"], n=10)
     ctx["trail"].append({"step": "rate limiting", "status": "ok",
-                         "detail": f"10 peticiones como GPTBot: {ctx['rapid']} "
-                                   "(se ejecuta al final para no distorsionar las demás sondas)"})
+                         "detail": f"10 requests as GPTBot: {ctx['rapid']} "
+                                   "(runs last so it doesn't distort the other probes)"})
 
     results = checks_mod.run_all(ctx)
     results = _degradar_sin_ficha_producto(results, ctx)
@@ -1089,5 +1095,5 @@ def run_audit(urls, typology=None, skip_render=False, with_psi=False,
     return {
         "client": audits[0] if audits else None,
         "competitors": audits[1:],
-        "framework_version": "2.0 (agent_scanner, integrado en clicandseo)",
+        "framework_version": "2.0 (agent_scanner, integrated into clicandseo)",
     }
