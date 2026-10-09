@@ -24,10 +24,10 @@ CHECK_WEIGHTS = {
 }
 
 LEVELS = [
-    (0, 25, "🔴", "Invisible para agentes", "Ni te leen ni te usan. Riesgo alto."),
-    (26, 50, "🟠", "Legible, no operable", "Te leen, no te entienden bien, no te usan."),
-    (51, 75, "🟡", "Agent-aware", "Bien posicionado; faltan capacidades ejecutables."),
-    (76, 100, "🟢", "Agent-ready", "Ventaja competitiva real. A mantener trimestralmente."),
+    (0, 25, "🔴", "Invisible to agents", "They neither read you nor use you. High risk."),
+    (26, 50, "🟠", "Readable, not operable", "They read you, don't understand you well, don't use you."),
+    (51, 75, "🟡", "Agent-aware", "Well positioned; executable capabilities are missing."),
+    (76, 100, "🟢", "Agent-ready", "A real competitive advantage. Review quarterly to keep it."),
 ]
 
 # Dos situaciones que ANTES se confundían en un solo veredicto, y no son lo
@@ -39,10 +39,10 @@ LEVELS = [
 #    dos mitades de la prueba.
 NIVEL_PUERTA_CERRADA = {
     "emoji": "🚫",
-    "name": "Puerta cerrada a agentes",
-    "msg": ("La web se sirve con normalidad a un navegador, pero rechaza a los "
-            "bots de IA. No es un problema de nuestra red: hemos visto las dos "
-            "caras. Un agente que intente leerla se topa con el muro."),
+    "name": "Closed to agents",
+    "msg": ("The site is served normally to a browser, but it rejects AI bots. "
+            "This is not a problem with our network: we have seen both sides. "
+            "An agent that tries to read it hits a wall."),
 }
 # 2) NO EVALUABLE: nos bloquearon a NOSOTROS, y también a los bots de IA que
 #    probamos. No podemos distinguir "bloquea toda automatización" de "bloquea
@@ -50,12 +50,12 @@ NIVEL_PUERTA_CERRADA = {
 #    la nota se entrega con lo que sí se pudo verificar y su cobertura a la vista.
 NIVEL_NO_EVALUABLE = {
     "emoji": "⚠️",
-    "name": "No evaluable desde nuestra red",
-    "msg": ("No hemos podido leer el contenido desde donde escaneamos. Puede ser "
-            "que el sitio bloquee toda automatización, o solo el rango de IPs de "
-            "nuestro servidor: no podemos distinguirlo, así que no lo afirmamos. "
-            "La nota cubre únicamente lo verificado (robots, sitemap, cabeceras, "
-            ".well-known, DNS); mira el porcentaje de cobertura antes de usarla."),
+    "name": "Not assessable from our network",
+    "msg": ("We couldn't read the content from where we scan. The site may block "
+            "all automation, or only our server's IP range: we can't tell which, "
+            "so we don't claim either. The score covers only what was verified "
+            "(robots, sitemap, headers, .well-known, DNS); check the coverage "
+            "percentage before using it."),
     "cobertura_parcial": True,
 }
 
@@ -116,9 +116,9 @@ def apply_governance_gate(total, results, typology):
     penalties = []
     by_id = {r["id"]: r for r in results}
     if typology == "ecommerce" and by_id.get("7.2", {}).get("inconsistent"):
-        penalties.append(("Precio inconsistente (riesgo de alucinacion)", -10))
+        penalties.append(("Inconsistent price (hallucination risk)", -10))
     if by_id.get("1.2", {}).get("score") == 0.5:
-        penalties.append(("Sin politica de bots documentada", -5))
+        penalties.append(("No documented bot policy", -5))
     adjusted = max(0, total + sum(p for _, p in penalties))
     return round(adjusted, 1), penalties
 

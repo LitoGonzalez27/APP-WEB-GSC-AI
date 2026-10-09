@@ -51,19 +51,19 @@ def assert_public_url(url):
     """Anti-SSRF: solo http/https a hosts que resuelven a IPs públicas."""
     p = urlparse(url)
     if p.scheme not in ("http", "https"):
-        raise BlockedURLError(f"esquema no permitido: {p.scheme}")
+        raise BlockedURLError(f"scheme not allowed: {p.scheme}")
     host = p.hostname
     if not host:
-        raise BlockedURLError("URL sin host")
+        raise BlockedURLError("URL has no host")
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:
-        raise BlockedURLError(f"el dominio no resuelve: {host}")
+        raise BlockedURLError(f"the domain does not resolve: {host}")
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
         if (ip.is_private or ip.is_loopback or ip.is_link_local
                 or ip.is_reserved or ip.is_multicast):
-            raise BlockedURLError(f"destino no público bloqueado: {ip}")
+            raise BlockedURLError(f"blocked non-public (private/internal) address: {ip}")
 
 
 # Perfil de cabeceras de un Chrome real. Solo se usa para la línea base humana.

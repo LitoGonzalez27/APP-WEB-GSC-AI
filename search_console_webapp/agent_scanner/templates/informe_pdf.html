@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Agent Readiness · {{ host }}</title>
@@ -289,49 +289,49 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
   {{ dots|safe }}
   <span class="cover-ring r1"></span><span class="cover-ring r2"></span>
   <div class="wordmark"><span class="c">Clic</span><span class="a">and</span><span class="s">seo</span><span class="d">.</span></div>
-  <div class="cover-title">Preparación para<br>la era <em>agéntica</em></div>
+  <div class="cover-title">Readiness for<br>the <em>agentic</em> era</div>
   <div class="cover-host">{{ host }}</div>
-  <div class="cover-kind">Informe de auditoría · Agent Readiness</div>
+  <div class="cover-kind">Audit report · Agent Readiness</div>
   <div class="cover-meta">
     {% if fecha %}<span>{{ fecha }}</span>{% endif %}
     <span>{{ typology }}</span>
-    {% if competidores %}<span>frente a {{ competidores|join(' y ') }}</span>{% endif %}
+    {% if competidores %}<span>vs. {{ competidores|join(' and ') }}</span>{% endif %}
   </div>
   <div class="cover-verdict">
     <div>{{ gauge_cover|safe }}</div>
     <div>
-      <div class="lv-label">{{ 'Puntuación parcial' if parcial else 'Veredicto' }}</div>
+      <div class="lv-label">{{ 'Partial score' if parcial else 'Verdict' }}</div>
       <div class="lv-name">{{ level_name }}</div>
-      {% if not parcial %}<div class="lv-msg">{{ level_msg }}</div>{% else %}<div class="lv-msg">La nota cubre solo lo que se pudo verificar{% if cobertura %} ({{ cobertura }}% del modelo){% endif %}. Detalle en la página siguiente.</div>{% endif %}
+      {% if not parcial %}<div class="lv-msg">{{ level_msg }}</div>{% else %}<div class="lv-msg">The score only covers what could be verified{% if cobertura %} ({{ cobertura }}% of the model){% endif %}. Details on the next page.</div>{% endif %}
       <div class="cover-stages">{% for s in stages %}<span>{{ s.name }} <b>{{ s.p }}%</b></span>{% endfor %}</div>
     </div>
   </div>
-  <div class="cover-foot"><span>Preparado con Clicandseo · clicandseo.com</span><span>Confidencial</span></div>
+  <div class="cover-foot"><span>Prepared with Clicandseo · clicandseo.com</span><span>Confidential</span></div>
 </div>
 <!-- /PORTADA -->
 
-<!-- ═══════════════ 01 RESUMEN ═══════════════ -->
+<!-- ═══════════════ 01 SUMMARY ═══════════════ -->
 <div class="section">
-  <h2>¿Está tu web lista para que la use <span class="hl">la IA</span>?</h2>
-  <p class="lead">Este informe mide si los sistemas de IA pueden <b>leer</b> tu web, <b>entenderla</b> sin equivocarse y <b>actuar</b> en ella (comprar, reservar, contactar). No es SEO clásico: es la capa que determina si tu marca existe cuando un agente hace el trabajo por el usuario. Las primeras páginas son para decidir; la evidencia técnica del final está pensada para pasársela directamente al equipo técnico o a la agencia.</p>
+  <h2>Is your site ready to be used by <span class="hl">AI</span>?</h2>
+  <p class="lead">This report measures whether AI systems can <b>read</b> your site, <b>understand</b> it without getting it wrong, and <b>act</b> on it (buy, book, get in touch). This is not classic SEO: it is the layer that determines whether your brand exists when an agent does the work for the user. The first pages are for making decisions; the technical evidence at the end is meant to be handed straight to your tech team or agency.</p>
 
   {% for a in avisos %}
   <div class="notice warn">
     <div class="ic">!</div>
     <div><div class="t">{{ a.titulo }}</div>
-      <div class="b">{{ a.etiqueta }}: {{ a.cuerpo }} Hay <b>{{ a.degradados }}</b> factores marcados como «no verificable» porque no se pudieron comprobar: no cuentan como fallo.{% if a.cobertura is not none %} Esta nota cubre el <b>{{ a.cobertura }}%</b> del modelo.{% endif %} Puedes repetir el análisis más tarde o desde otra red.</div></div>
+      <div class="b">{{ a.etiqueta }}: {{ a.cuerpo }} <b>{{ a.degradados }}</b> {{ 'factor is' if a.degradados == 1 else 'factors are' }} marked as “not verifiable” because {{ 'it' if a.degradados == 1 else 'they' }} could not be checked: {{ 'it does' if a.degradados == 1 else 'they do' }} not count as {{ 'a failure' if a.degradados == 1 else 'failures' }}.{% if a.cobertura is not none %} This score covers <b>{{ a.cobertura }}%</b> of the model.{% endif %} You can run the analysis again later or from another network.</div></div>
   </div>
   {% endfor %}
 
   <div class="block card verdict keep">
     <div class="g">
-      <h3 style="text-align:left;margin-bottom:0">{{ 'Puntuación parcial' if parcial else 'Puntuación global' }}</h3>
+      <h3 style="text-align:left;margin-bottom:0">{{ 'Partial score' if parcial else 'Overall score' }}</h3>
       {{ gauge|safe }}
     </div>
     <div>
       <div class="lv-name {{ '' if parcial else 'tone-' ~ score_tone }}">{{ level_name }}</div>
       {% if not avisos or not parcial %}<div class="lv-msg">{{ level_msg }}</div>{% endif %}
-      {% if via_lectura %}<div class="small" style="margin-top:1.5mm">Contenido leído vía <b>{{ via_lectura|replace('ua:', '') }}</b>.</div>{% endif %}
+      {% if via_lectura %}<div class="small" style="margin-top:1.5mm">Content read via <b>{{ via_lectura|replace('ua:', '') }}</b>.</div>{% endif %}
       <div class="scale">
         <div class="scale-track">{% for s in scale %}<i class="{{ 'on' if loop.index0 == band }}"{% if loop.index0 == band and not parcial %} style="background:var(--{{ 'ok' if score_tone == 'good' else score_tone }})"{% endif %}></i>{% endfor %}
           <span class="scale-marker" style="left:{{ marker }}%"></span></div>
@@ -345,37 +345,37 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
           {% if balance.na %}<i class="na-bg" style="flex:{{ balance.na }}"></i>{% endif %}
         </div>
         <div class="legend">
-          <span><span class="sw ok-bg"></span><b>{{ balance.ok }}</b> cumplen</span>
-          <span><span class="sw part-bg"></span><b>{{ balance.part }}</b> parciales</span>
-          <span><span class="sw bad-bg"></span><b>{{ balance.bad }}</b> fallan</span>
-          <span><span class="sw na-bg"></span><b>{{ balance.na }}</b> no aplican</span>
+          <span><span class="sw ok-bg"></span><b>{{ balance.ok }}</b> pass</span>
+          <span><span class="sw part-bg"></span><b>{{ balance.part }}</b> partial</span>
+          <span><span class="sw bad-bg"></span><b>{{ balance.bad }}</b> fail</span>
+          <span><span class="sw na-bg"></span><b>{{ balance.na }}</b> not applicable</span>
         </div>
       </div>
-      {% for p in penalties %}<div class="small" style="margin-top:2mm">Penalización aplicada: <b>{{ p.name }}</b> ({{ p.v }} puntos)</div>{% endfor %}
+      {% for p in penalties %}<div class="small" style="margin-top:2mm">Penalty applied: <b>{{ p.name }}</b> ({{ p.v }} points)</div>{% endfor %}
     </div>
   </div>
 
   {% if stages %}
   <div class="block keep">
-    <h3>El viaje del agente por tu web</h3>
+    <h3>The agent's journey through your site</h3>
     <div class="journey">
       {% for s in stages %}
       <div class="stage {{ s.tone }}{{ ' weak' if s.weak }}">
         <div class="top"><span class="q">{{ s.name }}</span><span class="p tone-{{ s.tone }}">{{ s.p }}%</span></div>
         <div class="bar"><i class="{{ s.tone }}" style="width:{{ s.p }}%"></i></div>
         <div class="d">{{ s.desc }} · {{ s.cats }}</div>
-        {% if s.weak %}<div class="flag">Eslabón más débil</div>{% endif %}
+        {% if s.weak %}<div class="flag">Weakest link</div>{% endif %}
       </div>
       {% endfor %}
     </div>
-    <p class="small" style="margin-top:2mm">Un agente primero tiene que poder leerte, luego entenderte sin equivocarse, y solo entonces puede usarte. La cadena se rompe en el eslabón más débil.</p>
+    <p class="small" style="margin-top:2mm">An agent first has to be able to read you, then understand you without getting it wrong, and only then can it use you. The chain breaks at its weakest link.</p>
   </div>
   {% endif %}
 
   <div class="block">
-    <h3>Desglose por categoría <span class="muted">{{ n_checks }} comprobaciones</span></h3>
+    <h3>Breakdown by category <span class="muted">{{ n_checks }} checks</span></h3>
     <table>
-      <thead><tr><th>Categoría</th><th style="width:42%"></th><th class="num">%</th><th>Estado</th></tr></thead>
+      <thead><tr><th>Category</th><th style="width:42%"></th><th class="num">%</th><th>Status</th></tr></thead>
       <tbody>
       {% for c in categorias %}
         <tr><td class="cat"><b>{{ c.id }}</b>{{ c.name }}</td>
@@ -387,32 +387,32 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
   </div>
 
   <div class="block">
-    <h3>Por dónde empezar <span class="muted">lo que más rinde con menos esfuerzo</span></h3>
+    <h3>Where to start <span class="muted">the biggest return for the least effort</span></h3>
     {% if quick %}
-    <ul class="list">{% for q in quick %}<li><span class="n q q{{ q.tier }}">{{ loop.index }}</span><div><div class="tt">{{ q.titulo }}</div><div class="bd">{{ q.como }}</div><div class="small" style="margin-top:0.8mm">Impacto <b>{{ q.impacto|lower }}</b> · esfuerzo <b>{{ q.esfuerzo|lower }}</b></div></div></li>{% endfor %}</ul>
-    {% if quick_mas %}<p class="small" style="margin-top:2mm">Y {{ quick_mas }} {{ 'arreglo rápido más' if quick_mas == 1 else 'arreglos rápidos más' }} en el plan de acción.</p>{% endif %}
-    {% else %}<p class="small">No quedan arreglos rápidos: lo que falta requiere más trabajo y está en el plan de acción.</p>{% endif %}
+    <ul class="list">{% for q in quick %}<li><span class="n q q{{ q.tier }}">{{ loop.index }}</span><div><div class="tt">{{ q.titulo }}</div><div class="bd">{{ q.como }}</div><div class="small" style="margin-top:0.8mm">Impact <b>{{ q.impacto|lower }}</b> · effort <b>{{ q.esfuerzo|lower }}</b></div></div></li>{% endfor %}</ul>
+    {% if quick_mas %}<p class="small" style="margin-top:2mm">Plus {{ quick_mas }} more {{ 'quick fix' if quick_mas == 1 else 'quick fixes' }} in the action plan.</p>{% endif %}
+    {% else %}<p class="small">No quick fixes left: what remains takes more work and is in the action plan.</p>{% endif %}
   </div>
 </div>
 
 {% if competencia %}
-<!-- ═══════════════ 02 COMPARATIVA ═══════════════ -->
+<!-- ═══════════════ 02 COMPARISON ═══════════════ -->
 <div class="section">
-  <h2>Frente a tu <span class="hl">competencia</span></h2>
-  <p class="lead">Mismos checks, mismos pesos y la misma vara de medir para todos los dominios.</p>
+  <h2>Against your <span class="hl">competitors</span></h2>
+  <p class="lead">Same checks, same weights and the same yardstick for every domain.</p>
   {% if mixto %}
   <div class="notice warn"><div class="ic">!</div><div>
-    <div class="t">Tipologías distintas: las notas no son comparables</div>
-    <div class="b">Estás comparando <b>{{ tipos|join(' y ') }}</b>. Cada tipología se puntúa con pesos distintos y la tarea que debe completar un agente no tiene la misma dificultad, así que <b>no se señala una ganadora</b>. El desglose por categoría sí es comparable.</div></div></div>
+    <div class="t">Different site types: the scores are not comparable</div>
+    <div class="b">You are comparing <b>{{ tipos|join(' and ') }}</b>. Each site type is scored with different weights and the task an agent has to complete is not equally difficult, so <b>no winner is declared</b>. The breakdown by category is comparable.</div></div></div>
   {% endif %}
 
   <div class="block">
     <table>
-      <thead><tr><th>Dominio</th><th></th><th>Tipología</th><th>Nivel</th><th class="num">Puntuación</th></tr></thead>
+      <thead><tr><th>Domain</th><th></th><th>Site type</th><th>Level</th><th class="num">Score</th></tr></thead>
       <tbody>
       {% for r in ranking %}
         <tr><td><span class="dot" style="background:{{ r.color }}"></span><b>{{ r.host }}</b></td><td class="muted">{{ r.rol }}</td>
-          <td>{{ r.typology }}</td><td>{{ r.level }}{% if r.win %} <span class="muted">· mejor puntuación</span>{% endif %}</td>
+          <td>{{ r.typology }}</td><td>{{ r.level }}{% if r.win %} <span class="muted">· top score</span>{% endif %}</td>
           <td class="num"><span class="cell"><span class="bar"><i style="width:{{ r.score }}%;background:{{ r.color }}"></i></span><b class="tone-{{ r.tone }}">{{ r.score }}</b></span></td></tr>
       {% endfor %}
       </tbody>
@@ -421,22 +421,22 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 
   <div class="block grid2">
     <div class="card" style="display:flex;flex-direction:column;align-items:center">
-      <h3 style="align-self:flex-start">Perfil por categoría</h3>
+      <h3 style="align-self:flex-start">Profile by category</h3>
       {{ radar|safe }}
       <div class="legend" style="justify-content:center">{% for a in audits_head %}<span><span class="dot" style="background:{{ a.color }}"></span>{{ a.host }}</span>{% endfor %}</div>
     </div>
     <div class="card">
-      <h3>Dónde te sacan ventaja</h3>
+      <h3>Where they are ahead of you</h3>
       {% if gaps %}
-      <ul class="list">{% for g in gaps %}<li><span class="n">{{ g.id }}</span><div><div class="tt">{{ g.name }}</div><div class="bd">{{ g.host }} te saca <b>{{ g.diff }} puntos</b> ({{ g.v }}% frente a tu {{ g.mine }}%).</div></div></li>{% endfor %}</ul>
-      {% else %}<p class="small">Sin brechas relevantes: ninguna categoría con desventaja de 15 puntos o más.</p>{% endif %}
+      <ul class="list">{% for g in gaps %}<li><span class="n">{{ g.id }}</span><div><div class="tt">{{ g.name }}</div><div class="bd">{{ g.host }} is <b>{{ g.diff }} points</b> ahead ({{ g.v }}% vs. your {{ g.mine }}%).</div></div></li>{% endfor %}</ul>
+      {% else %}<p class="small">No significant gaps: no category where you trail by 15 points or more.</p>{% endif %}
     </div>
   </div>
 
   <div class="block keep">
-    <h3>Categoría a categoría <span class="muted">verde 75 o más · naranja 50-74 · rojo menos de 50 · el trofeo marca el mejor de cada fila</span></h3>
+    <h3>Category by category <span class="muted">green 75 or more · orange 50-74 · red below 50 · the trophy marks the best in each row</span></h3>
     <table>
-      <thead><tr><th>Categoría</th>{% for a in audits_head %}<th class="num"><span class="host-th"><span class="dot" style="background:{{ a.color }}"></span>{{ a.host }}</span></th>{% endfor %}</tr></thead>
+      <thead><tr><th>Category</th>{% for a in audits_head %}<th class="num"><span class="host-th"><span class="dot" style="background:{{ a.color }}"></span>{{ a.host }}</span></th>{% endfor %}</tr></thead>
       <tbody>
       {% for m in matriz %}
         <tr><td class="cat"><b>{{ m.id }}</b>{{ m.name }}</td>
@@ -451,23 +451,23 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 </div>
 {% endif %}
 
-<!-- ═══════════════ 03 PLAN DE ACCIÓN ═══════════════ -->
+<!-- ═══════════════ 03 ACTION PLAN ═══════════════ -->
 <div class="section">
-  <h2>Qué arreglar y en qué <span class="hl">orden</span></h2>
-  <p class="lead">{{ n_findings }} puntos ordenados por prioridad. Cada uno explica <b>qué falla</b>, <b>por qué le importa al negocio</b> y <b>cómo se arregla</b>; esta última parte puede ir tal cual al equipo técnico.</p>
-  {% if not tiers %}<p class="block small">Todos los checks puntuables pasan: no hay nada pendiente que arreglar.</p>{% endif %}
+  <h2>What to fix and in what <span class="hl">order</span></h2>
+  <p class="lead">{{ n_findings }} {{ 'item' if n_findings == 1 else 'items' }} sorted by priority. Each one explains <b>what is failing</b>, <b>why it matters to the business</b> and <b>how to fix it</b>; that last part can go to your tech team as is.</p>
+  {% if not tiers %}<p class="block small">All scorable checks pass: there is nothing left to fix.</p>{% endif %}
   {% for t in tiers %}
   <div class="tier t{{ t.ord }}">
     <div class="tier-head"><span class="tier-mark t{{ t.ord }}"></span><span class="tier-name">{{ t.name }}</span>
-      <span class="tier-count">{{ t.hallazgos|length }} {{ 'punto' if t.hallazgos|length == 1 else 'puntos' }}</span><span class="tier-hint">{{ t.hint }}</span></div>
+      <span class="tier-count">{{ t.hallazgos|length }} {{ 'item' if t.hallazgos|length == 1 else 'items' }}</span><span class="tier-hint">{{ t.hint }}</span></div>
     <div class="tier-body">
     {% for f in t.hallazgos %}
     <div class="finding">
       <div class="ft t{{ t.ord }}">{{ f.titulo }}</div>
-      {% if f.qw %}<div class="meta"><span><b>Arreglo rápido</b></span></div>{% endif %}
+      {% if f.qw %}<div class="meta"><span><b>Quick fix</b></span></div>{% endif %}
       <div class="cols">
-        <div><div class="sub">Por qué te importa</div><p>{{ f.por_que }}</p></div>
-        <div class="fix"><div class="sub">Cómo se arregla</div><p>{{ f.como }}</p></div>
+        <div><div class="sub">Why it matters to you</div><p>{{ f.por_que }}</p></div>
+        <div class="fix"><div class="sub">How to fix it</div><p>{{ f.como }}</p></div>
       </div>
     </div>
     {% endfor %}
@@ -477,21 +477,21 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 </div>
 
 {% if agentes %}
-<!-- ═══════════════ 04 AGENTES ═══════════════ -->
+<!-- ═══════════════ 04 AGENTS ═══════════════ -->
 <div class="section">
-  <h2>Qué pasa cuando un agente <span class="hl">lo intenta</span></h2>
-  <p class="lead">ChatGPT, Gemini y Claude controlan un navegador real e intentan completar una tarea en la web. Nunca se pagan compras ni se crean cuentas: los campos de tarjeta están bloqueados por código.</p>
-  {% if agentes_detalle %}<div class="notice warn"><div class="ic">!</div><div><div class="t">Alcance de la simulación con agentes</div><div class="b">{{ agentes_detalle }}</div></div></div>{% endif %}
+  <h2>What happens when an agent <span class="hl">tries</span></h2>
+  <p class="lead">ChatGPT, Gemini and Claude control a real browser and try to complete a task on the site. No purchase is ever paid and no account is ever created: card fields are blocked in code.</p>
+  {% if agentes_detalle %}<div class="notice warn"><div class="ic">!</div><div><div class="t">Scope of the agent simulation</div><div class="b">{{ agentes_detalle }}</div></div></div>{% endif %}
   {% for d in agentes %}
   <div class="block card">
-    <h3><span class="dot" style="background:{{ d.color }}"></span>{{ d.host }} <span class="muted">· tarea de {{ d.typology }}{{ ' · envío de formularios autorizado' if d.allow_submit }}</span></h3>
+    <h3><span class="dot" style="background:{{ d.color }}"></span>{{ d.host }} <span class="muted">· {{ d.typology }} task{{ ' · form submission allowed' if d.allow_submit }}</span></h3>
     {% for a in d.agentes %}
     <div class="agent">
       <div class="top"><span class="nm">{{ a.name }}</span><span class="outcome {{ a.tone }}">{{ a.outcome }}</span>{% if a.steps_txt %}<span class="muted">· {{ a.steps_txt }}</span>{% endif %}</div>
       {% if a.detail %}<p class="small" style="margin-top:1mm">{{ a.detail }}</p>{% endif %}
-      {% if a.intentos > 1 %}<div class="runs">Consistencia {% for ok in a.runs %}<span class="run {{ 'ok' if ok else 'bad' }}">{{ (icons.ok if ok else icons.bad)|safe }}</span>{% endfor %} <b>{{ a.exitos }}/{{ a.intentos }} intentos</b></div>{% endif %}
+      {% if a.intentos > 1 %}<div class="runs">Consistency {% for ok in a.runs %}<span class="run {{ 'ok' if ok else 'bad' }}">{{ (icons.ok if ok else icons.bad)|safe }}</span>{% endfor %} <b>{{ a.exitos }}/{{ a.intentos }} attempts</b></div>{% endif %}
       {% if a.hitos %}
-      <ol class="path">{% for h in a.hitos %}<li class="{{ 'ok' if h.ok else 'stuck' if h.stuck }}"><span class="pd"></span>{{ h.nombre }}{% if h.stuck %}<br>se atascó aquí{% endif %}</li>{% endfor %}</ol>
+      <ol class="path">{% for h in a.hitos %}<li class="{{ 'ok' if h.ok else 'stuck' if h.stuck }}"><span class="pd"></span>{{ h.nombre }}{% if h.stuck %}<br>got stuck here{% endif %}</li>{% endfor %}</ol>
       {% endif %}
     </div>
     {% endfor %}
@@ -501,62 +501,62 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 </div>
 {% endif %}
 
-<!-- ═══════════════ ANEXO TÉCNICO ═══════════════ -->
+<!-- ═══════════════ TECHNICAL APPENDIX ═══════════════ -->
 <div class="section">
-  <h2>Evidencia de cada <span class="hl">comprobación</span></h2>
-  <p class="lead">Para el equipo técnico: resultado y evidencia bruta de las {{ n_checks }} comprobaciones sobre {{ host }}.</p>
+  <h2>Evidence for every <span class="hl">check</span></h2>
+  <p class="lead">For the tech team: result and raw evidence of the {{ n_checks }} checks on {{ host }}.</p>
   <div class="block">
     <table>
-      <thead><tr><th style="width:34%">Check</th><th class="center" style="width:8%">Resultado</th><th>Evidencia</th></tr></thead>
+      <thead><tr><th style="width:34%">Check</th><th class="center" style="width:8%">Result</th><th>Evidence</th></tr></thead>
       <tbody>
       {% for c in anexo %}
-        <tr><td><b>{{ c.id }}</b> {{ c.name }}{% if c.manual %} <span class="muted">· revisar</span>{% endif %}</td>
+        <tr><td><b>{{ c.id }}</b> {{ c.name }}{% if c.manual %} <span class="muted">· review</span>{% endif %}</td>
           <td class="center"><span class="mk {{ c.tone }}">{{ c.glyph|safe }}</span></td><td class="ev">{{ c.evidence }}</td></tr>
       {% endfor %}
       </tbody>
     </table>
-    <div class="legend"><span><span class="mk ok">{{ icons.ok|safe }}</span> cumple</span><span><span class="mk part">{{ icons.part|safe }}</span> parcial</span><span><span class="mk bad">{{ icons.bad|safe }}</span> falla</span><span><span class="mk na">{{ icons.na|safe }}</span> no aplica / no medido</span></div>
+    <div class="legend"><span><span class="mk ok">{{ icons.ok|safe }}</span> pass</span><span><span class="mk part">{{ icons.part|safe }}</span> partial</span><span><span class="mk bad">{{ icons.bad|safe }}</span> fail</span><span><span class="mk na">{{ icons.na|safe }}</span> not applicable / not measured</span></div>
   </div>
 </div>
 
-<!-- ═══════════════ METODOLOGÍA ═══════════════ -->
+<!-- ═══════════════ METHODOLOGY ═══════════════ -->
 <div class="section">
-  <h2>Cómo se ha <span class="hl">medido</span></h2>
-  <p class="lead">Tipología detectada: <b>{{ typology }}</b>. Cobertura del muestreo: {{ coverage.sampled_ok if coverage.sampled_ok is not none else '?' }}/{{ coverage.sampled if coverage.sampled is not none else '?' }} páginas accesibles de {{ coverage.sitemap_urls if coverage.sitemap_urls is not none else '?' }} URLs del sitemap. El muestreo es representativo (hasta 2 páginas por plantilla), no exhaustivo.</p>
+  <h2>How it was <span class="hl">measured</span></h2>
+  <p class="lead">Detected site type: <b>{{ typology }}</b>. Sampling coverage: {{ coverage.sampled_ok if coverage.sampled_ok is not none else '?' }}/{{ coverage.sampled if coverage.sampled is not none else '?' }} pages accessible out of {{ coverage.sitemap_urls if coverage.sitemap_urls is not none else '?' }} sitemap URLs. The sample is representative (up to 2 pages per template), not exhaustive.</p>
   {% if fiabilidad %}
   <div class="notice {{ fiabilidad.tone }}"><div class="ic">{{ (icons.ok if fiabilidad.tone == 'good' else icons.bad if fiabilidad.tone == 'bad' else '!')|safe }}</div>
-    <div><div class="t">{{ fiabilidad.titulo }}</div><div class="b">{{ fiabilidad.msg }} {{ manual|length }} checks marcados para criterio humano.</div></div></div>
+    <div><div class="t">{{ fiabilidad.titulo }}</div><div class="b">{{ fiabilidad.msg }} {{ manual|length }} {{ 'check' if manual|length == 1 else 'checks' }} flagged for human judgement.</div></div></div>
   {% endif %}
 
   <div class="block grid2">
     <div class="card">
-      <h3>Pesos aplicados <span class="muted">{{ typology }}</span></h3>
+      <h3>Weights applied <span class="muted">{{ typology }}</span></h3>
       <table><tbody>
         {% for p in pesos %}<tr><td class="cat"><b>{{ p.id }}</b>{{ p.name }}</td><td class="num"><b>{{ p.v }}%</b></td></tr>{% endfor %}
       </tbody></table>
-      <p class="small" style="margin-top:2mm">Cada check puntúa 0, 0,5 o 1 y pondera dentro de su categoría; los críticos pesan más. Las categorías sin datos redistribuyen su peso.</p>
+      <p class="small" style="margin-top:2mm">Each check scores 0, 0.5 or 1 and is weighted within its category; critical checks weigh more. Categories without data redistribute their weight.</p>
     </div>
     <div class="card">
-      <h3>Escala</h3>
-      <ul class="list">{% for s in scale %}<li><span class="n" style="width:12mm">{{ s[0] }}–{{ s[1] }}</span><div><div class="tt">{{ s[2] }}{% if loop.index0 == band %} <span class="muted">· este informe</span>{% endif %}</div><div class="bd">{{ s[3] }}</div></div></li>{% endfor %}</ul>
+      <h3>Scale</h3>
+      <ul class="list">{% for s in scale %}<li><span class="n" style="width:12mm">{{ s[0] }}–{{ s[1] }}</span><div><div class="tt">{{ s[2] }}{% if loop.index0 == band %} <span class="muted">· this report</span>{% endif %}</div><div class="bd">{{ s[3] }}</div></div></li>{% endfor %}</ul>
     </div>
   </div>
 
   {% if trail %}
   <div class="block">
-    <h3>Procesos ejecutados <span class="muted">{{ trail|length }}</span></h3>
+    <h3>Processes run <span class="muted">{{ trail|length }}</span></h3>
     <table>
-      <thead><tr><th class="center" style="width:5%"></th><th style="width:26%">Proceso</th><th>Resultado / evidencia</th></tr></thead>
+      <thead><tr><th class="center" style="width:5%"></th><th style="width:26%">Process</th><th>Result / evidence</th></tr></thead>
       <tbody>{% for t in trail %}<tr><td class="center"><span class="mk {{ t.tone }}">{{ t.glyph|safe }}</span></td><td><b>{{ t.step }}</b></td><td class="small">{{ t.detail }}</td></tr>{% endfor %}</tbody>
     </table>
-    <div class="legend"><span><span class="mk ok">{{ icons.ok|safe }}</span> ejecutado con evidencia</span><span><span class="mk part">{{ icons.part|safe }}</span> evidencia degradada</span><span><span class="mk bad">{{ icons.bad|safe }}</span> el proceso falló</span><span><span class="mk na">{{ icons.na|safe }}</span> desactivado</span><span>Un 404 del sitio es un hallazgo, no un fallo del análisis.</span></div>
+    <div class="legend"><span><span class="mk ok">{{ icons.ok|safe }}</span> ran with evidence</span><span><span class="mk part">{{ icons.part|safe }}</span> degraded evidence</span><span><span class="mk bad">{{ icons.bad|safe }}</span> the process failed</span><span><span class="mk na">{{ icons.na|safe }}</span> disabled</span><span>A 404 from the site is a finding, not an analysis failure.</span></div>
   </div>
   {% endif %}
   {% if manual %}
-  <div class="block"><h3>Requieren criterio humano</h3>
+  <div class="block"><h3>Require human judgement</h3>
     <ul class="list">{% for m in manual %}<li><span class="n" style="width:9mm">{{ m.id }}</span><div class="tt" style="align-self:center">{{ m.name }}</div></li>{% endfor %}</ul></div>
   {% endif %}
-  <p class="small block">Framework {{ framework }} · basado en estándares abiertos (RFC 9421, MCP, ACP, Schema.org) y en el Agent Readiness score de Cloudflare. El campo agéntico evoluciona por trimestres: se recomienda repetir esta auditoría cada 90 días.</p>
+  <p class="small block">Framework {{ framework }} · based on open standards (RFC 9421, MCP, ACP, Schema.org) and on Cloudflare's Agent Readiness score. The agentic field evolves quarter by quarter: we recommend repeating this audit every 90 days.</p>
 </div>
 
 </body>

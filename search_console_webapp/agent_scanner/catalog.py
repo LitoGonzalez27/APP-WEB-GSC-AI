@@ -6,68 +6,68 @@ granular). Se valida contra checks.py con `python3 -m agent_scanner.catalog`.
 """
 
 CATEGORIES = {
-    "C1": "Descubribilidad y acceso",
-    "C2": "Identidad y control de bots",
-    "C3": "Datos estructurados",
-    "C4": "Renderizado y arquitectura",
-    "C5": "Contenido para LLMs",
-    "C6": "Capacidades y acciones",
-    "C7": "Comercio agéntico",
+    "C1": "Discoverability & access",
+    "C2": "Identity & bot control",
+    "C3": "Structured data",
+    "C4": "Rendering & architecture",
+    "C5": "Content for LLMs",
+    "C6": "Capabilities & actions",
+    "C7": "Agentic commerce",
 }
 
 # (id, categoría, nombre, qué comprueba en una línea)
 CHECKS = [
-    ("1.1", "C1", "robots.txt válido", "Que exista y sea parseable (no HTML de una SPA)"),
-    ("1.2", "C1", "Política de bots de IA", "Reglas nominales por bot; no bloquear los de búsqueda en vivo"),
-    ("1.3", "C1", "Bloqueo declarado vs real", "Peticiones reales con el UA de cada bot vs lo que dice robots.txt"),
-    ("1.4", "C1", "sitemap.xml fresco", "Existe, referenciado y con lastmod reciente"),
-    ("1.5", "C1", "Link headers (RFC 8288)", "Cabeceras Link de descubrimiento"),
-    ("1.6", "C1", "Contenido accesible sin login", "Las páginas clave rinden contenido sin sesión"),
-    ("1.7", "C1", "DNS-AID", "Registros TXT _aid/_agent (estándar experimental)"),
-    ("1.8", "C1", "Metadatos de cita", "canonical, lang y Open Graph: lo que evita citas y previews rotos"),
+    ("1.1", "C1", "Valid robots.txt", "Exists and is parseable (not a SPA's HTML)"),
+    ("1.2", "C1", "AI bot policy", "Per-bot rules; don't block live-search bots"),
+    ("1.3", "C1", "Declared vs actual blocking", "Real requests with each bot's UA vs what robots.txt says"),
+    ("1.4", "C1", "Fresh sitemap.xml", "Exists, is referenced and has a recent lastmod"),
+    ("1.5", "C1", "Link headers (RFC 8288)", "Discovery Link headers"),
+    ("1.6", "C1", "Content accessible without login", "Key pages render content without a session"),
+    ("1.7", "C1", "DNS-AID", "_aid/_agent TXT records (experimental standard)"),
+    ("1.8", "C1", "Citation metadata", "canonical, lang and Open Graph: what prevents broken citations and previews"),
 
-    ("2.1", "C2", "Content Signals declarados", "search / ai-input / ai-train en robots.txt"),
-    ("2.2", "C2", "Gestión activa de crawl", "CDN/WAF que vigile y controle los bots de IA"),
-    ("2.3", "C2", "Web Bot Auth", "Verificación criptográfica de agentes (RFC 9421)"),
-    ("2.4", "C2", "Rate limiting razonable", "10 peticiones seguidas: ¿banea o throttlea con criterio?"),
+    ("2.1", "C2", "Declared Content Signals", "search / ai-input / ai-train in robots.txt"),
+    ("2.2", "C2", "Active crawl management", "A CDN/WAF that monitors and controls AI bots"),
+    ("2.3", "C2", "Web Bot Auth", "Cryptographic agent verification (RFC 9421)"),
+    ("2.4", "C2", "Reasonable rate limiting", "10 requests in a row: does it ban or throttle sensibly?"),
 
-    ("3.1", "C3", "JSON-LD presente y válido", "Extracción y validación del marcado en las plantillas"),
-    ("3.2", "C3", "Entidad Organization completa", "name, url, logo, sameAs, contactPoint"),
-    ("3.3", "C3", "Product/Offer operativo", "price, priceCurrency, availability en fichas"),
-    ("3.4", "C3", "Atributos ricos en el marcado", "GTIN, brand, reviews, fechas, specs"),
-    ("3.5", "C3", "HTML semántico", "Jerarquía de headings, landmarks, botones reales"),
-    ("3.6", "C3", "Controles legibles por un agente", "Controles del árbol de accesibilidad sin nombre propio: el agente los ve pero no sabe qué hacen"),
-    ("3.7", "C3", "Entidad en Wikipedia/Wikidata", "Item de Wikidata con P856 apuntando al dominio: identidad verificable desde fuera"),
+    ("3.1", "C3", "JSON-LD present and valid", "Extraction and validation of the markup on templates"),
+    ("3.2", "C3", "Complete Organization entity", "name, url, logo, sameAs, contactPoint"),
+    ("3.3", "C3", "Operational Product/Offer", "price, priceCurrency, availability on product pages"),
+    ("3.4", "C3", "Rich attributes in the markup", "GTIN, brand, reviews, dates, specs"),
+    ("3.5", "C3", "Semantic HTML", "Heading hierarchy, landmarks, real buttons"),
+    ("3.6", "C3", "Agent-readable controls", "Accessibility-tree controls without an accessible name: the agent sees them but doesn't know what they do"),
+    ("3.7", "C3", "Wikipedia/Wikidata entity", "Wikidata item with P856 pointing to the domain: identity verifiable from outside"),
 
-    ("4.1", "C4", "Contenido sin ejecutar JS", "HTML crudo vs renderizado: lo que ven los bots de IA"),
-    ("4.2", "C4", "Precio y CTA sin JS", "El precio y el botón de compra existen sin JavaScript"),
-    ("4.3", "C4", "Velocidad para bots (TTFB)", "Tiempo de respuesta medido en todas las páginas"),
-    ("4.4", "C4", "Deep-linking estable", "URLs directas y sin sesión para cada estado"),
-    ("4.5", "C4", "API pública detectable", "OpenAPI/Swagger en rutas estándar"),
-    ("4.6", "C4", "Estabilidad visual (CLS)", "Saltos de layout que confunden a los agentes"),
-    ("4.7", "C4", "Zonas de clic operables", "Tamaño real de los controles (≥24px) medido en el render"),
-    ("4.8", "C4", "Estados de error correctos", "URL inexistente: ¿404 real o soft-404 que engaña al agente?"),
-    ("4.9", "C4", "Higiene de redirecciones", "Sin stubs meta-refresh/JS ni saltos de dominio que pierdan a un agente sin JS"),
+    ("4.1", "C4", "Content without running JS", "Raw vs rendered HTML: what AI bots see"),
+    ("4.2", "C4", "Price and CTA without JS", "The price and the buy button exist without JavaScript"),
+    ("4.3", "C4", "Speed for bots (TTFB)", "Response time measured on every page"),
+    ("4.4", "C4", "Stable deep-linking", "Direct, session-free URLs for every state"),
+    ("4.5", "C4", "Detectable public API", "OpenAPI/Swagger on standard paths"),
+    ("4.6", "C4", "Visual stability (CLS)", "Layout shifts that confuse agents"),
+    ("4.7", "C4", "Operable click targets", "Actual control size (≥24px) measured in the render"),
+    ("4.8", "C4", "Correct error states", "Non-existent URL: a real 404 or a soft-404 that misleads the agent?"),
+    ("4.9", "C4", "Redirect hygiene", "No meta-refresh/JS stubs or domain hops that lose an agent without JS"),
 
-    ("5.1", "C5", "Respuesta directa arriba", "Densidad de datos vs relleno de marketing tras el H1"),
-    ("5.2", "C5", "Estructura chunkeable", "Secciones H2/H3 autocontenidas y citables"),
-    ("5.3", "C5", "E-E-A-T verificable", "Autoría, fechas y fuentes en el contenido"),
-    ("5.5", "C5", "llms.txt (higiene)", "Fichero guía para LLMs (peso bajo: casi nadie lo lee)"),
-    ("5.6", "C5", "Negociación Markdown", "Accept: text/markdown → ¿sirve versión ligera?"),
-    ("5.7", "C5", "Páginas de confianza", "About/Contacto/Privacidad verificadas con contenido real (multiidioma)"),
-    ("5.8", "C5", "Presupuesto de tokens por página", "Cada página cabe en ~25K tokens: se lee entera, sin truncar"),
+    ("5.1", "C5", "Direct answer up top", "Data density vs marketing filler after the H1"),
+    ("5.2", "C5", "Chunkable structure", "Self-contained, citable H2/H3 sections"),
+    ("5.3", "C5", "Verifiable E-E-A-T", "Authorship, dates and sources in the content"),
+    ("5.5", "C5", "llms.txt (hygiene)", "Guide file for LLMs (low weight: almost nobody reads it)"),
+    ("5.6", "C5", "Markdown negotiation", "Accept: text/markdown → does it serve a lightweight version?"),
+    ("5.7", "C5", "Trust pages", "About/Contact/Privacy verified with real content (multilingual)"),
+    ("5.8", "C5", "Token budget per page", "Each page fits in ~25K tokens: read in full, without truncation"),
 
-    ("6.1", "C6", "Superficie agéntica", "MCP Server Card, A2A, WebMCP, API Catalog, OAuth"),
-    ("6.2", "C6", "Formularios operables", "label for=id verificado, autocomplete, submit real"),
-    ("6.3", "C6", "Tarea con agente real", "ChatGPT/Gemini/Claude pilotando un navegador de verdad"),
-    ("6.4", "C6", "Autenticación operable por agentes", "OAuth delegado o formulario de acceso que un agente sepa rellenar"),
+    ("6.1", "C6", "Agentic surface", "MCP Server Card, A2A, WebMCP, API Catalog, OAuth"),
+    ("6.2", "C6", "Operable forms", "Verified label for=id, autocomplete, real submit"),
+    ("6.3", "C6", "Task with a real agent", "ChatGPT/Gemini/Claude driving a real browser"),
+    ("6.4", "C6", "Agent-operable authentication", "Delegated OAuth or a login form an agent can fill in"),
 
-    ("7.1", "C7", "Feed/catálogo estructurado", "Plataforma e-commerce y Product schema en fichas"),
-    ("7.2", "C7", "Consistencia de precio", "Precio del JSON-LD vs el visible (anti-alucinación)"),
-    ("7.3", "C7", "Preparación ACP", "PSP compatible con checkout agéntico (Stripe/Shopify)"),
-    ("7.4", "C7", "Protocolos emergentes", "x402/UCP/MPP (informativo, no puntúa)"),
-    ("7.5", "C7", "Política de envío legible", "OfferShippingDetails: plazo y coste antes de comprar"),
-    ("7.6", "C7", "Política de devoluciones legible", "MerchantReturnPolicy: días y condiciones en el marcado"),
+    ("7.1", "C7", "Structured feed/catalog", "E-commerce platform and Product schema on product pages"),
+    ("7.2", "C7", "Price consistency", "JSON-LD price vs visible price (anti-hallucination)"),
+    ("7.3", "C7", "ACP readiness", "PSP compatible with agentic checkout (Stripe/Shopify)"),
+    ("7.4", "C7", "Emerging protocols", "x402/UCP/MPP (informational, not scored)"),
+    ("7.5", "C7", "Readable shipping policy", "OfferShippingDetails: delivery time and cost before buying"),
+    ("7.6", "C7", "Readable returns policy", "MerchantReturnPolicy: days and conditions in the markup"),
 ]
 
 
@@ -93,6 +93,6 @@ if __name__ == "__main__":
     real = set(re.findall(r'R\("(\d+\.\d+)"', open(path).read()))
     mine = set(check_ids())
     faltan, sobran = real - mine, mine - real
-    print("catálogo:", len(mine), "· motor:", len(real))
-    print("FALTAN en catálogo:", sorted(faltan) or "ninguno")
-    print("SOBRAN en catálogo:", sorted(sobran) or "ninguno")
+    print("catalog:", len(mine), "· engine:", len(real))
+    print("MISSING from catalog:", sorted(faltan) or "none")
+    print("EXTRA in catalog:", sorted(sobran) or "none")

@@ -528,7 +528,7 @@ def wikidata_entity(host):
     """
     host = (host or "").lower().lstrip(".").removeprefix("www.")
     if not host:
-        return {"qid": None, "sitelinks": 0, "error": "sin host"}
+        return {"qid": None, "sitelinks": 0, "error": "no host"}
     variantes = " ".join(
         f"<{esq}://{pref}{host}{barra}>"
         for esq in ("https", "http") for pref in ("", "www.") for barra in ("", "/"))
@@ -544,7 +544,7 @@ def wikidata_entity(host):
         import json as _json
         filas = _json.loads(r["body"])["results"]["bindings"]
     except Exception:
-        return {"qid": None, "sitelinks": 0, "error": "respuesta SPARQL no parseable"}
+        return {"qid": None, "sitelinks": 0, "error": "unparseable SPARQL response"}
     if not filas:
         return {"qid": None, "sitelinks": 0, "error": None}
     fila = filas[0]

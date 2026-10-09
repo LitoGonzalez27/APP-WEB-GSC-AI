@@ -45,12 +45,12 @@ def agent_access_required(f):
         except DatabaseUnavailableError:
             logger.warning("agent_access_required: base de datos no disponible", exc_info=True)
             return respuesta_fallo_tecnico(
-                503, "database_unavailable", "Servicio no disponible temporalmente. Reintenta en unos segundos.",
+                503, "database_unavailable", "Service temporarily unavailable. Try again in a few seconds.",
                 True, forzar_json=wants_json)
         except Exception:
             logger.exception("agent_access_required: fallo interno al comprobar al usuario")
             return respuesta_fallo_tecnico(
-                500, "internal_error", "Error interno al comprobar la sesión.", False, forzar_json=wants_json)
+                500, "internal_error", "Internal error while checking your session.", False, forzar_json=wants_json)
         if not user or not user.get("is_active"):
             session.clear()
             if wants_json:
@@ -64,7 +64,7 @@ def agent_access_required(f):
             allowed = user.get("role") == "admin"
         if not allowed:
             if wants_json:
-                return jsonify({"error": "No tienes acceso a esta herramienta"}), 403
+                return jsonify({"error": "You don't have access to this tool"}), 403
             return redirect(url_for("login_page") + "?account_suspended=true")
         return f(*args, **kwargs)
     return wrapper
@@ -113,7 +113,7 @@ def _run_job(job_id, urls, opts):
             if _abandonado(job):
                 raise engine.AnalisisCancelado()
             job["domains"][i]["state"] = "running"
-            job["phase"] = f"Auditando {job['domains'][i]['host']}"
+            job["phase"] = f"Auditing {job['domains'][i]['host']}"
             try:
                 engine.LOG_SINK = job["log"]
                 a = engine.audit_domain(
@@ -138,14 +138,14 @@ def _run_job(job_id, urls, opts):
             except Exception as exc:
                 audits.append({"domain": u, "error": str(exc)[:200]})
                 job["domains"][i].update(state="error", error=str(exc)[:200])
-                job["log"].append(f"error en {job['domains'][i]['host']}: {exc}")
+                job["log"].append(f"error on {job['domains'][i]['host']}: {exc}")
         data = {
             "client": audits[0],
             "competitors": audits[1:],
             # el panel, el PDF y el nombre de las descargas leen esta fecha;
             # antes no se guardaba y todos salían sin ella
             "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "framework_version": "2.0 (agent_scanner en clicandseo)",
+            "framework_version": "2.0 (agent_scanner in clicandseo)",
             # el informe usa esto para ofrecer el botón "Simular agentes"
             "agentes": {
                 "solicitados": bool(opts.get("agents")),
@@ -160,14 +160,14 @@ def _run_job(job_id, urls, opts):
         else:
             job["result"] = data
             job["status"] = "done"
-            job["phase"] = "Análisis completado"
+            job["phase"] = "Analysis complete"
             _guardar_informe(job_id, data, job.get("user_email"))
     except engine.AnalisisCancelado:
         # el usuario se fue: no es un fallo, es que el trabajo ya no interesa.
         # Se marca cancelado y se libera el hueco para el siguiente análisis.
         job["status"] = "cancelled"
-        job["phase"] = "Análisis cancelado (abandonado)"
-        job["log"].append("análisis cancelado: nadie estaba mirando")
+        job["phase"] = "Analysis cancelled (abandoned)"
+        job["log"].append("analysis cancelled: nobody was watching")
     except Exception as exc:
         logger.exception("Fallo en job de agent_scanner")
         job["status"] = "error"
@@ -227,8 +227,8 @@ def _run_agents_job(job_id, opts):
         logrados, fallidos = 0, []
         for i, audit in enumerate(dominios):
             host = audit.get("host", "?")
-            job["agents_phase"] = f"Simulando agentes en {host}"
-            job["log"].append(f"agentes en {host}…")
+            job["agents_phase"] = f"Simulating agents on {host}"
+            job["log"].append(f"agents on {host}…")
             try:
                 at = run_agent_tests(
                     audit["domain"], audit["typology"],
@@ -239,11 +239,11 @@ def _run_agents_job(job_id, opts):
                     repeticiones=(int(opts.get("agent_reps") or 3) if i == 0 else 1))
                 _aplicar_agentes(audit, at)
                 logrados += 1
-                job["log"].append(f"  {host}: agentes completados")
+                job["log"].append(f"  {host}: agents finished")
             except Exception as exc:
                 fallidos.append(host)
                 logger.warning(f"agentes fallaron en {host}: {exc}")
-                job["log"].append(f"  {host}: fallo en agentes ({str(exc)[:80]})")
+                job["log"].append(f"  {host}: agents failed ({str(exc)[:80]})")
         # Antes se marcaba "completado" pasara lo que pasara: si la simulación
         # reventaba en TODOS los dominios, el panel pintaba igualmente el botón
         # verde "✓ Agentes simulados". Decir que algo se comprobó sin haberlo
@@ -252,22 +252,22 @@ def _run_agents_job(job_id, opts):
         if logrados == 0:
             data["agentes"]["estado"] = "error"
             data["agentes"]["detalle"] = (
-                f"La simulación no pudo completarse en ningún dominio "
-                f"({', '.join(fallidos) or 'sin dominios'}). El check 6.3 sigue "
-                f"sin evidencia agéntica: no se ha comprobado.")
+                f"The simulation couldn't be completed on any domain "
+                f"({', '.join(fallidos) or 'no domains'}). Check 6.3 still "
+                f"has no agentic evidence: it has not been verified.")
         else:
             data["agentes"]["estado"] = "completado"
             if fallidos:
                 data["agentes"]["detalle"] = (
-                    f"Simulación completada en {logrados}/{len(dominios)} dominios. "
-                    f"Sin evidencia agéntica en: {', '.join(fallidos)}.")
+                    f"Simulation completed on {logrados}/{len(dominios)} domains. "
+                    f"No agentic evidence on: {', '.join(fallidos)}.")
         _guardar_informe(job_id, data, job.get("user_email"))
         job["agents_status"] = "done" if logrados else "error"
         if not logrados:
-            job["agents_error"] = data["agentes"].get("detalle", "sin resultados")
+            job["agents_error"] = data["agentes"].get("detalle", "no results")
         job["agents_phase"] = (
-            f"Simulación agéntica completada ({logrados}/{len(dominios)} dominios)"
-            if logrados else "La simulación agéntica no pudo completarse")
+            f"Agent simulation complete ({logrados}/{len(dominios)} domains)"
+            if logrados else "The agent simulation couldn't be completed")
     except Exception as exc:
         logger.exception("Fallo en la simulación agéntica")
         job["agents_status"] = "error"
@@ -285,17 +285,17 @@ def run_agents(job_id):
     """Lanza la simulación agéntica sobre un análisis ya terminado."""
     job = _JOBS.get(job_id)
     if not job or not job.get("result"):
-        return jsonify({"error": "análisis desconocido o sin resultado"}), 404
+        return jsonify({"error": "unknown analysis or no result"}), 404
     if job.get("agents_status") == "running":
-        return jsonify({"error": "la simulación ya está en curso"}), 409
+        return jsonify({"error": "the simulation is already running"}), 409
     with _JOBS_LOCK:
         if any(j.get("agents_status") == "running" for j in _JOBS.values()):
-            return jsonify({"error": "Ya hay una simulación agéntica en curso"}), 409
+            return jsonify({"error": "An agent simulation is already running"}), 409
     payload = request.get_json(silent=True) or {}
     solicitado = job["result"].get("agentes") or {}
     opts = {"allow_submit": payload.get("allow_submit", solicitado.get("allow_submit")),
             "agent_reps": payload.get("agent_reps", solicitado.get("repeticiones", 3))}
-    job.update(agents_status="running", agents_phase="Preparando agentes…",
+    job.update(agents_status="running", agents_phase="Preparing agents…",
                agents_error=None, agents_started=time.time())
     job["result"]["agentes"]["estado"] = "corriendo"
     threading.Thread(target=_run_agents_job, args=(job_id, opts), daemon=True).start()
@@ -307,7 +307,7 @@ def run_agents(job_id):
 def agents_status(job_id):
     job = _JOBS.get(job_id)
     if not job:
-        return jsonify({"error": "análisis desconocido"}), 404
+        return jsonify({"error": "unknown analysis"}), 404
     return jsonify({
         "status": job.get("agents_status", "idle"),
         "phase": job.get("agents_phase", ""),
@@ -346,7 +346,7 @@ def scan():
             if j["status"] == "running" and _abandonado(j):
                 j["cancel"] = True
         if _hay_analisis_vivo():
-            return jsonify({"error": "Ya hay un análisis en curso. Espera a que termine."}), 409
+            return jsonify({"error": "An analysis is already running. Wait for it to finish."}), 409
     payload = request.get_json(silent=True) or {}
     from agent_scanner.discovery import normalize
     from agent_scanner.httpfetch import assert_public_url, BlockedURLError
@@ -357,10 +357,10 @@ def scan():
         try:
             assert_public_url(n)
         except BlockedURLError as exc:
-            return jsonify({"error": f"URL no permitida ({u}): {exc}"}), 400
+            return jsonify({"error": f"URL not allowed ({u}): {exc}"}), 400
         urls.append(n)
     if not urls:
-        return jsonify({"error": "Falta la URL de tu proyecto"}), 400
+        return jsonify({"error": "Your project URL is missing"}), 400
 
     jid = uuid.uuid4().hex[:10]
     with _JOBS_LOCK:
@@ -368,7 +368,7 @@ def scan():
             for k in sorted(_JOBS, key=lambda k: _JOBS[k]["started"])[:10]:
                 _JOBS.pop(k, None)
         _JOBS[jid] = {
-            "status": "running", "phase": "Preparando análisis…", "log": [],
+            "status": "running", "phase": "Preparing analysis…", "log": [],
             "user_email": (get_current_user() or {}).get("email"),
             "started": time.time(), "last_seen": time.time(),
             "cancel": False, "error": None, "result": None,
@@ -384,7 +384,7 @@ def scan():
 def status(job_id):
     job = _JOBS.get(job_id)
     if not job:
-        return jsonify({"error": "análisis desconocido"}), 404
+        return jsonify({"error": "unknown analysis"}), 404
     # cada poll es la señal de que el usuario sigue mirando: renueva el latido.
     job["last_seen"] = time.time()
     slim = {k: v for k, v in job.items() if k != "result"}
@@ -442,7 +442,7 @@ def _guardar_informe(job_id, data, user_email=None):
 def result(job_id):
     data = _resultado(job_id)
     if data is None:
-        return jsonify({"error": "resultado no disponible"}), 404
+        return jsonify({"error": "result not available"}), 404
     return jsonify(data)
 
 
@@ -455,16 +455,16 @@ def report_pdf(job_id):
     from flask import send_file
     data = _resultado(job_id)
     if data is None:
-        return jsonify({"error": "resultado no disponible"}), 404
+        return jsonify({"error": "result not available"}), 404
     try:
         from agent_scanner.report_pdf import build_pdf
         buf = build_pdf(data)
     except ImportError:
-        return jsonify({"error": "generación de PDF no disponible (falta reportlab)"}), 500
+        return jsonify({"error": "PDF generation unavailable (reportlab is missing)"}), 500
     except Exception as exc:
         logger.exception("Fallo generando PDF del agent scanner")
-        return jsonify({"error": f"no se pudo generar el PDF: {exc}"}), 500
-    host = (data.get("client") or {}).get("host", "informe")
+        return jsonify({"error": f"could not generate the PDF: {exc}"}), 500
+    host = (data.get("client") or {}).get("host", "report")
     fecha = (data.get("generated") or "")[:10]
     return send_file(buf, mimetype="application/pdf", as_attachment=True,
                      download_name=f"agent-readiness_{host}_{fecha}.pdf")
@@ -478,13 +478,13 @@ def prompt_rescate(job_id):
     on-demand: solo cuando el usuario lo pide."""
     data = _resultado(job_id)
     if data is None:
-        return jsonify({"error": "resultado no disponible"}), 404
+        return jsonify({"error": "result not available"}), 404
     try:
         from agent_scanner.superprompt import construir
         return jsonify({"prompt": construir(data)})
     except Exception as exc:
         logger.exception("Fallo generando el super prompt")
-        return jsonify({"error": f"no se pudo generar el prompt: {exc}"}), 500
+        return jsonify({"error": f"could not generate the prompt: {exc}"}), 500
 
 
 @agent_bp.route("/api/report/<job_id>.json")
@@ -495,14 +495,14 @@ def report_json(job_id):
     from flask import Response
     data = _resultado(job_id)
     if data is None:
-        return jsonify({"error": "resultado no disponible"}), 404
+        return jsonify({"error": "result not available"}), 404
     try:
         from agent_scanner.report_json import build_json
         payload = build_json(data)
     except Exception as exc:
         logger.warning(f"build_json falló, se sirve el crudo: {exc}")
         payload = data
-    host = (data.get("client") or {}).get("host", "informe")
+    host = (data.get("client") or {}).get("host", "report")
     fecha = (data.get("generated") or "")[:10]
     body = _json.dumps(payload, ensure_ascii=False, indent=2)
     return Response(body, mimetype="application/json", headers={
@@ -619,7 +619,7 @@ def access_resend():
     user = get_current_user() or {}
     email = (payload.get("email") or "").strip().lower()
     if not email:
-        return jsonify({"error": "falta email"}), 400
+        return jsonify({"error": "email is missing"}), 400
     sent = send_invitation_email(email, invited_by_name=user.get("name") or user.get("email"))
     return jsonify({"ok": sent, "email_sent": sent})
 
@@ -631,4 +631,4 @@ def access_remove():
     payload = request.get_json(silent=True) or {}
     if remove_email(payload.get("email")):
         return jsonify({"ok": True})
-    return jsonify({"error": "no se pudo eliminar"}), 400
+    return jsonify({"error": "could not remove it"}), 400

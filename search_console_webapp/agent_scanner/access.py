@@ -35,7 +35,7 @@ def ensure_table():
             conn.commit()
         _TABLE_READY = True
     except Exception as exc:
-        logger.warning(f"agent_scanner_access: no se pudo crear la tabla: {exc}")
+        logger.warning(f"agent_scanner_access: could not create the table: {exc}")
 
 
 def list_emails():
@@ -64,7 +64,7 @@ def add_email(email, added_by=None):
     ensure_table()
     email = (email or "").strip().lower()
     if "@" not in email or "." not in email.split("@")[-1]:
-        return False, "email no válido"
+        return False, "invalid email"
     try:
         with _conn() as conn:
             cur = conn.cursor()
@@ -118,34 +118,34 @@ def send_invitation_email(email, invited_by_name=None):
     try:
         from email_service import send_email, LOGO_URL
     except Exception as exc:
-        logger.warning(f"invitación agent: email_service no disponible: {exc}")
+        logger.warning(f"agent invitation: email_service unavailable: {exc}")
         return False
     url = _agent_url()
-    quien = f" por {invited_by_name}" if invited_by_name else ""
-    subject = "Tienes acceso a Agent Readiness en Clicandseo"
+    quien = f" by {invited_by_name}" if invited_by_name else ""
+    subject = "You have access to Agent Readiness on Clicandseo"
     html_body = f"""
 <div style="font-family:'Inter Tight',Arial,sans-serif;max-width:560px;margin:0 auto;color:#0F172A">
   <div style="text-align:center;padding:24px 0"><img src="{LOGO_URL}" alt="Clicandseo" style="height:28px"></div>
   <div style="background:#0A0A0B;border-radius:16px;padding:36px 32px;color:#F8FAFC">
-    <p style="font-family:Georgia,serif;font-style:italic;color:#94A3B8;margin:0 0 10px">Auditoría de preparación agéntica</p>
+    <p style="font-family:Georgia,serif;font-style:italic;color:#94A3B8;margin:0 0 10px">Agent readiness audit</p>
     <h1 style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 14px;color:#F8FAFC">
-      Se te ha dado acceso a <span style="color:#D9F9B8">Agent Readiness</span></h1>
+      You've been given access to <span style="color:#D9F9B8">Agent Readiness</span>{quien}</h1>
     <p style="color:#94A3B8;font-size:15px;line-height:1.6;margin:0 0 24px">
-      Ya puedes usar la nueva herramienta de Clicandseo para auditar si una web está preparada
-      para la era de los agentes de IA{quien}. Analiza tu dominio y el de tus competidores,
-      con informe visual, comparativa y hasta 3 IAs probando la web en un navegador real.</p>
+      You can now use Clicandseo's new tool to audit whether a website is ready
+      for the age of AI agents. Analyze your domain and your competitors',
+      with a visual report, a comparison and up to 3 AIs testing the site in a real browser.</p>
     <a href="{url}" style="display:inline-block;background:#D9F9B8;color:#0A0A0B;font-weight:800;
-      text-decoration:none;border-radius:12px;padding:14px 28px;font-size:15px">Entrar a Agent Readiness →</a>
+      text-decoration:none;border-radius:12px;padding:14px 28px;font-size:15px">Go to Agent Readiness →</a>
     <p style="color:#64748B;font-size:13px;line-height:1.6;margin:24px 0 0">
-      Si el botón no funciona, copia este enlace: <br><span style="color:#94A3B8">{url}</span><br><br>
-      Usa la cuenta de Clicandseo asociada a este email. Si aún no has iniciado sesión, te pedirá login primero.</p>
+      If the button doesn't work, copy this link: <br><span style="color:#94A3B8">{url}</span><br><br>
+      Use the Clicandseo account linked to this email. If you haven't signed in yet, you'll be asked to log in first.</p>
   </div>
   <p style="text-align:center;color:#94A3B8;font-size:12px;padding:18px 0">Clicandseo · Agent Readiness</p>
 </div>"""
-    text_body = (f"Se te ha dado acceso a Agent Readiness en Clicandseo{quien}.\n\n"
-                 f"Entra aquí: {url}\n\nUsa la cuenta de Clicandseo asociada a este email.")
+    text_body = (f"You've been given access to Agent Readiness on Clicandseo{quien}.\n\n"
+                 f"Go here: {url}\n\nUse the Clicandseo account linked to this email.")
     try:
         return bool(send_email(email, subject, html_body, text_body))
     except Exception as exc:
-        logger.warning(f"invitación agent: fallo al enviar email a {email}: {exc}")
+        logger.warning(f"agent invitation: failed to send email to {email}: {exc}")
         return False

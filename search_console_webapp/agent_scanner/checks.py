@@ -84,12 +84,12 @@ def run_c1(ctx):
 
     # 1.1 robots.txt existe y es parseable
     if rb["status"] == 200 and rb["raw"] and not rb["is_html"]:
-        score, ev = 1, "robots.txt 200 y parseable"
+        score, ev = 1, "robots.txt 200 and parseable"
     elif rb["status"] == 200 and rb["is_html"]:
-        score, ev = 0, "robots.txt devuelve HTML (error tipico de SPA que enruta todo)"
+        score, ev = 0, "robots.txt returns HTML (typical error of a SPA that routes everything)"
     else:
         score, ev = 0, f"robots.txt HTTP {rb['status']}"
-    out.append(R("1.1", "C1", "robots.txt valido", score, ev))
+    out.append(R("1.1", "C1", "Valid robots.txt", score, ev))
 
     # 1.2 politica de bots de IA explicita y selectiva
     groups = parse_robots_groups(rb["raw"])
@@ -107,21 +107,21 @@ def run_c1(ctx):
     principales_nombrados = [ua for ua in groups
                              if any(b in ua for b in PRINCIPALES)]
     if live_blocked:
-        score, ev = 0, f"Bloquea bots de busqueda EN VIVO: {', '.join(live_blocked)} (autoexclusion de respuestas IA)"
+        score, ev = 0, f"Blocks LIVE search bots: {', '.join(live_blocked)} (opting itself out of AI answers)"
     elif len(principales_nombrados) >= 2:
         score = 1
-        ev = (f"Politica explicita sobre los bots que importan "
+        ev = (f"Explicit policy on the bots that matter "
               f"({len(principales_nombrados)}): {', '.join(principales_nombrados[:6])}")
     elif ai_bots_named:
         score = 0.5
         faltan = [b for b in PRINCIPALES
                   if not any(b in ua for ua in groups)]
-        ev = (f"Solo nombra a {', '.join(ai_bots_named[:4])}, pero NO se pronuncia sobre "
-              f"los crawlers que deciden tu presencia en respuestas de IA "
-              f"({', '.join(faltan[:4])}): decision a medias")
+        ev = (f"Only names {', '.join(ai_bots_named[:4])}, but says NOTHING about "
+              f"the crawlers that decide your presence in AI answers "
+              f"({', '.join(faltan[:4])}): a half-made decision")
     else:
-        score, ev = 0.5, "Sin reglas nominales para bots de IA (todo permitido por defecto, sin decision consciente)"
-    out.append(R("1.2", "C1", "Politica de bots de IA", score, ev))
+        score, ev = 0.5, "No per-bot rules for AI bots (everything allowed by default, no deliberate decision)"
+    out.append(R("1.2", "C1", "AI bot policy", score, ev))
 
     # 1.3 bloqueo declarado vs real (WAF)
     matrix = ctx["bot_matrix"]
@@ -143,41 +143,41 @@ def run_c1(ctx):
     human_ok = matrix.get("_human", 0) == 200
     if mismatches and human_ok:
         score = 0
-        ev = f"robots.txt permite pero el servidor bloquea: {', '.join(mismatches)} (humano=200)"
+        ev = f"robots.txt allows it but the server blocks: {', '.join(mismatches)} (human=200)"
         if any(c.endswith(("=503", "=429", "=500", "=502")) for c in mismatches):
-            ev += (". Ademas responde con un error de servidor en vez de un 403: el bot "
-                   "lo interpreta como 'vuelve mas tarde' y reintentara indefinidamente, "
-                   "sin que nadie se entere de que esta bloqueado")
+            ev += (". It also responds with a server error instead of a 403: the bot "
+                   "reads it as 'come back later' and will retry indefinitely, "
+                   "without anyone noticing it's blocked")
     elif not human_ok:
-        score, ev = 0.5, f"Ni el UA humano recibe 200 ({matrix.get('_human')}): WAF muy agresivo, revisar"
+        score, ev = 0.5, f"Not even the human UA gets a 200 ({matrix.get('_human')}): very aggressive WAF, review it"
     else:
         score = 1
         codes = ", ".join(f"{k}={v}" for k, v in matrix.items() if k != "_human")
-        ev = f"Acceso declarado coincide con el real ({codes})"
-    out.append(R("1.3", "C1", "Bloqueo declarado vs real", score, ev))
+        ev = f"Declared access matches actual access ({codes})"
+    out.append(R("1.3", "C1", "Declared vs actual blocking", score, ev))
 
     # 1.4 sitemap presente y fresco. "Bloqueado" != "ausente": si las rutas de
     # sitemap devuelven 403/timeout no podemos afirmar que falte (zalando.es).
     sm = ctx["sitemap"]
     if sm["found"] and ctx["sitemap_fresh"]:
-        out.append(R("1.4", "C1", "sitemap.xml fresco", 1,
-                     f"Sitemap con {len(sm['urls'])} URLs y lastmod reciente (<90 dias)"))
+        out.append(R("1.4", "C1", "Fresh sitemap.xml", 1,
+                     f"Sitemap with {len(sm['urls'])} URLs and a recent lastmod (<90 days)"))
     elif sm["found"]:
-        out.append(R("1.4", "C1", "sitemap.xml fresco", 0.5,
-                     f"Sitemap con {len(sm['urls'])} URLs pero sin lastmod reciente"))
+        out.append(R("1.4", "C1", "Fresh sitemap.xml", 0.5,
+                     f"Sitemap with {len(sm['urls'])} URLs but no recent lastmod"))
     elif sm.get("bloqueado"):
-        out.append(R("1.4", "C1", "sitemap.xml fresco", None,
-                     f"Las rutas de sitemap no responden a acceso automatizado "
-                     f"(HTTP {sm.get('estados')}): puede existir y estar bloqueado, "
-                     "no es afirmable que falte", manual=True))
+        out.append(R("1.4", "C1", "Fresh sitemap.xml", None,
+                     f"The sitemap paths don't respond to automated access "
+                     f"(HTTP {sm.get('estados')}): it may exist and be blocked, "
+                     "so we can't claim it's missing", manual=True))
     else:
-        out.append(R("1.4", "C1", "sitemap.xml fresco", 0, "Sin sitemap.xml localizable"))
+        out.append(R("1.4", "C1", "Fresh sitemap.xml", 0, "No sitemap.xml found"))
 
     # 1.5 Link headers (RFC 8288)
     link_h = re.search(r"(?im)^link:\s*(.+)$", ctx["home"]["headers"] or "")
     out.append(R("1.5", "C1", "Link headers (RFC 8288)",
                  1 if link_h else 0,
-                 link_h.group(1)[:120] if link_h else "Sin cabeceras Link (minoria hoy; oportunidad, no error)"))
+                 link_h.group(1)[:120] if link_h else "No Link headers (a minority today; an opportunity, not an error)"))
 
     # 1.6 contenido clave accesible sin login.
     # Cuenta el acceso DIRECTO (_status_directo): una pagina que solo Jina pudo
@@ -191,14 +191,14 @@ def run_c1(ctx):
     total = max(len(pages), 1)
     ratio = ok / total
     score = 1 if ratio >= 0.85 else 0.5 if ratio >= 0.5 else 0
-    out.append(R("1.6", "C1", "Contenido accesible sin login",
-                 score, f"{ok}/{total} paginas muestreadas devuelven contenido util sin sesion"))
+    out.append(R("1.6", "C1", "Content accessible without login",
+                 score, f"{ok}/{total} sampled pages return useful content without a session"))
 
     # 1.7 DNS para descubrimiento de agentes (DNS-AID, experimental — peso bajo)
     aid = ctx.get("dns_aid")
-    out.append(R("1.7", "C1", "DNS-AID (descubrimiento via DNS)",
+    out.append(R("1.7", "C1", "DNS-AID",
                  1 if aid else 0,
-                 aid or "Sin registros TXT _aid/_agent (estandar experimental: casi nadie lo tiene aun)"))
+                 aid or "No _aid/_agent TXT records (experimental standard: almost nobody has it yet)"))
 
     # 1.8 Metadatos de cita: canonical, idioma y Open Graph. Es lo minimo que
     # un sistema usa para identificar la pagina al citarla; sin canonical las
@@ -209,9 +209,9 @@ def run_c1(ctx):
     # (mediamarkt.es, 2026-09-01): su home directa lleva canonical+og:image+
     # og:type y sobre el cuerpo de Jina afirmabamos "faltan" los tres.
     if ctx["home"].get("_via", "http") not in ("http", "render"):
-        out.append(R("1.8", "C1", "Metadatos de cita", None,
-                     "La portada solo se pudo leer via rescate (Jina), que no "
-                     "conserva las metas del <head>: no medible"))
+        out.append(R("1.8", "C1", "Citation metadata", None,
+                     "The home page could only be read via the fallback (Jina), which doesn't "
+                     "keep the <head> metas: not measurable"))
         return out
     home_body = ctx["home"]["body"] or ""
     senales_meta = {
@@ -223,10 +223,10 @@ def run_c1(ctx):
     presentes = sum(senales_meta.values())
     faltan = [n for n, hay in senales_meta.items() if not hay]
     score = 1 if presentes == 4 else 0.5 if presentes >= 2 else 0
-    out.append(R("1.8", "C1", "Metadatos de cita", score,
-                 "canonical + lang + og:image + og:type presentes en la home"
+    out.append(R("1.8", "C1", "Citation metadata", score,
+                 "canonical + lang + og:image + og:type present on the home page"
                  if not faltan else
-                 f"{presentes}/4 metadatos de cita; faltan: {', '.join(faltan)}"))
+                 f"{presentes}/4 citation metadata; missing: {', '.join(faltan)}"))
     return out
 
 
@@ -242,63 +242,63 @@ def run_c2(ctx):
     if parsed:
         detail = ", ".join(f"{k}={v}" for k, v in parsed.items())
         if parsed.get("ai-input") == "no":
-            score, ev = 0.5, f"Señales declaradas ({detail}) pero ai-input=no: renuncias a ser citado en respuestas IA"
+            score, ev = 0.5, f"Signals declared ({detail}) but ai-input=no: you give up being cited in AI answers"
         else:
-            score, ev = 1, f"Content Signals declarados con proposito: {detail}"
+            score, ev = 1, f"Content Signals declared with purpose: {detail}"
     elif legacy:
-        score, ev = 0.5, "Solo señales legacy (noai) sin granularidad de proposito"
+        score, ev = 0.5, "Only legacy signals (noai) with no per-purpose granularity"
     else:
-        score, ev = 0, "Sin Content Signals (solo el 4% de sitios los tiene: quick win)"
-    out.append(R("2.1", "C2", "Content Signals declarados", score, ev))
+        score, ev = 0, "No Content Signals (only 4% of sites have them: quick win)"
+    out.append(R("2.1", "C2", "Declared Content Signals", score, ev))
 
     # 2.2 gestion activa de crawl (CDN/WAF)
     headers = (ctx["home"]["headers"] or "").lower()
     cdn = None
     for marker, name in (("cf-ray", "Cloudflare"), ("x-served-by", "Fastly/Varnish"),
-                         ("akamai", "Akamai"), ("x-cache", "CDN con cache")):
+                         ("akamai", "Akamai"), ("x-cache", "CDN with cache")):
         if marker in headers:
             cdn = name
             break
     saw_402 = any(code == 402 for code in ctx["bot_matrix"].values())
     if saw_402:
-        score, ev = 1, "Devuelve HTTP 402 a bots: gestion/monetizacion activa del crawl"
+        score, ev = 1, "Returns HTTP 402 to bots: active crawl management/monetization"
     elif cdn:
-        score, ev = 0.5, f"{cdn} detectado (capacidad disponible; confirmar con el cliente si AI Crawl Control esta configurado)"
+        score, ev = 0.5, f"{cdn} detected (capability available; confirm with the client whether AI Crawl Control is configured)"
     else:
-        score, ev = 0, "Sin CDN/WAF detectado: probablemente nadie vigila que bots de IA entran"
-    out.append(R("2.2", "C2", "Gestion activa de crawl", score, ev, manual=bool(cdn)))
+        score, ev = 0, "No CDN/WAF detected: probably nobody is monitoring which AI bots come in"
+    out.append(R("2.2", "C2", "Active crawl management", score, ev, manual=bool(cdn)))
 
     # 2.3 Web Bot Auth (verificacion criptografica)
     wba = ctx["wellknown"].get("/.well-known/http-message-signatures-directory", 0)
     out.append(R("2.3", "C2", "Web Bot Auth", 1 if wba == 200 else 0,
-                 f"Directorio de firmas HTTP {wba}" if wba == 200
-                 else "Sin soporte Web Bot Auth (normal en 2026; anotar como roadmap)"))
+                 f"Signatures directory HTTP {wba}" if wba == 200
+                 else "No Web Bot Auth support (normal in 2026; note it on the roadmap)"))
 
     # 2.4 rate limiting razonable
     rapid = ctx["rapid"]
     if not rapid:
-        out.append(R("2.4", "C2", "Rate limiting razonable", None, "No medido"))
+        out.append(R("2.4", "C2", "Reasonable rate limiting", None, "Not measured"))
         return out
     n200 = rapid.count(200)
     n429 = rapid.count(429)
     hard = sum(1 for c in rapid if c in (403, 0))
     if hard >= len(rapid) // 2:
-        score, ev = 0, f"Baneo tras pocas peticiones: {rapid}"
+        score, ev = 0, f"Ban after a few requests: {rapid}"
     elif n200 == len(rapid):
-        score, ev = 1, f"Estable: {n200}x200 sin frenos"
+        score, ev = 1, f"Stable: {n200}x200 with no throttling"
     elif n429 and n200 >= len(rapid) * 0.7:
         # throttling SUAVE de verdad: sirve la mayoria y frena el exceso con
         # 429, que es el comportamiento que el consejo del check recomienda
-        score, ev = 1, f"Throttling suave: {n200}x200, {n429}x429"
+        score, ev = 1, f"Gentle throttling: {n200}x200, {n429}x429"
     else:
         # Antes `n429 > 0` puntuaba 1 directamente: un sitio que respondia 429 a
         # las DIEZ peticiones (0x200, el bot no obtiene nada) salia con nota
         # perfecta en "rate limiting razonable". Educado si, razonable no: el
         # limite razonable sirve la mayoria del trafico y frena el exceso.
-        score, ev = 0.5, (f"Throttling agresivo o mixto: {n200}x200, {n429}x429, "
-                          f"{hard}x(403/0) — el bot obtiene poco contenido durante "
-                          f"una rafaga")
-    out.append(R("2.4", "C2", "Rate limiting razonable", score, ev))
+        score, ev = 0.5, (f"Aggressive or mixed throttling: {n200}x200, {n429}x429, "
+                          f"{hard}x(403/0) — the bot gets little content during "
+                          f"a burst")
+    out.append(R("2.4", "C2", "Reasonable rate limiting", score, ev))
     return out
 
 
@@ -320,8 +320,8 @@ def run_c3(ctx):
     total = max(len(per_page), 1)
     ratio = with_valid / total
     score = 1 if ratio >= 0.7 and invalid_total == 0 else 0.5 if ratio >= 0.4 else 0
-    out.append(R("3.1", "C3", "JSON-LD presente y valido", score,
-                 f"{with_valid}/{total} paginas con JSON-LD valido; {invalid_total} bloques invalidos"))
+    out.append(R("3.1", "C3", "JSON-LD present and valid", score,
+                 f"{with_valid}/{total} pages with valid JSON-LD; {invalid_total} invalid blocks"))
 
     # 3.2 Organization / entidad
     home_valid, _ = jsonld_blocks(ctx["home"]["body"])
@@ -330,15 +330,15 @@ def run_c3(ctx):
         org = orgs[0]
         fields = [f for f in ("name", "url", "logo", "sameAs", "contactPoint") if org.get(f)]
         score = 1 if len(fields) >= 4 else 0.5
-        ev = f"Organization con {len(fields)}/5 campos clave ({', '.join(fields)})"
+        ev = f"Organization with {len(fields)}/5 key fields ({', '.join(fields)})"
     else:
-        score, ev = 0, "Sin Organization/LocalBusiness en la home: la entidad no esta declarada"
-    out.append(R("3.2", "C3", "Entidad Organization completa", score, ev))
+        score, ev = 0, "No Organization/LocalBusiness on the home page: the entity isn't declared"
+    out.append(R("3.2", "C3", "Complete Organization entity", score, ev))
 
     # 3.3 Product/Offer operativo (solo ecommerce)
     if ctx["typology"] == "ecommerce":
         prod_pages = [(p, v) for p, v, _ in per_page if p["bucket"] == "producto" and v]
-        best_score, best_ev = 0, "Sin JSON-LD Product en fichas de producto muestreadas"
+        best_score, best_ev = 0, "No Product JSON-LD on the sampled product pages"
         for p, valid in prod_pages:
             prods = find_nodes(valid, "Product")
             for prod in prods:
@@ -348,13 +348,13 @@ def run_c3(ctx):
                 have = [f for f in ("price", "priceCurrency", "availability") if offers.get(f)]
                 base = [f for f in ("name", "image", "description", "brand") if prod.get(f)]
                 if len(have) == 3 and len(base) >= 3:
-                    best_score, best_ev = 1, f"Product completo en {p['url'][:80]} (offers: {', '.join(have)})"
+                    best_score, best_ev = 1, f"Complete Product on {p['url'][:80]} (offers: {', '.join(have)})"
                 elif len(have) >= 1 and best_score < 1:
                     best_score = max(best_score, 0.5)
-                    best_ev = f"Product incompleto en {p['url'][:80]}: offers solo con {', '.join(have)}"
-        out.append(R("3.3", "C3", "Product/Offer operativo", best_score, best_ev))
+                    best_ev = f"Incomplete Product on {p['url'][:80]}: offers only with {', '.join(have)}"
+        out.append(R("3.3", "C3", "Operational Product/Offer", best_score, best_ev))
     else:
-        out.append(R("3.3", "C3", "Product/Offer operativo", None, "N/A (no es e-commerce)"))
+        out.append(R("3.3", "C3", "Operational Product/Offer", None, "N/A (not e-commerce)"))
 
     # 3.4 atributos ricos
     all_valid = [v for _, v, _ in per_page for v in [v]][0:] if per_page else []
@@ -363,8 +363,8 @@ def run_c3(ctx):
     corpus = json.dumps([v for _, v, _ in per_page], ensure_ascii=False) if per_page else ""
     present = [f for f in rich_fields if f'"{f}"' in corpus]
     score = 1 if len(present) >= 6 else 0.5 if len(present) >= 3 else 0
-    out.append(R("3.4", "C3", "Atributos ricos en el marcado", score,
-                 f"{len(present)} tipos de atributo rico presentes: {', '.join(present[:8]) or 'ninguno'}"))
+    out.append(R("3.4", "C3", "Rich attributes in the markup", score,
+                 f"{len(present)} rich attribute types present: {', '.join(present[:8]) or 'none'}"))
 
     # 3.5 HTML semantico
     html = ctx["home"]["body"] or ""
@@ -376,7 +376,7 @@ def run_c3(ctx):
     divs_click = len(re.findall(r"(?i)<div[^>]+onclick", html))
     good = (h1s == 1) + (h2s >= 2) + (semantic >= 3) + (buttons > divs_click)
     score = 1 if good >= 4 else 0.5 if good >= 2 else 0
-    out.append(R("3.5", "C3", "HTML semantico", score,
+    out.append(R("3.5", "C3", "Semantic HTML", score,
                  f"h1={h1s}, h2={h2s}, landmarks={semantic}/5, button={buttons} vs div-onclick={divs_click}"))
 
     # 3.6 controles que el agente ve pero no entiende.
@@ -407,21 +407,21 @@ def run_c3(ctx):
         muestra = "; ".join(
             f"<{e['rol']}> {e['problema']}" + (f" ('{e['nombre']}')" if e.get("nombre") else "")
             for e in (ax.get("ejemplos") or [])[:3])
-        ev = (f"Arbol de accesibilidad real: {n} controles accionables, "
-              f"{ax['sin_nombre']} sin nombre y {ax['nombre_generico']} con nombre "
-              f"generico ({pct:.0%}). Un agente los ve pero no sabe que hacen.")
+        ev = (f"Real accessibility tree: {n} actionable controls, "
+              f"{ax['sin_nombre']} without a name and {ax['nombre_generico']} with a generic "
+              f"name ({pct:.0%}). An agent sees them but doesn't know what they do.")
         if muestra:
-            ev += f" Ejemplos: {muestra}."
+            ev += f" Examples: {muestra}."
         if score == 1:
             # Sin afirmar "todos": con el umbral en 2% puede quedar alguno suelto,
             # y decir que estan todos seria afirmar lo que no hemos comprobado.
-            ev = (f"Arbol de accesibilidad real: {n - ciegos} de {n} controles "
-                  f"accionables tienen nombre propio ({1 - pct:.0%}). Un agente "
-                  f"puede saber que hace cada uno.")
+            ev = (f"Real accessibility tree: {n - ciegos} of {n} actionable controls "
+                  f"have their own name ({1 - pct:.0%}). An agent "
+                  f"can tell what each one does.")
             if ciegos:
-                ev += (f" Quedan {ciegos} sin nombre util, por debajo de lo que "
-                       f"atasca a un agente.")
-        out.append(R("3.6", "C3", "Controles legibles por un agente", score, ev))
+                ev += (f" {ciegos} remain without a useful name, below the level that "
+                       f"gets an agent stuck.")
+        out.append(R("3.6", "C3", "Agent-readable controls", score, ev))
         return out
 
     # Sin render no hay arbol: se cae al heuristico de HTML crudo, que aproxima
@@ -441,15 +441,15 @@ def run_c3(ctx):
                 ghost += 1
         native += len(re.findall(r"(?i)<button[\s>]|<a\s[^>]*href=", body))
     if ghost == 0:
-        score, ev = 1, f"Sin elementos fantasma; {native} controles nativos, {mitigated} mitigados con role+tabindex"
+        score, ev = 1, f"No ghost elements; {native} native controls, {mitigated} mitigated with role+tabindex"
     elif ghost <= 3 or (mitigated and ghost <= mitigated):
-        score, ev = 0.5, f"{ghost} elementos fantasma (div/span clicables sin semantica) vs {native} nativos"
+        score, ev = 0.5, f"{ghost} ghost elements (clickable div/span without semantics) vs {native} native"
     else:
-        score, ev = 0, f"{ghost} elementos fantasma: invisibles como interactivos ({native} nativos)"
-    ev += (" [APROXIMADO: sin render no se pudo leer el arbol de accesibilidad real; "
-           "esto se estima con el HTML crudo y aproxima peor. Activa el render JS "
-           "para medirlo de verdad]")
-    out.append(R("3.6", "C3", "Controles legibles por un agente", score, ev))
+        score, ev = 0, f"{ghost} ghost elements: invisible as interactive ({native} native)"
+    ev += (" [APPROXIMATE: without a render the real accessibility tree couldn't be read; "
+           "this is estimated from the raw HTML and is less accurate. Turn on JS rendering "
+           "to measure it properly]")
+    out.append(R("3.6", "C3", "Agent-readable controls", score, ev))
 
     # 3.7 Entidad en Wikipedia/Wikidata. Wikipedia es la mayor fuente
     # individual de citas en respuestas de IA; el vinculo NO ambiguo entre
@@ -458,17 +458,17 @@ def run_c3(ctx):
     # evidencia vale incluso si el sitio nos bloquea.
     wd = ctx.get("wikidata") or {}
     if wd.get("error"):
-        score, ev = None, f"Wikidata no respondio ({wd['error']}): no verificable"
+        score, ev = None, f"Wikidata didn't respond ({wd['error']}): not verifiable"
     elif wd.get("qid"):
         n = wd.get("sitelinks") or 0
         score = 1 if n > 0 else 0.5
-        ev = (f"Entidad {wd['qid']} en Wikidata con sitio oficial (P856) apuntando al dominio"
-              + (f", enlazada a {n} articulo(s) de Wikipedia" if n
-                 else "; existe el item pero sin articulo de Wikipedia aun"))
+        ev = (f"Entity {wd['qid']} on Wikidata with an official website (P856) pointing to the domain"
+              + (f", linked to {n} Wikipedia article(s)" if n
+                 else "; the item exists but has no Wikipedia article yet"))
     else:
-        score, ev = 0, ("Sin entidad en Wikidata con P856 apuntando al dominio "
-                        "(consultada la fuente externa: no depende de nuestro acceso a la web)")
-    out.append(R("3.7", "C3", "Entidad en Wikipedia/Wikidata", score, ev))
+        score, ev = 0, ("No Wikidata entity with P856 pointing to the domain "
+                        "(external source queried: doesn't depend on our access to the site)")
+    out.append(R("3.7", "C3", "Wikipedia/Wikidata entity", score, ev))
     return out
 
 
@@ -484,19 +484,19 @@ def run_c4(ctx):
         ren_len = len(visible_text(rendered.get("html", "")))
         ratio = raw_len / ren_len if ren_len > 200 else 1
         if ratio >= 0.7:
-            score, ev = 1, f"El HTML crudo contiene el {ratio:.0%} del contenido renderizado ({raw_len} vs {ren_len} chars)"
+            score, ev = 1, f"The raw HTML contains {ratio:.0%} of the rendered content ({raw_len} vs {ren_len} chars)"
         elif ratio >= 0.3:
-            score, ev = 0.5, f"Solo el {ratio:.0%} del contenido esta en el HTML crudo: parte del sitio es invisible para crawlers de IA"
+            score, ev = 0.5, f"Only {ratio:.0%} of the content is in the raw HTML: part of the site is invisible to AI crawlers"
         else:
-            score, ev = 0, f"CRITICO: solo el {ratio:.0%} del contenido existe sin JS. Para GPTBot/ClaudeBot este sitio esta casi vacio"
-        out.append(R("4.1", "C4", "Contenido sin ejecutar JS", score, ev))
+            score, ev = 0, f"CRITICAL: only {ratio:.0%} of the content exists without JS. To GPTBot/ClaudeBot this site is almost empty"
+        out.append(R("4.1", "C4", "Content without running JS", score, ev))
     else:
         # fallback heuristico sin render
         shell = raw_len < 800 and re.search(r'(?i)id=["\'](root|app|__next)["\']', ctx["home"]["body"] or "")
         score = 0 if shell else 0.5
-        ev = ("Patron de SPA vacia detectado (div#root con <800 chars de texto)" if shell
-              else f"Sin render disponible; el HTML crudo tiene {raw_len} chars de texto (revisar manualmente)")
-        out.append(R("4.1", "C4", "Contenido sin ejecutar JS", score, ev, manual=True))
+        ev = ("Empty SPA pattern detected (div#root with <800 chars of text)" if shell
+              else f"No render available; the raw HTML has {raw_len} chars of text (review manually)")
+        out.append(R("4.1", "C4", "Content without running JS", score, ev, manual=True))
 
     # 4.2 precio/CTA presentes en el crudo (ecommerce)
     if ctx["typology"] == "ecommerce":
@@ -514,12 +514,12 @@ def run_c4(ctx):
                 r"|carrinho"                           # PT
                 r"|winkelwagen", text))                # NL
             score = 1 if has_price and has_cta else 0.5 if has_price or has_cta else 0
-            ev = f"Ficha de producto sin JS: precio={'si' if has_price else 'NO'}, CTA compra={'si' if has_cta else 'NO'}"
+            ev = f"Product page without JS: price={'yes' if has_price else 'NO'}, buy CTA={'yes' if has_cta else 'NO'}"
         else:
-            score, ev = 0, "Ninguna ficha de producto accesible en el muestreo"
-        out.append(R("4.2", "C4", "Precio y CTA sin JS", score, ev))
+            score, ev = 0, "No product page accessible in the sample"
+        out.append(R("4.2", "C4", "Price and CTA without JS", score, ev))
     else:
-        out.append(R("4.2", "C4", "Precio y CTA sin JS", None, "N/A (no es e-commerce)"))
+        out.append(R("4.2", "C4", "Price and CTA without JS", None, "N/A (not e-commerce)"))
 
     # 4.3 velocidad para bots (TTFB)
     ttfbs = [p["fetch"]["ttfb"] for p in ctx["pages"] if p["fetch"]["ttfb"]]
@@ -528,10 +528,10 @@ def run_c4(ctx):
     if ttfbs:
         avg = sum(ttfbs) / len(ttfbs)
         score = 1 if avg < 0.8 else 0.5 if avg < 2 else 0
-        ev = f"TTFB medio {avg:.2f}s en {len(ttfbs)} paginas (los fetchers en vivo abandonan >2s)"
+        ev = f"Average TTFB {avg:.2f}s across {len(ttfbs)} pages (live fetchers give up >2s)"
     else:
-        score, ev = None, "No medido"
-    out.append(R("4.3", "C4", "Velocidad para bots (TTFB)", score, ev))
+        score, ev = None, "Not measured"
+    out.append(R("4.3", "C4", "Speed for bots (TTFB)", score, ev))
 
     # 4.4 deep-linking. Mide el acceso DIRECTO (_status_directo): el rescate por
     # Jina recupera el contenido para otros checks, pero no cambia lo que recibe
@@ -543,19 +543,19 @@ def run_c4(ctx):
                      if str(p["fetch"].get("_via", "")).startswith("jina")
                      and p["fetch"].get("_status_directo") != 200)
     score = 1 if ok == total else 0.5 if ok / total >= 0.7 else 0
-    ev = f"{ok}/{total} URLs profundas responden 200 en acceso directo sin sesion"
+    ev = f"{ok}/{total} deep URLs return 200 on direct access without a session"
     if rescatadas:
-        ev += (f" ({rescatadas} solo legibles via Jina: su contenido existe, "
-               f"pero el acceso directo esta bloqueado)")
-    out.append(R("4.4", "C4", "Deep-linking estable", score, ev))
+        ev += (f" ({rescatadas} only readable via Jina: their content exists, "
+               f"but direct access is blocked)")
+    out.append(R("4.4", "C4", "Stable deep-linking", score, ev))
 
     # 4.5 API detectable
     api_hits = [p for p, c in ctx["wellknown"].items()
                 if c == 200 and p in ("/openapi.json", "/swagger.json", "/api-docs")]
-    out.append(R("4.5", "C4", "API publica detectable",
+    out.append(R("4.5", "C4", "Detectable public API",
                  1 if api_hits else 0,
-                 f"Spec encontrada: {', '.join(api_hits)}" if api_hits
-                 else "Sin OpenAPI/Swagger en rutas estandar"))
+                 f"Spec found: {', '.join(api_hits)}" if api_hits
+                 else "No OpenAPI/Swagger on standard paths"))
 
     # 4.6 estabilidad visual (CLS): los rediseños dinamicos confunden a agentes
     # que toman capturas entre acciones. Se prefiere PageSpeed (dato de campo);
@@ -563,18 +563,18 @@ def run_c4(ctx):
     # laboratorio, siempre disponible cuando hay render). Antes solo existia PSI
     # y en produccion nunca se activaba: 4.6 era un factor que jamas puntuaba.
     cls = ctx.get("psi_cls")
-    fuente = "PageSpeed (campo)"
+    fuente = "PageSpeed (field)"
     if cls is None:
         cls = ctx.get("render_cls")
-        fuente = "medido en el navegador (laboratorio)"
+        fuente = "measured in the browser (lab)"
     if cls is None:
-        out.append(R("4.6", "C4", "Estabilidad visual (CLS)", None,
-                     "No medido: sin render disponible en este analisis", manual=True))
+        out.append(R("4.6", "C4", "Visual stability (CLS)", None,
+                     "Not measured: no render available in this analysis", manual=True))
     else:
         score = 1 if cls <= 0.1 else 0.5 if cls <= 0.25 else 0
-        out.append(R("4.6", "C4", "Estabilidad visual (CLS)", score,
-                     f"CLS={cls:.3f} (bueno <=0.1, {fuente}): los saltos de layout "
-                     "confunden a un agente que captura pantalla entre acciones"))
+        out.append(R("4.6", "C4", "Visual stability (CLS)", score,
+                     f"CLS={cls:.3f} (good <=0.1, {fuente}): layout shifts "
+                     "confuse an agent that takes screenshots between actions"))
 
     # 4.7 zonas de clic operables — medidas en el LAYOUT REAL, no en el HTML.
     # Un agente que pilota un navegador clica por coordenadas: un control de
@@ -588,9 +588,9 @@ def run_c4(ctx):
     for rp in (ctx.get("rendered_pages") or []):
         medidas.append((rp["bucket"], rp["boxes"]))
     if not medidas:
-        out.append(R("4.7", "C4", "Zonas de clic operables", None,
-                     "Sin geometria de render disponible (requiere backend Playwright): "
-                     "no se puede medir el tamano real de los controles", manual=True))
+        out.append(R("4.7", "C4", "Operable click targets", None,
+                     "No render geometry available (requires the Playwright backend): "
+                     "the actual size of the controls can't be measured", manual=True))
     else:
         MIN = 24  # px CSS: umbral WCAG 2.2 'Target Size (Minimum)'
         # Los enlaces en linea dentro de texto corrido quedan fuera: WCAG los
@@ -613,62 +613,62 @@ def run_c4(ctx):
                              1 - len(problems) / len(targets)))
             ejemplos += [(nombre, b) for b in small[:2]]
         if not tot_targets:
-            out.append(R("4.7", "C4", "Zonas de clic operables", None,
-                         f"Solo se detectaron {tot_inline} enlaces en linea (exentos de "
-                         "WCAG): sin controles medibles", manual=True))
+            out.append(R("4.7", "C4", "Operable click targets", None,
+                         f"Only {tot_inline} inline links were detected (exempt under "
+                         "WCAG): no measurable controls", manual=True))
         else:
             ratio_ok = 1 - (tot_problems / tot_targets)
             score = 1 if ratio_ok >= 0.95 else 0.5 if ratio_ok >= 0.8 else 0
-            desglose = ", ".join(f"{n} {r:.0%} ({t} controles)"
+            desglose = ", ".join(f"{n} {r:.0%} ({t} controls)"
                                  for n, t, _p, r in per_page)
-            ev = (f"{tot_targets} controles medidos en {len(per_page)} plantilla(s) "
-                  f"[{desglose}] ({tot_inline} enlaces en linea excluidos por la "
-                  f"excepcion de WCAG): {ratio_ok:.0%} sin problemas")
+            ev = (f"{tot_targets} controls measured on {len(per_page)} template(s) "
+                  f"[{desglose}] ({tot_inline} inline links excluded under the "
+                  f"WCAG exception): {ratio_ok:.0%} without problems")
             if ejemplos:
                 muestra = ", ".join(f"{n}: {b['tag']} {b['w']}x{b['h']}px"
                                     + (f" ('{b['name'][:28]}')" if b["name"] else "")
                                     for n, b in ejemplos[:4])
-                ev += (f". Por debajo de {MIN}x{MIN}px: {muestra}"
-                       " — un agente que clica por coordenadas falla o pulsa el de al lado")
+                ev += (f". Below {MIN}x{MIN}px: {muestra}"
+                       " — an agent that clicks by coordinates misses or hits the one next to it")
             # una plantilla claramente peor que el resto es un hallazgo por si mismo
             if len(per_page) > 1:
                 peor = min(per_page, key=lambda x: x[3])
                 mejor = max(per_page, key=lambda x: x[3])
                 if mejor[3] - peor[3] >= 0.15:
-                    ev += (f". La plantilla '{peor[0]}' esta notablemente peor que "
+                    ev += (f". The '{peor[0]}' template is noticeably worse than "
                            f"'{mejor[0]}' ({peor[3]:.0%} vs {mejor[3]:.0%})")
             if tot_problems == 0:
-                ev += ". Todos los controles son accionables con fiabilidad"
-            out.append(R("4.7", "C4", "Zonas de clic operables", score, ev))
+                ev += ". All controls can be operated reliably"
+            out.append(R("4.7", "C4", "Operable click targets", score, ev))
 
     # 4.8 estados de error correctos — el soft-404 es el fallo agentico silencioso:
     # el humano lee "no encontrado", el agente solo mira el codigo de estado.
     ep = ctx.get("error_probe") or {}
     st = ep.get("status")
     if not st:
-        out.append(R("4.8", "C4", "Estados de error correctos", None,
-                     "La sonda de URL inexistente no obtuvo respuesta", manual=True))
+        out.append(R("4.8", "C4", "Correct error states", None,
+                     "The non-existent URL probe got no response", manual=True))
     elif st == 200:
-        out.append(R("4.8", "C4", "Estados de error correctos", 0,
-                     f"SOFT-404: una URL inexistente devuelve HTTP 200"
-                     + (" con texto de 'no encontrado' en el cuerpo" if ep.get("looks_missing") else "")
-                     + ". Un agente interpreta 200 como exito y sigue operando con una "
-                       "pagina vacia; el error se propaga sin que nadie lo detecte"))
+        out.append(R("4.8", "C4", "Correct error states", 0,
+                     f"SOFT-404: a non-existent URL returns HTTP 200"
+                     + (" with 'not found' text in the body" if ep.get("looks_missing") else "")
+                     + ". An agent reads 200 as success and keeps working with an "
+                       "empty page; the error spreads without anyone noticing"))
     elif st in (301, 302, 307, 308):
-        out.append(R("4.8", "C4", "Estados de error correctos", 0.5,
-                     f"Una URL inexistente redirige (HTTP {st}) en lugar de devolver 404. "
-                     "El agente acaba en otra pagina creyendo que llego a la pedida"))
+        out.append(R("4.8", "C4", "Correct error states", 0.5,
+                     f"A non-existent URL redirects (HTTP {st}) instead of returning 404. "
+                     "The agent ends up on another page believing it reached the one it asked for"))
     elif st in (404, 410):
         score = 1 if ep.get("has_recovery") else 0.5
-        ev = (f"Correcto: HTTP {st} en URL inexistente. "
-              + ("La pagina de error ofrece navegacion o buscador para recuperarse"
+        ev = (f"Correct: HTTP {st} on a non-existent URL. "
+              + ("The error page offers navigation or search to recover"
                  if ep.get("has_recovery")
-                 else "Pero la pagina de error no ofrece navegacion ni buscador: "
-                      "el agente se queda sin salida"))
-        out.append(R("4.8", "C4", "Estados de error correctos", score, ev))
+                 else "But the error page offers no navigation or search: "
+                      "the agent hits a dead end"))
+        out.append(R("4.8", "C4", "Correct error states", score, ev))
     else:
-        out.append(R("4.8", "C4", "Estados de error correctos", 0.5,
-                     f"Una URL inexistente devuelve HTTP {st}, que no es un 404/410 claro"))
+        out.append(R("4.8", "C4", "Correct error states", 0.5,
+                     f"A non-existent URL returns HTTP {st}, which isn't a clear 404/410"))
 
     # 4.9 Higiene de redirecciones. Un agente sin JS se queda tirado en un stub
     # de meta-refresh o de location.href, y un salto a otro dominio le rompe la
@@ -681,8 +681,8 @@ def run_c4(ctx):
     if ctx["home"].get("status") == 200 and ctx["home"].get("_via", "http") == "http":
         directas.append((ctx["base"] + "/", ctx["home"]))
     if not directas:
-        out.append(R("4.9", "C4", "Higiene de redirecciones", None,
-                     "Sin paginas vistas por HTTP directo: no medible"))
+        out.append(R("4.9", "C4", "Redirect hygiene", None,
+                     "No pages seen via direct HTTP: not measurable"))
     else:
         incidencias = []
         for pedida, f in directas:
@@ -697,12 +697,12 @@ def run_c4(ctx):
             if re.search(r"(?i)<meta[^>]+http-equiv=[\"']?refresh", body):
                 incidencias.append(f"{pedida}: stub meta-refresh")
             elif len(body) < 2000 and re.search(r"(?i)location\.(href|replace)", body):
-                incidencias.append(f"{pedida}: stub de redireccion JS")
+                incidencias.append(f"{pedida}: JS redirect stub")
             elif h_pedida and h_final and h_final != h_pedida:
-                incidencias.append(f"{pedida}: acaba en {h_final} (salto de dominio)")
+                incidencias.append(f"{pedida}: ends up on {h_final} (domain hop)")
         score = 1 if not incidencias else 0.5 if len(incidencias) == 1 else 0
-        out.append(R("4.9", "C4", "Higiene de redirecciones", score,
-                     f"{len(directas)} paginas llegan a contenido real sin stubs ni saltos de dominio"
+        out.append(R("4.9", "C4", "Redirect hygiene", score,
+                     f"{len(directas)} pages reach real content without stubs or domain hops"
                      if not incidencias else "; ".join(incidencias)[:350]))
     return out
 
@@ -730,28 +730,28 @@ def run_c5(ctx):
         body = p["fetch"]["body"]
         m = re.search(r"(?is)<h1[^>]*>(.*?)</h1>(.*?)(?=<h2[\s>]|$)", body)
         if not m:
-            page_results.append((p["url"], 0, "sin H1 localizable"))
+            page_results.append((p["url"], 0, "no H1 found"))
             continue
         first = visible_text(m.group(2))[:900]
         words = len(first.split())
         info_hits = len(INFO.findall(first))
         fluff_hits = len(FLUFF.findall(first))
         if 25 <= words <= 320 and info_hits >= 2 and fluff_hits <= 1:
-            page_results.append((p["url"], 1, f"{words} palabras, {info_hits} datos, {fluff_hits} relleno"))
+            page_results.append((p["url"], 1, f"{words} words, {info_hits} data points, {fluff_hits} filler"))
         elif words > 0 and info_hits >= 1:
-            page_results.append((p["url"], 0.5, f"{words} palabras, {info_hits} datos, {fluff_hits} relleno"))
+            page_results.append((p["url"], 0.5, f"{words} words, {info_hits} data points, {fluff_hits} filler"))
         else:
-            page_results.append((p["url"], 0, f"{words} palabras, {info_hits} datos, {fluff_hits} relleno"))
+            page_results.append((p["url"], 0, f"{words} words, {info_hits} data points, {fluff_hits} filler"))
     if page_results:
         avg = sum(s for _, s, _ in page_results) / len(page_results)
         score = 1 if avg >= 0.8 else 0.5 if avg >= 0.4 else 0
         worst = min(page_results, key=lambda x: x[1])
-        ev = (f"{sum(1 for _, s, _ in page_results if s == 1)}/{len(page_results)} paginas con "
-              f"respuesta directa tras el H1 (datos>=2, relleno<=1). "
-              f"Peor: {worst[0].split('/')[-1] or worst[0][-40:]} ({worst[2]})")
+        ev = (f"{sum(1 for _, s, _ in page_results if s == 1)}/{len(page_results)} pages with a "
+              f"direct answer after the H1 (data>=2, filler<=1). "
+              f"Worst: {worst[0].split('/')[-1] or worst[0][-40:]} ({worst[2]})")
     else:
-        score, ev = 0, "Sin paginas de contenido analizables"
-    out.append(R("5.1", "C5", "Respuesta directa arriba", score, ev))
+        score, ev = 0, "No analyzable content pages"
+    out.append(R("5.1", "C5", "Direct answer up top", score, ev))
 
     # 5.2 estructura chunkeable — secciones autocontenidas + jerarquia de headings.
     # Medimos cada seccion H2/H3: titulo descriptivo (>=3 palabras o pregunta) y
@@ -762,7 +762,7 @@ def run_c5(ctx):
         heads = [(m.group(1), visible_text(m.group(2)), m.end())
                  for m in re.finditer(r"(?is)<h([23])[^>]*>(.*?)</h\1>", body)]
         if not heads:
-            page_results.append((p["url"], 0, "sin H2/H3"))
+            page_results.append((p["url"], 0, "no H2/H3"))
             continue
         ok_sections = 0
         for i, (_lvl, htext, end) in enumerate(heads):
@@ -776,15 +776,15 @@ def run_c5(ctx):
         ratio = ok_sections / len(heads)
         s = 1 if ratio >= 0.6 and jumps == 0 else 0.5 if ratio >= 0.35 else 0
         page_results.append((p["url"], s,
-                             f"{ok_sections}/{len(heads)} secciones autocontenidas, {jumps} saltos de jerarquia"))
+                             f"{ok_sections}/{len(heads)} self-contained sections, {jumps} hierarchy jumps"))
     if page_results:
         avg = sum(s for _, s, _ in page_results) / len(page_results)
         score = 1 if avg >= 0.8 else 0.5 if avg >= 0.4 else 0
         detail = "; ".join(f"{u.split('/')[-1] or u[-30:]}: {d}" for u, _, d in page_results[:3])
-        ev = f"Analizadas {len(page_results)} paginas seccion a seccion. {detail}"
+        ev = f"Analyzed {len(page_results)} pages section by section. {detail}"
     else:
-        score, ev = 0, "Sin paginas de contenido analizables"
-    out.append(R("5.2", "C5", "Estructura chunkeable (H2/H3)", score, ev))
+        score, ev = 0, "No analyzable content pages"
+    out.append(R("5.2", "C5", "Chunkable structure", score, ev))
 
     # 5.3 E-E-A-T verificable.
     # Con articulos de blog en la muestra se exige lo fuerte: autoria + fecha
@@ -833,9 +833,9 @@ def run_c5(ctx):
         hits = sum(1 if (a and f) else 0.5 for a, f in articulos)
         ratio = hits / len(articulos)
         score = 1 if ratio >= 0.85 else 0.5 if ratio >= 0.4 else 0
-        ev = (f"Autoria+fecha verificables en {hits}/{len(articulos)} articulos muestreados"
-              + (f" ({hubs} pagina(s) indice del blog excluidas: a un listado "
-                 f"no se le exige firma)" if hubs else ""))
+        ev = (f"Verifiable authorship+date on {hits}/{len(articulos)} sampled articles"
+              + (f" ({hubs} blog index page(s) excluded: a listing isn't "
+                 f"expected to carry a byline)" if hubs else ""))
     else:
         # Sin ningún artículo reconocible en la muestra (solo hubs, o nada):
         # exigir firma aquí sería culpar a la web de nuestro muestreo. Se cae
@@ -846,7 +846,7 @@ def run_c5(ctx):
         contenido.append(ctx["home"]["body"] or "")
         corpus = " ".join(c or "" for c in contenido[:6])
         if len(corpus) < 500:
-            score, ev = None, "Sin paginas de contenido analizables"
+            score, ev = None, "No analyzable content pages"
         else:
             valid, _ = jsonld_blocks(corpus)
             js = json.dumps(valid)
@@ -858,7 +858,7 @@ def run_c5(ctx):
             autoria = (bool(find_nodes(valid, "Person")) or '"author"' in js
                        or bool(re.search(r'(?i)<meta[^>]+name=["\']author', corpus))
                        or bool(re.search(r"(?i)class=[\"'][^\"']*(author|byline)", corpus)))
-            senales = [s for s, hay in (("fechas", fecha), ("autoria/responsable", autoria)) if hay]
+            senales = [s for s, hay in (("dates", fecha), ("authorship/owner", autoria)) if hay]
             # Sin articulos en la muestra no se puede exigir E-E-A-T pleno: el 1
             # se reserva para quien SI expone frescura (fecha/actualizacion), que
             # es la señal que un agente usa para juzgar vigencia. La ausencia NO
@@ -867,15 +867,15 @@ def run_c5(ctx):
             # tiene blog con autoria y fecha, pero la muestra pillo landings).
             # Castigar con 0 seria culpar a la web de un limite nuestro.
             score = 1 if fecha else 0.5
-            ev = ("Sin articulos en la muestra: se evaluan señales de frescura y "
-                  f"autoria en {len(contenido)} paginas de contenido. Encontradas: "
-                  f"{', '.join(senales) or 'ninguna'}. "
-                  + ("El contenido es fechable, que es lo que un agente necesita "
-                     "para juzgar su vigencia." if fecha else
-                     "Sin fecha visible en lo muestreado: si el sitio publica "
-                     "contenido informativo, conviene marcar autoria y fecha "
-                     "(puede que su blog no entrara en la muestra)."))
-    out.append(R("5.3", "C5", "E-E-A-T verificable", score, ev))
+            ev = ("No articles in the sample: freshness and authorship signals "
+                  f"were assessed on {len(contenido)} content pages. Found: "
+                  f"{', '.join(senales) or 'none'}. "
+                  + ("The content can be dated, which is what an agent needs "
+                     "to judge whether it's current." if fecha else
+                     "No visible date in what was sampled: if the site publishes "
+                     "informational content, it should mark up authorship and date "
+                     "(its blog may not have made it into the sample)."))
+    out.append(R("5.3", "C5", "Verifiable E-E-A-T", score, ev))
 
     # (la citacion real en respuestas de IA — el antiguo 5.4 — se mide con Clicandseo)
 
@@ -885,7 +885,7 @@ def run_c5(ctx):
     llms = ctx["wellknown"].get("/llms.txt", 0)
     if llms != 200:
         out.append(R("5.5", "C5", "llms.txt (higiene)", 0,
-                     "Sin llms.txt (peso bajo: el 97% nunca se leen, pero es higiene barata)"))
+                     "No llms.txt (low weight: 97% are never read, but it's cheap hygiene)"))
     else:
         m = (ctx.get("wellknown_meta") or {}).get("/llms.txt") or {}
         kb = (m.get("bytes") or 0) / 1024
@@ -895,25 +895,25 @@ def run_c5(ctx):
             if kb > 200:
                 motivos.append(f"{kb:.0f} KB")
             if m.get("autogenerado"):
-                motivos.append("declara estar generado por un plugin")
+                motivos.append("states it was generated by a plugin")
             out.append(R("5.5", "C5", "llms.txt (higiene)", 0.5,
-                         f"llms.txt presente pero parece un volcado automatico "
-                         f"({', '.join(motivos)}, {m.get('enlaces', 0)} enlaces). El estandar "
-                         "pide un indice CURADO que oriente al modelo; un dump de todas las "
-                         "URLs cumple la forma y no la funcion"))
+                         f"llms.txt present but it looks like an automatic dump "
+                         f"({', '.join(motivos)}, {m.get('enlaces', 0)} links). The standard "
+                         "calls for a CURATED index that guides the model; a dump of every "
+                         "URL meets the form but not the function"))
         else:
             out.append(R("5.5", "C5", "llms.txt (higiene)", 1,
-                         f"llms.txt presente y con pinta de estar curado "
-                         f"({kb:.0f} KB, {m.get('enlaces', 0)} enlaces)"))
+                         f"llms.txt present and it looks curated "
+                         f"({kb:.0f} KB, {m.get('enlaces', 0)} links)"))
 
     # 5.6 negociacion de contenido Markdown (Accept: text/markdown)
     mdn = ctx.get("md_negotiation") or {}
     if mdn.get("is_markdown"):
-        score, ev = 1, f"Sirve Markdown a agentes via content negotiation (Content-Type: {mdn.get('content_type')})"
+        score, ev = 1, f"Serves Markdown to agents via content negotiation (Content-Type: {mdn.get('content_type')})"
     else:
-        score, ev = 0, (f"Con Accept: text/markdown responde {mdn.get('content_type') or 'HTML'} "
-                        "(solo el 3,9% de sitios lo soporta: diferenciador barato)")
-    out.append(R("5.6", "C5", "Negociacion de contenido Markdown", score, ev))
+        score, ev = 0, (f"With Accept: text/markdown it responds with {mdn.get('content_type') or 'HTML'} "
+                        "(only 3.9% of sites support it: a cheap differentiator)")
+    out.append(R("5.6", "C5", "Markdown negotiation", score, ev))
 
     # 5.7 Paginas de confianza: quien esta detras (About), como contactar y la
     # base legal. Un agente las comprueba antes de recomendar, igual que una
@@ -923,13 +923,13 @@ def run_c5(ctx):
     # scanner solo-EN afirmaba que faltaban About y Privacy.
     tp = ctx.get("trust_pages")
     if tp is None:
-        out.append(R("5.7", "C5", "Paginas de confianza", None,
-                     "Sondas de confianza no ejecutadas: no medible"))
+        out.append(R("5.7", "C5", "Trust pages", None,
+                     "Trust probes not run: not measurable"))
     else:
-        nombres = {"quien": "quien-hay-detras (About)", "contacto": "contacto",
-                   "legal": "legal/privacidad"}
+        nombres = {"quien": "who's-behind-it (About)", "contacto": "contact",
+                   "legal": "legal/privacy"}
         oks = [nombres[k] for k, v in tp.items() if v and v.get("ok")]
-        rotas = [f"{nombres[k]} ({v['url']} sin contenido util)"
+        rotas = [f"{nombres[k]} ({v['url']} without useful content)"
                  for k, v in tp.items() if v and not v.get("ok")]
         faltan = [nombres[k] for k, v in tp.items() if not v]
         # Las candidatas salen de la home (footer incluido) y del sitemap. Si
@@ -945,15 +945,15 @@ def run_c5(ctx):
             score = None
         else:
             score = 0.5 if len(oks) == 2 else 0
-        ev = f"Verificadas {len(oks)}/3: {', '.join(oks) or 'ninguna'}"
+        ev = f"Verified {len(oks)}/3: {', '.join(oks) or 'none'}"
         if rotas:
-            ev += f". Localizadas pero sin contenido: {'; '.join(rotas)}"
+            ev += f". Found but without content: {'; '.join(rotas)}"
         if faltan:
-            ev += (f". No afirmable si falta {', '.join(faltan)}: la portada solo "
-                   f"se leyo via rescate y su footer pudo no llegar entero"
+            ev += (f". Can't claim {', '.join(faltan)} is missing: the home page was only "
+                   f"read via the fallback and its footer may not have come through in full"
                    if score is None else
-                   f". No localizadas (home + sitemap): {', '.join(faltan)}")
-        out.append(R("5.7", "C5", "Paginas de confianza", score, ev))
+                   f". Not found (home + sitemap): {', '.join(faltan)}")
+        out.append(R("5.7", "C5", "Trust pages", score, ev))
 
     # 5.8 Presupuesto de tokens por pagina (~25K tokens de texto extraido, a
     # ~4 chars/token): una pagina que no cabe en el contexto del agente se lee
@@ -965,8 +965,8 @@ def run_c5(ctx):
     if ctx["home"].get("status") == 200 and ctx["home"].get("_via", "http") == "http":
         medibles.append((ctx["base"] + "/", ctx["home"].get("body") or ""))
     if not medibles:
-        out.append(R("5.8", "C5", "Presupuesto de tokens por pagina", None,
-                     "Sin paginas vistas por HTTP directo: no medible"))
+        out.append(R("5.8", "C5", "Token budget per page", None,
+                     "No pages seen via direct HTTP: not measurable"))
     else:
         PRESUPUESTO = 25000
         tokens = []
@@ -976,17 +976,17 @@ def run_c5(ctx):
         grandes = [(u, t) for u, t in tokens if t > PRESUPUESTO]
         mayor = max(tokens, key=lambda x: x[1])
         if not grandes:
-            score, ev = 1, (f"Las {len(tokens)} paginas medidas caben en el presupuesto "
-                            f"(~{PRESUPUESTO // 1000}K tokens); la mayor ronda ~{mayor[1] // 1000}K")
+            score, ev = 1, (f"All {len(tokens)} measured pages fit in the budget "
+                            f"(~{PRESUPUESTO // 1000}K tokens); the largest is around ~{mayor[1] // 1000}K")
         elif len(grandes) <= len(tokens) // 2:
             score = 0.5
-            ev = (f"{len(grandes)}/{len(tokens)} paginas exceden ~{PRESUPUESTO // 1000}K tokens "
-                  f"(peor: {grandes[0][0]} con ~{grandes[0][1] // 1000}K): se leen truncadas")
+            ev = (f"{len(grandes)}/{len(tokens)} pages exceed ~{PRESUPUESTO // 1000}K tokens "
+                  f"(worst: {grandes[0][0]} with ~{grandes[0][1] // 1000}K): they're read truncated")
         else:
             score = 0
-            ev = (f"La mayoria de paginas medidas ({len(grandes)}/{len(tokens)}) exceden el "
-                  f"presupuesto de ~{PRESUPUESTO // 1000}K tokens: los agentes las leen truncadas")
-        out.append(R("5.8", "C5", "Presupuesto de tokens por pagina", score, ev))
+            ev = (f"Most measured pages ({len(grandes)}/{len(tokens)}) exceed the "
+                  f"~{PRESUPUESTO // 1000}K-token budget: agents read them truncated")
+        out.append(R("5.8", "C5", "Token budget per page", score, ev))
     return out
 
 
@@ -1014,11 +1014,11 @@ def run_c6(ctx):
     webmcp = bool(re.search(r"(?i)webmcp|navigator\.modelContext|model-context-protocol",
                             home_html))
     if webmcp:
-        hits.append("WebMCP (en pagina)")
-    out.append(R("6.1", "C6", "Superficie agentica (MCP/A2A/WebMCP)",
+        hits.append("WebMCP (on page)")
+    out.append(R("6.1", "C6", "Agentic surface",
                  1 if hits else 0,
-                 f"Expone: {', '.join(hits)}" if hits
-                 else "Sin superficie agentica: ni MCP, ni A2A agent.json, ni WebMCP (<15 sitios del top 200k la tienen: ventaja de primero)"))
+                 f"Exposes: {', '.join(hits)}" if hits
+                 else "No agentic surface: no MCP, no A2A agent.json, no WebMCP (<15 of the top 200k sites have one: first-mover advantage)"))
 
     # 6.2 operabilidad de formularios — analisis estatico PROFUNDO por formulario:
     # vinculacion label for=id VERIFICADA contra los id reales, autocomplete,
@@ -1052,12 +1052,12 @@ def run_c6(ctx):
             score = 0.5
         else:
             score = 0
-        ev = (f"{n} formularios, {total_fields} campos: {bound_fields} vinculados for=id (verificado), "
-              f"{aria_fields} aria-label, {autocomp} autocomplete, {with_submit}/{n} con submit real, "
-              f"{captcha} con CAPTCHA. [No se envian formularios reales por etica]")
+        ev = (f"{n} forms, {total_fields} fields: {bound_fields} bound via for=id (verified), "
+              f"{aria_fields} aria-label, {autocomp} autocomplete, {with_submit}/{n} with a real submit, "
+              f"{captcha} with CAPTCHA. [No real forms are submitted, for ethical reasons]")
     else:
-        score, ev = 0.5, "Sin formularios detectados en las paginas muestreadas"
-    out.append(R("6.2", "C6", "Formularios operables por agentes", score, ev))
+        score, ev = 0.5, "No forms detected on the sampled pages"
+    out.append(R("6.2", "C6", "Operable forms", score, ev))
 
     # 6.3 tarea completada por agentes REALES (browser-use con ChatGPT/Gemini/Claude)
     at = ctx.get("agent_tests")
@@ -1099,44 +1099,44 @@ def run_c6(ctx):
             f"{k}: {v['outcome']}"
             + (f" {v['exitos']}/{v['intentos']}" if v.get("intentos") else "")
             + (f" ({(v.get('progreso') or {}).get('alcanzados')}/"
-               f"{(v.get('progreso') or {}).get('total')} pasos)"
+               f"{(v.get('progreso') or {}).get('total')} steps)"
                if (v.get("progreso") or {}).get("total") else "")
             for k, v in valid.items())
         reps = at.get("repeticiones")
-        ev = (f"Tarea '{at['typology']}' ejecutada por {total} agente(s) reales"
-              + (f", {reps} intentos cada uno" if reps and reps > 1 else "") + f" — {per}.")
+        ev = (f"Task '{at['typology']}' run by {total} real agent(s)"
+              + (f", {reps} attempts each" if reps and reps > 1 else "") + f" — {per}.")
         if tasa is not None and reps and reps > 1:
-            ev += f" Tasa de exito global: {tasa:.0%}."
+            ev += f" Overall success rate: {tasa:.0%}."
         if inconsistentes:
-            ev += (f" ATENCION: {', '.join(inconsistentes)} completo la tarea solo en "
-                   "algunos intentos. Una web que funciona a veces es, para un agente, "
-                   "peor que una que falla siempre: el resultado no es predecible.")
+            ev += (f" WARNING: {', '.join(inconsistentes)} completed the task only in "
+                   "some attempts. For an agent, a site that works sometimes is "
+                   "worse than one that always fails: the outcome isn't predictable.")
         if avg is not None:
-            ev += f" Recorrido medio: {avg:.0%} de los pasos de la tarea."
+            ev += f" Average progress: {avg:.0%} of the task steps."
         # donde se atascan todos = el cuello de botella real del sitio
         atascos = [p["pendientes"][0] for p in progs if p.get("pendientes")]
         if atascos and len(set(atascos)) == 1 and len(atascos) > 1:
-            ev += f" Todos se atascan en el mismo punto: {atascos[0]}."
+            ev += f" They all get stuck at the same point: {atascos[0]}."
         # Si TODOS los agentes se cayeron por controles que no responden al clic
         # programatico, no afirmamos que la web sea inoperable: puede ser un
         # limite de nuestro harness. Se marca para revision manual.
         if valid and all(v.get("limite_de_metodo") for v in valid.values()):
-            out[-1] = R("6.3", "C6", "Tarea completada por un agente real", None,
-                        ev + " AVISO DE METODO: todos los intentos se cayeron por "
-                             "controles que no respondieron al clic programatico "
-                             "(selectores a medida, componentes JS). Nuestro harness "
-                             "clica por selector; los agentes comerciales usan vision "
-                             "y los toleran mejor. NO es concluyente: requiere prueba "
-                             "manual antes de afirmar que la web no es operable.",
+            out[-1] = R("6.3", "C6", "Task with a real agent", None,
+                        ev + " METHOD NOTICE: every attempt failed on "
+                             "controls that didn't respond to programmatic clicks "
+                             "(custom selectors, JS components). Our harness "
+                             "clicks by selector; commercial agents use vision "
+                             "and handle them better. NOT conclusive: needs a manual "
+                             "test before claiming the site isn't operable.",
                         manual=True)
             return out
         # honestidad: lo que NO evaluamos por politica propia no se cuenta como fallo
         no_eval = at.get("hitos_no_evaluados") or []
         if no_eval:
-            ev += (f" No evaluado por politica de la prueba (no por fallo de la web): "
+            ev += (f" Not evaluated due to the test's policy (not a failure of the site): "
                    f"{', '.join(no_eval)}.")
-        ev += " Detalle y registro de pasos en la pestaña Evidencias."
-        out.append(R("6.3", "C6", "Tarea completada por un agente real", score, ev))
+        ev += " Details and step log in the Evidence tab."
+        out.append(R("6.3", "C6", "Task with a real agent", score, ev))
     else:
         # Se ejecutaron y NINGUNA pudo ver la web. Decir "no ejecutado" aqui
         # seria falso, y decir "no conseguido" seria peor: acusaria a la web.
@@ -1145,21 +1145,21 @@ def run_c6(ctx):
         if noverif:
             det = next(v.get("detail") for v in agents.values()
                        if v.get("outcome") == "no_verificable")
-            out.append(R("6.3", "C6", "Tarea completada por un agente real", None,
-                         f"Ejecutado con {', '.join(noverif)}, sin resultado medible: "
-                         f"{det} No se puntua: no hay evidencia agentica en ningun "
-                         "sentido, ni a favor ni en contra.", manual=True))
+            out.append(R("6.3", "C6", "Task with a real agent", None,
+                         f"Run with {', '.join(noverif)}, with no measurable result: "
+                         f"{det} Not scored: there's no agentic evidence either "
+                         "way, neither for nor against.", manual=True))
             return out
         # el mensaje cambia si el usuario YA las pidió: decirle "actívalas"
         # cuando acaba de activarlas seria desconcertante
         if ctx.get("agentes_pendientes"):
-            ev_63 = ("Pendiente de ejecutar: pulsa «Simular agentes» en el informe. "
-                     "Corre en segundo plano (10-15 min) y al terminar actualiza este "
-                     "check y la puntuacion global sin repetir el resto del analisis")
+            ev_63 = ("Pending: click «Simulate agents» in the report. "
+                     "It runs in the background (10-15 min) and when it finishes it updates this "
+                     "check and the overall score without repeating the rest of the analysis")
         else:
-            ev_63 = ("No ejecutado (activar 'Pruebas agenticas' en el analisis, o hacerlo "
-                     "manual con Operator/Claude)")
-        out.append(R("6.3", "C6", "Tarea completada por un agente real", None,
+            ev_63 = ("Not run (turn on 'Real agentic tests' in the analysis, or do it "
+                     "manually with Operator/Claude)")
+        out.append(R("6.3", "C6", "Task with a real agent", None,
                      ev_63, manual=True))
 
     # 6.4 autenticacion operable por un agente. Jerarquia: OAuth delegado (el
@@ -1169,12 +1169,12 @@ def run_c6(ctx):
                          "/.well-known/oauth-protected-resource") if wk.get(p) == 200]
     lp = ctx.get("login_probe") or {}
     if oauth:
-        out.append(R("6.4", "C6", "Autenticacion operable por agentes", 1,
-                     f"OAuth descubrible en {', '.join(oauth)}: un agente puede obtener "
-                     "permiso delegado sin manejar la contrasena del usuario (el patron correcto)"))
+        out.append(R("6.4", "C6", "Agent-operable authentication", 1,
+                     f"Discoverable OAuth at {', '.join(oauth)}: an agent can obtain "
+                     "delegated permission without handling the user's password (the right pattern)"))
     elif not lp.get("found"):
-        out.append(R("6.4", "C6", "Autenticacion operable por agentes", None,
-                     "El sitio no expone area de acceso: no aplica"))
+        out.append(R("6.4", "C6", "Agent-operable authentication", None,
+                     "The site has no login area: not applicable"))
     else:
         body = lp.get("body") or ""
         has_pwd = bool(re.search(r'(?i)<input[^>]+type=["\']password', body))
@@ -1184,33 +1184,33 @@ def run_c6(ctx):
         social = bool(re.search(r"(?i)(sign|log)[ -]?in with (google|apple|microsoft)|"
                                 r"continuar con (google|apple)", body))
         n_cand = len(lp.get("intentos") or [])
-        via = " (formulario visible solo tras renderizar JS)" if lp.get("via") == "render" else ""
+        via = " (form visible only after rendering JS)" if lp.get("via") == "render" else ""
         if not has_pwd:
-            out.append(R("6.4", "C6", "Autenticacion operable por agentes", None,
-                         f"Probados {n_cand} candidatos de acceso; en {lp['url']} no hay "
-                         "formulario de contrasena ni siquiera tras renderizar (login via "
-                         "terceros o muro externo): no evaluable automaticamente", manual=True))
+            out.append(R("6.4", "C6", "Agent-operable authentication", None,
+                         f"Tried {n_cand} login candidates; at {lp['url']} there's no "
+                         "password form even after rendering (third-party login "
+                         "or external wall): can't be assessed automatically", manual=True))
             return out
         if captcha:
             score = 0
-            ev = ("El acceso esta protegido por CAPTCHA: un agente legitimo del propio "
-                  "usuario no puede autenticarse. Sin OAuth ni alternativa, el area "
-                  "privada es territorio cerrado para agentes")
+            ev = ("Login is protected by CAPTCHA: the user's own legitimate agent "
+                  "can't sign in. With no OAuth or alternative, the private "
+                  "area is off-limits to agents")
         elif ac_user and ac_pwd:
             score = 0.5
-            ev = ("Formulario de acceso correctamente marcado (autocomplete username + "
-                  "current-password): un agente con credenciales puede rellenarlo. "
-                  "Falta OAuth para permiso delegado sin compartir contrasena")
+            ev = ("Login form correctly marked up (autocomplete username + "
+                  "current-password): an agent with credentials can fill it in. "
+                  "OAuth is missing for delegated permission without sharing the password")
         else:
             score = 0
-            faltan = [n for n, v in (("autocomplete de usuario", ac_user),
-                                     ("autocomplete de contrasena", ac_pwd)) if not v]
-            ev = (f"Formulario de acceso sin {' ni '.join(faltan)}: un agente no puede "
-                  "identificar con fiabilidad que campo es cual")
+            faltan = [n for n, v in (("username autocomplete", ac_user),
+                                     ("password autocomplete", ac_pwd)) if not v]
+            ev = (f"Login form without {' or '.join(faltan)}: an agent can't "
+                  "reliably tell which field is which")
         if social:
-            ev += ". Ofrece acceso social (Google/Apple), que anade una capa mas de friccion al agente"
-        ev += f". Evaluado en {lp['url']}{via}"
-        out.append(R("6.4", "C6", "Autenticacion operable por agentes", score, ev))
+            ev += ". Offers social login (Google/Apple), which adds another layer of friction for the agent"
+        ev += f". Assessed at {lp['url']}{via}"
+        out.append(R("6.4", "C6", "Agent-operable authentication", score, ev))
     return out
 
 
@@ -1226,15 +1226,15 @@ def run_c7(ctx):
                   if wk.get(p) == 200]
     saw_402 = any(code == 402 for code in ctx["bot_matrix"].values())
     if saw_402:
-        proto_hits.append("respuestas HTTP 402 a bots (señal x402/pay-per-crawl)")
-    out.append(R("7.4", "C7", "Protocolos de comercio emergentes (x402/UCP/MPP)", None,
-                 ("Detectado: " + ", ".join(proto_hits)) if proto_hits
-                 else "Sondeados x402/UCP/MPP sin hallazgos (informativo: estos protocolos aun no puntuan, tampoco en Cloudflare)"))
+        proto_hits.append("HTTP 402 responses to bots (x402/pay-per-crawl signal)")
+    out.append(R("7.4", "C7", "Emerging protocols", None,
+                 ("Detected: " + ", ".join(proto_hits)) if proto_hits
+                 else "Probed x402/UCP/MPP with no findings (informational: these protocols aren't scored yet, not even by Cloudflare)"))
 
     if ctx["typology"] != "ecommerce":
-        out.append(R("7.1", "C7", "Comercio agentico", None, "N/A (no es e-commerce)"))
-        out.append(R("7.5", "C7", "Politica de envio legible por maquina", None, "N/A (no es e-commerce)"))
-        out.append(R("7.6", "C7", "Politica de devoluciones legible por maquina", None, "N/A (no es e-commerce)"))
+        out.append(R("7.1", "C7", "Structured feed/catalog", None, "N/A (not e-commerce)"))
+        out.append(R("7.5", "C7", "Readable shipping policy", None, "N/A (not e-commerce)"))
+        out.append(R("7.6", "C7", "Readable returns policy", None, "N/A (not e-commerce)"))
         return out
 
     prod_pages = [p for p in ctx["pages"] if p["bucket"] == "producto"
@@ -1265,12 +1265,12 @@ def run_c7(ctx):
         if find_nodes(valid, "Product"):
             prods_ok += 1
     if platform and prods_ok:
-        score, ev = 1, f"Plataforma {platform} (feed disponible) + Product schema en {prods_ok} fichas"
+        score, ev = 1, f"{platform} platform (feed available) + Product schema on {prods_ok} product pages"
     elif platform or prods_ok:
-        score, ev = 0.5, f"Plataforma={platform or 'custom'}, fichas con Product schema={prods_ok}"
+        score, ev = 0.5, f"Platform={platform or 'custom'}, product pages with Product schema={prods_ok}"
     else:
-        score, ev = 0, "Sin plataforma reconocible ni catalogo estructurado detectable"
-    out.append(R("7.1", "C7", "Feed/catalogo estructurado", score, ev))
+        score, ev = 0, "No recognizable platform or detectable structured catalog"
+    out.append(R("7.1", "C7", "Structured feed/catalog", score, ev))
 
     # 7.2 consistencia precio JSON-LD vs visible (anti-alucinacion)
     checked, consistent = 0, 0
@@ -1292,14 +1292,14 @@ def run_c7(ctx):
     result_72 = None
     if checked:
         score = 1 if consistent == checked else 0
-        ev = f"Precio del schema coincide con el visible en {consistent}/{checked} fichas"
+        ev = f"Schema price matches the visible price on {consistent}/{checked} product pages"
         if score == 0:
-            ev += " -> RIESGO de que un agente sirva un precio equivocado"
-        result_72 = R("7.2", "C7", "Consistencia de precio (anti-alucinacion)", score, ev)
+            ev += " -> RISK of an agent serving the wrong price"
+        result_72 = R("7.2", "C7", "Price consistency", score, ev)
         result_72["inconsistent"] = consistent < checked
     else:
-        result_72 = R("7.2", "C7", "Consistencia de precio (anti-alucinacion)", 0,
-                      "Ningun precio en JSON-LD que verificar (ausencia, no inconsistencia)")
+        result_72 = R("7.2", "C7", "Price consistency", 0,
+                      "No JSON-LD price to verify (absence, not inconsistency)")
         result_72["inconsistent"] = False
     out.append(result_72)
 
@@ -1307,12 +1307,12 @@ def run_c7(ctx):
     has_stripe = "js.stripe.com" in corpus or "stripe.com/v3" in corpus
     is_shopify = platform == "Shopify"
     if is_shopify:
-        score, ev = 0.5, "Shopify: en el pipeline tecnico de Instant Checkout; falta alta en el programa de OpenAI (confirmar con cliente)"
+        score, ev = 0.5, "Shopify: in the Instant Checkout technical pipeline; enrollment in OpenAI's program is missing (confirm with the client)"
     elif has_stripe:
-        score, ev = 0.5, "Stripe detectado: PSP compatible con la Delegated Payment Spec de ACP; integracion no iniciada"
+        score, ev = 0.5, "Stripe detected: PSP compatible with ACP's Delegated Payment Spec; integration not started"
     else:
-        score, ev = 0, "Sin PSP compatible con ACP detectado (Stripe/Shopify)"
-    out.append(R("7.3", "C7", "Preparacion ACP / checkout agentico", score, ev, manual=True))
+        score, ev = 0, "No ACP-compatible PSP detected (Stripe/Shopify)"
+    out.append(R("7.3", "C7", "ACP readiness", score, ev, manual=True))
 
     # 7.5 / 7.6 datos operativos de la compra. Un agente que decide por el usuario
     # necesita plazo, coste y condiciones de devolucion ANTES de comprar. Si solo
@@ -1339,9 +1339,9 @@ def run_c7(ctx):
             if isinstance(sample, dict):
                 campos = [k for k in sample.keys() if not k.startswith("@") and k != "_"]
             score = 1 if campos else 0.5
-            ev = (f"Marcado {schema_type} presente ({', '.join(sorted(set(found_schema))[:3])})"
-                  + (f" con campos: {', '.join(campos[:6])}" if campos
-                     else " pero sin detalle interno (plazo/coste): un agente lo lee pero no puede usarlo"))
+            ev = (f"{schema_type} markup present ({', '.join(sorted(set(found_schema))[:3])})"
+                  + (f" with fields: {', '.join(campos[:6])}" if campos
+                     else " but with no inner detail (time/cost): an agent reads it but can't use it"))
             return R(cid, "C7", nombre, score, ev)
         # sin schema: ¿al menos existe la informacion para un humano?
         page_text = visible_text(corpus)
@@ -1349,15 +1349,15 @@ def run_c7(ctx):
         has_page = bool(re.search(url_re, corpus, re.I))
         if has_text or has_page:
             return R(cid, "C7", nombre, 0,
-                     f"La informacion de {humano} existe para un humano "
-                     f"({'texto en la ficha' if has_text else 'pagina dedicada'}) pero NO esta "
-                     f"en {schema_type}: un agente no puede leerla ni compararla antes de comprar")
+                     f"The {humano} information exists for a human "
+                     f"({'text on the product page' if has_text else 'dedicated page'}) but is NOT "
+                     f"in {schema_type}: an agent can't read it or compare it before buying")
         return R(cid, "C7", nombre, 0,
-                 f"Sin informacion de {humano} detectable, ni estructurada ni visible. "
-                 f"Un agente que compare opciones descartara esta tienda por falta de datos")
+                 f"No {humano} information detectable, neither structured nor visible. "
+                 f"An agent comparing options will discard this store for lack of data")
 
     out.append(_policy_check(
-        "7.5", "Politica de envio legible por maquina",
+        "7.5", "Readable shipping policy",
         ["shippingDetails"], "OfferShippingDetails",
         # Multiidioma: con solo ES/EN, a zalando.de le dijimos "Sin informacion
         # de envio detectable, ni estructurada ni visible" — una acusacion
@@ -1373,10 +1373,10 @@ def run_c7(ctx):
         r"|livraison|frais-de-port"                  # FR
         r"|spedizion\w*|consegna"                    # IT
         r"|entregas?"                                # PT
-        r"|verzending|bezorging)", "envio"))         # NL
+        r"|verzending|bezorging)", "shipping"))         # NL
 
     out.append(_policy_check(
-        "7.6", "Politica de devoluciones legible por maquina",
+        "7.6", "Readable returns policy",
         ["hasMerchantReturnPolicy"], "MerchantReturnPolicy",
         r"(?i)(devoluci[oó]n|derecho de desistimiento|return policy|30 d[ií]as|14 d[ií]as"
         r"|r[üu]ckgabe|widerruf|r[üu]cksendung|retoure|30 tage|14 tage"    # DE
@@ -1389,7 +1389,7 @@ def run_c7(ctx):
         r"|retours?|retractation"                                  # FR
         r"|resi|recesso"                                           # IT
         r"|devolucoes|devolu%C3%A7%C3%B5es"                        # PT
-        r"|retourneren)", "devoluciones"))                         # NL
+        r"|retourneren)", "returns"))                         # NL
     return out
 
 

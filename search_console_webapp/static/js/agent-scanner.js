@@ -86,18 +86,18 @@
         if (!iso) return '';
         const d = new Date(iso);
         if (isNaN(d)) return String(iso).slice(0, 10);
-        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }
 
     function fmtDateTime(iso) {
         if (!iso) return '';
         const d = new Date(iso);
         if (isNaN(d)) return String(iso).slice(0, 16).replace('T', ' ');
-        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) + ' · '
-            + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' · '
+            + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     }
 
-    const TYPOLOGY = { ecommerce: 'E-commerce', saas: 'SaaS', corporativo: 'Corporativo' };
+    const TYPOLOGY = { ecommerce: 'E-commerce', saas: 'SaaS', corporativo: 'Corporate' };
     const AGENT_NAMES = { chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini', perplexity: 'Perplexity' };
     // El motor guarda los nombres de check sin tildes ("robots.txt valido");
     // el catálogo los tiene bien escritos y es la fuente de verdad del texto.
@@ -113,79 +113,105 @@
     /* ───────────────────────────── catálogo ───────────────────────────── */
 
     const CATS = {
-        C1: 'Descubribilidad y acceso', C2: 'Identidad y control de bots', C3: 'Datos estructurados',
-        C4: 'Renderizado y arquitectura', C5: 'Contenido para LLMs', C6: 'Capacidades y acciones',
-        C7: 'Comercio agéntico'
+        C1: 'Discoverability & access', C2: 'Identity & bot control', C3: 'Structured data',
+        C4: 'Rendering & architecture', C5: 'Content for LLMs', C6: 'Capabilities & actions',
+        C7: 'Agentic commerce'
     };
     const CAT_DESC = {
-        C1: '¿Pueden los sistemas de IA encontrarte y entrar? Mide robots.txt, sitemap, bloqueos reales del firewall y acceso sin login.',
-        C2: '¿Controlas qué bots entran y qué pueden hacer? Mide Content Signals, gestión del crawl y verificación de identidad de agentes.',
-        C3: '¿Tus datos están marcados para que la IA no tenga que adivinar? Mide JSON-LD, tu entidad de marca, atributos de producto y HTML semántico.',
-        C4: '¿Tu contenido existe sin ejecutar JavaScript y responde rápido? Es lo que ven los rastreadores de ChatGPT, Claude o Perplexity, que no ejecutan JS.',
-        C5: '¿Tu contenido está escrito para ser citado? Mide respuesta directa, secciones autocontenidas, autoría verificable y versión Markdown.',
-        C6: '¿Ofreces capacidades que un agente pueda usar, no solo leer? Mide MCP/A2A, APIs y formularios operables.',
-        C7: '¿Puede un asistente de compra vender tus productos? Mide catálogo estructurado, fiabilidad de precios y checkout agéntico (ACP).'
+        C1: 'Can AI systems find you and get in? Measures robots.txt, sitemap, real firewall blocks and access without login.',
+        C2: 'Do you control which bots get in and what they can do? Measures Content Signals, crawl management and agent identity verification.',
+        C3: 'Is your data marked up so AI doesn\'t have to guess? Measures JSON-LD, your brand entity, product attributes and semantic HTML.',
+        C4: 'Does your content exist without running JavaScript, and does it respond fast? That is what the ChatGPT, Claude or Perplexity crawlers see, since they don\'t run JS.',
+        C5: 'Is your content written to be cited? Measures direct answers, self-contained sections, verifiable authorship and a Markdown version.',
+        C6: 'Do you offer capabilities an agent can use, not just read? Measures MCP/A2A, APIs and operable forms.',
+        C7: 'Can a shopping assistant sell your products? Measures a structured catalogue, price reliability and agentic checkout (ACP).'
     };
     const IMPORD = {
         'Crítico': 0, 'Alto': 1, 'Alto (apuesta de futuro)': 1, 'Alto (ventana de oportunidad)': 1,
-        'Medio': 2, 'Medio (creciente)': 2, 'Bajo': 3, 'Bajo (hoy)': 3, 'Diagnóstico': 4
+        'Medio': 2, 'Medio (creciente)': 2, 'Bajo': 3, 'Bajo (hoy)': 3, 'Diagnóstico': 4,
+        // claves en inglés (informes nuevos); las de arriba siguen para los informes guardados
+        'Critical': 0, 'High': 1, 'High (future bet)': 1, 'High (window of opportunity)': 1,
+        'Medium': 2, 'Medium (growing)': 2, 'Low': 3, 'Low (today)': 3, 'Diagnostic': 4
     };
+    /* Los informes guardados antes de pasar la app a inglés traen impacto,
+       esfuerzo y nombre de nivel en español. Se traducen al abrirlos (solo para
+       mostrarlos; los códigos y claves no cambian) y así el resto del panel
+       trabaja siempre con los valores en inglés. */
+    const LEGACY_EN = {
+        'Crítico': 'Critical', 'Alto': 'High', 'Alto (apuesta de futuro)': 'High (future bet)',
+        'Alto (ventana de oportunidad)': 'High (window of opportunity)', 'Medio': 'Medium',
+        'Medio (creciente)': 'Medium (growing)', 'Bajo': 'Low', 'Bajo (hoy)': 'Low (today)', 'Diagnóstico': 'Diagnostic',
+        'Invisible para agentes': 'Invisible to agents', 'Legible, no operable': 'Readable, not operable',
+        'Puerta cerrada a agentes': 'Closed to agents', 'No evaluable desde nuestra red': 'Not assessable from our network'
+    };
+    function localizeLegacy(d) {
+        [d && d.client, ...((d && d.competitors) || [])].forEach(a => {
+            if (!a) return;
+            if (a.level && LEGACY_EN[a.level.name]) a.level.name = LEGACY_EN[a.level.name];
+            (a.checks || []).forEach(c => {
+                if (!c.advice) return;
+                if (LEGACY_EN[c.advice.impacto]) c.advice.impacto = LEGACY_EN[c.advice.impacto];
+                if (LEGACY_EN[c.advice.esfuerzo]) c.advice.esfuerzo = LEGACY_EN[c.advice.esfuerzo];
+            });
+        });
+        return d;
+    }
     /* metodología de cada check (matriz de fiabilidad y detalle check a check) */
     const METHODS = {
-        '1.1': 'GET /robots.txt y validación de sintaxis (texto plano parseable, no HTML)',
-        '1.2': 'Parseo de reglas por user-agent de IA; penaliza bloquear los bots de búsqueda en vivo',
-        '1.3': 'Peticiones reales con el UA oficial de cada bot, contrastadas con lo declarado en robots.txt',
-        '1.4': 'GET de sitemap(s) e índices, conteo de URLs y frescura de lastmod (<90 días)',
-        '1.5': 'Inspección de cabeceras Link (RFC 8288) en la respuesta HTTP',
-        '1.6': 'Fetch anónimo de las páginas muestreadas: ¿hay contenido útil sin sesión?',
-        '1.7': 'Consulta DNS TXT a _aid/_agent con dig (estándar experimental)',
-        '2.1': 'Parseo de Content Signals (search / ai-input / ai-train) en robots.txt',
-        '2.2': 'Detección de CDN/WAF por cabeceras + respuestas 402 observadas a bots',
-        '2.3': 'GET /.well-known/http-message-signatures-directory con validación JWKS',
-        '2.4': '10 peticiones consecutivas como GPTBot: patrón de códigos de respuesta',
-        '3.1': 'Extracción y parseo de todos los bloques JSON-LD de las páginas muestreadas',
-        '3.2': 'Validación de campos de Organization/LocalBusiness en la home',
-        '3.3': 'Validación de Product/Offer (price, priceCurrency, availability) en fichas',
-        '3.4': 'Conteo de atributos ricos (GTIN, brand, rating, fechas…) en el marcado',
-        '3.5': 'Análisis del DOM: jerarquía de headings, landmarks, button vs div-onclick',
-        '3.6': 'Conteo de div/span clicables sin semántica vs controles nativos y mitigados (role+tabindex)',
-        '4.1': 'Comparación del texto visible: HTML crudo (curl) vs renderizado con JS (Camoufox)',
-        '4.2': 'Búsqueda de precio y CTA de compra sobre el HTML sin ejecutar JS',
-        '4.3': 'TTFB medido con curl en todas las páginas muestreadas',
-        '4.4': 'GET directo y sin sesión de cada URL profunda muestreada',
-        '4.5': 'Sondeo de /openapi.json, /swagger.json y /api-docs',
-        '4.6': 'CLS vía PageSpeed Insights API (requiere --psi y key en el vault)',
-        '5.1': 'Análisis determinista del bloque tras el H1: densidad de datos vs léxico de relleno',
-        '5.2': 'Sección a sección H2/H3: título descriptivo + cuerpo 25-450 palabras + saltos de jerarquía',
-        '5.3': 'Autoría y fechas verificables en schema/HTML de los artículos muestreados',
-        '5.5': 'GET /llms.txt y /llms-full.txt con validación de contenido (anti soft-404)',
-        '5.6': 'Petición real con Accept: text/markdown y análisis del Content-Type/cuerpo devuelto',
-        '6.1': 'Sondeo de 12 rutas agénticas (MCP/A2A/OAuth/Skills) con validación de contenido',
-        '6.2': 'Análisis por formulario: vinculación for=id verificada contra los id reales, autocomplete, submit real y CAPTCHA. No se envían formularios (ética)',
-        '6.3': 'ChatGPT, Gemini y Claude pilotan un navegador real, varias pasadas por agente para medir consistencia. En e-commerce: producto→carrito→checkout con datos de contacto y envío rellenos. Los campos de tarjeta están bloqueados por código: nunca se paga, nunca se crean cuentas. El envío de formularios solo ocurre una vez y solo en el dominio del cliente, con autorización expresa',
-        '7.1': 'Detección de plataforma e-commerce + Product schema en las fichas muestreadas',
-        '7.2': 'Comparación del precio del JSON-LD contra el precio visible de la misma ficha',
-        '7.3': 'Detección de PSP compatible con ACP (Stripe / Shopify)',
-        '7.4': 'Sondeo informativo de x402/UCP/MPP + señales HTTP 402 (no puntúa, tampoco en Cloudflare)'
+        '1.1': 'GET /robots.txt and syntax validation (parseable plain text, not HTML)',
+        '1.2': 'Parsing of rules per AI user agent; blocking live-search bots is penalised',
+        '1.3': 'Real requests with each bot\'s official UA, checked against what robots.txt declares',
+        '1.4': 'GET of sitemap(s) and indexes, URL count and lastmod freshness (<90 days)',
+        '1.5': 'Inspection of Link headers (RFC 8288) in the HTTP response',
+        '1.6': 'Anonymous fetch of the sampled pages: is there useful content without a session?',
+        '1.7': 'DNS TXT lookup of _aid/_agent (experimental standard)',
+        '2.1': 'Parsing of Content Signals (search / ai-input / ai-train) in robots.txt',
+        '2.2': 'CDN/WAF detection from headers + 402 responses observed for bots',
+        '2.3': 'GET /.well-known/http-message-signatures-directory with JWKS validation',
+        '2.4': '10 consecutive requests as GPTBot: pattern of response codes',
+        '3.1': 'Extraction and parsing of every JSON-LD block on the sampled pages',
+        '3.2': 'Validation of Organization/LocalBusiness fields on the homepage',
+        '3.3': 'Validation of Product/Offer (price, priceCurrency, availability) on product pages',
+        '3.4': 'Count of rich attributes (GTIN, brand, rating, dates…) in the markup',
+        '3.5': 'DOM analysis: heading hierarchy, landmarks, button vs div-onclick',
+        '3.6': 'Count of clickable div/span without semantics vs native and mitigated controls (role+tabindex)',
+        '4.1': 'Comparison of visible text: raw HTML (curl) vs JS-rendered (Camoufox)',
+        '4.2': 'Search for price and buy CTA in the HTML without running JS',
+        '4.3': 'TTFB measured on every sampled page',
+        '4.4': 'Direct GET without a session for each sampled deep URL',
+        '4.5': 'Probe of /openapi.json, /swagger.json and /api-docs',
+        '4.6': 'CLS via the PageSpeed Insights API (requires --psi and an API key)',
+        '5.1': 'Deterministic analysis of the block after the H1: data density vs filler wording',
+        '5.2': 'Section by section H2/H3: descriptive heading + 25-450 word body + hierarchy jumps',
+        '5.3': 'Verifiable authorship and dates in the schema/HTML of the sampled articles',
+        '5.5': 'GET /llms.txt and /llms-full.txt with content validation (anti soft-404)',
+        '5.6': 'Real request with Accept: text/markdown and analysis of the returned Content-Type/body',
+        '6.1': 'Probe of 12 agentic paths (MCP/A2A/OAuth/Skills) with content validation',
+        '6.2': 'Per-form analysis: for=id binding verified against the real ids, autocomplete, real submit and CAPTCHA. No forms are submitted (ethics)',
+        '6.3': 'ChatGPT, Gemini and Claude drive a real browser, several runs per agent to measure consistency. In e-commerce: product→cart→checkout with contact and shipping details filled in. Card fields are blocked in code: nothing is ever paid and no accounts are created. Form submission only happens once and only on the client\'s domain, with explicit authorisation',
+        '7.1': 'E-commerce platform detection + Product schema on the sampled product pages',
+        '7.2': 'Comparison of the JSON-LD price against the visible price on the same product page',
+        '7.3': 'Detection of an ACP-compatible PSP (Stripe / Shopify)',
+        '7.4': 'Informational probe of x402/UCP/MPP + HTTP 402 signals (not scored, not in Cloudflare either)'
     };
     const CHECK_LINKS = {
         '1.1': '/robots.txt', '1.2': '/robots.txt', '2.1': '/robots.txt',
         '1.4': '/sitemap.xml', '5.5': '/llms.txt', '2.3': '/.well-known/http-message-signatures-directory'
     };
     const STAGES = [
-        { name: '¿Te leen?', desc: 'Acceso y rastreo', cats: ['C1', 'C2'] },
-        { name: '¿Te entienden?', desc: 'Datos y contenido', cats: ['C3', 'C4', 'C5'] },
-        { name: '¿Pueden usarte?', desc: 'Acciones y compra', cats: ['C6', 'C7'] }
+        { name: 'Can they read you?', desc: 'Access and crawling', cats: ['C1', 'C2'] },
+        { name: 'Do they understand you?', desc: 'Data and content', cats: ['C3', 'C4', 'C5'] },
+        { name: 'Can they use you?', desc: 'Actions and purchase', cats: ['C6', 'C7'] }
     ];
     const TIERS = [
-        { ord: 0, title: 'Crítico', hint: 'Está frenando a los agentes hoy. Arreglar lo primero.' },
-        { ord: 1, title: 'Importante', hint: 'Alto impacto en tu visibilidad y en la capacidad de ser usado.' },
-        { ord: 2, title: 'Mejoras recomendadas', hint: 'Suman puntos y pulen la experiencia del agente.' },
-        { ord: 3, title: 'Menor', hint: 'Poca urgencia: para cuando el resto esté hecho.' }
+        { ord: 0, title: 'Critical', hint: 'It is holding agents back today. Fix this first.' },
+        { ord: 1, title: 'Important', hint: 'High impact on your visibility and on your ability to be used.' },
+        { ord: 2, title: 'Recommended improvements', hint: 'They add points and polish the agent experience.' },
+        { ord: 3, title: 'Minor', hint: 'Low urgency: for when everything else is done.' }
     ];
     const SCALE = [
-        { from: 0, to: 25, name: 'Invisible para agentes' },
-        { from: 26, to: 50, name: 'Legible, no operable' },
+        { from: 0, to: 25, name: 'Invisible to agents' },
+        { from: 26, to: 50, name: 'Readable, not operable' },
         { from: 51, to: 75, name: 'Agent-aware' },
         { from: 76, to: 100, name: 'Agent-ready' }
     ];
@@ -289,10 +315,10 @@
         const el = $('#agFacSummary');
         if (!all.length) {
             const cats = $$('#agCats input:checked').length;
-            el.textContent = cats === 7 ? 'Auditoría completa' : `${cats} de 7 categorías`;
+            el.textContent = cats === 7 ? 'Full audit' : `${cats} of 7 categories`;
             return;
         }
-        el.textContent = on === all.length ? 'Auditoría completa' : `${on} de ${all.length} factores`;
+        el.textContent = on === all.length ? 'Full audit' : `${on} of ${all.length} factors`;
     }
 
     function syncGroup(cat) {          // hijos -> cabecera de grupo + casilla de categoría
@@ -328,7 +354,7 @@
                 </div>`).join('')}
             </div>`).join('');
         updateFacSummary();
-        if (!groups.length) $('#agFacList').innerHTML = '<p class="ag-help">No se pudo cargar la lista de factores. Puedes lanzar el análisis igualmente: se comprobarán las categorías marcadas.</p>';
+        if (!groups.length) $('#agFacList').innerHTML = '<p class="ag-help">The list of factors couldn\'t be loaded. You can still run the analysis: the selected categories will be checked.</p>';
     });
 
     document.addEventListener('change', e => {
@@ -345,13 +371,13 @@
     $('#agGo').addEventListener('click', async () => {
         const urls = ['#agU0', '#agU1', '#agU2'].map(q => $(q).value.trim()).filter(Boolean);
         const err = $('#agErr');
-        if (!$('#agU0').value.trim()) { err.textContent = 'Escribe la URL de tu web para empezar.'; $('#agU0').setAttribute('aria-invalid', 'true'); $('#agU0').focus(); return; }
+        if (!$('#agU0').value.trim()) { err.textContent = 'Enter your website URL to get started.'; $('#agU0').setAttribute('aria-invalid', 'true'); $('#agU0').focus(); return; }
         // factores concretos seleccionados; si el catálogo no cargó, se cae a categorías
         const checks = $$('.ag-fac-item input[data-cat]:checked').map(i => i.value);
         const cats = checks.length
             ? [...new Set($$('.ag-fac-item input[data-cat]:checked').map(i => i.dataset.cat))]
             : $$('#agCats input:checked').map(i => i.value);
-        if (!cats.length) { err.textContent = 'Marca al menos un factor o categoría a analizar.'; return; }
+        if (!cats.length) { err.textContent = 'Select at least one factor or category to analyse.'; return; }
         const btn = $('#agGo');
         btn.disabled = true;
         err.textContent = '';
@@ -377,25 +403,25 @@
         }
     });
 
-    /* El backend responde "URL no permitida (x): el dominio no resuelve: x".
+    /* El backend responde "URL not allowed (x): <motivo>" (antes "URL no permitida").
        Se traduce a qué falló y qué hacer, y se marca el campo afectado. */
     function showFormError(raw) {
         const err = $('#agErr');
         ['#agU0', '#agU1', '#agU2'].forEach(q => { $(q).removeAttribute('aria-invalid'); });
-        const m = String(raw || '').match(/URL no permitida \(([^)]*)\):\s*(.*)$/);
+        const m = String(raw || '').match(/URL (?:not allowed|no permitida) \(([^)]*)\):\s*(.*)$/);
         if (m) {
             const field = ['#agU0', '#agU1', '#agU2'].map(q => $(q)).find(i => i.value.trim() === m[1]);
             if (field) { field.setAttribute('aria-invalid', 'true'); field.focus(); }
             const why = /no resuelve|resolve/i.test(m[2])
-                ? 'No encontramos ese dominio. Revisa que esté bien escrito, por ejemplo https://tumarca.com.'
-                : /privad|interna|local/i.test(m[2])
-                    ? 'Es una dirección interna o privada: solo se pueden analizar webs públicas.'
+                ? 'We couldn\'t find that domain. Check it is spelled correctly, for example https://yourbrand.com.'
+                : /privad|interna|private|internal|local/i.test(m[2])
+                    ? 'That is an internal or private address: only public websites can be analysed.'
                     : m[2];
-            err.textContent = `«${m[1]}»: ${why}`;
+            err.textContent = `“${m[1]}”: ${why}`;
             return;
         }
-        if (/en curso/i.test(raw)) { err.textContent = 'Ya hay un análisis en marcha. Espera a que termine o cancélalo desde su pantalla.'; return; }
-        err.textContent = 'No pudimos lanzar el análisis: ' + raw;
+        if (/en curso|already running/i.test(raw)) { err.textContent = 'An analysis is already running. Wait for it to finish or cancel it from its screen.'; return; }
+        err.textContent = 'We couldn\'t start the analysis: ' + raw;
     }
     ['#agU0', '#agU1', '#agU2'].forEach(q => $(q).addEventListener('input', e => {
         e.target.removeAttribute('aria-invalid');
@@ -422,13 +448,13 @@
         if (b.dataset.confirm !== '1') {
             b.dataset.confirm = '1';
             b.classList.add('btn-danger-confirm');
-            b.innerHTML = `${ic('x')} ¿Cancelar de verdad?`;
+            b.innerHTML = `${ic('x')} Really cancel?`;
             refreshIcons();
             setTimeout(() => {
                 if (b.dataset.confirm === '1') {
                     b.dataset.confirm = '0';
                     b.classList.remove('btn-danger-confirm');
-                    b.innerHTML = `${ic('x')} Cancelar análisis`;
+                    b.innerHTML = `${ic('x')} Cancel analysis`;
                     refreshIcons();
                 }
             }, 4000);
@@ -436,7 +462,7 @@
         }
         b.dataset.confirm = '0';
         b.classList.remove('btn-danger-confirm');
-        b.innerHTML = `${ic('x')} Cancelar análisis`;
+        b.innerHTML = `${ic('x')} Cancel analysis`;
         const id = ANALISIS_EN_CURSO;
         ANALISIS_EN_CURSO = null;
         if (id) fetch('/agent/api/cancel/' + id, { method: 'POST' }).catch(() => {});
@@ -479,7 +505,7 @@
 
     /* «Mientras esperas» sigue al análisis en directo. El motor no dice en qué
        factor está, pero cada paso escribe una línea fija en el registro
-       (engine.py: "robots.txt…", "sitemap…", "render de la home…"). Cada paso
+       (engine.py: "robots.txt…", "sitemap…", "rendering the homepage…"). Cada paso
        se asocia aquí a los factores cuyos DATOS recoge (qué claves de ctx lee
        cada check en checks.py y qué paso las rellena en engine.py).
        Ojo: ningún factor se puntúa durante la recogida; todos se evalúan juntos
@@ -490,19 +516,19 @@
     const LIVE_STEPS = [
         { re: /(^|:\s*)robots\.txt/i, ids: ['1.1', '1.2', '2.1'] },
         { re: /sitemap/i, ids: ['1.4'] },
-        { re: /(^|:\s*)home…/i, ids: ['1.5', '1.8', '3.2', '3.5'] },
-        { re: /matriz de acceso/i, ids: ['1.3', '2.2'] },
-        { re: /superficie agéntica/i, ids: ['2.3', '4.5', '5.5', '6.1', '7.4'] },
-        { re: /muestreo/i, ids: ['1.6', '3.1', '3.4', '4.3', '4.4', '4.9', '5.1', '5.2', '5.3', '5.8', '6.2'] },
-        { re: /fichas de producto/i, ids: ['3.3', '4.2', '7.1', '7.2', '7.3', '7.5', '7.6'] },
-        { re: /render de la home/i, ids: ['3.6', '4.1'] },
-        { re: /zonas de clic en otras/i, ids: ['4.7'] },
-        { re: /área de acceso/i, ids: ['6.4'] },
-        { re: /estados de error/i, ids: ['4.8'] },
+        { re: /(^|:\s*)(home|homepage)…/i, ids: ['1.5', '1.8', '3.2', '3.5'] },
+        { re: /bot access matrix|matriz de acceso/i, ids: ['1.3', '2.2'] },
+        { re: /agentic surface|superficie agéntica/i, ids: ['2.3', '4.5', '5.5', '6.1', '7.4'] },
+        { re: /sampling pages|muestreo/i, ids: ['1.6', '3.1', '3.4', '4.3', '4.4', '4.9', '5.1', '5.2', '5.3', '5.8', '6.2'] },
+        { re: /product pages by content|fichas de producto/i, ids: ['3.3', '4.2', '7.1', '7.2', '7.3', '7.5', '7.6'] },
+        { re: /rendering the homepage|render de la home/i, ids: ['3.6', '4.1'] },
+        { re: /click targets on other|zonas de clic en otras/i, ids: ['4.7'] },
+        { re: /login area|área de acceso/i, ids: ['6.4'] },
+        { re: /error states|estados de error/i, ids: ['4.8'] },
         { re: /markdown|dns-aid/i, ids: ['1.7', '5.6'] },
-        { re: /wikidata|páginas de confianza/i, ids: ['3.7', '5.7'] },
-        { re: /vista LLM|jina/i, ids: ['4.6'] },
-        { re: /pruebas agénticas/i, ids: [] },
+        { re: /wikidata|trust pages|páginas de confianza/i, ids: ['3.7', '5.7'] },
+        { re: /LLM view|vista LLM|jina/i, ids: ['4.6'] },
+        { re: /agentic tests|pruebas agénticas/i, ids: [] },
         { re: /rate limiting/i, ids: ['2.4'] }
     ];
     // Solo puntúan en e-commerce (checks.py: 3.3, 4.2 y C7 salvo 7.4)
@@ -519,9 +545,9 @@
 
     /* Por qué un factor no cuenta en este análisis ('' = sí cuenta). */
     function skipOf(f) {
-        if (f.id === '6.3') return 'se completa aparte';
-        if (LIVE_SEL && (LIVE_SEL.ids.size ? !LIVE_SEL.ids.has(f.id) : !LIVE_SEL.cats.has(catOfId(f.id)))) return 'no seleccionado';
-        if (ECOM_ONLY.includes(f.id) && LIVE.typ && LIVE.typ !== 'ecommerce' && !LIVE.fichas) return 'no aplica: no es e-commerce';
+        if (f.id === '6.3') return 'completed separately';
+        if (LIVE_SEL && (LIVE_SEL.ids.size ? !LIVE_SEL.ids.has(f.id) : !LIVE_SEL.cats.has(catOfId(f.id)))) return 'not selected';
+        if (ECOM_ONLY.includes(f.id) && LIVE.typ && LIVE.typ !== 'ecommerce' && !LIVE.fichas) return 'not applicable: not e-commerce';
         return '';
     }
     const enJuego = () => Object.values(CATALOG || {}).flat().filter(f => !skipOf(f));
@@ -536,9 +562,9 @@
         let start = 0;
         for (let k = log.length - 1; k >= 0; k--) { if (LIVE_STEPS[0].re.test(log[k])) { start = k; break; } }
         const seg = log.slice(start);
-        const typLine = seg.find(l => /tipología:\s*\S/i.test(l));
-        if (typLine) LIVE.typ = typLine.replace(/^.*tipología:\s*/i, '').trim().toLowerCase();
-        LIVE.fichas = seg.some(l => /fichas de producto/i.test(l));
+        const typLine = seg.find(l => /(site type|tipología):\s*\S/i.test(l));
+        if (typLine) LIVE.typ = typLine.replace(/^.*(site type|tipología):\s*/i, '').trim().toLowerCase();
+        LIVE.fichas = seg.some(l => /product pages by content|fichas de producto/i.test(l));
         if ((domains[idx] || {}).state === 'done') {
             enJuego().forEach(f => LIVE.done.add(f.id));
             LIVE.current = []; LIVE.step = ''; LIVE.finished = true;
@@ -572,7 +598,7 @@
             const st = catState(CAT_KEYS[j]);
             b.className = 'is-' + st + (j === i ? ' is-active' : '');
             b.setAttribute('aria-pressed', j === i ? 'true' : 'false');
-            b.setAttribute('aria-label', `${CATS[CAT_KEYS[j]]}: ${{ done: 'datos recogidos', current: 'recogiendo datos', partial: 'datos en parte', pending: 'pendiente', skip: 'no se analiza' }[st]}`);
+            b.setAttribute('aria-label', `${CATS[CAT_KEYS[j]]}: ${{ done: 'data collected', current: 'collecting data', partial: 'partly collected', pending: 'pending', skip: 'not analysed' }[st]}`);
         });
         const facs = (CATALOG && CATALOG[k]) || [];
         const juego = enJuego();
@@ -581,11 +607,11 @@
         // último paso: la evaluación de todos los factores, cuando ya están todos los datos
         const ultimo = LIVE.last === LIVE_STEPS.length - 1;
         const evalSt = LIVE.finished ? 'done' : ultimo ? 'next' : 'pending';
-        const evalTxt = { done: `${total} factores evaluados`, next: `A continuación: evaluando los ${total} factores`, pending: `Último paso: evaluando los ${total} factores` }[evalSt];
+        const evalTxt = { done: `${plural(total, 'factor', 'factors')} evaluated`, next: `Next: evaluating the ${plural(total, 'factor', 'factors')}`, pending: `Final step: evaluating the ${plural(total, 'factor', 'factors')}` }[evalSt];
         $('#agLearnStatus').innerHTML = CATALOG
-            ? `<div class="ag-learn-progress"><span>${LIVE.host ? `Recogiendo datos de <b>${esc(LIVE.host)}</b>` : 'Preparando la recogida de datos'}</span><span><b>${hechos}</b> de ${total} factores con datos</span></div>
+            ? `<div class="ag-learn-progress"><span>${LIVE.host ? `Collecting data from <b>${esc(LIVE.host)}</b>` : 'Preparing data collection'}</span><span><b>${hechos}</b> of ${plural(total, 'factor', 'factors')} with data</span></div>
                <div class="ag-bar ag-bar-sm"><i style="width:${total ? Math.round(hechos / total * 100) : 0}%"></i></div>
-               ${LIVE.step ? `<p class="ag-learn-now">${ic('loader-circle', 'ag-spin')} Ahora: ${esc(LIVE.step)}</p>` : ''}
+               ${LIVE.step ? `<p class="ag-learn-now">${ic('loader-circle', 'ag-spin')} Now: ${esc(LIVE.step)}</p>` : ''}
                <p class="ag-learn-final is-${evalSt}">${ic(evalSt === 'done' ? 'check' : 'list-checks')} ${esc(evalTxt)}</p>`
             : '';
         const fstate = f => skipOf(f) ? 'skip' : LIVE.done.has(f.id) ? 'done' : LIVE.current.includes(f.id) ? 'current' : 'pending';
@@ -593,15 +619,15 @@
         $('#agLearnBody').innerHTML = `
             <div>
                 <h3>${esc(CATS[k])}</h3>
-                <p class="ag-learn-meta">Categoría ${i + 1} de 7 · ${k}</p>
+                <p class="ag-learn-meta">Category ${i + 1} of 7 · ${k}</p>
                 <p>${esc(CAT_DESC[k])}</p>
             </div>
             <ul class="ag-learn-checks">${facs.map(f => {
                 const st = fstate(f);
                 const nota = st === 'skip' ? `<span class="ag-learn-skip">${esc(skipOf(f))}</span>` : '';
-                const sr = { done: ' (datos recogidos)', current: ' (recogiendo datos)', pending: ' (pendiente)', skip: '' }[st];
+                const sr = { done: ' (data collected)', current: ' (collecting data)', pending: ' (pending)', skip: '' }[st];
                 return `<li class="is-${st}"><span class="ag-learn-ic">${ficon[st]}</span><span class="ag-learn-name">${esc(f.nombre)}</span>${nota}${sr ? `<span class="ag-sr">${sr}</span>` : ''}</li>`;
-            }).join('') || '<li>Cargando factores…</li>'}</ul>`;
+            }).join('') || '<li>Loading factors…</li>'}</ul>`;
         refreshIcons();
     }
 
@@ -646,7 +672,7 @@
         if (t) {
             LOG_OPEN = !LOG_OPEN;
             t.setAttribute('aria-expanded', String(LOG_OPEN));
-            t.querySelector('span').textContent = LOG_OPEN ? 'Ver solo lo último' : 'Ver registro completo';
+            t.querySelector('span').textContent = LOG_OPEN ? 'Show latest only' : 'View full log';
             $('#agConsole').classList.toggle('is-open', LOG_OPEN);
             renderConsole(LAST_LOG);
         }
@@ -666,8 +692,8 @@
         ANALISIS_EN_CURSO = id;
         LIVE_SEL = sel || null;
         const first = (urls && urls[0]) || '';
-        $('#agRunHost').textContent = first.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '') || 'tu web';
-        $('#agPhase').textContent = 'Preparando análisis…';
+        $('#agRunHost').textContent = first.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '') || 'your site';
+        $('#agPhase').textContent = 'Preparing analysis…';
         $('#agElapsed').textContent = '0:00';
         $('#agRunDomains').innerHTML = '';
         LOG_OPEN = false;
@@ -682,11 +708,11 @@
         $('#agRunDomains').innerHTML = (domains || []).map((d, i) => {
             const st = d.state === 'done'
                 ? `${ic('check')} ${d.score} / 100`
-                : d.state === 'running' ? `${ic('loader-circle', 'ag-spin')} analizando`
-                    : d.state === 'error' ? `${ic('circle-x')} error` : `${ic('clock')} en cola`;
+                : d.state === 'running' ? `${ic('loader-circle', 'ag-spin')} analysing`
+                    : d.state === 'error' ? `${ic('circle-x')} error` : `${ic('clock')} queued`;
             return `<li class="is-${esc(d.state)}">
                 <span class="ag-run-host"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(d.host)}
-                <span class="ag-run-role">${i === 0 ? 'tu web' : 'competidor'}</span></span>
+                <span class="ag-run-role">${i === 0 ? 'your site' : 'competitor'}</span></span>
                 <span class="ag-run-state">${st}</span></li>`;
         }).join('');
     }
@@ -706,13 +732,13 @@
             /* Un 429 es nuestro propio limitador, NO un análisis perdido: se
                reintenta más despacio en vez de matar el sondeo. */
             if (r.status === 429) {
-                $('#agPhase').textContent = 'Análisis en curso (esperando al servidor)…';
+                $('#agPhase').textContent = 'Analysis running (waiting for the server)…';
                 setTimeout(() => poll(id, intentos + 1), 10000); return;
             }
             if (r.status === 404) {
                 // el job ya no está en memoria: quizá terminó y está guardado
                 ANALISIS_EN_CURSO = null; stopLearn();
-                openSaved(id, 'Análisis no encontrado (¿servidor reiniciado?)');
+                openSaved(id, 'Analysis not found (server restarted?)');
                 return;
             }
             if (!r.ok) { setTimeout(() => poll(id, intentos + 1), 5000); return; }
@@ -732,8 +758,8 @@
                 HISTORY_LOADED = false;
                 return;
             }
-            if (s.status === 'cancelled') { ANALISIS_EN_CURSO = null; stopLearn(); showMissing('Análisis cancelado', 'Se canceló porque nadie lo estaba mirando o porque lo cancelaste. Puedes lanzarlo de nuevo.'); return; }
-            if (s.status === 'error') { ANALISIS_EN_CURSO = null; stopLearn(); showMissing('No pudimos completar el análisis', s.error || 'Error en el análisis'); return; }
+            if (s.status === 'cancelled') { ANALISIS_EN_CURSO = null; stopLearn(); showMissing('Analysis cancelled', 'It was cancelled because nobody was watching it or because you cancelled it. You can run it again.'); return; }
+            if (s.status === 'error') { ANALISIS_EN_CURSO = null; stopLearn(); showMissing('We couldn\'t complete the analysis', s.error || 'Analysis error'); return; }
             setTimeout(() => poll(id, intentos + 1), _esperaSondeo(intentos));
         } catch (e) {
             setTimeout(() => poll(id, intentos + 1), 5000);
@@ -751,8 +777,8 @@
             const r = await fetch('/agent/api/result/' + id);
             if (r.ok) { renderReport(await r.json(), id); return; }
         } catch (e) { /* cae al estado vacío */ }
-        showMissing(notFoundTitle || 'No encontramos este informe',
-            'Puede que se cancelara, que el servidor se reiniciara antes de terminar o que se borrara del historial.');
+        showMissing(notFoundTitle || 'We couldn\'t find this report',
+            'It may have been cancelled, the server may have restarted before it finished, or it was deleted from the history.');
     }
 
     /* Al abrir /agent/?job=… se mira primero si sigue corriendo; si el proceso
@@ -766,8 +792,8 @@
                     startRunning(id, (s.domains || []).map(d => d.url));
                     return;
                 }
-                if (s.status === 'cancelled') { showMissing('Análisis cancelado', 'Se canceló porque nadie lo estaba mirando o porque lo cancelaste. Puedes lanzarlo de nuevo.'); return; }
-                if (s.status === 'error') { showMissing('No pudimos completar el análisis', s.error || 'Error en el análisis'); return; }
+                if (s.status === 'cancelled') { showMissing('Analysis cancelled', 'It was cancelled because nobody was watching it or because you cancelled it. You can run it again.'); return; }
+                if (s.status === 'error') { showMissing('We couldn\'t complete the analysis', s.error || 'Analysis error'); return; }
             }
         } catch (e) { /* se intenta el guardado */ }
         openSaved(id);
@@ -785,43 +811,43 @@
             HISTORY_LOADED = true;
             const items = j.informes || [];
             $('#agHistCount').textContent = items.length ? String(items.length) : '';
-            if (IS_ADMIN) $('#agHistScope').textContent = 'Como administrador ves los informes de todos los usuarios con acceso.';
+            if (IS_ADMIN) $('#agHistScope').textContent = 'As an administrator you see the reports of every user with access.';
             if (j.persistencia === false) {
-                body.innerHTML = emptyState('database', 'El historial no está disponible',
-                    'La base de datos de informes no responde ahora mismo. Los análisis siguen funcionando, pero no se pueden listar.');
+                body.innerHTML = emptyState('database', 'History is not available',
+                    'The reports database is not responding right now. Analyses still work, but they can\'t be listed.');
                 refreshIcons(); return;
             }
             if (!items.length) {
-                body.innerHTML = emptyState('folder-open', 'Todavía no hay informes',
-                    'Cuando lances tu primer análisis aparecerá aquí, listo para reabrirlo o descargarlo.',
-                    `<button type="button" class="btn-primary" data-ag-goto="nuevo">${ic('plus')} Nuevo análisis</button>`);
+                body.innerHTML = emptyState('folder-open', 'No reports yet',
+                    'When you run your first analysis it will appear here, ready to reopen or download.',
+                    `<button type="button" class="btn-primary" data-ag-goto="nuevo">${ic('plus')} New analysis</button>`);
                 refreshIcons(); return;
             }
             body.innerHTML = `<div class="ag-card ag-table-wrap"><table class="ag-table ag-stack">
-                <thead><tr><th>Dominio</th><th>Fecha</th><th>Tipología</th><th>Agentes</th><th class="ag-num">Puntuación</th><th><span class="ag-sr">Acciones</span></th></tr></thead>
+                <thead><tr><th>Domain</th><th>Date</th><th>Site type</th><th>Agents</th><th class="ag-num">Score</th><th><span class="ag-sr">Actions</span></th></tr></thead>
                 <tbody>${items.map(histRow).join('')}</tbody></table></div>`;
             refreshIcons();
         } catch (e) {
-            body.innerHTML = emptyState('circle-alert', 'No se pudo cargar el historial', 'Reintenta en unos segundos.');
+            body.innerHTML = emptyState('circle-alert', 'The history couldn\'t be loaded', 'Try again in a few seconds.');
             refreshIcons();
         }
     }
 
     function histRow(it) {
         const s = typeof it.score === 'number' ? Math.round(it.score * 10) / 10 : null;
-        const agentes = { completado: 'Simulados', pendiente: 'Por lanzar', corriendo: 'En curso', error: 'Fallaron', desactivadas: 'No pedidos' }[it.agentes] || 'No pedidos';
+        const agentes = { completado: 'Simulated', pendiente: 'Not started', corriendo: 'Running', error: 'Failed', desactivadas: 'Not requested' }[it.agentes] || 'Not requested';
         const fiable = it.fiable === false
-            ? `<span class="ag-hist-comp is-warn-text" data-tip="Lectura limitada||El sitio bloqueó parte del acceso: hay factores que no se pudieron verificar.">${ic('triangle-alert')} lectura limitada</span>` : '';
+            ? `<span class="ag-hist-comp is-warn-text" data-tip="Limited read||The site blocked part of the access: some factors couldn\'t be verified.">${ic('triangle-alert')} limited read</span>` : '';
         return `<tr class="ag-hist-row">
             <td class="c-main"><span class="ag-hist-host">${esc(it.host)}</span>
-                ${it.competidores ? `<span class="ag-hist-comp">frente a ${esc(it.competidores)}</span>` : ''}${fiable}</td>
-            <td class="c-meta" data-label="Fecha" style="white-space:nowrap">${esc(fmtDateTime(it.fecha))}</td>
-            <td class="c-meta" data-label="Tipología">${esc(typ(it.tipologia))}</td>
-            <td class="c-meta" data-label="Agentes">${esc(agentes)}</td>
+                ${it.competidores ? `<span class="ag-hist-comp">vs ${esc(it.competidores)}</span>` : ''}${fiable}</td>
+            <td class="c-meta" data-label="Date" style="white-space:nowrap">${esc(fmtDateTime(it.fecha))}</td>
+            <td class="c-meta" data-label="Site type">${esc(typ(it.tipologia))}</td>
+            <td class="c-meta" data-label="Agents">${esc(agentes)}</td>
             <td class="ag-num c-score"><span class="ag-hist-score">${s !== null ? `<span class="ag-bar ag-bar-sm"><i class="is-${scoreTone(s)}" style="width:${Math.max(0, Math.min(100, s))}%"></i></span><b class="is-${scoreTone(s)}-text">${s}</b>` : '—'}</span></td>
             <td class="c-actions"><div class="ag-hist-actions">
-                <button type="button" class="btn-secondary ag-btn-sm" data-open="${esc(it.id)}">Abrir</button>
-                <button type="button" class="btn-ghost ag-btn-sm" data-del="${esc(it.id)}" aria-label="Borrar informe de ${esc(it.host)}">${ic('trash-2')}</button>
+                <button type="button" class="btn-secondary ag-btn-sm" data-open="${esc(it.id)}">Open</button>
+                <button type="button" class="btn-ghost ag-btn-sm" data-del="${esc(it.id)}" aria-label="Delete report for ${esc(it.host)}">${ic('trash-2')}</button>
             </div></td></tr>`;
     }
 
@@ -839,7 +865,7 @@
         if (d.dataset.confirm !== '1') {
             d.dataset.confirm = '1';
             d.classList.add('btn-danger-confirm');
-            d.innerHTML = '¿Borrar?';
+            d.innerHTML = 'Delete?';
             setTimeout(() => {
                 if (d.dataset.confirm === '1') {
                     d.dataset.confirm = '0'; d.classList.remove('btn-danger-confirm');
@@ -849,13 +875,13 @@
             return;
         }
         d.disabled = true;
-        d.textContent = 'Borrando…';
+        d.textContent = 'Deleting…';
         try {
             const r = await fetch('/agent/api/historial/' + encodeURIComponent(d.dataset.del), { method: 'DELETE' });
             const j = await r.json();
-            if (!j.borrado) throw new Error('no borrado');
+            if (!j.borrado) throw new Error('not deleted');
         } catch (err) {
-            d.textContent = 'No se pudo';
+            d.textContent = 'Failed';
         }
         loadHistory(true);
     });
@@ -871,19 +897,19 @@
             ACCESS_LOADED = true;
             const emails = j.emails || [];
             if (!emails.length) {
-                list.innerHTML = '<p class="ag-help">Todavía no has dado acceso a ningún email. Los administradores ya entran por defecto.</p>';
+                list.innerHTML = '<p class="ag-help">You haven\'t given access to any email yet. Administrators have access by default.</p>';
                 return;
             }
-            list.innerHTML = `<div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Email</th><th>Añadido</th><th></th></tr></thead><tbody>` +
+            list.innerHTML = `<div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Email</th><th>Added</th><th></th></tr></thead><tbody>` +
                 emails.map(e => `<tr class="ag-hist-row">
                     <td><b>${esc(e.email)}</b></td>
-                    <td class="ag-muted">${esc(e.added_at || '')}${e.added_by ? ` · por ${esc(e.added_by)}` : ''}</td>
+                    <td class="ag-muted">${esc(e.added_at || '')}${e.added_by ? ` · by ${esc(e.added_by)}` : ''}</td>
                     <td><div class="ag-hist-actions">
-                        <button type="button" class="btn-secondary ag-btn-sm" data-resend="${esc(e.email)}">Reenviar invitación</button>
-                        <button type="button" class="btn-ghost ag-btn-sm" data-revoke="${esc(e.email)}">Quitar acceso</button>
+                        <button type="button" class="btn-secondary ag-btn-sm" data-resend="${esc(e.email)}">Resend invitation</button>
+                        <button type="button" class="btn-ghost ag-btn-sm" data-revoke="${esc(e.email)}">Remove access</button>
                     </div></td></tr>`).join('') + '</tbody></table></div>';
         } catch (e) {
-            list.innerHTML = '<p class="ag-help">No se pudo cargar la lista.</p>';
+            list.innerHTML = '<p class="ag-help">The list couldn\'t be loaded.</p>';
         }
     }
 
@@ -899,7 +925,7 @@
             const email = $('#agAccEmail').value.trim();
             $('#agAccErr').textContent = '';
             accMsg('');
-            if (!email) { $('#agAccErr').textContent = 'Escribe un email.'; return; }
+            if (!email) { $('#agAccErr').textContent = 'Enter an email.'; return; }
             $('#agAccAdd').disabled = true;
             try {
                 const r = await fetch('/agent/api/access/add', {
@@ -908,8 +934,8 @@
                 const j = await r.json();
                 if (!r.ok) throw new Error(j.error || 'error');
                 $('#agAccEmail').value = '';
-                if (j.email_sent) accMsg('Acceso concedido. Hemos enviado la invitación a ' + j.email + '.', true);
-                else accMsg('Acceso concedido, pero la invitación no se pudo enviar. Prueba «Reenviar invitación» en la lista.');
+                if (j.email_sent) accMsg('Access granted. We have sent the invitation to ' + j.email + '.', true);
+                else accMsg('Access granted, but the invitation couldn\'t be sent. Try “Resend invitation” in the list.');
                 loadAccess(true);
             } catch (e) {
                 $('#agAccErr').textContent = e.message;
@@ -921,13 +947,13 @@
             const rs = e.target.closest('[data-resend]');
             if (rs) {
                 const email = rs.dataset.resend, old = rs.textContent;
-                rs.textContent = 'Enviando…'; rs.disabled = true;
+                rs.textContent = 'Sending…'; rs.disabled = true;
                 try {
                     const j = await (await fetch('/agent/api/access/resend', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
                     })).json();
-                    accMsg(j.email_sent ? 'Invitación reenviada a ' + email + '.' : 'No se pudo enviar el email (revisa la configuración SMTP del entorno).', j.email_sent);
-                } catch (_) { accMsg('Error al reenviar.'); }
+                    accMsg(j.email_sent ? 'Invitation resent to ' + email + '.' : 'The email couldn\'t be sent (check the environment\'s SMTP settings).', j.email_sent);
+                } catch (_) { accMsg('Error while resending.'); }
                 finally { rs.textContent = old; rs.disabled = false; }
                 return;
             }
@@ -935,14 +961,14 @@
             if (!b) return;
             if (b.dataset.confirm !== '1') {
                 b.dataset.confirm = '1';
-                b.textContent = '¿Confirmar?';
+                b.textContent = 'Confirm?';
                 b.classList.add('btn-danger-confirm');
                 setTimeout(() => {
-                    if (b.dataset.confirm === '1') { b.dataset.confirm = '0'; b.textContent = 'Quitar acceso'; b.classList.remove('btn-danger-confirm'); }
+                    if (b.dataset.confirm === '1') { b.dataset.confirm = '0'; b.textContent = 'Remove access'; b.classList.remove('btn-danger-confirm'); }
                 }, 3500);
                 return;
             }
-            b.textContent = 'Quitando…'; b.disabled = true;
+            b.textContent = 'Removing…'; b.disabled = true;
             await fetch('/agent/api/access/remove', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: b.dataset.revoke })
             }).catch(() => {});
@@ -955,16 +981,16 @@
     // Resultado de un check: icono + color de estado + nombre accesible. Antes
     // eran glifos unicode (✓ ◐ ✕), que no son un sistema de iconos.
     const MARKS = {
-        ok: ['check', 'cumple'], part: ['contrast', 'parcial'], bad: ['x', 'falla'], na: ['minus', 'no aplica']
+        ok: ['check', 'pass'], part: ['contrast', 'partial'], bad: ['x', 'fail'], na: ['minus', 'not applicable']
     };
     const markOf = k => `<span class="ag-mark is-${k}" role="img" aria-label="${MARKS[k][1]}">${ic(MARKS[k][0])}</span>`;
     const mark = s => markOf(s == null ? 'na' : s >= 1 ? 'ok' : s > 0 ? 'part' : 'bad');
 
     const MARK_LEGEND = `<div class="ag-legend">
-        <span>${mark(1)} cumple</span><span>${mark(0.5)} parcial</span>
-        <span>${mark(0)} falla</span><span>${mark(null)} no aplica / no medido</span></div>`;
+        <span>${mark(1)} pass</span><span>${mark(0.5)} partial</span>
+        <span>${mark(0)} fail</span><span>${mark(null)} not applicable / not measured</span></div>`;
 
-    const stateOf = p => p >= 75 ? ['Fuerte', 'is-good'] : p >= 50 ? ['Mejorable', 'is-warn'] : p >= 25 ? ['Flojo', 'is-bad'] : ['Crítico', 'is-bad'];
+    const stateOf = p => p >= 75 ? ['Strong', 'is-good'] : p >= 50 ? ['Needs work', 'is-warn'] : p >= 25 ? ['Weak', 'is-bad'] : ['Critical', 'is-bad'];
 
     function gaugeSVG(score, parcial) {
         const W = 240, H = 150, r = 96, cx = W / 2, cy = 128, L = Math.PI * r;
@@ -976,20 +1002,20 @@
             const a = Math.PI * (1 - t / 100);
             ticks += `<line x1="${(cx + (r - 9) * Math.cos(a)).toFixed(1)}" y1="${(cy - (r - 9) * Math.sin(a)).toFixed(1)}" x2="${(cx + (r + 9) * Math.cos(a)).toFixed(1)}" y2="${(cy - (r + 9) * Math.sin(a)).toFixed(1)}" stroke="#FFFFFF" stroke-width="3"/>`;
         }
-        return `<svg class="ag-gauge" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Puntuación ${score} de 100">
+        return `<svg class="ag-gauge" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Score ${score} out of 100">
             <path d="${arc}" fill="none" stroke="${C.grid}" stroke-width="16" stroke-linecap="round"/>
             <path d="${arc}" fill="none" stroke="${col}" stroke-width="16" stroke-linecap="round"
                 stroke-dasharray="${(frac * L).toFixed(1)} ${L.toFixed(1)}" style="transition:stroke-dasharray .9s cubic-bezier(0.2,0.8,0.2,1)"/>
             ${ticks}
             <text x="${cx}" y="${cy - 24}" text-anchor="middle" fill="${C.text}" font-family="Inter Tight, sans-serif" font-size="48" font-weight="800" letter-spacing="-2">${score}</text>
-            <text x="${cx}" y="${cy}" text-anchor="middle" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="12" font-weight="600">${parcial ? 'nota parcial' : 'de 100'}</text>
+            <text x="${cx}" y="${cy}" text-anchor="middle" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="12" font-weight="600">${parcial ? 'partial score' : 'out of 100'}</text>
         </svg>`;
     }
 
     function scaleHTML(score) {
         const b = bandOf(score);
         const pos = Math.max(0, Math.min(100, score));
-        return `<div class="ag-scale" data-tip="Escala de preparación agéntica||0-25 invisible para agentes · 26-50 legible pero no operable · 51-75 agent-aware · 76-100 agent-ready.">
+        return `<div class="ag-scale" data-tip="Agent readiness scale||0-25 invisible to agents · 26-50 readable but not operable · 51-75 agent-aware · 76-100 agent-ready.">
             <div class="ag-scale-track">${SCALE.map((s, i) => `<i class="${i === b ? 'is-active is-' + scoreTone(score) : ''}"></i>`).join('')}
                 <span class="ag-scale-marker" style="left:${pos}%"></span></div>
             <div class="ag-scale-labels">${SCALE.map((s, i) => `<span class="${i === b ? 'is-active' : ''}">${s.from}–${s.to}<br>${esc(s.name)}</span>`).join('')}</div>
@@ -1005,12 +1031,12 @@
         const tot = ch.length || 1;
         const seg = (k) => n[k] ? `<i class="is-${k}" style="flex:${n[k] / tot}"></i>` : '';
         return `<div class="ag-balance">
-            <div class="ag-balance-bar" role="img" aria-label="${n.ok} cumplen, ${n.part} parciales, ${n.bad} fallan, ${n.na} no aplican">${seg('ok')}${seg('part')}${seg('bad')}${seg('na')}</div>
+            <div class="ag-balance-bar" role="img" aria-label="${n.ok} pass, ${n.part} partial, ${n.bad} fail, ${n.na} not applicable">${seg('ok')}${seg('part')}${seg('bad')}${seg('na')}</div>
             <div class="ag-balance-legend">
-                <span><span class="ag-sw is-ok"></span><b>${n.ok}</b> cumplen</span>
-                <span><span class="ag-sw is-part"></span><b>${n.part}</b> parciales</span>
-                <span><span class="ag-sw is-bad"></span><b>${n.bad}</b> fallan</span>
-                <span><span class="ag-sw is-na"></span><b>${n.na}</b> no aplican</span>
+                <span><span class="ag-sw is-ok"></span><b>${n.ok}</b> pass</span>
+                <span><span class="ag-sw is-part"></span><b>${n.part}</b> partial</span>
+                <span><span class="ag-sw is-bad"></span><b>${n.bad}</b> fail</span>
+                <span><span class="ag-sw is-na"></span><b>${n.na}</b> not applicable</span>
             </div></div>`;
     }
 
@@ -1018,7 +1044,7 @@
         return Object.keys(CATS).filter(c => a.category_scores && a.category_scores[c] != null).map(c => {
             const p = pct(a.category_scores[c]);
             const [st, cls] = stateOf(p);
-            return `<div class="ag-catrow" data-tip="${esc(c + ' · ' + CATS[c] + '||' + CAT_DESC[c] + ' El % son los checks superados, ponderados por importancia.')}">
+            return `<div class="ag-catrow" data-tip="${esc(c + ' · ' + CATS[c] + '||' + CAT_DESC[c] + ' The % is the checks passed, weighted by importance.')}">
                 <div class="ag-catrow-name"><b>${c}</b>${esc(CATS[c])}</div>
                 <div class="ag-bar"><i class="${color ? '' : 'is-' + toneOf(p)}" style="width:${p}%;${color ? 'background:' + color : ''}"></i></div>
                 <div class="ag-catrow-val is-${toneOf(p)}-text">${p}%</div>
@@ -1048,7 +1074,7 @@
                     <span class="ag-link-pct is-${tone}-text">${s.p}%</span></div>
                 <div class="ag-bar"><i class="is-${tone}" style="width:${s.p}%"></i></div>
                 <p class="ag-link-desc">${cats}</p>
-                ${weak ? `<p class="ag-link-flag">${ic('link-2-off')} Eslabón más débil: empieza por aquí</p>` : ''}
+                ${weak ? `<p class="ag-link-flag">${ic('link-2-off')} Weakest link: start here</p>` : ''}
             </li>`;
         }).join('')}</ol>`;
     }
@@ -1064,7 +1090,7 @@
     function paneResumen(d) {
         const c = d.client;
         const parcial = !!(c.level && c.level.cobertura_parcial);
-        const qwAll = (c.checks || []).filter(x => x.advice && x.advice.esfuerzo === 'Bajo' && (IMPORD[x.advice.impacto] ?? 3) <= 2 && x.score < 1)
+        const qwAll = (c.checks || []).filter(x => x.advice && x.advice.esfuerzo === 'Low' && (IMPORD[x.advice.impacto] ?? 3) <= 2 && x.score < 1)
             .sort((a, b) => (IMPORD[a.advice.impacto] ?? 3) - (IMPORD[b.advice.impacto] ?? 3));
         // Tres como mucho: más de cuatro opciones a la vez ya no es "por dónde empezar"
         const qw = qwAll.slice(0, 3);
@@ -1079,31 +1105,31 @@
                 icon: 'shield-alert',
                 title: esc(c.level.name),
                 body: `${esc(c.level.msg)}
-                    ${deg.degradados ? ` Hay <b>${deg.degradados}</b> factores marcados como «no verificable» porque no se pudieron comprobar: no cuentan como fallo.` : ''}
-                    ${c.cobertura_score != null ? ` Esta nota cubre el <b>${pct(c.cobertura_score)}%</b> del modelo.` : ''}
-                    Puedes reintentar más tarde: si el sitio solo estaba limitando el ritmo, el siguiente análisis saldrá completo.
-                    <br><br>Aunque nuestra red esté bloqueada, tú sí puedes completar la auditoría: copia este prompt, pégalo en ChatGPT o Claude y trae los factores que faltan con la garantía de que no se inventa nada.`,
-                actions: `<button type="button" class="btn-primary ag-btn-sm js-superprompt">${ic('clipboard-copy')} <span>Copiar prompt para completar con IA</span></button>`
+                    ${deg.degradados ? ` <b>${plural(deg.degradados, 'factor is', 'factors are')}</b> marked “not verifiable” because they couldn't be checked: they do not count as failures.` : ''}
+                    ${c.cobertura_score != null ? ` This score covers <b>${pct(c.cobertura_score)}%</b> of the model.` : ''}
+                    You can try again later: if the site was only rate limiting, the next analysis will be complete.
+                    <br><br>Even if our network is blocked, you can complete the audit yourself: copy this prompt, paste it into ChatGPT or Claude and get the missing factors, with the guarantee that nothing is made up.`,
+                actions: `<button type="button" class="btn-primary ag-btn-sm js-superprompt">${ic('clipboard-copy')} <span>Copy prompt to complete with AI</span></button>`
             });
         } else if (c.score_fiable === false && deg) {
             aviso = alertHTML({
                 tone: 'warn',
                 icon: 'shield-alert',
-                title: 'Lectura limitada',
-                body: `${esc(deg.motivo)}. Hay <b>${deg.degradados}</b> factores marcados como «no verificable» porque no se pudieron comprobar: no cuentan como fallo. Puedes repetir el análisis más tarde o desde otra red.`
+                title: 'Limited read',
+                body: `${esc(deg.motivo)}. <b>${plural(deg.degradados, 'factor is', 'factors are')}</b> marked “not verifiable” because they couldn't be checked: they do not count as failures. You can run the analysis again later or from another network.`
             });
         }
         const pens = (c.penalties || []).map(p =>
-            `<div class="ag-penalty">${ic('circle-minus')}<span>Penalización aplicada: <b>${esc(p[0])}</b> (${p[1]} puntos)</span></div>`).join('');
+            `<div class="ag-penalty">${ic('circle-minus')}<span>Penalty applied: <b>${esc(p[0])}</b> (${p[1]} points)</span></div>`).join('');
         const via = (c.via_lectura && c.via_lectura !== 'http')
-            ? `<p class="ag-score-note">Contenido leído vía <b>${esc(c.via_lectura.replace('ua:', ''))}</b>${c.via_lectura.startsWith('ua:') ? ': el acceso normal estaba bloqueado; el acceso real de cada bot de IA se mide aparte' : ''}.</p>` : '';
+            ? `<p class="ag-score-note">Content read via <b>${esc(c.via_lectura.replace('ua:', ''))}</b>${c.via_lectura.startsWith('ua:') ? ': normal access was blocked; each AI bot\'s real access is measured separately' : ''}.</p>` : '';
         const cobertura = parcial && c.cobertura_score != null
-            ? `<p class="ag-score-note">Cubre el <b>${pct(c.cobertura_score)}%</b> del modelo: solo lo que se pudo verificar.</p>` : '';
+            ? `<p class="ag-score-note">Covers <b>${pct(c.cobertura_score)}%</b> of the model: only what could be verified.</p>` : '';
 
         return `<div class="ag-pane">${aviso}
             <div class="ag-grid-score">
                 <div class="ag-card ag-score-card">
-                    <h2 class="ag-card-title ag-score-title">${parcial ? 'Puntuación parcial' : 'Puntuación global'}</h2>
+                    <h2 class="ag-card-title ag-score-title">${parcial ? 'Partial score' : 'Overall score'}</h2>
                     ${gaugeSVG(c.score, parcial)}
                     ${via}${cobertura}
                     <div class="ag-level ${parcial ? '' : 'is-' + scoreTone(c.score)}">${esc(c.level.name)}</div>
@@ -1113,26 +1139,26 @@
                     ${pens}
                 </div>
                 <div class="ag-card">
-                    <div class="ag-card-head"><h2 class="ag-card-title">Desglose por categoría</h2>
-                        <span class="ag-muted">${(c.checks || []).length} comprobaciones</span></div>
+                    <div class="ag-card-head"><h2 class="ag-card-title">Breakdown by category</h2>
+                        <span class="ag-muted">${plural((c.checks || []).length, 'check', 'checks')}</span></div>
                     <div class="ag-catrows" style="margin-top:var(--cs-space-sm)">${catRows(c, null)}</div>
                 </div>
             </div>
             ${agentsSummaryHTML(d)}
             <div class="ag-card ag-section">
-                <h2 class="ag-card-title">El viaje del agente por tu web</h2>
-                <p class="ag-card-sub">Un agente primero tiene que poder <b>leerte</b>, luego <b>entenderte</b> sin equivocarse, y solo entonces puede <b>usarte</b> (comprar, reservar, contactar). La cadena se rompe en el eslabón más débil.</p>
+                <h2 class="ag-card-title">The agent's journey through your site</h2>
+                <p class="ag-card-sub">An agent first has to be able to <b>read you</b>, then <b>understand you</b> without getting it wrong, and only then can it <b>use you</b> (buy, book, get in touch). The chain breaks at the weakest link.</p>
                 ${journeyHTML(c)}
             </div>
             <div class="ag-card ag-section">
-                <h2 class="ag-card-title">Por dónde empezar</h2>
-                <p class="ag-card-sub">Los arreglos que más rinden con menos esfuerzo, de más a menos urgente.</p>
+                <h2 class="ag-card-title">Where to start</h2>
+                <p class="ag-card-sub">The fixes with the biggest payoff for the least effort, from most to least urgent.</p>
                 ${qw.length ? `<ol class="ag-steps">${qw.map((x, i) => `
                     <li class="ag-step t${Math.min(IMPORD[x.advice.impacto] ?? 3, 3)}"><span class="ag-qn" aria-hidden="true">${i + 1}</span>
                     <div><div class="ag-step-title">${esc(x.advice.titulo)}</div><div class="ag-step-body">${esc(x.advice.como)}</div>
-                    <div class="ag-step-meta">Impacto <b>${esc(String(x.advice.impacto).toLowerCase())}</b> · esfuerzo <b>${esc(String(x.advice.esfuerzo).toLowerCase())}</b></div></div></li>`).join('')}</ol>`
-                : '<p class="ag-help">No quedan arreglos rápidos: lo que falta requiere más trabajo y está en el plan de acción.</p>'}
-                <div class="ag-cta-row"><button type="button" class="btn-secondary" data-rep-tab="2">${qwAll.length > qw.length ? `Ver los ${qwAll.length - qw.length} siguientes y el plan completo` : 'Ver el plan de acción completo'} ${ic('arrow-right')}</button></div>
+                    <div class="ag-step-meta">Impact <b>${esc(String(x.advice.impacto).toLowerCase())}</b> · effort <b>${esc(String(x.advice.esfuerzo).toLowerCase())}</b></div></div></li>`).join('')}</ol>`
+                : '<p class="ag-help">No quick fixes left: what remains needs more work and is in the action plan.</p>'}
+                <div class="ag-cta-row"><button type="button" class="btn-secondary" data-rep-tab="2">${qwAll.length > qw.length ? `See the next ${qwAll.length - qw.length} and the full plan` : 'See the full action plan'} ${ic('arrow-right')}</button></div>
             </div></div>`;
     }
 
@@ -1143,7 +1169,7 @@
         if (cats.length < 3) return '';
         const cx = size / 2, cy = size / 2, rad = size / 2 - 44, n = cats.length;
         const pt = (i, r) => { const a = -Math.PI / 2 + 2 * Math.PI * i / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
-        let out = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Radar de categorías">`;
+        let out = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Category radar">`;
         for (const ring of [0.25, 0.5, 0.75, 1]) {
             out += `<polygon points="${cats.map((_, i) => pt(i, rad * ring).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${C.grid}" stroke-width="1"/>`;
         }
@@ -1157,7 +1183,7 @@
             const col = SERIES[idx % 3], cs = a.category_scores || {};
             const pts = cats.map((c, i) => pt(i, rad * (cs[c] || 0)).map(v => v.toFixed(1)).join(',')).join(' ');
             const resume = cats.map(c => c + ' ' + pct(cs[c]) + '%').join(' · ');
-            out += `<polygon points="${pts}" fill="${col}" fill-opacity="${idx === 0 ? 0.14 : 0.06}" stroke="${col}" stroke-width="${idx === 0 ? 2.5 : 1.75}" stroke-linejoin="round" data-tip="${esc(a.host + '||Cuanto más grande y regular el polígono, mejor preparación en todas las categorías. ' + resume)}"/>`;
+            out += `<polygon points="${pts}" fill="${col}" fill-opacity="${idx === 0 ? 0.14 : 0.06}" stroke="${col}" stroke-width="${idx === 0 ? 2.5 : 1.75}" stroke-linejoin="round" data-tip="${esc(a.host + '||The bigger and more even the polygon, the better prepared across all categories. ' + resume)}"/>`;
         });
         return out + '</svg>';
     }
@@ -1178,9 +1204,9 @@
     function paneComparativa(d) {
         const audits = [d.client, ...(d.competitors || []).filter(a => !a.error)];
         if (audits.length < 2) {
-            return `<div class="ag-pane">${emptyState('swords', 'Sin competidores en este análisis',
-                'Añade uno o dos competidores al lanzar el análisis para ver la comparativa con la misma vara de medir.',
-                `<button type="button" class="btn-primary" data-ag-goto="nuevo">${ic('plus')} Nuevo análisis</button>`)}</div>`;
+            return `<div class="ag-pane">${emptyState('swords', 'No competitors in this analysis',
+                'Add one or two competitors when you run the analysis to compare them with the same yardstick.',
+                `<button type="button" class="btn-primary" data-ag-goto="nuevo">${ic('plus')} New analysis</button>`)}</div>`;
         }
         /* Un dominio sin nota (nos cerró la puerta) no compite por "el mejor":
            su número no mide lo mismo que el de los demás. */
@@ -1196,17 +1222,17 @@
         const avisoMixto = mixto ? alertHTML({
             tone: 'warn',
             icon: 'scale',
-            title: 'Tipologías distintas: las notas no son comparables',
-            body: `Estás comparando ${tipos.map(t => `<b>${esc(typ(t))}</b>`).join(' y ')}. Cada tipología se puntúa con pesos distintos (la categoría de ficha de producto solo cuenta en e-commerce) y la tarea que un agente debe completar no tiene la misma dificultad: al validar con agentes reales, los SaaS completaron entre el 25% y el 100% del recorrido y las tiendas entre el 0% y el 55%. Por eso <b>no se señala una ganadora</b>. Compara cada dominio con otros de su misma tipología, o quédate con el desglose por categoría, que sí es comparable.`
+            title: 'Different site types: the scores are not comparable',
+            body: `You are comparing ${tipos.map(t => `<b>${esc(typ(t))}</b>`).join(' and ')}. Each site type is scored with different weights (the product-page category only counts in e-commerce) and the task an agent has to complete is not equally hard: when validating with real agents, SaaS sites completed between 25% and 100% of the journey and stores between 0% and 55%. That is why <b>no winner is highlighted</b>. Compare each domain with others of the same site type, or stick to the category breakdown, which is comparable.`
         }) : '';
 
         const ranking = audits.map((a, i) => {
             const win = !a.level.cobertura_parcial && best !== null && a.score === best;
             return `<tr class="ag-hist-row${win ? ' win' : ''}">
                 <td class="c-main"><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span></td>
-                <td class="c-meta ag-muted" data-label="Rol">${i === 0 ? 'Tu web' : 'Competidor ' + i}</td>
-                <td class="c-meta" data-label="Tipología">${esc(typ(a.typology))}</td>
-                <td class="c-meta" data-label="Nivel">${esc(a.level.name)}${win ? ` <span class="ag-best" role="img" aria-label="mejor puntuación" data-tip="Mejor puntuación||Entre dominios de la misma tipología y con nota completa.">${ic('trophy')}</span>` : ''}</td>
+                <td class="c-meta ag-muted" data-label="Role">${i === 0 ? 'Your site' : 'Competitor ' + i}</td>
+                <td class="c-meta" data-label="Site type">${esc(typ(a.typology))}</td>
+                <td class="c-meta" data-label="Level">${esc(a.level.name)}${win ? ` <span class="ag-best" role="img" aria-label="top score" data-tip="Top score||Among domains of the same site type with a complete score.">${ic('trophy')}</span>` : ''}</td>
                 <td class="ag-num c-score"><span class="ag-hist-score"><span class="ag-bar ag-bar-sm"><i style="width:${a.score}%;background:${SERIES[i % 3]}"></i></span><b class="is-${scoreTone(a.score)}-text">${a.score}</b></span></td>
             </tr>`;
         }).join('');
@@ -1226,7 +1252,7 @@
                 if (v == null) return '<td class="ag-num ag-muted">n/a</td>';
                 const p = pct(v);
                 const best = v === mx && resalta;
-                return `<td class="ag-num"><span class="ag-cell"><span class="ag-bar ag-bar-sm"><i style="width:${p}%;background:${SERIES[i % 3]}"></i></span><b class="v is-${toneOf(p)}-text">${p}</b>${best ? `<span class="ag-best" role="img" aria-label="mejor de la fila">${ic('trophy')}</span>` : '<span class="ag-best"></span>'}</span></td>`;
+                return `<td class="ag-num"><span class="ag-cell"><span class="ag-bar ag-bar-sm"><i style="width:${p}%;background:${SERIES[i % 3]}"></i></span><b class="v is-${toneOf(p)}-text">${p}</b>${best ? `<span class="ag-best" role="img" aria-label="best in row">${ic('trophy')}</span>` : '<span class="ag-best"></span>'}</span></td>`;
             }).join('')}</tr>`;
         }).join('');
 
@@ -1234,8 +1260,8 @@
         const gapsHTML = gaps.length
             ? `<ul class="ag-list">${gaps.map(g => `<li><span class="ag-list-ic">${ic('trending-down')}</span><div>
                 <div class="ag-list-title">${g.c} · ${esc(CATS[g.c])}</div>
-                <div class="ag-list-body">${esc(g.host)} te saca <b>${g.diff} puntos</b> (${g.v}% frente a tu ${g.mine}%).</div></div></li>`).join('')}</ul>`
-            : '<p class="ag-help">Sin brechas relevantes: ninguna categoría con desventaja de 15 puntos o más.</p>';
+                <div class="ag-list-body">${esc(g.host)} is ahead of you by <b>${g.diff} points</b> (${g.v}% vs your ${g.mine}%).</div></div></li>`).join('')}</ul>`
+            : '<p class="ag-help">No relevant gaps: no category where you are 15 points or more behind.</p>';
 
         // Detalle check a check: por defecto solo donde los dominios difieren
         const markKey = sc => sc == null ? 'na' : sc >= 1 ? 'ok' : sc > 0 ? 'part' : 'bad';
@@ -1247,13 +1273,13 @@
             const detail = audits.map((a, i) => {
                 const m = (a.checks || []).find(x => x.id === c.id);
                 const link = CHECK_LINKS[c.id]
-                    ? ` <a href="https://${esc(a.host)}${CHECK_LINKS[c.id]}" target="_blank" rel="noopener">abrir ${CHECK_LINKS[c.id]} ${ic('external-link')}</a>` : '';
+                    ? ` <a href="https://${esc(a.host)}${CHECK_LINKS[c.id]}" target="_blank" rel="noopener">open ${CHECK_LINKS[c.id]} ${ic('external-link')}</a>` : '';
                 return `<div class="ag-ev-item"><div class="ag-ev-head"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}${link}</div>
-                    <div class="ag-evidence-box">${esc(m ? m.evidence : 'no analizado en este dominio')}</div></div>`;
+                    <div class="ag-evidence-box">${esc(m ? m.evidence : 'not analysed on this domain')}</div></div>`;
             }).join('');
             return `<tr class="ag-row-click" data-r="${ri}"><td><button type="button" class="ag-row-toggle" aria-expanded="false" aria-controls="agChk-${ri}">${ic('chevron-right', 'ag-caret')}<span>${esc(nameOf(c))}</span></button></td>${cells}</tr>
                 <tr class="ag-row-detail" id="agChk-${ri}" hidden><td colspan="${audits.length + 1}">
-                    <p class="ag-help" style="margin:0 0 var(--cs-space-sm)"><b>Cómo se mide:</b> ${esc(METHODS[c.id] || '')}</p>${detail}</td></tr>`;
+                    <p class="ag-help" style="margin:0 0 var(--cs-space-sm)"><b>How it is measured:</b> ${esc(METHODS[c.id] || '')}</p>${detail}</td></tr>`;
         }).join('');
 
         const head = audits.map((a, i) => `<th class="ag-num"><span class="ag-entity" style="justify-content:flex-end"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span></th>`).join('');
@@ -1261,34 +1287,34 @@
 
         return `<div class="ag-pane">${avisoMixto}
             <div class="ag-card">
-                <h2 class="ag-card-title">Puntuación por dominio</h2>
-                <div class="ag-table-wrap"><table class="ag-table ag-stack"><thead><tr><th>Dominio</th><th><span class="ag-sr">Rol</span></th><th>Tipología</th><th>Nivel</th><th class="ag-num">Puntuación</th></tr></thead>
+                <h2 class="ag-card-title">Score by domain</h2>
+                <div class="ag-table-wrap"><table class="ag-table ag-stack"><thead><tr><th>Domain</th><th><span class="ag-sr">Role</span></th><th>Site type</th><th>Level</th><th class="ag-num">Score</th></tr></thead>
                 <tbody>${ranking}</tbody></table></div>
             </div>
             <div class="ag-grid-2">
                 <div class="ag-card">
-                    <h2 class="ag-card-title">Perfil por categoría</h2>
+                    <h2 class="ag-card-title">Profile by category</h2>
                     <div class="ag-chart-scroll" style="display:flex;justify-content:center">${radarSVG(audits)}</div>
                     <div class="ag-legend" style="justify-content:center">${audits.map((a, i) => `<span><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span>`).join('')}</div>
                 </div>
                 <div class="ag-card">
-                    <h2 class="ag-card-title">Dónde te sacan ventaja</h2>
-                    <p class="ag-card-sub">Categorías en las que un competidor te supera por 15 puntos o más.</p>
+                    <h2 class="ag-card-title">Where they're ahead of you</h2>
+                    <p class="ag-card-sub">Categories where a competitor beats you by 15 points or more.</p>
                     ${gapsHTML}
                 </div>
             </div>
             <div class="ag-card ag-section">
-                <h2 class="ag-card-title">Categoría a categoría</h2>
-                <p class="ag-card-sub">Mismos checks y mismos pesos para todos. Cifra en verde (75 o más), naranja (50-74) o rojo (menos de 50); el trofeo marca el mejor de cada fila.</p>
-                <div class="ag-table-wrap"><table class="ag-table ag-matrix"><thead><tr><th>Categoría</th>${head}</tr></thead><tbody>${matrix}</tbody></table></div>
+                <h2 class="ag-card-title">Category by category</h2>
+                <p class="ag-card-sub">Same checks and same weights for everyone. Figure in green (75 or more), orange (50-74) or red (under 50); the trophy marks the best in each row.</p>
+                <div class="ag-table-wrap"><table class="ag-table ag-matrix"><thead><tr><th>Category</th>${head}</tr></thead><tbody>${matrix}</tbody></table></div>
             </div>
             <div class="ag-card ag-section">
-                <div class="ag-card-head"><h2 class="ag-card-title">Detalle check a check</h2>
-                    <div class="ag-switcher ag-filter" role="group" aria-label="Filtrar checks">
-                        <button type="button" class="btn-secondary ag-btn-sm${CMP_ALL ? '' : ' is-active'}" data-cmp="diff" aria-pressed="${!CMP_ALL}">Solo diferencias (${nDiff})</button>
-                        <button type="button" class="btn-secondary ag-btn-sm${CMP_ALL ? ' is-active' : ''}" data-cmp="all" aria-pressed="${CMP_ALL}">Todos (${d.client.checks.length})</button>
+                <div class="ag-card-head"><h2 class="ag-card-title">Check-by-check detail</h2>
+                    <div class="ag-switcher ag-filter" role="group" aria-label="Filter checks">
+                        <button type="button" class="btn-secondary ag-btn-sm${CMP_ALL ? '' : ' is-active'}" data-cmp="diff" aria-pressed="${!CMP_ALL}">Differences only (${nDiff})</button>
+                        <button type="button" class="btn-secondary ag-btn-sm${CMP_ALL ? ' is-active' : ''}" data-cmp="all" aria-pressed="${CMP_ALL}">All (${d.client.checks.length})</button>
                     </div></div>
-                <p class="ag-card-sub">Abre un check para ver la evidencia de cada dominio y el enlace al recurso.</p>
+                <p class="ag-card-sub">Open a check to see each domain's evidence and the link to the resource.</p>
                 <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Check</th>${headC}</tr></thead><tbody>${rows}</tbody></table></div>
                 ${MARK_LEGEND}
             </div></div>`;
@@ -1314,7 +1340,7 @@
         const W = 1120, H = 560, padL = 110, padB = 70, padT = 20, padR = 20;
         const plotW = W - padL - padR, plotH = H - padT - padB;
         const cw = plotW / 3, ch = plotH / 4;
-        const effOf = e => (e === 'Bajo' ? 0 : e === 'Medio' ? 1 : 2);
+        const effOf = e => (e === 'Low' ? 0 : e === 'Medium' ? 1 : 2);
         const impOf = i => 3 - Math.min(IMPORD[i] ?? 3, 3);          // Crítico arriba
         const tierOf = c => Math.min(IMPORD[c.advice.impacto] ?? 3, 3);
         // tamaño = puntos de score recuperables (peso de su categoría repartido)
@@ -1363,8 +1389,8 @@
                 row.forEach(({ c, d }) => {
                     const cx = x + d / 2, cy = y + rh / 2, r = d / 2, t = tierOf(c);
                     bubbles += `<circle class="ag-bubble" tabindex="0" role="img" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${TIER_FILL[t]}" fill-opacity="${TIER_FILL_OP[t]}" stroke="${TIER_STROKE[t]}" stroke-width="1.5"
-                        aria-label="${esc(c.advice.titulo + '. Impacto ' + c.advice.impacto + ', esfuerzo ' + c.advice.esfuerzo)}"
-                        data-tip="${esc(c.advice.titulo + '||Impacto ' + c.advice.impacto + ' · esfuerzo ' + c.advice.esfuerzo + ' · arreglarlo recupera unos ' + rec(c).toFixed(1) + ' puntos. Cómo: ' + c.advice.como)}"/>
+                        aria-label="${esc(c.advice.titulo + '. Impact ' + c.advice.impacto + ', effort ' + c.advice.esfuerzo)}"
+                        data-tip="${esc(c.advice.titulo + '||Impact ' + c.advice.impacto + ' · effort ' + c.advice.esfuerzo + ' · fixing it recovers about ' + rec(c).toFixed(1) + ' points. How: ' + c.advice.como)}"/>
                         <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dy="4" fill="${TIER_STROKE[t]}" font-family="Inter Tight, sans-serif" font-size="${r < 18 ? 11 : 13}" font-weight="700" style="pointer-events:none">${c.id}</text>`;
                     x += d + GAP;
                 });
@@ -1378,27 +1404,27 @@
         const zones = zone(padL, padT, cw * 2, ch * 2, C.accent, 0.45)
             + zone(padL + cw * 2, padT, cw, ch * 2, C.grid, 0.9)
             + zone(padL, padT + ch * 2, cw * 2, ch * 2, C.grid, 0.5)
-            + label(padL + 16, padT + 24, 'HAZLO YA', C.text)
-            + label(padL + cw * 2 + 16, padT + 24, 'PLANIFÍCALO', C.text2)
-            + label(padL + 16, padT + ch * 2 + 24, 'CUANDO PUEDAS', C.text3)
-            + label(padL + cw * 2 + 16, padT + ch * 2 + 24, 'AL FINAL', C.text3);
-        const xLabels = ['BAJO', 'MEDIO', 'ALTO'].map((t, i) =>
+            + label(padL + 16, padT + 24, 'DO IT NOW', C.text)
+            + label(padL + cw * 2 + 16, padT + 24, 'PLAN IT', C.text2)
+            + label(padL + 16, padT + ch * 2 + 24, 'WHEN YOU CAN', C.text3)
+            + label(padL + cw * 2 + 16, padT + ch * 2 + 24, 'LAST', C.text3);
+        const xLabels = ['LOW', 'MEDIUM', 'HIGH'].map((t, i) =>
             `<text x="${padL + (i + 0.5) * cw}" y="${H - padB + 26}" text-anchor="middle" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600">${t}</text>`).join('');
-        const yLabels = ['BAJO', 'MEDIO', 'ALTO', 'CRÍTICO'].map((t, i) =>
+        const yLabels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((t, i) =>
             `<text x="${padL - 14}" y="${padT + (3 - i + 0.5) * ch}" text-anchor="end" dy="4" fill="${C.text3}" font-family="Inter Tight, sans-serif" font-size="10" font-weight="600">${t}</text>`).join('');
         const grid = [1, 2].map(i => `<line x1="${padL + i * cw}" y1="${padT}" x2="${padL + i * cw}" y2="${H - padB}" stroke="${C.border}" stroke-dasharray="3 4"/>`).join('')
             + [1, 2, 3].map(i => `<line x1="${padL}" y1="${padT + i * ch}" x2="${W - padR}" y2="${padT + i * ch}" stroke="${C.border}" stroke-dasharray="3 4"/>`).join('');
         const legend = TIERS.filter(t => items.some(c => tierOf(c) === t.ord)).map(t =>
             `<span><span class="ag-dot" style="background:${TIER_FILL[t.ord]}"></span>${t.title}</span>`).join('');
         return `<div class="ag-card">
-            <h2 class="ag-card-title">Mapa de prioridades</h2>
-            <p class="ag-card-sub">Cada burbuja es un problema. Cuanto más arriba, más impacto en el negocio; cuanto más a la derecha, más esfuerzo; cuanto más grande, más puntos recuperas. <b>Empieza por la zona «Hazlo ya».</b> Pasa el ratón o el foco por una burbuja para ver el detalle; la lista completa está debajo.</p>
-            <div class="ag-chart-full"><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Mapa de prioridades: ${plural(items.length, 'problema', 'problemas')} por impacto y esfuerzo">
+            <h2 class="ag-card-title">Priority map</h2>
+            <p class="ag-card-sub">Each bubble is an issue. The higher up, the more business impact; the further right, the more effort; the bigger, the more points you recover. <b>Start with the “Do it now” zone.</b> Hover over or focus a bubble to see the detail; the full list is below.</p>
+            <div class="ag-chart-full"><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Priority map: ${plural(items.length, 'issue', 'issues')} by impact and effort">
                 ${zones}${grid}
                 <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="${C.border}"/>
                 <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="${C.border}"/>
-                <text x="${padL + plotW / 2}" y="${H - 14}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">ESFUERZO DE ARREGLO →</text>
-                <text transform="rotate(-90 26 ${padT + plotH / 2})" x="26" y="${padT + plotH / 2}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">IMPACTO EN EL NEGOCIO →</text>
+                <text x="${padL + plotW / 2}" y="${H - 14}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">EFFORT TO FIX →</text>
+                <text transform="rotate(-90 26 ${padT + plotH / 2})" x="26" y="${padT + plotH / 2}" text-anchor="middle" fill="${C.text2}" font-family="Inter Tight, sans-serif" font-size="11" font-weight="600" letter-spacing="1">BUSINESS IMPACT →</text>
                 ${xLabels}${yLabels}${bubbles}
             </svg></div>
             <div class="ag-legend">${legend}</div></div>`;
@@ -1409,15 +1435,15 @@
     // impacto y esfuerzo en cada una. Solo se marca lo que se arregla rápido.
     function findingHTML(c, ord) {
         const a = c.advice;
-        const qw = a.esfuerzo === 'Bajo' && (IMPORD[a.impacto] ?? 3) <= 2;
+        const qw = a.esfuerzo === 'Low' && (IMPORD[a.impacto] ?? 3) <= 2;
         return `<article class="ag-finding">
             <div class="ag-finding-top"><h3 class="ag-finding-title t${ord}">${esc(a.titulo)}</h3>
-                ${qw ? `<span class="ag-qw">${ic('zap')} Arreglo rápido</span>` : ''}</div>
+                ${qw ? `<span class="ag-qw">${ic('zap')} Quick fix</span>` : ''}</div>
             <div class="ag-finding-cols">
-                <div><div class="ag-subhead">Por qué te importa</div><p>${esc(a.por_que)}</p></div>
-                <div class="is-fix"><div class="ag-subhead">Cómo se arregla</div><p>${esc(a.como)}</p></div>
+                <div><div class="ag-subhead">Why it matters to you</div><p>${esc(a.por_que)}</p></div>
+                <div class="is-fix"><div class="ag-subhead">How to fix it</div><p>${esc(a.como)}</p></div>
             </div>
-            <details class="ag-details"><summary>${ic('chevron-right', 'ag-caret')} Evidencia técnica · ${esc(nameOf(c))} (check ${esc(c.id)})</summary>
+            <details class="ag-details"><summary>${ic('chevron-right', 'ag-caret')} Technical evidence · ${esc(nameOf(c))} (check ${esc(c.id)})</summary>
                 <div class="ag-evidence-box">${esc(c.evidence)}</div></details>
         </article>`;
     }
@@ -1425,9 +1451,9 @@
     function paneHallazgos(d) {
         const items = d.client.checks.filter(c => c.score != null && c.score < 1 && c.advice)
             .sort((a, b) => (IMPORD[a.advice.impacto] ?? 3) - (IMPORD[b.advice.impacto] ?? 3) || a.score - b.score
-                || (a.advice.esfuerzo === 'Bajo' ? -1 : 1) - (b.advice.esfuerzo === 'Bajo' ? -1 : 1));
+                || (a.advice.esfuerzo === 'Low' ? -1 : 1) - (b.advice.esfuerzo === 'Low' ? -1 : 1));
         if (!items.length) {
-            return `<div class="ag-pane">${emptyState('circle-check', 'Todos los checks puntuables pasan', 'No hay nada pendiente que arreglar en este análisis.')}</div>`;
+            return `<div class="ag-pane">${emptyState('circle-check', 'All scorable checks pass', 'There is nothing left to fix in this analysis.')}</div>`;
         }
         const groups = TIERS.map((t, gi) => {
             const inTier = items.filter(c => Math.min(IMPORD[c.advice.impacto] ?? 3, 3) === t.ord);
@@ -1435,21 +1461,27 @@
             return `<details class="ag-tier t${t.ord}"${gi < 2 ? ' open' : ''}>
                 <summary><span class="ag-tier-mark t${t.ord}"></span>
                     <span class="ag-tier-name">${t.title}</span>
-                    <span class="ag-tier-count">${plural(inTier.length, 'punto', 'puntos')}</span>
+                    <span class="ag-tier-count">${plural(inTier.length, 'item', 'items')}</span>
                     <span class="ag-tier-hint">${t.hint}</span>
                     ${ic('chevron-right', 'ag-caret')}</summary>
                 <div class="ag-tier-body">${inTier.map(c => findingHTML(c, t.ord)).join('')}</div>
             </details>`;
         }).join('');
         return `<div class="ag-pane">${bubbleChart(d.client)}
-            <div class="ag-section"><p class="ag-help">Agrupado por prioridad. Cada punto explica qué falla, por qué le importa al negocio y cómo se arregla; esta última parte puede ir directa al equipo técnico.</p></div>
+            <div class="ag-section"><p class="ag-help">Grouped by priority. Each item explains what is failing, why it matters to the business and how to fix it; that last part can go straight to the technical team.</p></div>
             ${groups}</div>`;
     }
 
     /* ───── Evidencias ───── */
+    // los códigos de desenlace se guardan en español (son datos); aquí solo se rotulan
+    const OUTCOME_EN = {
+        conseguido: 'achieved', conseguido_con_friccion: 'achieved with friction', no_conseguido: 'not achieved',
+        inconsistente: 'inconsistent', no_verificable: 'not verifiable', no_disponible: 'not available', error: 'error'
+    };
+    const outcomeLabel = o => OUTCOME_EN[o] || String(o || '?').replace(/_/g, ' ');
     function outcomeOf(r) {
         const o = r.outcome || '?';
-        const label = o.replace(/_/g, ' ');
+        const label = outcomeLabel(o);
         if (o === 'conseguido') return [`${ic('circle-check')} ${esc(label)}`, 'is-ok'];
         if (o === 'conseguido_con_friccion') return [`${ic('circle-check')} ${esc(label)}`, 'is-warn'];
         if (o === 'inconsistente') return [`${ic('circle-dashed')} ${esc(label)}`, 'is-warn'];
@@ -1464,10 +1496,10 @@
             const [txt, cls] = outcomeOf(r);
             let cons = '';
             if (r.intentos > 1) {
-                cons = `<div class="ag-runs"><span>Consistencia</span>${(r.runs || []).map((x, i) => {
+                cons = `<div class="ag-runs"><span>Consistency</span>${(r.runs || []).map((x, i) => {
                     const okr = String(x.outcome || '').startsWith('conseguido');
-                    return `<span class="ag-run ${okr ? 'is-ok' : 'is-bad'}" title="Intento ${i + 1}: ${esc(x.outcome || '?')}">${ic(okr ? 'check' : 'x')}</span>`;
-                }).join('')}<b>${r.exitos}/${r.intentos} intentos</b></div>`;
+                    return `<span class="ag-run ${okr ? 'is-ok' : 'is-bad'}" title="Attempt ${i + 1}: ${esc(outcomeLabel(x.outcome))}">${ic(okr ? 'check' : 'x')}</span>`;
+                }).join('')}<b>${r.exitos}/${r.intentos} attempts</b></div>`;
             }
             const p = r.progreso || {};
             let ruta = '';
@@ -1475,25 +1507,25 @@
                 const hechos = new Set((p.hitos || []).map(h => h.nombre));
                 const todos = (at.hitos_tarea || []).length ? at.hitos_tarea
                     : [...(p.hitos || []).map(h => h.nombre), ...(p.pendientes || [])];
-                ruta = `<p class="ag-help" style="margin-top:var(--cs-space-md)">Recorrido de la tarea: <b>${p.alcanzados}/${p.total}</b> pasos</p>
+                ruta = `<p class="ag-help" style="margin-top:var(--cs-space-md)">Task journey: <b>${p.alcanzados}/${p.total}</b> steps</p>
                     <ol class="ag-path">${todos.map(n => {
                         const done = hechos.has(n), stuck = !done && n === (p.pendientes || [])[0];
-                        return `<li class="${done ? 'is-done' : stuck ? 'is-stuck' : ''}"><span class="ag-path-dot"></span>${esc(n)}${stuck ? '<span class="ag-path-note">se atascó aquí</span>' : ''}<span class="ag-sr">${done ? ' (completado)' : ' (no alcanzado)'}</span></li>`;
+                        return `<li class="${done ? 'is-done' : stuck ? 'is-stuck' : ''}"><span class="ag-path-dot"></span>${esc(n)}${stuck ? '<span class="ag-path-note">got stuck here</span>' : ''}<span class="ag-sr">${done ? ' (completed)' : ' (not reached)'}</span></li>`;
                     }).join('')}</ol>`;
             }
             return `<div class="ag-agent">
                 <div class="ag-agent-top"><span class="ag-agent-name">${esc(AGENT_NAMES[name] || name)}</span>
                     <span class="ag-outcome ${cls}">${txt}</span>
-                    ${r.steps ? `<span class="ag-muted">· ${plural(r.steps, 'paso', 'pasos')}</span>` : ''}</div>
+                    ${r.steps ? `<span class="ag-muted">· ${plural(r.steps, 'step', 'steps')}</span>` : ''}</div>
                 ${r.detail ? `<p class="ag-agent-detail">${esc(r.detail)}</p>` : ''}
                 ${cons}${ruta}
-                ${r.action_log && r.action_log.length ? `<details class="ag-details"><summary>${ic('chevron-right', 'ag-caret')} Registro de acciones del agente</summary>
+                ${r.action_log && r.action_log.length ? `<details class="ag-details"><summary>${ic('chevron-right', 'ag-caret')} Agent action log</summary>
                     <div class="ag-evidence-box">${r.action_log.map(esc).join('\n')}</div></details>` : ''}
             </div>`;
         }).join('');
         return `<div class="ag-card">
-            <h2 class="ag-card-title">Prueba con agentes reales</h2>
-            <p class="ag-card-sub">Tarea de tipología <b>${esc(typ(at.typology))}</b>${at.allow_submit ? ' · envío de formularios autorizado en este dominio' : ' · sin envíos (solo llegar y rellenar)'}. Cada agente controla un navegador real e intenta completarla; nunca se pagan compras ni se crean cuentas.</p>
+            <h2 class="ag-card-title">Test with real agents</h2>
+            <p class="ag-card-sub">Task for site type <b>${esc(typ(at.typology))}</b>${at.allow_submit ? ' · form submission authorised on this domain' : ' · no submissions (reach and fill in only)'}. Each agent controls a real browser and tries to complete it; purchases are never paid and no accounts are created.</p>
             ${agents}</div>`;
     }
 
@@ -1512,13 +1544,13 @@
             return `<tr>${varias ? `<td><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(a.host)}</span></td>` : ''}
                 <td><b>${esc(AGENT_NAMES[name] || name)}</b></td>
                 <td><span class="ag-outcome ${cls}">${txt}</span></td>
-                <td class="ag-muted">${p.total ? `${p.alcanzados}/${p.total} pasos${atasco ? ` · se atascó en «${esc(atasco)}»` : ''}` : ''}</td></tr>`;
+                <td class="ag-muted">${p.total ? `${p.alcanzados}/${p.total} steps${atasco ? ` · got stuck at “${esc(atasco)}”` : ''}` : ''}</td></tr>`;
         }).join('')).join('');
         return `<div class="ag-card ag-section">
-            <div class="ag-card-head"><h2 class="ag-card-title">Qué pasó cuando los agentes lo intentaron</h2>
-                <button type="button" class="ag-link-btn" data-rep-tab="3">Ver cada intento ${ic('arrow-right')}</button></div>
-            <p class="ag-card-sub">ChatGPT, Claude y Gemini pilotaron un navegador real e intentaron completar una tarea${varias ? '' : ` en <b>${esc(conAgentes[0].a.host)}</b>`}. Nunca se paga ni se crean cuentas.</p>
-            <div class="ag-table-wrap"><table class="ag-table ag-stack"><thead><tr>${varias ? '<th>Web</th>' : ''}<th>Agente</th><th>Resultado</th><th>Recorrido</th></tr></thead>
+            <div class="ag-card-head"><h2 class="ag-card-title">What happened when the agents tried</h2>
+                <button type="button" class="ag-link-btn" data-rep-tab="3">See each attempt ${ic('arrow-right')}</button></div>
+            <p class="ag-card-sub">ChatGPT, Claude and Gemini drove a real browser and tried to complete a task${varias ? '' : ` on <b>${esc(conAgentes[0].a.host)}</b>`}. Nothing is ever paid and no accounts are created.</p>
+            <div class="ag-table-wrap"><table class="ag-table ag-stack"><thead><tr>${varias ? '<th>Site</th>' : ''}<th>Agent</th><th>Result</th><th>Journey</th></tr></thead>
             <tbody>${rows}</tbody></table></div></div>`;
     }
 
@@ -1532,22 +1564,24 @@
 
     /* Señales de tipología en lista legible. Antes se pintaba el JSON crudo
        y se salía de la tarjeta. */
+    // plantillas del muestreo: el código (discovery.py) se guarda en español
+    const BUCKET_EN = { producto: 'product', categoria: 'category', servicio: 'service', blog: 'blog', otras: 'other', legal: 'legal', home: 'home' };
     const SIGNAL_NAMES = {
         schema_offer: 'schema Offer', schema_product: 'schema Product', schema_software: 'schema SoftwareApplication',
-        add_to_cart: 'botón añadir al carrito', cart_url: 'URL de carrito', checkout_url: 'URL de checkout',
-        login_url: 'URL de login', pricing_url: 'página de precios', signup_url: 'página de registro',
-        free_trial: 'prueba gratuita', no_card: '«sin tarjeta»', saas_words: 'vocabulario SaaS'
+        add_to_cart: 'add-to-cart button', cart_url: 'cart URL', checkout_url: 'checkout URL',
+        login_url: 'login URL', pricing_url: 'pricing page', signup_url: 'sign-up page',
+        free_trial: 'free trial', no_card: '“no card required”', saas_words: 'SaaS vocabulary'
     };
     function typologyHTML(a) {
         const ev = a.typology_evidence || {};
         const tipos = Object.entries(ev).filter(([, v]) => v && typeof v === 'object');
-        if (!tipos.length) return '<p class="ag-help">Sin señales registradas.</p>';
+        if (!tipos.length) return '<p class="ag-help">No signals recorded.</p>';
         const sig = arr => (arr || []).map(x => SIGNAL_NAMES[x] || String(x).replace(/_/g, ' ')).join(', ');
         return `<ul class="ag-typo">${tipos.map(([t, v]) => `
-            <li class="${t === a.typology ? 'is-picked' : ''}"><b>${esc(typ(t))}</b> · ${esc(v.puntos ?? 0)} ${(v.puntos === 1) ? 'punto' : 'puntos'}
-                ${(v.fuertes || []).length ? `<span class="ag-typo-sig">Fuertes: ${esc(sig(v.fuertes))}</span>` : ''}
-                ${(v.debiles || []).length ? `<span class="ag-typo-sig">Débiles: ${esc(sig(v.debiles))}</span>` : ''}
-                ${!(v.fuertes || []).length && !(v.debiles || []).length ? '<span class="ag-typo-sig">Ninguna señal</span>' : ''}</li>`).join('')}</ul>`;
+            <li class="${t === a.typology ? 'is-picked' : ''}"><b>${esc(typ(t))}</b> · ${esc(v.puntos ?? 0)} ${(v.puntos === 1) ? 'point' : 'points'}
+                ${(v.fuertes || []).length ? `<span class="ag-typo-sig">Strong: ${esc(sig(v.fuertes))}</span>` : ''}
+                ${(v.debiles || []).length ? `<span class="ag-typo-sig">Weak: ${esc(sig(v.debiles))}</span>` : ''}
+                ${!(v.fuertes || []).length && !(v.debiles || []).length ? '<span class="ag-typo-sig">No signals</span>' : ''}</li>`).join('')}</ul>`;
     }
 
     function paneEvidencias(d) {
@@ -1556,52 +1590,52 @@
         const bots = Object.entries(a.bot_matrix || {}).map(([b, c]) => {
             const cls = c === 200 ? 'is-ok' : (c === 0 || c === 403 || c === 429) ? 'is-bad' : 'is-part';
             const k = cls.replace('is-', '');
-            return `<tr><td>${esc(b === '_human' ? 'Navegador humano' : b)}</td><td class="ag-num"><span class="ag-mark is-${k}">${ic(MARKS[k][0])} ${c === 0 ? 'sin respuesta' : c === 200 ? '200 · entra' : c}</span></td></tr>`;
+            return `<tr><td>${esc(b === '_human' ? 'Human browser' : b)}</td><td class="ag-num"><span class="ag-mark is-${k}">${ic(MARKS[k][0])} ${c === 0 ? 'no response' : c === 200 ? '200 · gets in' : c}</span></td></tr>`;
         }).join('');
         const pages = (a.pages_sampled || []).map(p =>
-            `<tr><td>${esc(p.bucket)}</td><td style="word-break:break-all">${esc(p.url)}</td><td class="ag-num">${esc(p.status)}</td><td>${esc(p.via)}</td></tr>`).join('');
+            `<tr><td>${esc(BUCKET_EN[p.bucket] || p.bucket)}</td><td style="word-break:break-all">${esc(p.url)}</td><td class="ag-num">${esc(p.status)}</td><td>${esc(p.via)}</td></tr>`).join('');
         const wk = Object.keys(a.wellknown || {}).length
             ? `<ul class="ag-list">${Object.keys(a.wellknown).map(p => `<li><span class="ag-list-ic">${ic('plug')}</span><div class="ag-mono" style="align-self:center">${esc(p)}</div></li>`).join('')}</ul>`
-            : '<p class="ag-help">Ninguna superficie agéntica expuesta.</p>';
+            : '<p class="ag-help">No agentic surface exposed.</p>';
         const fallos = (a.checks || []).filter(c => c.score != null && c.score < 1);
         const lista = EV_ALL ? (a.checks || []) : fallos;
         const checks = lista.map(c =>
-            `<tr><td style="min-width:200px"><b>${esc(nameOf(c))}</b><span class="ag-hist-comp">check ${c.id}${c.manual ? ' · requiere revisión humana' : ''}</span></td>
+            `<tr><td style="min-width:200px"><b>${esc(nameOf(c))}</b><span class="ag-hist-comp">check ${c.id}${c.manual ? ' · needs human review' : ''}</span></td>
             <td class="ag-center">${mark(c.score)}</td><td class="ag-evidence">${esc(c.evidence)}</td></tr>`).join('')
-            || '<tr><td colspan="3" class="ag-muted">Ningún check falla en este dominio.</td></tr>';
+            || '<tr><td colspan="3" class="ag-muted">No check fails on this domain.</td></tr>';
         const ag = d.agentes || {};
         const sinAgentes = !(a.agent_tests && a.agent_tests.agents) && ag.solicitados && (ag.estado === 'completado' || ag.estado === 'error')
-            ? alertHTML({ tone: 'warn', icon: 'bot-off', title: 'Sin evidencia agéntica en este dominio',
-                body: 'La simulación con agentes no pudo completarse aquí, así que el check 6.3 de ' + esc(a.host) + ' sigue sin comprobar. No cuenta como fallo.' })
+            ? alertHTML({ tone: 'warn', icon: 'bot-off', title: 'No agentic evidence on this domain',
+                body: 'The agent simulation couldn\'t be completed here, so check 6.3 for ' + esc(a.host) + ' is still unverified. It does not count as a failure.' })
             : '';
         return `<div class="ag-pane">${domainSwitcher(audits, EV_SEL, 'data-ev')}
             ${agentPanelHTML(a)}${sinAgentes}
             <div class="ag-grid-2">
                 <div class="ag-card">
-                    <h2 class="ag-card-title">Acceso real de bots de IA</h2>
-                    <p class="ag-card-sub">Peticiones reales con el user-agent oficial de cada bot.</p>
-                    <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>User-agent</th><th class="ag-num">Respuesta</th></tr></thead><tbody>${bots}</tbody></table></div>
+                    <h2 class="ag-card-title">Real AI bot access</h2>
+                    <p class="ag-card-sub">Real requests with each bot's official user agent.</p>
+                    <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>User agent</th><th class="ag-num">Response</th></tr></thead><tbody>${bots}</tbody></table></div>
                 </div>
                 <div class="ag-card">
-                    <h2 class="ag-card-title">Superficie agéntica encontrada</h2>
+                    <h2 class="ag-card-title">Agentic surface found</h2>
                     ${wk}
-                    <h2 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Tipología detectada</h2>
-                    <p class="ag-help" style="margin-top:0">Clasificada como <b>${esc(typ(a.typology))}</b> por estas señales:</p>
+                    <h2 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Detected site type</h2>
+                    <p class="ag-help" style="margin-top:0">Classified as <b>${esc(typ(a.typology))}</b> based on these signals:</p>
                     ${typologyHTML(a)}
-                    <p class="ag-help">Render JS: ${a.render_ok ? 'ejecutado' : 'no ejecutado'} · Vista LLM (Jina): ${a.jina_ok ? 'sí' : 'no'}</p>
+                    <p class="ag-help">JS render: ${a.render_ok ? 'run' : 'not run'} · LLM view (Jina): ${a.jina_ok ? 'yes' : 'no'}</p>
                 </div>
             </div>
             <div class="ag-card ag-section">
-                <h2 class="ag-card-title">Páginas muestreadas</h2>
-                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Plantilla</th><th>URL</th><th class="ag-num">HTTP</th><th>Vía</th></tr></thead><tbody>${pages}</tbody></table></div>
+                <h2 class="ag-card-title">Sampled pages</h2>
+                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Template</th><th>URL</th><th class="ag-num">HTTP</th><th>Via</th></tr></thead><tbody>${pages}</tbody></table></div>
             </div>
             <div class="ag-card ag-section">
-                <div class="ag-card-head"><h2 class="ag-card-title">Checks y su evidencia</h2>
-                    <div class="ag-switcher ag-filter" role="group" aria-label="Filtrar checks">
-                        <button type="button" class="btn-secondary ag-btn-sm${EV_ALL ? '' : ' is-active'}" data-evf="fail" aria-pressed="${!EV_ALL}">Fallos y parciales (${fallos.length})</button>
-                        <button type="button" class="btn-secondary ag-btn-sm${EV_ALL ? ' is-active' : ''}" data-evf="all" aria-pressed="${EV_ALL}">Todos (${(a.checks || []).length})</button>
+                <div class="ag-card-head"><h2 class="ag-card-title">Checks and their evidence</h2>
+                    <div class="ag-switcher ag-filter" role="group" aria-label="Filter checks">
+                        <button type="button" class="btn-secondary ag-btn-sm${EV_ALL ? '' : ' is-active'}" data-evf="fail" aria-pressed="${!EV_ALL}">Failures and partials (${fallos.length})</button>
+                        <button type="button" class="btn-secondary ag-btn-sm${EV_ALL ? ' is-active' : ''}" data-evf="all" aria-pressed="${EV_ALL}">All (${(a.checks || []).length})</button>
                     </div></div>
-                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Check</th><th class="ag-center">Resultado</th><th>Evidencia</th></tr></thead><tbody>${checks}</tbody></table></div>
+                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Check</th><th class="ag-center">Result</th><th>Evidence</th></tr></thead><tbody>${checks}</tbody></table></div>
                 ${MARK_LEGEND}
             </div></div>`;
     }
@@ -1614,11 +1648,11 @@
             const m = (au.checks || []).find(x => x.id === id);
             const lbl = (k, t) => `<span class="ag-mark is-${k}">${ic(MARKS[k][0])} ${t}</span>`;
             if (!m) return lbl('na', '');
-            if ((m.evidence || '').startsWith('N/A')) return lbl('na', 'no aplica');
-            if (m.score == null && m.manual) return lbl('part', 'criterio humano');
-            if (m.score == null) return lbl('na', 'informativo');
-            if (m.manual) return lbl('part', 'heurístico');
-            return lbl('ok', 'medido');
+            if ((m.evidence || '').startsWith('N/A')) return lbl('na', 'not applicable');
+            if (m.score == null && m.manual) return lbl('part', 'human judgement');
+            if (m.score == null) return lbl('na', 'informational');
+            if (m.manual) return lbl('part', 'heuristic');
+            return lbl('ok', 'measured');
         };
         const matrixRows = d.client.checks.map(c =>
             `<tr><td><b>${esc(nameOf(c))}</b><span class="ag-hist-comp">check ${c.id}</span></td>
@@ -1627,16 +1661,16 @@
 
         let body;
         if (!a.trail) {
-            body = alertHTML({ icon: 'history', title: 'Sin registro de procesos', body: 'Este análisis se generó con una versión anterior del motor. Relanza el análisis para tener el panel de fiabilidad.' });
+            body = alertHTML({ icon: 'history', title: 'No process log', body: 'This analysis was generated with an earlier version of the engine. Run the analysis again to get the reliability panel.' });
         } else {
             const n = { ok: 0, warn: 0, fail: 0, skipped: 0 };
             a.trail.forEach(t => { n[t.status] = (n[t.status] || 0) + 1; });
             const manual = (a.checks || []).filter(x => x.manual);
             const informational = (a.checks || []).filter(x => x.score == null && !x.manual);
             let v;
-            if (n.fail > 0) v = { tone: 'bad', icon: 'circle-x', title: 'Análisis incompleto', msg: `${n.fail} proceso(s) fallaron y hay checks sin evidencia. No entregar sin revisar o relanzar.` };
-            else if (n.warn > 0 || n.skipped > 0) v = { tone: 'warn', icon: 'triangle-alert', title: 'Fiable con avisos', msg: `Todos los procesos corrieron, pero ${n.warn} con evidencia degradada y ${n.skipped} desactivados. Revisa los avisos antes de entregar.` };
-            else v = { tone: 'good', icon: 'circle-check', title: 'Análisis completo y fiable', msg: 'Todos los procesos se ejecutaron con evidencia directa. Lo que dice el informe está respaldado.' };
+            if (n.fail > 0) v = { tone: 'bad', icon: 'circle-x', title: 'Incomplete analysis', msg: `${plural(n.fail, 'process', 'processes')} failed and some checks have no evidence. Don't hand it over without reviewing or rerunning it.` };
+            else if (n.warn > 0 || n.skipped > 0) v = { tone: 'warn', icon: 'triangle-alert', title: 'Reliable with warnings', msg: `All processes ran, but ${n.warn} with degraded evidence and ${n.skipped} disabled. Review the warnings before handing it over.` };
+            else v = { tone: 'good', icon: 'circle-check', title: 'Complete and reliable analysis', msg: 'Every process ran with direct evidence. What the report says is backed up.' };
             const IC = { ok: 'ok', warn: 'part', fail: 'bad', skipped: 'na' };
             const steps = a.trail.map(t => {
                 return `<tr><td class="ag-center">${markOf(IC[t.status] || 'na')}</td>
@@ -1645,38 +1679,38 @@
             const cov = a.coverage || {};
             const buckets = Object.entries(cov.buckets || {}).map(([b, total]) => {
                 const sampled = (a.pages_sampled || []).filter(p => p.bucket === b).length;
-                return `<tr><td>${esc(b)}</td><td class="ag-num">${total}</td><td class="ag-num">${sampled}</td></tr>`;
+                return `<tr><td>${esc(BUCKET_EN[b] || b)}</td><td class="ag-num">${total}</td><td class="ag-num">${sampled}</td></tr>`;
             }).join('');
-            body = alertHTML({ tone: v.tone, icon: v.icon, title: v.title, body: `${v.msg} ${manual.length} checks marcados para criterio humano.` }) + `
+            body = alertHTML({ tone: v.tone, icon: v.icon, title: v.title, body: `${v.msg} ${plural(manual.length, 'check', 'checks')} flagged for human judgement.` }) + `
                 <div class="ag-card">
-                    <h2 class="ag-card-title">Procesos ejecutados <span class="ag-muted">${a.trail.length}</span></h2>
-                    <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th></th><th>Proceso</th><th>Resultado / evidencia</th></tr></thead><tbody>${steps}</tbody></table></div>
-                    <div class="ag-legend"><span>${markOf('ok')} ejecutado con evidencia</span><span>${markOf('part')} evidencia degradada</span><span>${markOf('bad')} el proceso falló</span><span>${markOf('na')} desactivado</span><span>Un 404 del sitio es un hallazgo, no un fallo del análisis.</span></div>
+                    <h2 class="ag-card-title">Processes run <span class="ag-muted">${a.trail.length}</span></h2>
+                    <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th></th><th>Process</th><th>Result / evidence</th></tr></thead><tbody>${steps}</tbody></table></div>
+                    <div class="ag-legend"><span>${markOf('ok')} run with evidence</span><span>${markOf('part')} degraded evidence</span><span>${markOf('bad')} the process failed</span><span>${markOf('na')} disabled</span><span>A 404 from the site is a finding, not an analysis failure.</span></div>
                 </div>
                 <div class="ag-grid-2">
                     <div class="ag-card">
-                        <h2 class="ag-card-title">Cobertura del muestreo</h2>
-                        <p class="ag-help" style="margin-top:0"><b>${cov.sampled_ok ?? '?'}/${cov.sampled ?? '?'}</b> páginas accesibles de ${cov.sitemap_urls ?? '?'} URLs del sitemap (tope 800) · ${cov.fallbacks ?? 0} vía fallback</p>
-                        ${buckets ? `<div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Plantilla</th><th class="ag-num">Encontradas</th><th class="ag-num">Muestreadas</th></tr></thead><tbody>${buckets}</tbody></table></div>` : ''}
-                        <p class="ag-help">Muestreo representativo, no exhaustivo: hasta 2 páginas por plantilla.</p>
+                        <h2 class="ag-card-title">Sampling coverage</h2>
+                        <p class="ag-help" style="margin-top:0"><b>${cov.sampled_ok ?? '?'}/${cov.sampled ?? '?'}</b> pages accessible out of ${cov.sitemap_urls ?? '?'} sitemap URLs (cap 800) · ${cov.fallbacks ?? 0} via fallback</p>
+                        ${buckets ? `<div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Template</th><th class="ag-num">Found</th><th class="ag-num">Sampled</th></tr></thead><tbody>${buckets}</tbody></table></div>` : ''}
+                        <p class="ag-help">Representative, not exhaustive, sampling: up to 2 pages per template.</p>
                     </div>
                     <div class="ag-card">
-                        <h2 class="ag-card-title">Requieren criterio humano <span class="ag-muted">${manual.length}</span></h2>
-                        <ul class="ag-learn-checks">${manual.map(x => `<li><span>${x.id}</span>${esc(nameOf(x))}</li>`).join('') || '<li>Ninguno</li>'}</ul>
-                        <h2 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Informativos, no puntúan <span class="ag-muted">${informational.length}</span></h2>
-                        <ul class="ag-learn-checks">${informational.map(x => `<li><span>${x.id}</span>${esc(nameOf(x))}</li>`).join('') || '<li>Ninguno</li>'}</ul>
+                        <h2 class="ag-card-title">Need human judgement <span class="ag-muted">${manual.length}</span></h2>
+                        <ul class="ag-learn-checks">${manual.map(x => `<li><span>${x.id}</span>${esc(nameOf(x))}</li>`).join('') || '<li>None</li>'}</ul>
+                        <h2 class="ag-card-title" style="margin-top:var(--cs-space-lg)">Informational, not scored <span class="ag-muted">${informational.length}</span></h2>
+                        <ul class="ag-learn-checks">${informational.map(x => `<li><span>${x.id}</span>${esc(nameOf(x))}</li>`).join('') || '<li>None</li>'}</ul>
                     </div>
                 </div>`;
         }
         return `<div class="ag-pane">
-            <p class="ag-help ag-pane-intro">Comprueba aquí que el análisis se hizo completo antes de compartir el informe: qué procesos corrieron, con qué evidencia y qué no se pudo verificar.</p>
+            <p class="ag-help ag-pane-intro">Check here that the analysis was complete before sharing the report: which processes ran, with what evidence and what couldn't be verified.</p>
             ${domainSwitcher(audits, FB_SEL, 'data-fb')}
             ${body}
             <details class="ag-card ag-section ag-fold">
-                <summary><h2 class="ag-card-title">Matriz de factores</h2><span class="ag-muted">Qué revisamos, cómo, y si se pudo medir en cada dominio</span>${ic('chevron-down', 'ag-fold-caret')}</summary>
-                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Factor</th><th>Metodología</th>${audits.map((au, i) => `<th><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(au.host)}</span></th>`).join('')}</tr></thead>
+                <summary><h2 class="ag-card-title">Factor matrix</h2><span class="ag-muted">What we check, how, and whether it could be measured on each domain</span>${ic('chevron-down', 'ag-fold-caret')}</summary>
+                <div class="ag-table-wrap"><table class="ag-table"><thead><tr><th>Factor</th><th>Methodology</th>${audits.map((au, i) => `<th><span class="ag-entity"><span class="ag-dot" style="background:${SERIES[i % 3]}"></span>${esc(au.host)}</span></th>`).join('')}</tr></thead>
                 <tbody>${matrixRows}</tbody></table></div>
-                <div class="ag-legend"><span>Medido: evidencia directa</span><span>Heurístico: evidencia parcial</span><span>Criterio humano: lo decide el analista</span><span>Informativo: se comprueba pero no puntúa</span></div>
+                <div class="ag-legend"><span>Measured: direct evidence</span><span>Heuristic: partial evidence</span><span>Human judgement: the analyst decides</span><span>Informational: checked but not scored</span></div>
             </details></div>`;
     }
 
@@ -1702,24 +1736,24 @@
         const b = bandOf(c.score);
         return `<div class="ag-pane"><div class="ag-grid-2" style="margin-top:0">
             <div class="ag-card">
-                <h2 class="ag-card-title">Pesos aplicados <span class="ag-muted">${esc(typ(c.typology))}</span></h2>
+                <h2 class="ag-card-title">Weights applied <span class="ag-muted">${esc(typ(c.typology))}</span></h2>
                 <div class="ag-table-wrap"><table class="ag-table"><tbody>${w}</tbody></table></div>
-                <p class="ag-help">Cada check puntúa 0, 0,5 o 1 y pondera dentro de su categoría. Los checks críticos pesan más. Las categorías sin datos redistribuyen su peso.</p>
+                <p class="ag-help">Each check scores 0, 0.5 or 1 and is weighted within its category. Critical checks weigh more. Categories that don't apply redistribute their weight.</p>
             </div>
             <div class="ag-card">
-                <h2 class="ag-card-title">Escala</h2>
+                <h2 class="ag-card-title">Scale</h2>
                 <ul class="ag-list">${[
-                    ['0–25', 'Invisible para agentes', 'Ni te leen ni te usan.'],
-                    ['26–50', 'Legible, no operable', 'Te leen, no te entienden bien, no te usan.'],
-                    ['51–75', 'Agent-aware', 'Bien posicionado; faltan capacidades ejecutables.'],
-                    ['76–100', 'Agent-ready', 'Ventaja competitiva real.']
+                    ['0–25', 'Invisible to agents', 'They neither read you nor use you.'],
+                    ['26–50', 'Readable, not operable', 'They read you, don\'t understand you well, and don\'t use you.'],
+                    ['51–75', 'Agent-aware', 'Well positioned; executable capabilities are missing.'],
+                    ['76–100', 'Agent-ready', 'A real competitive advantage.']
                 ].map((s, i) => `<li><span class="ag-list-ic" style="width:56px;font-size:var(--cs-text-xs);font-weight:700;${i === b ? `background:${C.text};color:#FFFFFF` : ''}">${s[0]}</span>
-                    <div><div class="ag-list-title">${s[1]}${i === b ? ' <span class="ag-muted">· este informe</span>' : ''}</div><div class="ag-list-body">${s[2]}</div></div></li>`).join('')}</ul>
+                    <div><div class="ag-list-title">${s[1]}${i === b ? ' <span class="ag-muted">· this report</span>' : ''}</div><div class="ag-list-body">${s[2]}</div></div></li>`).join('')}</ul>
             </div></div>
             <div class="ag-card ag-section">
-                <h2 class="ag-card-title">Checks que requieren revisión humana</h2>
-                <ul class="ag-learn-checks">${manual || '<li>Ninguno</li>'}</ul>
-                <p class="ag-help">Metodología v${esc(String(d.framework_version || '').split(' ')[0] || '2.0')} · basada en estándares abiertos (RFC 9421, MCP, ACP, Schema.org) y el Agent Readiness score de Cloudflare. El campo evoluciona por trimestres: re-auditar cada 90 días.</p>
+                <h2 class="ag-card-title">Checks that need human review</h2>
+                <ul class="ag-learn-checks">${manual || '<li>None</li>'}</ul>
+                <p class="ag-help">Methodology v${esc(String(d.framework_version || '').split(' ')[0] || '2.0')} · based on open standards (RFC 9421, MCP, ACP, Schema.org) and Cloudflare's Agent Readiness score. The field changes quarter by quarter: re-audit every 90 days.</p>
             </div></div>`;
     }
 
@@ -1727,12 +1761,12 @@
 
     let CURRENT_JOB = null, ACTIVE_TAB = 0;
     const TABS = [
-        ['Resumen', 'layout-dashboard', paneResumen],
-        ['Comparativa', 'swords', paneComparativa],
-        ['Plan de acción', 'list-checks', paneHallazgos],
-        ['Evidencias', 'microscope', paneEvidencias],
-        ['Fiabilidad', 'shield-check', paneFiabilidad],
-        ['Metodología', 'book-open', paneMetodologia]
+        ['Summary', 'layout-dashboard', paneResumen],
+        ['Comparison', 'swords', paneComparativa],
+        ['Action plan', 'list-checks', paneHallazgos],
+        ['Evidence', 'microscope', paneEvidencias],
+        ['Reliability', 'shield-check', paneFiabilidad],
+        ['Methodology', 'book-open', paneMetodologia]
     ];
 
     function repaint(i) {
@@ -1774,11 +1808,12 @@
         if (jobId) CURRENT_JOB = jobId;
         if (REPORT !== d && (!REPORT || REPORT.client?.host !== d.client?.host)) { EV_SEL = 0; FB_SEL = 0; ACTIVE_TAB = 0; }
         REPORT = d;
+        localizeLegacy(d);
         const c = d.client;
         const comps = (d.competitors || []).filter(a => !a.error).map(a => a.host);
-        $('#agRepTitle').innerHTML = `¿Está <span class="ag-hl">${esc(c.host)}</span> lista para la IA?`;
+        $('#agRepTitle').innerHTML = `Is <span class="ag-hl">${esc(c.host)}</span> ready for AI?`;
         $('#agRepSub').textContent = [fmtDate(d.generated), typ(c.typology),
-            comps.length ? 'frente a ' + comps.join(' y ') : 'sin competidores'].filter(Boolean).join(' · ');
+            comps.length ? 'vs ' + comps.join(' and ') : 'no competitors'].filter(Boolean).join(' · ');
         $('#agRepTabs').innerHTML = TABS.map((t, i) =>
             `<button type="button" class="nav-tab${i === ACTIVE_TAB ? ' active' : ''}" id="agRepTab-${i}" data-rep-tab="${i}" role="tab" aria-controls="agPanes" aria-selected="${i === ACTIVE_TAB}" tabindex="${i === ACTIVE_TAB ? 0 : -1}">${t[0]}</button>`).join('');
         document.title = `${c.host} · Agent Readiness - ClicAndSEO`;
@@ -1793,10 +1828,10 @@
         if (!AGENTS_POLL) {
             if (JUST_FINISHED != null) {
                 const m = Math.floor(JUST_FINISHED / 60), sg = String(JUST_FINISHED % 60).padStart(2, '0');
-                bannerAgentes(`<b>Análisis completado en ${m}:${sg}.</b> Esto es lo que hemos encontrado; el informe queda guardado en Informes.`, 'done', 'resumen');
+                bannerAgentes(`<b>Analysis completed in ${m}:${sg}.</b> Here is what we found; the report is saved in Reports.`, 'done', 'resumen');
                 JUST_FINISHED = null;
             } else if (ag.detalle && (ag.estado === 'completado' || ag.estado === 'error')) {
-                bannerAgentes(`<b>Simulación con agentes:</b> ${esc(ag.detalle)}`, ag.estado === 'error' ? 'error' : 'warn', 'resumen');
+                bannerAgentes(`<b>Agent simulation:</b> ${esc(ag.detalle)}`, ag.estado === 'error' ? 'error' : 'warn', 'resumen');
             } else {
                 $('#agAgentsBanner').hidden = true;
                 $('#agAgentsBanner').dataset.scope = '';
@@ -1822,16 +1857,16 @@
         const label = b.querySelector('span') || b;
         const orig = label.textContent;
         b.disabled = true;
-        label.textContent = 'Generando…';
+        label.textContent = 'Generating…';
         try {
             const r = await fetch('/agent/api/prompt/' + CURRENT_JOB);
             const j = await r.json();
             if (!r.ok || !j.prompt) throw new Error(j.error || 'error');
             await navigator.clipboard.writeText(j.prompt);
-            label.textContent = 'Copiado: pégalo en ChatGPT o Claude';
+            label.textContent = 'Copied: paste it into ChatGPT or Claude';
             setTimeout(() => { label.textContent = orig; b.disabled = false; }, 4000);
         } catch (e) {
-            label.textContent = 'No se pudo copiar';
+            label.textContent = 'Couldn\'t copy';
             b.disabled = false;
             setTimeout(() => { label.textContent = orig; }, 3000);
         }
@@ -1843,7 +1878,7 @@
         const label = btn.querySelector('span') || btn;
         const old = label.textContent;
         btn.disabled = true;
-        label.textContent = kind === 'pdf' ? 'Generando PDF…' : 'Preparando JSON…';
+        label.textContent = kind === 'pdf' ? 'Generating PDF…' : 'Preparing JSON…';
         try {
             const r = await fetch(`/agent/api/report/${CURRENT_JOB}.${kind}`);
             if (!r.ok) {
@@ -1862,7 +1897,7 @@
             a.click();
             setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
         } catch (e) {
-            alert('No se pudo descargar: ' + e.message);
+            alert('Download failed: ' + e.message);
         } finally {
             label.textContent = old;
             btn.disabled = false;
@@ -1878,11 +1913,11 @@
     function setAgentsBtn(state) {
         const b = $('#btnAgents');
         const map = {
-            idle: ['bot', 'Simular agentes', false],
-            launching: ['loader-circle', 'Lanzando…', true],
-            running: ['loader-circle', 'Simulando agentes…', true],
-            done: ['circle-check', 'Agentes simulados', true],
-            error: ['rotate-ccw', 'Reintentar simulación', false]
+            idle: ['bot', 'Simulate agents', false],
+            launching: ['loader-circle', 'Starting…', true],
+            running: ['loader-circle', 'Simulating agents…', true],
+            done: ['circle-check', 'Agents simulated', true],
+            error: ['rotate-ccw', 'Retry simulation', false]
         };
         const [icon, txt, dis] = map[state] || map.idle;
         b.disabled = dis;
@@ -1908,7 +1943,7 @@
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
-                bannerAgentes(`<b>No se pudo lanzar la simulación.</b> ${esc(e.error || '')}`, 'error');
+                bannerAgentes(`<b>The simulation couldn't be started.</b> ${esc(e.error || '')}`, 'error');
                 setAgentsBtn('idle');
                 return;
             }
@@ -1934,14 +1969,14 @@
             try { s = await (await fetch('/agent/api/agents/' + CURRENT_JOB + '/status')).json(); } catch (e) { return; }
             if (s.status === 'running') {
                 const m = Math.floor((s.elapsed || 0) / 60), seg = (s.elapsed || 0) % 60;
-                bannerAgentes(`<b>${esc(s.phase || 'Simulando agentes…')}</b> · ${m}m ${seg}s. Puedes seguir usando el informe mientras tanto.
+                bannerAgentes(`<b>${esc(s.phase || 'Simulating agents…')}</b> · ${m}m ${seg}s. You can keep using the report in the meantime.
                     <span class="ag-banner-last">${esc((s.log || []).slice(-1)[0] || '')}</span>`, 'running');
                 return;
             }
             clearInterval(AGENTS_POLL);
             AGENTS_POLL = null;
             if (s.status === 'error') {
-                bannerAgentes(`<b>La simulación agéntica falló:</b> ${esc(s.error || 'error desconocido')}`, 'error');
+                bannerAgentes(`<b>The agent simulation failed:</b> ${esc(s.error || 'unknown error')}`, 'error');
                 d.agentes.estado = 'error';
                 pintarBotonAgentes(d);
                 return;
@@ -1952,7 +1987,7 @@
                 const nuevo = await rr.json();
                 renderReport(nuevo, CURRENT_JOB);
                 const det = (nuevo.agentes || {}).detalle;
-                bannerAgentes(`<b>Simulación con agentes completada.</b> La puntuación ya la incluye y tienes el resumen en esta página; cada intento paso a paso está en <b>Evidencias</b>.${det ? ' ' + esc(det) : ''}`, det ? 'warn' : 'done', 'global');
+                bannerAgentes(`<b>Agent simulation complete.</b> The score already includes it and the summary is on this page; each attempt step by step is under <b>Evidence</b>.${det ? ' ' + esc(det) : ''}`, det ? 'warn' : 'done', 'global');
             }
         }, 4000);
     }
