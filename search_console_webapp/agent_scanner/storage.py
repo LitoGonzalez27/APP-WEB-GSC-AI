@@ -97,6 +97,27 @@ def guardar(job_id, data, user_email=None):
         return False
 
 
+def refrescar_consejos(data):
+    """Consejos (por qué / cómo / esfuerzo / impacto) con el texto ACTUAL.
+
+    advice_for() depende solo del id del check, así que se puede regenerar al
+    abrir un informe: los guardados antes de oct-2026 traían los consejos en
+    español y el panel y el PDF ya son en inglés. Las evidencias NO se tocan:
+    son lo que se midió en su día.
+    """
+    if not isinstance(data, dict):
+        return data
+    from .knowledge import advice_for
+    auditorias = [data.get("client")] + list(data.get("competitors") or [])
+    for audit in auditorias:
+        for check in (audit or {}).get("checks") or []:
+            if isinstance(check, dict) and check.get("advice"):
+                actual = advice_for(check.get("id"))
+                if actual:
+                    check["advice"] = actual
+    return data
+
+
 def cargar(job_id):
     """Recupera un informe guardado. None si no existe o si la BD no responde."""
     if not ensure_table():
@@ -118,6 +139,7 @@ def cargar(job_id):
         # fecha de la fila para que panel, PDF y descargas no salgan sin fecha.
         if isinstance(data, dict) and not data.get("generated") and creado:
             data["generated"] = creado.isoformat() if hasattr(creado, "isoformat") else str(creado)
+        refrescar_consejos(data)
         return data
     except Exception as exc:
         logger.warning(f"agent_scanner_reports: failed to load {job_id}: {exc}")
