@@ -276,126 +276,10 @@
         </div>
     </nav>
     
-    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
 
     <div class="app-layout">
-        <aside class="sidebar-container" id="sidebarContainer" data-pdf-exclude="true">
-            <div class="sidebar-header"></div>
-            <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
-                <div class="nav-section nav-section-analysis">
-                    <div class="nav-section-title">Análisis</div>
-                    <button type="button" class="nav-item" id="navConfiguration" onclick="navigateToConfiguration()">
-                        <div class="nav-icon">
-                            <i class="fas fa-cog"></i>
-                        </div>
-                        <div class="nav-text">Configuration</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusConfiguration"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navPerformance" onclick="navigateToSection('performance')">
-                        <div class="nav-icon">
-                            <i class="fas fa-tachometer-alt"></i>
-                        </div>
-                        <div class="nav-text">Overview</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusPerformance"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navKeywords" onclick="navigateToSection('keywords')">
-                        <div class="nav-icon">
-                            <i class="fas fa-key"></i>
-                        </div>
-                        <div class="nav-text">Keywords</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusKeywords"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navPages" onclick="navigateToSection('pages')">
-                        <div class="nav-icon">
-                            <i class="fas fa-file-alt"></i>
-                        </div>
-                        <div class="nav-text">Pages</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusPages"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item disabled" id="navAI" onclick="navigateToSection('ai-overview')">
-                        <div class="nav-icon">
-                            <i class="fas fa-robot"></i>
-                        </div>
-                        <div class="nav-text">AI Overview</div>
-                        <div class="section-status">
-                            <div class="status-dot status-disabled" id="statusAI"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item" id="navManualAI" onclick="navigateToManualAI()">
-                        <div class="nav-icon">
-                            <i class="fas fa-cogs"></i>
-                        </div>
-                        <div class="nav-text">AI Overview Monitoring</div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusManualAI"></div>
-                        </div>
-                    </button>
-                    
-                    <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
-                        <div class="nav-icon">
-                            <i class="fas fa-brain"></i>
-                        </div>
-                        <div class="nav-text">AI Mode Monitoring</div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusAIMode"></div>
-                        </div>
-                    </button>
-                    
-                    <button type="button" class="nav-item active" id="navLLMMonitoring">
-                        <div class="nav-icon">
-                            <i class="fas fa-eye"></i>
-                        </div>
-                        <div class="nav-text">LLM Visibility Monitor</div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusLLMMonitoring"></div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="nav-item" id="navAISummary" onclick="window.location.href='/ai-summary/'">
-                        <div class="nav-icon">
-                            <i class="fas fa-chart-pie"></i>
-                        </div>
-                        <div class="nav-text">AI Visibility Summary <span class="nav-badge-new">new</span></div>
-                        <div class="section-status">
-                            <div class="status-dot status-ready" id="statusAISummary"></div>
-                        </div>
-                    </button>
-                    {% include 'partials/nav_agent_readiness.html' %}
-                </div>
-
-                <!-- Download Tools Section (visible only inside a project) -->
-                <div class="nav-section nav-section-tools" id="navSectionTools" style="display: none;">
-                    <div class="nav-section-title">Export Data</div>
-                    <button type="button" class="sidebar-download-btn" id="llmDownloadExcelBtn" aria-label="Download LLM data as Excel" title="Export project data to Excel">
-                        <i class="fas fa-file-excel"></i>
-                        <span>Download Excel</span>
-                        <div class="download-spinner" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i>
-                        </div>
-                    </button>
-                    <button type="button" class="sidebar-download-btn" id="llmDownloadPdfBtn" aria-label="Download LLM data as PDF" title="Export project data to PDF">
-                        <i class="fas fa-file-pdf"></i>
-                        <span>Download PDF</span>
-                        <div class="download-spinner" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i>
-                        </div>
-                    </button>
-                </div>
-            </nav>
-        </aside>
+        {% set nav_activo = 'llm' %}
+        {% include 'partials/sidebar.html' %}
 
         <main class="main-content-area">
         <div class="manual-ai-app" id="llmProjectsView">
@@ -496,6 +380,20 @@
                             <i class="fas fa-edit"></i>
                             <span>Edit</span>
                         </button>
+                        <!-- Exportación: antes en el sidebar; la muestra llm-monitoring-core.js
+                             (showDownloadButtons) al abrir un proyecto -->
+                        <div class="export-tools toolbar-item" id="exportTools" style="display: none;">
+                                <button type="button" class="export-btn" id="llmDownloadExcelBtn" style="display: none;" title="Export project data to Excel" aria-label="Export project data to Excel">
+                                    <i class="fas fa-file-excel"></i>
+                                    <span>Excel</span>
+                                    <div class="download-spinner" style="display: none;"><i class="fas fa-spinner fa-spin"></i></div>
+                                </button>
+                                <button type="button" class="export-btn" id="llmDownloadPdfBtn" style="display: none;" title="Export project data to PDF" aria-label="Export project data to PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <span>PDF</span>
+                                    <div class="download-spinner" style="display: none;"><i class="fas fa-spinner fa-spin"></i></div>
+                                </button>
+                        </div>
                         <button class="btn btn-ghost btn-danger toolbar-item" id="btnDeleteProject">
                             <i class="fas fa-trash"></i>
                             <span>Delete</span>
@@ -1892,26 +1790,7 @@
             email: '{{ user.email if user else '' }}',
             name: '{{ user.name if user else '' }}'
         };
-        
-        // Navigation functions
-        function navigateToConfiguration() {
-            window.location.href = '/app';
-        }
-        
-        function navigateToSection(section) {
-            // Las secciones Overview, Keywords, Pages y AI Overview 
-            // redirigen a /app con la sección correspondiente
-            window.location.href = '/app#' + section;
-        }
-        
-        function navigateToManualAI() {
-            window.location.href = '/manual-ai';
-        }
-        
-        function openAIMode() {
-            window.location.href = '/ai-mode-projects/';
-        }
-        
+
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 LLM Monitoring initialized');

@@ -50,7 +50,6 @@ class Navbar {
         this.dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
         
         // Sidebar navigation
-        this.navSectionGlobal = document.getElementById('navSectionGlobal');
         this.navbarBrand = this.navbar ? this.navbar.querySelector('.navbar-brand') : null;
         this.mobileBrand = this.navbarMenu ? this.navbarMenu.querySelector('.mobile-brand') : null;
         this.dashboardUrl = 'https://app.clicandseo.com/dashboard';
@@ -594,10 +593,6 @@ class Navbar {
                 this.userName.textContent = this.currentUser.name || 'User';
             }
             
-            // Show global navigation section in sidebar
-            if (this.navSectionGlobal) {
-                this.navSectionGlobal.style.display = 'block';
-            }
 
             // Mobile user info
             if (this.mobileUserInfo && this.mobileUserName && this.mobileUserEmail) {
@@ -609,10 +604,6 @@ class Navbar {
             // Ocultar info de usuario
             if (this.userInfo) {
                 this.userInfo.style.display = 'none';
-            }
-            // Hide global navigation section in sidebar
-            if (this.navSectionGlobal) {
-                this.navSectionGlobal.style.display = 'none';
             }
             if (this.mobileUserInfo) {
                 this.mobileUserInfo.style.display = 'none';

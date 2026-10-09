@@ -321,7 +321,7 @@ export class AIModeSystem {
         this.elements.analyticsTimeRange?.addEventListener('change', () => this.loadAnalytics());
 
         // Download Excel button
-        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const downloadBtn = document.getElementById('exportExcelBtn');
         if (downloadBtn) {
             downloadBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -332,7 +332,7 @@ export class AIModeSystem {
         }
 
         // Download PDF button
-        const downloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+        const downloadPdfBtn = document.getElementById('exportPdfBtn');
         if (downloadPdfBtn) {
             downloadPdfBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
@@ -584,9 +584,9 @@ export class AIModeSystem {
     }
 
     showDownloadButton(show = true) {
-        const downloadBtn = document.getElementById('sidebarDownloadBtn');
-        const downloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
-        const globalSection = document.getElementById('navSectionGlobal');
+        const downloadBtn = document.getElementById('exportExcelBtn');
+        const downloadPdfBtn = document.getElementById('exportPdfBtn');
+        const globalSection = document.getElementById('exportTools');
         
         if (downloadBtn) {
             downloadBtn.style.display = show ? 'flex' : 'none';
@@ -599,7 +599,7 @@ export class AIModeSystem {
         
         // Show/hide the entire global section based on button visibility
         if (globalSection) {
-            globalSection.style.display = show ? 'block' : 'none';
+            globalSection.style.display = show ? '' : 'none';  // '' = el flex de su CSS
             console.log(`📂 Global tools section ${show ? 'shown' : 'hidden'} for Manual AI`);
         }
     }

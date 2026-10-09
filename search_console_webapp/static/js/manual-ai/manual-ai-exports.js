@@ -14,7 +14,7 @@ export async function handleDownloadExcel() {
     }
 
     const { projectId, days } = this.currentAnalyticsData;
-    const downloadBtn = document.getElementById('sidebarDownloadBtn');
+    const downloadBtn = document.getElementById('exportExcelBtn');
     const spinner = downloadBtn?.querySelector('.download-spinner');
     const btnText = downloadBtn?.querySelector('span');
 
@@ -147,7 +147,7 @@ export async function handleDownloadPDF() {
     }
 
     const { projectId, days } = this.currentAnalyticsData;
-    const downloadBtn = document.getElementById('sidebarDownloadPdfBtn');
+    const downloadBtn = document.getElementById('exportPdfBtn');
     const spinner = downloadBtn?.querySelector('.download-spinner');
     const btnText = downloadBtn?.querySelector('span');
 
@@ -244,7 +244,7 @@ export async function handleDownloadPDF() {
         // Reset loading state
         if (downloadBtn) downloadBtn.disabled = false;
         if (spinner) spinner.style.display = 'none';
-        if (btnText) btnText.textContent = 'Download PDF';
+        if (btnText) btnText.textContent = 'PDF';
     }
 }
 
