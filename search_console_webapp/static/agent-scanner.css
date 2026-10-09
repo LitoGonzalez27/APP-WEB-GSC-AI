@@ -29,7 +29,7 @@
 .ag-app {
   font-family: var(--cs-font-sans);
   color: var(--cs-text-primary);
-  background: var(--cs-bg-subtle);
+  /* sin fondo propio: el de .manual-ai-app (#F9FAFB), como los demás paneles */
 
   /* ── Semáforo de estado (pedido de Carlos, oct-2026) ──────────────────────
      Verde = bien, naranja = regular, rojo = mal. Verde y rojo son los
@@ -2349,3 +2349,23 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 }
 /* vacío no ocupa sitio, pero sigue en el DOM para que role=alert se anuncie */
 #agHome .ag-error:empty { min-height: 0; margin: 0 !important; }
+
+/* «Qué mide» en horizontal, justo bajo el título: los tres pasos del viaje
+   del agente a la vista antes de rellenar nada */
+#agHome .ag-measure { margin-bottom: var(--cs-space-md); }
+#agHome .ag-measure .ag-card-title { margin-bottom: var(--cs-space-md); }
+.ag-measure .ag-journey-mini {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cs-space-lg);
+}
+.ag-measure .ag-journey-mini li { font-size: var(--cs-text-base); }
+.ag-measure .ag-journey-mini li span:not(.ag-step-n) { font-size: var(--cs-text-sm); line-height: 1.5; margin-top: 2px; }
+.ag-measure .ag-help {
+  margin-top: var(--cs-space-md);
+  padding-top: var(--cs-space-sm);
+  border-top: 1px solid var(--cs-border-subtle);
+}
+@media (max-width: 760px) {
+  .ag-measure .ag-journey-mini { grid-template-columns: minmax(0, 1fr); gap: var(--cs-space-sm); }
+}
