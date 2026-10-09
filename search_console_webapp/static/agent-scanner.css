@@ -2181,6 +2181,43 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
   .ag-run-layout .ag-learn { position: static; }
 }
 
+/* «Mientras esperas» conectado al análisis: progreso, paso actual y estado
+   de cada categoría y factor */
+.ag-learn-status { margin-bottom: var(--cs-space-md); }
+.ag-learn-progress { display: flex; justify-content: space-between; gap: var(--cs-space-md); margin-bottom: 6px; font-size: var(--cs-text-sm); color: var(--cs-text-secondary); }
+.ag-learn-progress b { color: var(--cs-text-primary); }
+.ag-learn-status .ag-bar > i { background: var(--ag-good); }
+.ag-learn-now { display: flex; align-items: center; gap: 6px; margin: var(--cs-space-xs) 0 0; font-size: var(--cs-text-xs); color: var(--cs-text-secondary); }
+.ag-learn-now::first-letter { text-transform: uppercase; }
+
+.ag-learn-dots button.is-done { background: var(--ag-good-soft); border-color: var(--ag-good-line); color: var(--ag-good-text); }
+.ag-learn-dots button.is-partial { border-color: var(--ag-good-line); color: var(--cs-text-primary); }
+.ag-learn-dots button.is-current { border-color: var(--cs-text-primary); color: var(--cs-text-primary); box-shadow: 0 0 0 2px var(--ag-lime-soft); animation: agPulse 1.6s ease-in-out infinite; }
+.ag-learn-dots button.is-active { background: var(--cs-text-primary); border-color: var(--cs-text-primary); color: var(--cs-text-inverse); }
+@keyframes agPulse { 0%, 100% { box-shadow: 0 0 0 2px var(--ag-lime-soft); } 50% { box-shadow: 0 0 0 5px var(--ag-lime-soft); } }
+
+.ag-learn-checks li { align-items: center; }
+.ag-learn-checks li .ag-learn-ic { display: inline-flex; min-width: 22px; }
+.ag-learn-checks li .ag-learn-ic svg.lucide { width: 15px; height: 15px; }
+.ag-learn-checks li.is-done .ag-learn-ic { color: var(--ag-good-text); }
+.ag-learn-checks li.is-done .ag-learn-name { color: var(--cs-text-secondary); }
+.ag-learn-checks li.is-current { font-weight: var(--cs-weight-semibold); }
+.ag-learn-checks li.is-current .ag-learn-ic { color: var(--cs-text-primary); }
+.ag-learn-checks li.is-pending .ag-learn-ic { color: var(--cs-text-secondary); opacity: 0.6; }
+
+/* Registro compacto: las últimas líneas; completo bajo demanda */
+.ag-run-layout .ag-console { height: auto; min-height: 0; max-height: 150px; }
+.ag-run-layout .ag-console.is-open { max-height: 320px; }
+.ag-log-toggle {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  margin-top: var(--cs-space-xs); padding: 4px 0; background: none; border: none;
+  font-family: var(--cs-font-sans); font-size: var(--cs-text-xs); font-weight: var(--cs-weight-semibold);
+  color: rgba(255, 255, 255, 0.6); cursor: pointer;
+}
+.ag-log-toggle:hover { color: var(--cs-text-inverse); }
+.ag-log-toggle svg.lucide { width: 14px; height: 14px; }
+@media (prefers-reduced-motion: reduce) { .ag-learn-dots button.is-current { animation: none; } }
+
 /* Plan de acción: título de cada acción con el color de su bloque */
 .ag-finding-title.t0, .ag-finding-title.t1 { color: var(--ag-bad-text); }
 .ag-finding-title.t2 { color: var(--ag-warn-text); }

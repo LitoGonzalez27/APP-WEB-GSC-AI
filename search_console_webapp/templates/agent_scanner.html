@@ -496,11 +496,13 @@
                             <ul class="ag-run-domains" id="agRunDomains"></ul>
                             <p class="ag-run-log-title">Registro en directo</p>
                             <div class="ag-console" id="agConsole"></div>
+                            <button type="button" class="ag-log-toggle" id="agLogToggle" aria-expanded="false" aria-controls="agConsole"><i data-lucide="chevrons-up-down"></i> <span>Ver registro completo</span></button>
                         </section>
 
                         <!-- derecha: qué se comprueba, categoría a categoría -->
                         <section class="ag-card ag-learn" id="agLearn">
                             <h2 class="ag-card-title">Mientras esperas: qué estamos comprobando</h2>
+                            <div class="ag-learn-status" id="agLearnStatus" aria-live="polite"></div>
                             <div class="ag-learn-dots" id="agLearnDots" role="group" aria-label="Categorías"></div>
                             <div class="ag-learn-body" id="agLearnBody"></div>
                         </section>
