@@ -2304,7 +2304,7 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
   padding: var(--cs-space-lg);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
-#agHome .ag-card.ag-card-quiet { box-shadow: none; }
+#agHome .ag-card.ag-card-quiet { box-shadow: none; padding: var(--cs-space-md) var(--cs-space-lg); }
 #agHome .ag-card-title {
   font-size: 1.125rem;
   font-weight: var(--cs-weight-semibold);
@@ -2353,15 +2353,17 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 /* «Qué mide» en horizontal, justo bajo el título: los tres pasos del viaje
    del agente a la vista antes de rellenar nada */
 #agHome .ag-measure { margin-bottom: var(--cs-space-md); }
-#agHome .ag-measure .ag-card-title { margin-bottom: var(--cs-space-md); }
+#agHome .ag-measure .ag-card-title { margin-bottom: var(--cs-space-sm); }
 .ag-measure .ag-journey-mini {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--cs-space-lg);
 }
-.ag-measure .ag-journey-mini li { font-size: var(--cs-text-base); }
-.ag-measure .ag-journey-mini li span:not(.ag-step-n) { font-size: var(--cs-text-sm); line-height: 1.5; margin-top: 2px; }
+/* informativa, no protagonista: tarjeta «quiet» (sin fondo ni sombra) y la
+   letra pequeña de antes; el bloque principal sigue siendo el formulario */
+.ag-measure .ag-journey-mini li span:not(.ag-step-n) { line-height: 1.5; }
 .ag-measure .ag-help {
+  font-size: var(--cs-text-xs);
   margin-top: var(--cs-space-md);
   padding-top: var(--cs-space-sm);
   border-top: 1px solid var(--cs-border-subtle);
