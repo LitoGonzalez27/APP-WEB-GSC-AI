@@ -486,13 +486,18 @@
                 </header>
                 <main class="manual-ai-main">
                     <section class="ag-run-stage" aria-live="polite">
-                        <div class="ag-radar-wrap" aria-hidden="true">
-                            <svg class="ag-radar" viewBox="0 0 240 240" id="agRadar"></svg>
-                        </div>
-                        <div class="ag-run-info">
+                        <!-- izquierda: radar y estado, todo en vertical -->
+                        <div class="ag-run-left">
+                            <div class="ag-radar-wrap" aria-hidden="true">
+                                <svg class="ag-radar" viewBox="0 0 240 240" id="agRadar"></svg>
+                            </div>
                             <p class="ag-run-phase" id="agPhase">Preparando análisis…</p>
                             <p class="ag-run-elapsed"><i data-lucide="timer"></i> <span id="agElapsed">0:00</span></p>
                             <ul class="ag-run-domains" id="agRunDomains"></ul>
+                        </div>
+                        <!-- derecha: lo que se va comprobando, en directo -->
+                        <div class="ag-run-right">
+                            <p class="ag-run-log-title">Qué estamos comprobando ahora</p>
                             <div class="ag-console" id="agConsole"></div>
                         </div>
                     </section>

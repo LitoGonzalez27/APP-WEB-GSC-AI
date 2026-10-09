@@ -251,6 +251,8 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
 .tier-hint { color: var(--text-2); font-size: 8.5pt; }
 .finding { padding: 4mm 0; border-bottom: 1px solid var(--border-subtle); break-inside: avoid; }
 .finding .ft { font-size: 10.5pt; font-weight: 700; letter-spacing: -0.01em; }
+.finding .ft.t0, .finding .ft.t1 { color: var(--bad-text); }
+.finding .ft.t2 { color: var(--warn-text); }
 .meta { display: flex; gap: 4mm; margin-top: 1mm; font-size: 7.5pt; color: var(--text-2); }
 .meta b { color: var(--text); }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 2.5mm; }
@@ -461,8 +463,8 @@ td.ev { font-family: var(--mono); font-size: 7pt; line-height: 1.5; color: var(-
     <div class="tier-body">
     {% for f in t.hallazgos %}
     <div class="finding">
-      <div class="ft">{{ f.titulo }}</div>
-      <div class="meta"><span>Impacto <b>{{ f.impacto }}</b></span><span>Esfuerzo <b>{{ f.esfuerzo }}</b></span><span>{{ f.name }} · check {{ f.id }}</span>{% if f.qw %}<span><b>Arreglo rápido</b></span>{% endif %}</div>
+      <div class="ft t{{ t.ord }}">{{ f.titulo }}</div>
+      {% if f.qw %}<div class="meta"><span><b>Arreglo rápido</b></span></div>{% endif %}
       <div class="cols">
         <div><div class="sub">Por qué te importa</div><p>{{ f.por_que }}</p></div>
         <div class="fix"><div class="sub">Cómo se arregla</div><p>{{ f.como }}</p></div>
