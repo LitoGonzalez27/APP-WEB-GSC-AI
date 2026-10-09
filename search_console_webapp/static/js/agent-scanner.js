@@ -369,7 +369,7 @@
             const j = await r.json();
             if (!r.ok) throw new Error(j.error || 'error');
             setUrl({ job: j.id });
-            startRunning(j.id, urls);
+            startRunning(j.id, urls, { ids: new Set(checks), cats: new Set(cats) });
         } catch (e) {
             showFormError(e.message);
         } finally {
@@ -479,66 +479,89 @@
 
     /* «Mientras esperas» sigue al análisis en directo. El motor no dice en qué
        factor está, pero cada paso escribe una línea fija en el registro
-       (engine.py: "robots.txt…", "sitemap…", "render de la home…"). Cada línea
-       se asocia aquí a los factores que alimenta: así la tarjeta salta sola a
-       la categoría en curso y marca qué factores ya están revisados. Es una
-       aproximación honesta: un factor se da por revisado cuando su paso ya
-       terminó (empezó el siguiente), no antes. */
+       (engine.py: "robots.txt…", "sitemap…", "render de la home…"). Cada paso
+       se asocia aquí a los factores cuyos DATOS recoge (qué claves de ctx lee
+       cada check en checks.py y qué paso las rellena en engine.py).
+       Ojo: ningún factor se puntúa durante la recogida; todos se evalúan juntos
+       al final (checks.run_all). Por eso la tarjeta dice «datos recogidos», no
+       «revisado», y muestra la evaluación como último paso. Un factor tiene sus
+       datos cuando empieza un paso POSTERIOR al suyo (los pasos condicionales
+       que se saltan, como el render, no bloquean). Orden = orden del motor. */
     const LIVE_STEPS = [
-        { re: /robots\.txt/i, ids: ['1.1', '1.2', '2.1'] },
+        { re: /(^|:\s*)robots\.txt/i, ids: ['1.1', '1.2', '2.1'] },
         { re: /sitemap/i, ids: ['1.4'] },
-        { re: /(^|:\s*)home…/i, ids: ['1.5', '1.8', '3.2', '3.5', '5.1'] },
-        { re: /matriz de acceso|acceso real/i, ids: ['1.3', '2.2'] },
-        { re: /superficie agéntica/i, ids: ['6.1', '2.3', '4.5', '5.5'] },
-        { re: /muestreo/i, ids: ['1.6', '3.1', '3.3', '3.4', '3.6', '4.3', '4.4', '5.2', '5.3', '5.8', '6.2', '7.5', '7.6'] },
-        { re: /fichas de producto/i, ids: ['7.1', '7.2', '7.3'] },
-        { re: /render de la home|render JS/i, ids: ['4.1', '4.2', '4.6'] },
-        { re: /zonas de clic/i, ids: ['4.7'] },
+        { re: /(^|:\s*)home…/i, ids: ['1.5', '1.8', '3.2', '3.5'] },
+        { re: /matriz de acceso/i, ids: ['1.3', '2.2'] },
+        { re: /superficie agéntica/i, ids: ['2.3', '4.5', '5.5', '6.1', '7.4'] },
+        { re: /muestreo/i, ids: ['1.6', '3.1', '3.4', '4.3', '4.4', '4.9', '5.1', '5.2', '5.3', '5.8', '6.2'] },
+        { re: /fichas de producto/i, ids: ['3.3', '4.2', '7.1', '7.2', '7.3', '7.5', '7.6'] },
+        { re: /render de la home/i, ids: ['3.6', '4.1'] },
+        { re: /zonas de clic en otras/i, ids: ['4.7'] },
         { re: /área de acceso/i, ids: ['6.4'] },
-        { re: /estados de error|soft-404/i, ids: ['4.8', '4.9'] },
-        { re: /markdown|dns-aid/i, ids: ['5.6', '1.7'] },
+        { re: /estados de error/i, ids: ['4.8'] },
+        { re: /markdown|dns-aid/i, ids: ['1.7', '5.6'] },
         { re: /wikidata|páginas de confianza/i, ids: ['3.7', '5.7'] },
-        { re: /pruebas agénticas/i, ids: ['6.3'] },
+        { re: /vista LLM|jina/i, ids: ['4.6'] },
+        { re: /pruebas agénticas/i, ids: [] },
         { re: /rate limiting/i, ids: ['2.4'] }
     ];
+    // Solo puntúan en e-commerce (checks.py: 3.3, 4.2 y C7 salvo 7.4)
+    const ECOM_ONLY = ['3.3', '4.2', '7.1', '7.2', '7.3', '7.5', '7.6'];
     const CAT_KEYS = Object.keys(CATS);
     const catOfId = id => 'C' + String(id).split('.')[0];
     let CATALOG = null, LEARN_IDX = 0, LEARN_MANUAL_UNTIL = 0, LOG_OPEN = false;
-    let LIVE = { domain: -1, done: new Set(), current: [], step: '', host: '' };
+    // selección del lanzamiento ({ids, cats}); null = todo (p. ej. al retomar un análisis tras recargar)
+    let LIVE_SEL = null;
+    const nuevoLive = (domain, host) => ({ domain, done: new Set(), current: [], step: '', host, last: -1, typ: null, fichas: false, finished: false });
+    let LIVE = nuevoLive(-1, '');
 
-    function resetLive() { LIVE = { domain: -1, done: new Set(), current: [], step: '', host: '' }; }
+    function resetLive() { LIVE = nuevoLive(-1, ''); }
+
+    /* Por qué un factor no cuenta en este análisis ('' = sí cuenta). */
+    function skipOf(f) {
+        if (f.id === '6.3') return 'se completa aparte';
+        if (LIVE_SEL && (LIVE_SEL.ids.size ? !LIVE_SEL.ids.has(f.id) : !LIVE_SEL.cats.has(catOfId(f.id)))) return 'no seleccionado';
+        if (ECOM_ONLY.includes(f.id) && LIVE.typ && LIVE.typ !== 'ecommerce' && !LIVE.fichas) return 'no aplica: no es e-commerce';
+        return '';
+    }
+    const enJuego = () => Object.values(CATALOG || {}).flat().filter(f => !skipOf(f));
 
     function updateLive(s) {
         const domains = s.domains || [];
         let idx = domains.findIndex(d => d.state === 'running');
         if (idx < 0) idx = domains.length - 1;
-        if (idx !== LIVE.domain) { LIVE = { domain: idx, done: new Set(), current: [], step: '', host: (domains[idx] || {}).host || '' }; }
-        if ((domains[idx] || {}).state === 'done') {
-            Object.values(CATALOG || {}).forEach(fs => fs.forEach(f => { if (f.id !== '6.3') LIVE.done.add(f.id); }));
-            LIVE.current = []; LIVE.step = '';
-            return;
-        }
+        if (idx !== LIVE.domain) LIVE = nuevoLive(idx, (domains[idx] || {}).host || '');
         const log = s.log || [];
         // solo las líneas del dominio en curso: empiezan en su "robots.txt…"
         let start = 0;
-        for (let k = log.length - 1; k >= 0; k--) { if (/(^|:\s*)robots\.txt/i.test(log[k])) { start = k; break; } }
-        const seen = [];
-        log.slice(start).forEach(line => {
-            const st = LIVE_STEPS.find(r => r.re.test(line));
-            if (st && seen[seen.length - 1] !== st) seen.push(st);
+        for (let k = log.length - 1; k >= 0; k--) { if (LIVE_STEPS[0].re.test(log[k])) { start = k; break; } }
+        const seg = log.slice(start);
+        const typLine = seg.find(l => /tipología:\s*\S/i.test(l));
+        if (typLine) LIVE.typ = typLine.replace(/^.*tipología:\s*/i, '').trim().toLowerCase();
+        LIVE.fichas = seg.some(l => /fichas de producto/i.test(l));
+        if ((domains[idx] || {}).state === 'done') {
+            enJuego().forEach(f => LIVE.done.add(f.id));
+            LIVE.current = []; LIVE.step = ''; LIVE.finished = true;
+            return;
+        }
+        let last = -1, lastLine = '';
+        seg.forEach(line => {
+            const k = LIVE_STEPS.findIndex(r => r.re.test(line));
+            if (k > last) { last = k; lastLine = line; }
         });
-        if (!seen.length) return;
-        seen.slice(0, -1).forEach(st => st.ids.forEach(id => LIVE.done.add(id)));
-        const cur = seen[seen.length - 1];
-        LIVE.current = cur.ids.filter(id => !LIVE.done.has(id));
-        LIVE.step = (log.slice(start).reverse().find(l => cur.re.test(l)) || '').replace(/^[^:]*:\s*(?=\S)/, m => (m.includes('.') ? '' : m)).replace(/…$/, '');
+        if (last < 0) return;
+        LIVE.last = last;
+        LIVE_STEPS.slice(0, last).forEach(st => st.ids.forEach(id => LIVE.done.add(id)));
+        LIVE.current = LIVE_STEPS[last].ids.filter(id => !LIVE.done.has(id));
+        LIVE.step = lastLine.replace(/^[^:]*:\s*(?=\S)/, m => (m.includes('.') ? '' : m)).replace(/…$/, '');
     }
 
     function catState(k) {
-        const fs = (CATALOG && CATALOG[k]) || [];
-        if (!fs.length) return 'pending';
+        const fs = ((CATALOG && CATALOG[k]) || []).filter(f => !skipOf(f));
+        if (!(CATALOG && CATALOG[k] || []).length) return 'pending';
+        if (!fs.length) return 'skip';
         if (fs.some(f => LIVE.current.includes(f.id))) return 'current';
-        if (fs.every(f => LIVE.done.has(f.id) || f.id === '6.3')) return LIVE.done.size ? 'done' : 'pending';
+        if (fs.every(f => LIVE.done.has(f.id))) return 'done';
         return fs.some(f => LIVE.done.has(f.id)) ? 'partial' : 'pending';
     }
 
@@ -549,18 +572,24 @@
             const st = catState(CAT_KEYS[j]);
             b.className = 'is-' + st + (j === i ? ' is-active' : '');
             b.setAttribute('aria-pressed', j === i ? 'true' : 'false');
-            b.setAttribute('aria-label', `${CATS[CAT_KEYS[j]]}: ${{ done: 'revisada', current: 'en curso', partial: 'en parte', pending: 'pendiente' }[st]}`);
+            b.setAttribute('aria-label', `${CATS[CAT_KEYS[j]]}: ${{ done: 'datos recogidos', current: 'recogiendo datos', partial: 'datos en parte', pending: 'pendiente', skip: 'no se analiza' }[st]}`);
         });
         const facs = (CATALOG && CATALOG[k]) || [];
-        const total = Object.values(CATALOG || {}).reduce((n, fs) => n + fs.length, 0);
-        const hechos = LIVE.done.size;
-        $('#agLearnStatus').innerHTML = total
-            ? `<div class="ag-learn-progress"><span>${LIVE.host ? `Revisando <b>${esc(LIVE.host)}</b>` : 'Preparando la revisión'}</span><span><b>${Math.min(hechos, total)}</b> de ${total} factores</span></div>
-               <div class="ag-bar ag-bar-sm"><i style="width:${Math.min(100, Math.round(hechos / total * 100))}%"></i></div>
-               ${LIVE.step ? `<p class="ag-learn-now">${ic('loader-circle', 'ag-spin')} Ahora: ${esc(LIVE.step)}</p>` : ''}`
+        const juego = enJuego();
+        const total = juego.length;
+        const hechos = juego.filter(f => LIVE.done.has(f.id)).length;
+        // último paso: la evaluación de todos los factores, cuando ya están todos los datos
+        const ultimo = LIVE.last === LIVE_STEPS.length - 1;
+        const evalSt = LIVE.finished ? 'done' : ultimo ? 'next' : 'pending';
+        const evalTxt = { done: `${total} factores evaluados`, next: `A continuación: evaluando los ${total} factores`, pending: `Último paso: evaluando los ${total} factores` }[evalSt];
+        $('#agLearnStatus').innerHTML = CATALOG
+            ? `<div class="ag-learn-progress"><span>${LIVE.host ? `Recogiendo datos de <b>${esc(LIVE.host)}</b>` : 'Preparando la recogida de datos'}</span><span><b>${hechos}</b> de ${total} factores con datos</span></div>
+               <div class="ag-bar ag-bar-sm"><i style="width:${total ? Math.round(hechos / total * 100) : 0}%"></i></div>
+               ${LIVE.step ? `<p class="ag-learn-now">${ic('loader-circle', 'ag-spin')} Ahora: ${esc(LIVE.step)}</p>` : ''}
+               <p class="ag-learn-final is-${evalSt}">${ic(evalSt === 'done' ? 'check' : 'list-checks')} ${esc(evalTxt)}</p>`
             : '';
-        const fstate = f => LIVE.done.has(f.id) ? 'done' : LIVE.current.includes(f.id) ? 'current' : 'pending';
-        const ficon = { done: ic('check'), current: ic('loader-circle', 'ag-spin'), pending: ic('circle-dashed') };
+        const fstate = f => skipOf(f) ? 'skip' : LIVE.done.has(f.id) ? 'done' : LIVE.current.includes(f.id) ? 'current' : 'pending';
+        const ficon = { done: ic('database'), current: ic('loader-circle', 'ag-spin'), pending: ic('circle-dashed'), skip: ic('minus') };
         $('#agLearnBody').innerHTML = `
             <div>
                 <h3>${esc(CATS[k])}</h3>
@@ -569,7 +598,9 @@
             </div>
             <ul class="ag-learn-checks">${facs.map(f => {
                 const st = fstate(f);
-                return `<li class="is-${st}"><span class="ag-learn-ic">${ficon[st]}</span><span class="ag-learn-name">${esc(f.nombre)}</span><span class="ag-sr">${{ done: ' (revisado)', current: ' (en curso)', pending: ' (pendiente)' }[st]}</span></li>`;
+                const nota = st === 'skip' ? `<span class="ag-learn-skip">${esc(skipOf(f))}</span>` : '';
+                const sr = { done: ' (datos recogidos)', current: ' (recogiendo datos)', pending: ' (pendiente)', skip: '' }[st];
+                return `<li class="is-${st}"><span class="ag-learn-ic">${ficon[st]}</span><span class="ag-learn-name">${esc(f.nombre)}</span>${nota}${sr ? `<span class="ag-sr">${sr}</span>` : ''}</li>`;
             }).join('') || '<li>Cargando factores…</li>'}</ul>`;
         refreshIcons();
     }
@@ -631,8 +662,9 @@
         con.scrollTop = con.scrollHeight;
     }
 
-    function startRunning(id, urls) {
+    function startRunning(id, urls, sel) {
         ANALISIS_EN_CURSO = id;
+        LIVE_SEL = sel || null;
         const first = (urls && urls[0]) || '';
         $('#agRunHost').textContent = first.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '') || 'tu web';
         $('#agPhase').textContent = 'Preparando análisis…';
