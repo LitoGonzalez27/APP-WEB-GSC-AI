@@ -870,12 +870,16 @@ svg.lucide-spin {
    .form-row:nth-child(3) fuerza «2fr 1fr» en la tercera fila de cualquier
    formulario. Gana a base-y-componentes.css con (0,3,0) o más.
    ─────────────────────────────────────────────────────────────────────────── */
+/* !important SOLO aquí: base-y-componentes.css fija
+   «.form-row:nth-child(3) { grid-template-columns: 2fr 1fr !important }»
+   (≥769px) para el formulario de /app y se cuela en cualquier tercera fila;
+   un !important solo se gana con otro. */
 .create-project-modal .modal-body .form-row {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) !important;
 }
 
 .create-project-modal .modal-body .form-row.form-row-split {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
 }
 
 .create-project-modal .form-row > .form-group {
