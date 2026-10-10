@@ -765,3 +765,80 @@
 .modal-overlay .create-project-modal .form-section .form-section-title { margin: 0 0 4px; }
 .modal-overlay .create-project-modal .form-section .form-section-desc { margin: 0 0 14px; }
 .modal-overlay .create-project-modal .form-section .form-row:last-child { margin-bottom: 0; }
+
+/* Clusters: la ayuda arriba (antes debajo del botón de guardar) y las
+   acciones en una fila: «Add cluster» a la izquierda, guardar a la derecha */
+.modal-overlay .modal-large .tab-section .clusters-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-overlay .modal-large .clusters-container > .clusters-list,
+.modal-overlay .modal-large .clusters-container > .form-help { grid-column: 1 / -1; }
+
+.modal-overlay .modal-large .clusters-container > .form-help { order: -1; margin: 0; }
+.modal-overlay .modal-large .clusters-container > .clusters-list { margin: 0; }
+.modal-overlay .modal-large .clusters-container > .clusters-save { justify-self: end; margin: 0; }
+
+/* Lista de keywords: área desplazable con borde, para que se entienda que
+   sigue (un proyecto puede tener 150 keywords) */
+.modal-overlay .modal-large #modalKeywordsList {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  background: #FFFFFF;
+}
+
+.modal-overlay .modal-large #modalKeywordsList:empty { display: none; }
+
+/* Miembros e invitaciones: nombre a tamaño de lista, rol sin forma de
+   píldora (brandbook §9) y «Remove» como secundario rojo, no bloque relleno */
+.modal-overlay .modal-content .project-access-item strong,
+.modal-overlay .modal-content .llm-project-access-item strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.modal-overlay .modal-content .project-access-badge,
+.modal-overlay .modal-content .llm-project-access-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  background: #F8FAFC;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.modal-overlay .modal-content .project-access-badge.owner,
+.modal-overlay .modal-content .llm-project-access-badge.owner {
+  border-color: #CDEFA8;
+  background: #EAFCD8;
+  color: #1F4D12;
+}
+
+.modal-overlay .modal-content .project-access-btn.btn-danger,
+.modal-overlay .modal-content .llm-project-access-btn.btn-danger {
+  border-color: #F5C2C2;
+  background: #FFFFFF;
+  color: #A52727;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+}
+
+.modal-overlay .modal-content .project-access-btn.btn-danger:hover,
+.modal-overlay .modal-content .llm-project-access-btn.btn-danger:hover {
+  border-color: #E05252;
+  background: #FCECEC;
+  color: #A52727;
+}
