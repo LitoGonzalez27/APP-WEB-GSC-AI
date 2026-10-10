@@ -515,3 +515,24 @@
 }
 
 .modal-overlay .create-project-modal .form-section .form-section-title { margin-top: 0; }
+
+/* Confirmación escrita de LLM (borrar proyecto), como la de AI Overview */
+.modal-overlay .action-confirm-typed { margin-top: 18px; }
+.modal-overlay .action-confirm-typed-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0F172A;
+}
+.modal-overlay .modal-content .action-confirm-typed input.form-input {
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  font-size: 0.9rem;
+}
+.modal-overlay #actionConfirmAccept:disabled { opacity: 0.45; cursor: not-allowed; }
