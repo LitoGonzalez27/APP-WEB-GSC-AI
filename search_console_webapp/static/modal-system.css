@@ -448,14 +448,38 @@
 }
 
 /* ── Recuadros informativos: tono de marca, no azul ────────────────────── */
-.modal-overlay .annotation-info,
-.modal-overlay .info-box,
-.modal-overlay .annotation-context {
+.modal-overlay .modal-content .annotation-info {
+  margin: 0 0 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.modal-overlay .modal-content .annotation-info .info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
   border: 1px solid #E2E8F0;
   border-radius: 12px;
-  background: #F1F5F9;
-  color: #0F172A;
+  background: #FFFFFF;
+  box-shadow: none;
 }
+
+.modal-overlay .modal-content .annotation-info .info-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #161616;
+  color: #D8F9B8;
+}
+
+.modal-overlay .modal-content .annotation-info h4 { margin: 0 0 4px; font-size: 0.95rem; color: #0F172A; }
+.modal-overlay .modal-content .annotation-info p { margin: 0; font-size: 0.85rem; color: #475569; }
 
 /* ── LLM: al editar sobra el recuadro de bienvenida del alta ───────────── */
 .modal-overlay .create-project-modal.is-edit .create-intro { display: none; }
