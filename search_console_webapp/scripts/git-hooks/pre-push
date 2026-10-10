@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Comprobaciones rápidas (unos segundos) antes de cada git push. Si algo falla,
+# el push no sale. La suite completa sigue en el CI de GitHub (8-12 min).
+#   1. Tests de JavaScript, incluido el contrato plantillas ↔ JS
+#      (tests/js/contrato-plantillas.test.cjs: botones que llaman a métodos que
+#      no existen, funciones globales sin definir, imports rotos y display:block
+#      que anula rejillas/flex).
+#   2. Todo el Python compila.
+#   3. Tests estáticos del frontend en Python (referencias a /static, escape
+#      de HTML, plantillas comunes, sidebar), si hay pytest en local.
+# Activar una vez por clon:  git config core.hooksPath search_console_webapp/scripts/git-hooks
+# Saltárselo en una urgencia: git push --no-verify
+set -uo pipefail
+
+APP="$(git rev-parse --show-toplevel)/search_console_webapp"
+cd "$APP" || exit 1
+fallo=0
+
+echo "▶ pre-push: tests de JavaScript"
+salida="$(node --test --test-reporter=spec tests/js/*.test.cjs 2>&1)" || fallo=1
+if [ "$fallo" -ne 0 ]; then echo "$salida" | grep -v ExperimentalWarning | sed -n '/failing tests/,$p'; else echo "  ✔ $(echo "$salida" | grep -c '^✔') ok"; fi
+
+echo "▶ pre-push: compilación de Python"
+PYTHONPYCACHEPREFIX="${TMPDIR:-/tmp}/clicandseo-pyc" \
+  python3 -m compileall -q -x '(worktrees|venv|node_modules|\.claude)' . >/dev/null || { echo "  ✖ hay Python que no compila"; fallo=1; }
+
+if python3 -c 'import pytest' 2>/dev/null; then
+  echo "▶ pre-push: tests estáticos del frontend"
+  python3 -m pytest -q -p no:cacheprovider --no-header \
+    tests/test_static_references.py tests/test_html_escape_estatico.py \
+    tests/test_plantillas_comunes.py tests/test_sidebar_unico.py 2>&1 | tail -1
+  [ "${PIPESTATUS[0]}" -eq 0 ] || fallo=1
+fi
+
+if [ "$fallo" -ne 0 ]; then
+  echo "✖ pre-push: hay fallos, el push se cancela (urgencia: git push --no-verify)"
+  exit 1
+fi
+echo "✔ pre-push: todo bien"

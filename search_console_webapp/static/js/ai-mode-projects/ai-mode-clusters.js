@@ -74,7 +74,7 @@ export function toggleClustersConfiguration(enabled) {
     if (!clustersContainer) return;
     
     if (enabled) {
-        clustersContainer.style.display = 'block';
+        clustersContainer.style.display = ''; // rejilla de modal-system.css
         // Si no hay clusters, añadir uno por defecto
         const clustersRows = document.querySelectorAll('.cluster-row');
         if (clustersRows.length === 0) {

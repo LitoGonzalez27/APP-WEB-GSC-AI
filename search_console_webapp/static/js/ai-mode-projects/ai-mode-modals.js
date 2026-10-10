@@ -406,7 +406,7 @@ export function renderModalKeywords(keywords) {
 
     if (!keywords || keywords.length === 0) {
         keywordsList.innerHTML = '';
-        noKeywords.style.display = 'block';
+        noKeywords.style.display = ''; // .empty-state es flex
         return;
     }
 
@@ -435,6 +435,21 @@ export function renderModalKeywords(keywords) {
             </div>
         </div>
     `).join('');
+}
+
+// Buscador de la lista de keywords del modal: filtra al escribir y «Clear»
+// lo vacía (antes ninguno de los dos estaba conectado)
+export function filterModalKeywords() {
+    this.renderModalKeywords(this._modalAllKeywords || []);
+}
+
+export function clearModalKeywordsSearch() {
+    const searchInput = document.getElementById('modalKeywordsSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    this.filterModalKeywords();
 }
 
 export function loadModalSettings(project) {

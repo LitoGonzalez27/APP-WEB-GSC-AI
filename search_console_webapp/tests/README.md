@@ -24,6 +24,27 @@ Tests de JavaScript (funciones puras del frontend, sin dependencias, Node 18+):
 node --test tests/js/*.test.cjs
 ```
 
+## Antes de cada push (hook)
+
+`scripts/git-hooks/pre-push` corre en ~3 s y cancela el push si algo falla: tests de JavaScript, compilación de todo el Python y los tests estáticos del frontend en Python. Se activa una vez por clon:
+
+```bash
+git config core.hooksPath search_console_webapp/scripts/git-hooks
+```
+
+En una urgencia: `git push --no-verify`. La suite completa sigue en el CI (abajo).
+
+### Contrato plantillas ↔ JS (`tests/js/contrato-plantillas.test.cjs`)
+
+Fallos de frontend que no dan error hasta que alguien pulsa algo:
+
+- **A.** Cada `onclick`/`onchange`/… con `manualAI.x()`, `aiModeSystem.x()` o `llmMonitoring.x()` (en plantillas y en el HTML que genera el JS) llama a un método que existe. Se cargan las clases reales en Node con un DOM falso, así que cuenta también lo añadido con `Object.assign` desde los módulos.
+- **B.** Las funciones globales que llama un manejador están definidas en algún sitio.
+- **C.** Los módulos ES de AI Overview y AI Mode cargan (un `import` de un nombre no exportado tumba la página).
+- **D.** El JS no muestra con `display = 'block'` un elemento al que el CSS da rejilla o flex (se pierde la maqueta); para mostrarlo, `display = ''`.
+
+Los fallos conocidos pendientes de decisión están en `CONOCIDOS`, con el motivo; el test obliga a quitarlos cuando se arreglan.
+
 ## CI
 
 `.github/workflows/tests.yml` (raíz del repo) ejecuta en cada PR y push a `staging` y `main` los tests de JavaScript y `scripts/run_tests_docker.sh -q -rs`: el mismo comando que en local, con el Postgres desechable y la red interna sin salida. Sin secretos ni despliegues; permisos de solo lectura.
