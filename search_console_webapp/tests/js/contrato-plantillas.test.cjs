@@ -33,8 +33,6 @@ const APP = path.resolve(__dirname, '..', '..');
 // Fallos conocidos, pendientes de decisión. Cada entrada dice por qué sigue
 // aquí; si se arregla, el test obliga a quitarla (no se acumulan obsoletas).
 const CONOCIDOS = {
-  'manualAI.addNoteFromModal': 'notas: JS y ruta /notes se perdieron al modularizar (sep-2025); pendiente de restaurar',
-  'aiModeSystem.addNoteFromModal': 'notas: igual que en AI Overview',
   'manualAI.hideProjectDetails': 'modal projectDetailsModal: ningún código lo abre (HTML muerto)',
   'manualAI.updateProjectName': 'campo projectNameEdit de un bloque que ya no se muestra (HTML muerto)',
   'aiModeSystem.updateProjectName': 'igual que en AI Overview',

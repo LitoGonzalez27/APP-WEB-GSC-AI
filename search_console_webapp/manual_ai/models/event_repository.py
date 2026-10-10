@@ -21,12 +21,13 @@ class EventRepository:
                     event_description: str = '', keywords_affected: int = 0,
                     user_id: Optional[int] = None):
         """
-        Crear un evento en el sistema
+        Crear un evento en el sistema. Devuelve True si se guardó (los que
+        lo ignoran siguen igual: un evento que falla no es crítico).
         """
         conn = get_db_connection()
         if not conn:
             logger.error(f"create_event({project_id}, {event_type}): no DB connection")
-            return
+            return False
         try:
             cur = conn.cursor()
             try:
@@ -42,10 +43,12 @@ class EventRepository:
 
                 conn.commit()
                 logger.debug(f"Event created: {event_type} for project {project_id}")
+                return True
 
             except Exception as e:
                 logger.error(f"Error creating event: {e}")
                 # No lanzar excepción - los eventos son no críticos
+                return False
         finally:
             try:
                 conn.close()
