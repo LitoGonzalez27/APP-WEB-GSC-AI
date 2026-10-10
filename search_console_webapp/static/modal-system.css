@@ -772,7 +772,7 @@
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 12px;
+  gap: 16px 12px;
 }
 
 .modal-overlay .modal-large .clusters-container > .clusters-list,

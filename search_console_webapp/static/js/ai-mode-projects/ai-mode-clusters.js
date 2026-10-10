@@ -47,7 +47,8 @@ export function initializeClustersConfiguration() {
             const projectClustersContainer = document.getElementById('projectClustersContainer');
             if (projectClustersContainer) {
                 console.log(`🔄 Toggle clusters settings: ${this.checked}`);
-                projectClustersContainer.style.display = this.checked ? 'block' : 'none';
+                // '' deja actuar la rejilla de modal-system.css (con 'block' se perdía)
+                projectClustersContainer.style.display = this.checked ? '' : 'none';
                 
                 // Si se activa y no hay clusters, añadir uno por defecto
                 if (this.checked) {
