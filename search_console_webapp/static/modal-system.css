@@ -330,8 +330,9 @@
 }
 
 /* añadir keywords/notas: campo y botón en una fila compacta */
-.modal-overlay .modal-large .keywords-input-section .input-group {
+.modal-overlay .modal-large .tab-section .keywords-input-section .input-group {
   display: flex;
+  flex-direction: row;
   align-items: flex-end;
   gap: 10px;
   margin: 10px 0 16px;
@@ -344,6 +345,30 @@
 }
 
 .modal-overlay .modal-large .keywords-input-section .btn-primary { flex-shrink: 0; }
+
+/* buscador de keywords: campo y «Clear» en la misma fila, a todo el ancho */
+.modal-overlay .modal-large .tab-section .manual-ai-keyword-search {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.modal-overlay .modal-large .tab-section .manual-ai-keyword-search input {
+  flex: 1;
+  max-width: none;
+  margin: 0;
+}
+
+/* casilla de clusters sin caja gris alrededor */
+.modal-overlay .modal-large .tab-section .toggle-row {
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
 
 .modal-overlay .modal-large .save-section-inline {
   display: flex;
