@@ -467,13 +467,14 @@ renderQuickSuggestions(suggestions) {
         }
         
         let html = '';
-        uniqueSuggestions.forEach((suggestion, idx) => {
-            const truncated = suggestion.length > 50 ? suggestion.substring(0, 47) + '...' : suggestion;
+        // Texto completo: para elegir una sugerencia hay que poder leerla (antes
+        // se cortaba a 47 caracteres). <button> para que funcione con teclado.
+        uniqueSuggestions.forEach((suggestion) => {
             html += `
-                <div class="suggestion-chip" onclick="window.llmMonitoring.addSuggestionToTextarea(${window.ClicandseoHtml.jsArg(suggestion)})">
-                    <span class="chip-text" title="${this.escapeHtml(suggestion)}">${this.escapeHtml(truncated)}</span>
-                    <i class="fas fa-plus chip-add-icon"></i>
-                </div>
+                <button type="button" class="suggestion-chip" onclick="window.llmMonitoring.addSuggestionToTextarea(${window.ClicandseoHtml.jsArg(suggestion)})" aria-label="Add prompt: ${this.escapeHtml(suggestion)}">
+                    <span class="chip-text">${this.escapeHtml(suggestion)}</span>
+                    <i class="fas fa-plus chip-add-icon" aria-hidden="true"></i>
+                </button>
             `;
         });
         
