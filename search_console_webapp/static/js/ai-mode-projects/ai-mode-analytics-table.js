@@ -144,7 +144,7 @@ export function showNoAIKeywordsMessage() {
     }
     
     if (noKeywordsMessage) {
-        noKeywordsMessage.style.display = 'block';
+        noKeywordsMessage.style.display = ''; // flex centrado de manual-ai.css
     }
 }
 

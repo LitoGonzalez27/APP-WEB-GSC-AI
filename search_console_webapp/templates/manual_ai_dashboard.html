@@ -1491,6 +1491,7 @@ keyword 3"></textarea>
                         <div class="keywords-list-container">
                             <div class="manual-ai-keyword-search">
                                 <input type="text" id="modalKeywordsSearch" class="form-input manual-ai-keyword-search-input"
+                                       oninput="manualAI.filterModalKeywords()"
                                        placeholder="Search current keywords..." autocomplete="off">
                                 <button type="button" class="btn-secondary btn-compact manual-ai-keyword-search-clear"
                                         onclick="manualAI.clearModalKeywordsSearch()">Clear</button>
