@@ -499,6 +499,10 @@ export function cancelDeleteProject() {
     document.getElementById('confirmDeleteBtn').disabled = true;
 }
 
+export function hideDeleteProjectModal() {
+    this.cancelDeleteProject();
+}
+
 export async function executeDeleteProject() {
     if (!this.assertProjectEditable(this.projectToDelete || this.currentModalProject || this.currentProject)) {
         return;
