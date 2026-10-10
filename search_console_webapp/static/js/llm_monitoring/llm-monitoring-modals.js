@@ -44,7 +44,8 @@ showConfirmDialog({
         message = 'Are you sure?',
         confirmText = 'Confirm',
         cancelText = 'Cancel',
-        variant = 'warning'
+        variant = 'warning',
+        requireText = null   // texto exacto que hay que escribir (p. ej. el nombre del proyecto)
     } = {}) {
         const modal = document.getElementById('actionConfirmModal');
         const titleEl = document.getElementById('actionConfirmTitle');
@@ -85,9 +86,32 @@ showConfirmDialog({
             if (iconEl) iconEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
         }
 
+        // Confirmación escrita: el botón no se activa hasta que el texto coincide
+        const typedBox = document.getElementById('actionConfirmTyped');
+        const typedInput = document.getElementById('actionConfirmInput');
+        const needsText = typeof requireText === 'string' && requireText.trim() !== '';
+        if (typedBox && typedInput) {
+            typedBox.hidden = !needsText;
+            typedInput.value = '';
+            typedInput.oninput = null;
+            typedInput.onkeydown = null;
+            if (needsText) {
+                const expected = requireText.trim();
+                const matches = () => typedInput.value.trim() === expected;
+                acceptBtn.disabled = true;
+                typedInput.oninput = () => { acceptBtn.disabled = !matches(); };
+                typedInput.onkeydown = (e) => {
+                    if (e.key === 'Enter' && matches()) this.resolveConfirmDialog(true);
+                };
+            } else {
+                acceptBtn.disabled = false;
+            }
+        }
+
         modal.style.display = 'flex';
         requestAnimationFrame(() => {
             modal.classList.add('show');
+            if (needsText) typedInput?.focus();
         });
         this.isConfirmModalOpen = true;
 
@@ -97,6 +121,12 @@ showConfirmDialog({
     },
 
 resolveConfirmDialog(confirmed) {
+        // Defensa: si se pedía texto y no coincide, no se confirma
+        const typedBox = document.getElementById('actionConfirmTyped');
+        const acceptBtn = document.getElementById('actionConfirmAccept');
+        if (confirmed && typedBox && !typedBox.hidden && acceptBtn?.disabled) {
+            return;
+        }
         const modal = document.getElementById('actionConfirmModal');
         if (modal) {
             modal.classList.remove('show');

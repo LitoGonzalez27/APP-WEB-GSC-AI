@@ -499,7 +499,8 @@ async deleteProject(projectId, projectName, isPermanent = false) {
             message,
             confirmText: isPermanent ? 'Delete Permanently' : 'Delete',
             cancelText: 'Cancel',
-            variant: 'danger'
+            variant: 'danger',
+            requireText: projectName   // igual que AI Overview y AI Mode
         });
         if (!confirmed) {
             return;

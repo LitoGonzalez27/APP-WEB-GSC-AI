@@ -1350,6 +1350,12 @@
                     </div>
                     <p id="actionConfirmMessage" class="action-confirm-message"></p>
                 </div>
+                <!-- Borrado permanente: hay que escribir el nombre (igual que en
+                     AI Overview y AI Mode). Lo activa showConfirmDialog({requireText}). -->
+                <div class="action-confirm-typed" id="actionConfirmTyped" hidden>
+                    <label for="actionConfirmInput" class="action-confirm-typed-label">Type the project name to confirm:</label>
+                    <input type="text" id="actionConfirmInput" class="form-input" autocomplete="off" spellcheck="false" placeholder="Type the project name here...">
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-secondary btn-enhanced" id="actionConfirmCancel">Cancel</button>
