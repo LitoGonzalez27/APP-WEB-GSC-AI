@@ -73,7 +73,7 @@ export function renderKeywords(keywords) {
                         </div>
                         <div class="col-last">
                             ${keyword.last_analysis_date ? 
-                                new Date(keyword.last_analysis_date).toLocaleDateString() : 
+                                new Date(keyword.last_analysis_date).toLocaleDateString('en-GB') : 
                                 'Never'}
                         </div>
                         ${isReadOnly ? '' : `

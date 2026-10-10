@@ -106,7 +106,7 @@ export function renderAnalytics(stats) {
                 // Badge "Latest analysis"
                 const header = document.querySelector('.overview-section .section-header p.section-description');
                 if (header) {
-                    const dt = ms.last_analysis_date ? new Date(ms.last_analysis_date).toLocaleDateString() : '';
+                    const dt = ms.last_analysis_date ? new Date(ms.last_analysis_date).toLocaleDateString('en-GB') : '';
                     header.textContent = `Data from the latest analysis${dt ? ' (' + dt + ')' : ''}`;
                 }
             })

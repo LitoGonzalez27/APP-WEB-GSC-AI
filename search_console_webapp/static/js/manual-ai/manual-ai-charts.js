@@ -469,7 +469,7 @@ export function showEventAnnotations(chart, annotations) {
             // ✅ CORREGIDO: Mostrar el texto que el usuario añadió
             const eventTitle = hoveredAnnotation.event.event_title || 'Cambio en Keywords';
             const userDescription = hoveredAnnotation.event.event_description;
-            const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString('es-ES', {
+            const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString('en-GB', {
                 weekday: 'short',
                 year: 'numeric', 
                 month: 'short',
