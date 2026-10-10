@@ -828,7 +828,7 @@
 }
 
 .modal-overlay .modal-content .project-access-btn.btn-danger,
-.modal-overlay .modal-content .llm-project-access-btn.btn-danger {
+.modal-overlay .modal-content .llm-project-access-item .btn-danger {
   border-color: #F5C2C2;
   background: #FFFFFF;
   color: #A52727;
@@ -837,7 +837,7 @@
 }
 
 .modal-overlay .modal-content .project-access-btn.btn-danger:hover,
-.modal-overlay .modal-content .llm-project-access-btn.btn-danger:hover {
+.modal-overlay .modal-content .llm-project-access-item .btn-danger:hover {
   border-color: #E05252;
   background: #FCECEC;
   color: #A52727;
