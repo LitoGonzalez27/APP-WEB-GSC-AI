@@ -42,6 +42,7 @@
     <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
 
     <link href="{{ url_for('static', filename='project-cards.css') }}?v={{ ASSET_V }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='modal-system.css') }}?v={{ ASSET_V }}" rel="stylesheet">
     {% include 'partials/panel_brand_assets.html' %}
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
@@ -1334,7 +1335,7 @@ keyword 3"></textarea>
     <!-- Project Management Modal -->
     <div class="modal-overlay" id="projectModal">
         <div class="modal-content modal-large">
-            <div class="settings-header">
+            <div class="modal-header settings-header">
                 <div class="header-text">
                     <h3><i class="fas fa-cog"></i> <span id="projectModalTitle">Project Settings</span></h3>
                     <p>Manage keywords, media sources, and project configuration</p>
@@ -1358,13 +1359,15 @@ keyword 3"></textarea>
 
                 <!-- Keywords Tab -->
                 <div class="modal-tab-content active" id="modalKeywordsTab">
-                    <div class="tab-section">
-                        <h4><i class="fas fa-plus-circle"></i> Add Keywords</h4>
+                    <div class="tab-section tab-section-keywords">
+                        <!-- Keywords: añadir (compacto) y la lista en el mismo bloque; antes la
+                             lista quedaba al final, debajo de clusters y notas -->
+                        <h4><i class="fas fa-key"></i> Keywords <span class="tab-section-count" id="modalCurrentKeywordsCount"></span></h4>
                         <div class="keywords-input-section">
                             <div class="input-group">
                                 <textarea id="modalKeywordsInput" class="form-textarea"
                                           placeholder="Enter keywords, one per line or separated by commas..."
-                                          rows="4"
+                                          rows="2"
                                           oninput="aiModeSystem.updateModalKeywordsCounter()"></textarea>
                                 <button type="button" class="btn-primary" onclick="aiModeSystem.addKeywordsFromModal()">
                                     <i class="fas fa-plus"></i>
@@ -1374,6 +1377,22 @@ keyword 3"></textarea>
                             <div class="keywords-counter" style="margin-top: 8px; font-size: 14px; color: #6b7280;">
                                 <i class="fas fa-info-circle"></i>
                                 <span id="modalKeywordsCount">0</span> keywords ready to add
+                            </div>
+                        </div>
+                        <div class="keywords-list-container">
+                            <div class="manual-ai-keyword-search">
+                                <input type="text" id="modalKeywordsSearch" class="form-input manual-ai-keyword-search-input"
+                                       placeholder="Search current keywords..." autocomplete="off">
+                                <button type="button" class="btn-secondary btn-compact manual-ai-keyword-search-clear"
+                                        onclick="aiModeSystem.clearModalKeywordsSearch()">Clear</button>
+                            </div>
+                            <div id="modalKeywordsList" class="keywords-list">
+                                <!-- Keywords will be loaded here -->
+                            </div>
+                            <div id="modalNoKeywords" class="empty-state" style="display: none;">
+                                <i class="fas fa-key"></i>
+                                <p>No keywords added yet</p>
+                                <small>Add some keywords above to get started</small>
                             </div>
                         </div>
                     </div>
@@ -1417,26 +1436,7 @@ keyword 3"></textarea>
                             </div>
                         </div>
                     </div>
-
-                    <div class="tab-section">
-                        <h4><i class="fas fa-list"></i> Current Keywords</h4>
-                        <div class="keywords-list-container">
-                            <div class="manual-ai-keyword-search">
-                                <input type="text" id="modalKeywordsSearch" class="form-input manual-ai-keyword-search-input"
-                                       placeholder="Search current keywords..." autocomplete="off">
-                                <button type="button" class="btn-secondary btn-compact manual-ai-keyword-search-clear"
-                                        onclick="aiModeSystem.clearModalKeywordsSearch()">Clear</button>
-                            </div>
-                            <div id="modalKeywordsList" class="keywords-list">
-                                <!-- Keywords will be loaded here -->
-                            </div>
-                            <div id="modalNoKeywords" class="empty-state" style="display: none;">
-                                <i class="fas fa-key"></i>
-                                <p>No keywords added yet</p>
-                                <small>Add some keywords above to get started</small>
-                            </div>
-                        </div>
-                    </div>
+                
                 </div>
 
                 <!-- Settings Tab -->
@@ -1456,6 +1456,12 @@ keyword 3"></textarea>
                             </label>
                             <textarea id="modalProjectDescription" class="form-textarea"
                                       placeholder="Enter project description (optional)..." rows="3"></textarea>
+                        </div>
+                        <div class="save-section save-section-inline">
+                            <button type="button" class="btn-primary" onclick="aiModeSystem.updateProjectFromModal()">
+                                <i class="fas fa-save"></i>
+                                Save changes
+                            </button>
                         </div>
                     </div>
 
@@ -1519,12 +1525,7 @@ keyword 3"></textarea>
                         </div>
                     </div>
 
-                    <div class="save-section">
-                        <button type="button" class="btn-primary" onclick="aiModeSystem.updateProjectFromModal()">
-                            <i class="fas fa-save"></i>
-                            Save Changes
-                        </button>
-                    </div>
+
 
                     <div class="tab-section" style="margin-top: 1.25rem;">
                         <div class="danger-zone">

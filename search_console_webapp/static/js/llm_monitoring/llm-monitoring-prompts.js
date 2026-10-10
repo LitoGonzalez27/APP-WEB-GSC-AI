@@ -81,6 +81,13 @@ async loadPrompts(projectId, renderInModal = false) {
             // Update prompts limit UI (badge in management modal)
             this.updatePromptsLimitUI();
 
+            // La pestaña «Prompts N» se contaba al llegar la config de
+            // clusters/sets, que a veces llega ANTES que los prompts
+            // (cabecera «2», pestaña «0»): se recuenta también aquí.
+            if (typeof this.updatePromptsMgmtTabCounts === 'function') {
+                this.updatePromptsMgmtTabCounts();
+            }
+
         } catch (error) {
             console.error('❌ Error loading prompts:', error);
             container.innerHTML = `
@@ -261,6 +268,18 @@ showPromptsModal() {
         const modal = document.getElementById('promptsModal');
         if (!modal) return;
 
+        // Sin modales apilados: si venimos de «Prompts Management», se oculta
+        // y vuelve al cerrar o guardar (un paso del mismo flujo, no un modal
+        // encima de otro con doble oscurecido).
+        const mgmt = document.getElementById('promptsManagementModal');
+        this._returnToPromptsMgmt = !!(mgmt && mgmt.classList.contains('active'));
+        if (this._returnToPromptsMgmt) {
+            mgmt.classList.remove('active');
+            mgmt.style.display = 'none';
+        }
+        const cancelBtn = modal.querySelector('.btn-cancel');
+        if (cancelBtn) cancelBtn.textContent = this._returnToPromptsMgmt ? 'Back to prompts' : 'Cancel';
+
         // Reset form
         document.getElementById('promptsForm').reset();
 
@@ -300,6 +319,16 @@ hidePromptsModal() {
         setTimeout(() => {
             modal.style.display = 'none';
         }, 300);
+
+        // Volver a «Prompts Management» si se abrió desde allí
+        if (this._returnToPromptsMgmt) {
+            this._returnToPromptsMgmt = false;
+            const mgmt = document.getElementById('promptsManagementModal');
+            if (mgmt) {
+                mgmt.style.display = 'flex';
+                setTimeout(() => mgmt.classList.add('active'), 10);
+            }
+        }
     },
 
 clearPromptsInput() {

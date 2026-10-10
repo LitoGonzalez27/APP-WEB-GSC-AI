@@ -171,7 +171,7 @@ updateAnalyzeUrlContentButton() {
             if (label) label.textContent = 'Content Up to Date';
             if (icon) icon.className = 'fas fa-check-circle';
             const nextRefresh = data.next_refresh_available_at
-                ? new Date(data.next_refresh_available_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                ? new Date(data.next_refresh_available_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
                 : null;
             btn.title = `All top ${data.top_limit || 30} cited pages are already analyzed (cache: ${data.cache_ttl_days || 7} days).`
                 + (nextRefresh ? ` Re-analysis available on ${nextRefresh}, or sooner if new URLs enter the top.` : '');
@@ -341,7 +341,7 @@ buildUrlAnalysisDetailHtml(analysis) {
         }
 
         const fetchedDate = analysis.fetched_at
-            ? new Date(analysis.fetched_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+            ? new Date(analysis.fetched_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
             : '—';
         const fetchMethodNote = analysis.fetch_method === 'jina' ? ' &middot; via reader proxy' : '';
 

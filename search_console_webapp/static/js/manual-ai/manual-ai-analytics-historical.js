@@ -440,7 +440,7 @@ export function formatHistDate(value) {
     if (!value) return '—';
     try {
         const d = new Date(value + 'T00:00:00');
-        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch (_) {
         return value;
     }

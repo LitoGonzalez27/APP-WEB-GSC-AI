@@ -1,0 +1,440 @@
+/* ============================================================================
+   CLICANDSEO — Carcasa común de modales (AI Overview, AI Mode, LLM Visibility)
+
+   Antes cada modal traía su propia cabecera (oscura con brillo, negra plana,
+   blanca), su botón de cerrar (cuadrado, redondo, círculo) y su ancho, y en
+   varios se desplazaba el modal entero, cabecera incluida. Aquí se unifica
+   SOLO la carcasa, sobre las clases que ya comparten todos:
+
+     .modal-overlay > .modal-content [> form] > .modal-header / .modal-body / .modal-footer
+     .modal-close · .modal-small / .modal-medium / .modal-large
+
+   - Cabecera oscura de marca y pie fijos; solo el cuerpo se desplaza, así el
+     botón principal siempre está a la vista.
+   - Tres anchos: small 480 (confirmaciones), medium 640 (formularios
+     cortos) y large 960 (gestión); el alta de proyecto, 720.
+   - Botones con un único sistema dentro de los modales: principal negro,
+     secundario con borde, destructivo rojo; todos píldora.
+
+   No toca cómo se abren/cierran (display, .active, .show): eso sigue en las
+   hojas de cada panel. Va DESPUÉS de manual-ai.css / llm-monitoring.css y
+   ANTES de partials/panel_brand_assets.html.
+   ========================================================================= */
+
+/* ── Fondo ─────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  padding: 24px;
+}
+
+/* ── Contenedor: columna con cabecera y pie fijos ──────────────────────── */
+.modal-overlay > .modal-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  background: #FFFFFF;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
+}
+
+.modal-overlay > .modal-content.modal-small,
+.modal-overlay > .modal-content.action-confirm-modal { max-width: 480px; }
+.modal-overlay > .modal-content.modal-medium { max-width: 640px; }
+.modal-overlay > .modal-content.create-project-modal,
+.modal-overlay > .modal-content.models-modal { max-width: 720px; }
+.modal-overlay > .modal-content.modal-large,
+.modal-overlay > .modal-content.add-prompts-modal,
+.modal-overlay > .modal-content.brand-mentions-modal { max-width: 960px; }
+
+/* los formularios que envuelven cuerpo + pie también son columna */
+.modal-overlay > .modal-content > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ── Cabecera ──────────────────────────────────────────────────────────── */
+.modal-overlay > .modal-content > .modal-header,
+#promptsManagementModal .modal-content > .modal-header {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  width: auto;
+  padding: 22px 28px;
+  border: none;
+  border-radius: 0;
+  background: #161616;
+  color: #F8FAFC;
+  overflow: hidden;
+}
+
+/* fuera los brillos decorativos que solo llevaban algunas cabeceras */
+.modal-overlay > .modal-content > .modal-header::before,
+.modal-overlay > .modal-content > .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+
+.modal-overlay > .modal-content > .modal-header h3,
+.modal-overlay > .modal-content > .modal-header h2,
+#promptsManagementModal .modal-content > .modal-header .header-text h3 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: #F8FAFC;
+  text-align: left;
+}
+
+.modal-overlay > .modal-content > .modal-header h3 i,
+.modal-overlay > .modal-content > .modal-header h3 svg {
+  color: #D8F9B8;
+  font-size: 1rem;
+  width: 18px;
+  height: 18px;
+}
+
+.modal-overlay > .modal-content > .modal-header p,
+#promptsManagementModal .modal-content > .modal-header .header-text p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: rgba(248, 250, 252, 0.72);
+}
+
+/* ── Cerrar: el mismo en todos ─────────────────────────────────────────── */
+.modal-overlay > .modal-content > .modal-header .modal-close,
+#promptsManagementModal .modal-content > .modal-header .modal-close {
+  position: static;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(248, 250, 252, 0.18);
+  border-radius: 9999px;
+  background: rgba(248, 250, 252, 0.08);
+  color: #F8FAFC;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.modal-overlay > .modal-content > .modal-header .modal-close:hover,
+#promptsManagementModal .modal-content > .modal-header .modal-close:hover {
+  background: rgba(248, 250, 252, 0.18);
+  color: #FFFFFF;
+}
+
+.modal-overlay .modal-close:focus-visible {
+  outline: 2px solid #D8F9B8;
+  outline-offset: 2px;
+}
+
+/* ── Cuerpo: lo único que se desplaza ─────────────────────────────────── */
+.modal-overlay > .modal-content .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px;
+  background: #F9FAFB;
+}
+
+/* modal sin cabecera (progreso): cuerpo blanco y centrado */
+.modal-overlay > .modal-content.modal-small > .modal-body:only-child {
+  background: #FFFFFF;
+}
+
+/* ── Pie fijo ──────────────────────────────────────────────────────────── */
+.modal-overlay > .modal-content .modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 28px;
+  border-top: 1px solid #E2E8F0;
+  border-radius: 0;
+  background: #FFFFFF;
+}
+
+/* ── Botones dentro de los modales: un solo sistema ───────────────────── */
+.modal-overlay .modal-content .btn-primary,
+.modal-overlay .modal-content .btn-submit,
+.modal-overlay .modal-content .btn-primary-inverted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1.5px solid #0F172A;
+  border-radius: 9999px;
+  background: #0F172A;
+  color: #F8FAFC;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.modal-overlay .modal-content .btn-primary:hover:not(:disabled),
+.modal-overlay .modal-content .btn-submit:hover:not(:disabled),
+.modal-overlay .modal-content .btn-primary-inverted:hover:not(:disabled) {
+  background: #1E293B;
+  border-color: #1E293B;
+  color: #FFFFFF;
+  transform: none;
+}
+
+.modal-overlay .modal-content .btn-primary i,
+.modal-overlay .modal-content .btn-submit i,
+.modal-overlay .modal-content .btn-primary-inverted i,
+.modal-overlay .modal-content .btn-primary svg,
+.modal-overlay .modal-content .btn-primary-inverted svg { color: inherit; }
+
+.modal-overlay .modal-content .btn-secondary,
+.modal-overlay .modal-content .btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 9999px;
+  background: #FFFFFF;
+  color: #0F172A;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.modal-overlay .modal-content .btn-secondary:hover:not(:disabled),
+.modal-overlay .modal-content .btn-cancel:hover:not(:disabled) {
+  border-color: #0F172A;
+  background: #FFFFFF;
+  color: #0F172A;
+}
+
+.modal-overlay .modal-content .btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1.5px solid #E05252;
+  border-radius: 9999px;
+  background: #E05252;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.modal-overlay .modal-content .btn-danger:hover:not(:disabled) {
+  background: #C53D3D;
+  border-color: #C53D3D;
+  color: #FFFFFF;
+}
+
+.modal-overlay .modal-content .btn-primary:disabled,
+.modal-overlay .modal-content .btn-submit:disabled,
+.modal-overlay .modal-content .btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.modal-overlay .modal-content .btn-compact,
+.modal-overlay .modal-content .btn-sm {
+  padding: 8px 16px;
+  font-size: 0.8125rem;
+}
+
+/* ── Configuración de proyecto (AI Overview / AI Mode) ─────────────────── */
+/* secciones planas: una tarjeta por bloque, sin cajas dentro de cajas */
+.modal-overlay .modal-large .tab-section {
+  padding: 20px 22px;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  background: #FFFFFF;
+  box-shadow: none;
+}
+
+.modal-overlay .modal-large .tab-section + .tab-section { margin-top: 16px; }
+
+.modal-overlay .modal-large .tab-section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.modal-overlay .modal-large .tab-section .section-description {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  font-style: normal;
+  color: #64748B;
+}
+
+.modal-overlay .modal-large .tab-section-count {
+  margin-left: 2px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.modal-overlay .modal-large .keywords-input-section,
+.modal-overlay .modal-large .competitors-manager,
+.modal-overlay .modal-large .add-competitor-section,
+.modal-overlay .modal-large .project-access-card,
+.modal-overlay .modal-large .keywords-list-container,
+.modal-overlay .modal-large .danger-zone {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* añadir keywords/notas: campo y botón en una fila compacta */
+.modal-overlay .modal-large .keywords-input-section .input-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+
+.modal-overlay .modal-large .keywords-input-section textarea {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+}
+
+.modal-overlay .modal-large .keywords-input-section .btn-primary { flex-shrink: 0; }
+
+.modal-overlay .modal-large .save-section-inline {
+  display: flex;
+  justify-content: flex-end;
+  margin: 14px 0 0;
+  padding: 0;
+  border: none;
+}
+
+/* «Danger zone»: un aviso rojo suave en lugar de caja roja sobre tarjeta */
+.modal-overlay .modal-large .tab-section:has(.danger-zone) {
+  border-color: #F5C2C2;
+  background: #FFF7F7;
+}
+
+.modal-overlay .modal-large .danger-zone h5 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #A52727;
+}
+
+.modal-overlay .modal-large .danger-zone .danger-text {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: #7F1D1D;
+}
+
+.modal-overlay .modal-large .danger-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Project Access: los dos campos con la misma altura que el resto */
+.modal-overlay .project-access-invite-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.modal-overlay .project-access-invite-row input {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: auto;
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  font-weight: 400;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #FFFFFF;
+}
+
+/* ── Recuadros informativos: tono de marca, no azul ────────────────────── */
+.modal-overlay .annotation-info,
+.modal-overlay .info-box,
+.modal-overlay .annotation-context {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+/* ── LLM: al editar sobra el recuadro de bienvenida del alta ───────────── */
+.modal-overlay .create-project-modal.is-edit .create-intro { display: none; }
+
+/* ── LLM: etiquetas de prompt neutras (antes píldoras azules y verdes) ─── */
+.modal-overlay .prompt-item .badge,
+.modal-overlay .prompt-item .prompt-set-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  background: #F8FAFC;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+@media (max-width: 640px) {
+  .modal-overlay { padding: 12px; }
+  .modal-overlay > .modal-content > .modal-header,
+  .modal-overlay > .modal-content .modal-body,
+  .modal-overlay > .modal-content .modal-footer { padding-left: 18px; padding-right: 18px; }
+}

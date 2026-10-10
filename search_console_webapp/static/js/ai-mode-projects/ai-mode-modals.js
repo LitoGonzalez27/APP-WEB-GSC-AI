@@ -10,7 +10,7 @@ const PROJECT_ACCESS_MODULE = 'ai_mode';
 function formatAccessDate(value) {
     if (!value) return '-';
     try {
-        return new Date(value).toLocaleString();
+        return new Date(value).toLocaleString('en-GB');
     } catch (error) {
         return '-';
     }
@@ -97,7 +97,7 @@ export function renderResults(results) {
             ${sortedDates.map(date => `
                 <div class="date-group">
                     <div class="date-header">
-                        <h5>${new Date(date).toLocaleDateString()}</h5>
+                        <h5>${new Date(date).toLocaleDateString('en-GB')}</h5>
                         <span class="date-stats">
                             ${resultsByDate[date].length} keywords analyzed
                         </span>
@@ -399,6 +399,10 @@ export async function loadModalKeywords(projectId) {
 export function renderModalKeywords(keywords) {
     const keywordsList = document.getElementById('modalKeywordsList');
     const noKeywords = document.getElementById('modalNoKeywords');
+
+    // Recuento junto al título del bloque «Keywords»
+    const countEl = document.getElementById('modalCurrentKeywordsCount');
+    if (countEl) countEl.textContent = (keywords && keywords.length) ? String(keywords.length) : '';
 
     if (!keywords || keywords.length === 0) {
         keywordsList.innerHTML = '';

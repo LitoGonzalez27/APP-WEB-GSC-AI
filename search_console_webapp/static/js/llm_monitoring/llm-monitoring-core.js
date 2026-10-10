@@ -582,10 +582,6 @@ setupEventListeners() {
             this.showPromptsModal();
         });
 
-        document.getElementById('btnGetSuggestionsModal')?.addEventListener('click', () => {
-            this.showSuggestionsModal();
-        });
-
         // Legacy: Mantener botón antiguo por si acaso
         document.getElementById('btnAddPrompts')?.addEventListener('click', () => {
             this.showPromptsModal();
@@ -595,15 +591,6 @@ setupEventListeners() {
         document.getElementById('promptsForm')?.addEventListener('submit', (e) => {
             e.preventDefault();
             this.savePrompts();
-        });
-
-        // ✅ NUEVO: Sugerencias con IA
-        document.getElementById('btnGetSuggestions')?.addEventListener('click', () => {
-            this.showSuggestionsModal();
-        });
-
-        document.getElementById('btnAddSelectedSuggestions')?.addEventListener('click', () => {
-            this.addSelectedSuggestions();
         });
 
         // ✨ NUEVO: Event listeners para filtros de Responses Inspector
@@ -1420,7 +1407,7 @@ bindDomainStackTooltips() {
 formatDate(dateStr) {
         if (!dateStr) return 'N/A';
         const date = new Date(dateStr);
-        return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+        return date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
     },
 
 escapeHtml(text) {

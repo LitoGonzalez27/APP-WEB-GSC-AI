@@ -558,6 +558,9 @@ showProjectModal(project = null) {
         // Clear all chips first
         this.clearAllChips();
 
+        // Al editar sobra el recuadro de bienvenida del alta (CSS: .is-edit)
+        modal?.querySelector('.modal-content')?.classList.toggle('is-edit', !!project);
+
         if (project) {
             // Edit mode
             title.textContent = 'Edit LLM Monitoring Project';
@@ -734,7 +737,7 @@ async loadProjectAccessSection(project) {
                         const rawStatus = String(invitation.status || 'pending').toLowerCase();
                         const normalizedStatus = ['pending', 'accepted', 'expired'].includes(rawStatus) ? rawStatus : 'default';
                         const statusText = this.escapeHtml(rawStatus.replace(/_/g, ' '));
-                        const expires = invitation.expires_at ? new Date(invitation.expires_at).toLocaleString() : '-';
+                        const expires = invitation.expires_at ? new Date(invitation.expires_at).toLocaleString('en-GB') : '-';
                         const revokeBtn = rawStatus === 'pending'
                             ? `<button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.revokeProjectInvitationFromModal(${Number(invitation.id)})"><i class="fas fa-ban"></i> Revoke</button>`
                             : '';
