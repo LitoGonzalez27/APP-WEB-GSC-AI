@@ -506,3 +506,12 @@
   .modal-overlay > .modal-content .modal-body,
   .modal-overlay > .modal-content .modal-footer { padding-left: 18px; padding-right: 18px; }
 }
+
+/* Alta/edición de proyecto LLM: secciones («Brand Configuration»…) con el
+   mismo relleno que las del resto; el título traía además 21px de margen. */
+.modal-overlay .create-project-modal .form-section {
+  padding: 20px 22px;
+  border-radius: 14px;
+}
+
+.modal-overlay .create-project-modal .form-section .form-section-title { margin-top: 0; }
