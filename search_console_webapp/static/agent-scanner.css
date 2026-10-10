@@ -2370,3 +2370,18 @@ details[open] > summary .ag-caret { transform: rotate(90deg); }
 @media (max-width: 760px) {
   .ag-measure .ag-journey-mini { grid-template-columns: minmax(0, 1fr); gap: var(--cs-space-sm); }
 }
+
+/* Acción principal de la portada en Bio-Lime (botón Accent del brandbook),
+   igual que «Create New Project» en los demás paneles */
+.ag-app.manual-ai-app .btn-primary.ag-go {
+  border-color: #D9F9B8;
+  background: #D9F9B8;
+  color: #0F172A;
+}
+.ag-app.manual-ai-app .btn-primary.ag-go:hover:not(:disabled) {
+  border-color: #C9F09F;
+  background: #C9F09F;
+  color: #0F172A;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+.ag-app.manual-ai-app .btn-primary.ag-go svg { color: #0F172A; }
