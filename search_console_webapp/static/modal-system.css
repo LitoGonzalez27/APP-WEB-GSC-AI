@@ -756,3 +756,12 @@
 .modal-overlay .create-project-modal .form-group .enhanced-input,
 .modal-overlay .create-project-modal .form-group .enhanced-textarea,
 .modal-overlay .create-project-modal .form-group .enhanced-select { margin: 0; }
+
+/* LLM: mismo ritmo (medido: pestañas a 6px del contenido, secciones del
+   alta/edición pegadas entre sí y título/descripción a 13/19) */
+.modal-overlay #promptsManagementModal .prompts-mgmt-tabs { margin-bottom: 20px; }
+
+.modal-overlay .create-project-modal .form-section { margin: 0 0 20px; }
+.modal-overlay .create-project-modal .form-section .form-section-title { margin: 0 0 4px; }
+.modal-overlay .create-project-modal .form-section .form-section-desc { margin: 0 0 14px; }
+.modal-overlay .create-project-modal .form-section .form-row:last-child { margin-bottom: 0; }
