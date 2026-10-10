@@ -679,3 +679,79 @@
   border: none;
   background: transparent;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Ritmo vertical común dentro de los modales (medido en el navegador: los
+   huecos iban de 6 a 29px según el bloque)
+     título → descripción 4 · título/descripción → contenido 14
+     entre campos o bloques 16 · etiqueta → campo 8 · campo → ayuda 6
+   ════════════════════════════════════════════════════════════════════════ */
+.modal-overlay .modal-large .tab-section { padding: 22px 24px; }
+
+.modal-overlay .modal-large .tab-section h4 { margin: 0 0 14px; }
+
+.modal-overlay .modal-large .tab-section h4 + .section-description { margin-top: -10px; }
+
+.modal-overlay .modal-large .tab-section .section-description { margin: 0 0 14px; }
+
+.modal-overlay .modal-large .tab-section .setting-group { margin: 0; }
+.modal-overlay .modal-large .tab-section .setting-group + .setting-group { margin-top: 16px; }
+
+.modal-overlay .modal-large .tab-section .setting-group > label,
+.modal-overlay .modal-large .tab-section .setting-group > .enhanced-label {
+  display: block;
+  margin: 0 0 8px;
+}
+
+.modal-overlay .modal-large .tab-section .setting-group input.form-input,
+.modal-overlay .modal-large .tab-section .setting-group textarea { margin: 0; }
+
+.modal-overlay .modal-large .tab-section .keywords-input-section .input-group { margin: 0 0 16px; }
+
+/* casilla y su texto centrados: la etiqueta heredaba 8px de margen inferior
+   (regla global de label) y la casilla los 3px del navegador */
+.modal-overlay .modal-content .toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-overlay .modal-content .toggle-row input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.modal-overlay .modal-content .toggle-row label {
+  margin: 0;
+  padding: 0;
+  line-height: 1.4;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #0F172A;
+  cursor: pointer;
+}
+
+/* Project Access: mismo ritmo que el resto de secciones */
+.modal-overlay .modal-content .project-access-card h4 { margin: 0 0 14px; }
+.modal-overlay .modal-content .project-access-card .project-access-invite-form { margin: 0; }
+.modal-overlay .modal-content .project-access-card .project-access-invite-form .form-help { display: block; margin: 6px 0 0; }
+.modal-overlay .modal-content .project-access-lists { display: grid; gap: 16px; margin: 16px 0 0; }
+.modal-overlay .modal-content .project-access-list-block h6 {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748B;
+}
+
+/* Alta de proyecto: 20px entre filas, etiqueta → campo 8, campo → ayuda 6 */
+.modal-overlay .create-project-modal .modal-body .form-row { margin: 0 0 20px; }
+.modal-overlay .create-project-modal .create-intro { margin: 0 0 24px; }
+.modal-overlay .create-project-modal .form-group { margin: 0; }
+.modal-overlay .create-project-modal .form-group .enhanced-label { margin: 0 0 8px; }
+.modal-overlay .create-project-modal .form-group .enhanced-input,
+.modal-overlay .create-project-modal .form-group .enhanced-textarea,
+.modal-overlay .create-project-modal .form-group .enhanced-select { margin: 0; }
