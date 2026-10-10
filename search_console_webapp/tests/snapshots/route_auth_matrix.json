@@ -1012,6 +1012,11 @@
   "paid": "403",
   "user": "403"
  },
+ "POST /ai-mode-projects/api/projects/<int:project_id>/notes [ai_mode.add_project_note]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
  "POST /ai-summary/api/brands [ai_summary.create_brand]": {
   "anon": "401",
   "paid": "400",
@@ -1228,6 +1233,11 @@
   "user": "402"
  },
  "POST /manual-ai/api/projects/<int:project_id>/keywords [manual_ai.add_keywords_to_project]": {
+  "anon": "401",
+  "paid": "403",
+  "user": "403"
+ },
+ "POST /manual-ai/api/projects/<int:project_id>/notes [manual_ai.add_project_note]": {
   "anon": "401",
   "paid": "403",
   "user": "403"

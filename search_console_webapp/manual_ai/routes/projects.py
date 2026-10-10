@@ -3,10 +3,13 @@ Rutas para gestión de proyectos
 """
 
 import logging
+from datetime import date
 from flask import render_template, request, jsonify
 from auth import auth_required, get_current_user
 from manual_ai import manual_ai_bp
 from manual_ai.services.project_service import ProjectService
+from manual_ai.models.event_repository import EventRepository
+from manual_ai.config import EVENT_TYPES
 from manual_ai.utils.validators import check_manual_ai_access
 from services.project_access_service import user_has_any_module_access
 from llm_monitoring_limits import get_upgrade_options
@@ -293,3 +296,42 @@ def resume_project(project_id):
     if 'not found' in err_code or 'already' in err_code:
         return jsonify(result), 404
     return jsonify(result), 400
+
+
+NOTE_MAX_CHARS = 500
+
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/notes', methods=['POST'])
+@auth_required
+def add_project_note(project_id):
+    """
+    Nota manual del usuario: se guarda como evento 'manual_note_added' con la
+    fecha de hoy y sale como anotación azul en las gráficas de visibilidad.
+    (Se perdió al modularizar en sep-2025; restaurada 2026-10-10.)
+    """
+    user = get_current_user()
+
+    if not project_service.user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json(silent=True) or {}
+    note = data.get('note')
+    note = note.strip() if isinstance(note, str) else ''
+    if not note:
+        return jsonify({'success': False, 'error': 'Note text is required'}), 400
+    if len(note) > NOTE_MAX_CHARS:
+        return jsonify({'success': False, 'error': f'Note must be {NOTE_MAX_CHARS} characters or less'}), 400
+
+    title = f'User note: {note[:50]}...' if len(note) > 50 else f'User note: {note}'
+    saved = EventRepository.create_event(
+        project_id=project_id,
+        event_type=EVENT_TYPES['MANUAL_NOTE_ADDED'],
+        event_title=title,
+        event_description=note,
+        keywords_affected=0,
+        user_id=user['id'],
+    )
+    if not saved:
+        return jsonify({'success': False, 'error': 'Could not save the note'}), 500
+
+    return jsonify({'success': True, 'note_date': date.today().isoformat()}), 201

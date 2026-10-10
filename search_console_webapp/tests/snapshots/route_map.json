@@ -483,6 +483,13 @@
   ]
  },
  {
+  "rule": "/ai-mode-projects/api/projects/<int:project_id>/notes",
+  "endpoint": "ai_mode.add_project_note",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
   "rule": "/ai-mode-projects/api/projects/<int:project_id>/pause",
   "endpoint": "ai_mode.pause_project",
   "methods": [
@@ -1554,6 +1561,13 @@
   "endpoint": "manual_ai.update_project_keyword",
   "methods": [
    "PUT"
+  ]
+ },
+ {
+  "rule": "/manual-ai/api/projects/<int:project_id>/notes",
+  "endpoint": "manual_ai.add_project_note",
+  "methods": [
+   "POST"
   ]
  },
  {

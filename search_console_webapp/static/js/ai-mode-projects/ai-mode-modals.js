@@ -452,6 +452,55 @@ export function clearModalKeywordsSearch() {
     this.filterModalKeywords();
 }
 
+// Nota manual: se guarda con la fecha de hoy y sale como anotación azul en
+// las gráficas (se perdió al modularizar en sep-2025; restaurada 2026-10-10)
+export async function addNoteFromModal() {
+    const input = document.getElementById('modalNotesInput');
+    const button = document.querySelector('button[onclick="aiModeSystem.addNoteFromModal()"]');
+    const note = (input && input.value || '').trim();
+
+    if (!this.currentModalProject) {
+        this.showError('No project selected');
+        return;
+    }
+    if (!note) {
+        this.showError('Write a note first');
+        input?.focus();
+        return;
+    }
+    if (note.length > 500) {
+        this.showError('Notes can be up to 500 characters');
+        return;
+    }
+
+    const projectId = this.currentModalProject.id;
+    if (button) button.disabled = true;
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/notes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || `HTTP ${response.status}`);
+        }
+
+        input.value = '';
+        this.showSuccess('Note added. It will appear on the visibility chart.');
+
+        // Si la analítica de este proyecto está abierta, repintar con la nota
+        if (this.currentAnalyticsData && this.currentAnalyticsData.projectId === projectId) {
+            this.loadAnalytics();
+        }
+    } catch (error) {
+        console.error('Error adding note:', error);
+        this.showError(`Could not add the note: ${error.message}`);
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
 export function loadModalSettings(project) {
     // Load project settings into modal
     const projectNameEdit = document.getElementById('projectNameEdit');
