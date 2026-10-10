@@ -407,25 +407,44 @@
   gap: 12px;
 }
 
-/* Project Access: los dos campos con la misma altura que el resto */
-.modal-overlay .project-access-invite-row {
+/* Project Access y competidores: campos iguales que el resto y a lo ancho.
+   (0,4,1) para ganar a base-y-componentes.css:293 (0,2,2), que les ponía
+   margen 8/24 y otro relleno: salían con alturas distintas. */
+.modal-overlay .modal-content .project-access-invite-row,
+.modal-overlay .modal-content .competitor-input-group {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.modal-overlay .project-access-invite-row input {
-  flex: 1 1 180px;
+.modal-overlay .modal-content .project-access-invite-row input.form-input,
+.modal-overlay .modal-content .competitor-input-group input.form-input {
+  flex: 1 1 200px;
   min-width: 0;
-  height: auto;
+  height: 44px;
   margin: 0;
-  padding: 10px 14px;
-  font-size: 0.875rem;
-  font-weight: 400;
+  padding: 0 14px;
   border: 1px solid #E2E8F0;
   border-radius: 10px;
   background: #FFFFFF;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #0F172A;
+}
+
+.modal-overlay .modal-content input::placeholder,
+.modal-overlay .modal-content textarea::placeholder { color: #94A3B8; opacity: 1; }
+
+.modal-overlay .modal-content .project-access-invite-row .btn-primary-inverted,
+.modal-overlay .modal-content .competitor-input-group .btn-primary-inverted { flex-shrink: 0; height: 44px; }
+
+.modal-overlay .modal-large .danger-actions .form-help {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: left;
+  color: #7F1D1D;
+  opacity: 0.8;
 }
 
 /* ── Recuadros informativos: tono de marca, no azul ────────────────────── */
