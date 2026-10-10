@@ -734,6 +734,7 @@
 }
 
 /* Project Access: mismo ritmo que el resto de secciones */
+.modal-overlay .modal-content .project-access-card { display: block; }   /* era grid con gap 16 que se sumaba a los márgenes */
 .modal-overlay .modal-content .project-access-card h4 { margin: 0 0 14px; }
 .modal-overlay .modal-content .project-access-card .project-access-invite-form { margin: 0; }
 .modal-overlay .modal-content .project-access-card .project-access-invite-form .form-help { display: block; margin: 6px 0 0; }
