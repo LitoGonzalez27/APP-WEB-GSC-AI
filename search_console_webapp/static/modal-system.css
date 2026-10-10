@@ -536,3 +536,136 @@
   font-size: 0.9rem;
 }
 .modal-overlay #actionConfirmAccept:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Ajustes tras la revisión de Carlos (oct-2026)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Botón Accent (brandbook §9: fondo Bio-Lime, texto #0F172A) para la acción
+   que CIERRA el flujo del modal: el botón principal del pie y «Save
+   changes». Las acciones dentro de una sección (añadir keyword, competidor,
+   invitar) siguen en negro, y el destructivo en rojo. Una sola acción lima
+   por pantalla marca qué es lo importante. */
+.modal-overlay .modal-content .modal-footer .btn-primary,
+.modal-overlay .modal-content .modal-footer .btn-submit,
+.modal-overlay .modal-content .save-section-inline .btn-primary {
+  border-color: #D9F9B8;
+  background: #D9F9B8;
+  color: #0F172A;
+}
+
+.modal-overlay .modal-content .modal-footer .btn-primary:hover:not(:disabled),
+.modal-overlay .modal-content .modal-footer .btn-submit:hover:not(:disabled),
+.modal-overlay .modal-content .save-section-inline .btn-primary:hover:not(:disabled) {
+  border-color: #C9F09F;
+  background: #C9F09F;
+  color: #0F172A;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+/* Selects: flecha propia con aire a la derecha (la del sistema iba pegada
+   al borde) y la misma altura y borde que los campos de texto */
+.modal-overlay .modal-content select.form-control,
+.modal-overlay .modal-content select.form-select,
+.modal-overlay .modal-content select.enhanced-select,
+.modal-overlay .modal-content select.option-select,
+.modal-overlay .modal-content select.form-input,
+.modal-overlay .modal-content .cluster-row select {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 44px;
+  margin: 0;
+  padding: 0 40px 0 14px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background-color: #FFFFFF;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: #0F172A;
+  cursor: pointer;
+}
+
+.modal-overlay .modal-content select.form-control-sm { height: 40px; }
+
+/* Fila de cluster (AI Overview / AI Mode): campos alineados abajo, mismos
+   campos que el resto y papelera como botón de icono, no un bloque rojo */
+.modal-overlay .modal-content .cluster-row {
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  background: #FFFFFF;
+}
+
+.modal-overlay .modal-content .cluster-row-field label {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.modal-overlay .modal-content .cluster-row-field input {
+  height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  font-size: 0.875rem;
+}
+
+.modal-overlay .modal-content .cluster-row-actions {
+  align-items: flex-end;
+  padding: 0;
+}
+
+.modal-overlay .modal-content .btn-remove-cluster {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #64748B;
+  font-size: 0.9rem;
+}
+
+.modal-overlay .modal-content .btn-remove-cluster:hover {
+  border-color: #F5C2C2;
+  background: #FCECEC;
+  color: #A52727;
+}
+
+/* Competidores: la lista separada del campo y el mismo hueco entre filas */
+.modal-overlay .modal-content .competitors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.modal-overlay .modal-content .competitors-list > * { margin: 0; }
+.modal-overlay .modal-content .competitors-list:empty { display: none; }
+
+/* Foco: el de marca, no el marco azul del navegador; sin marco al hacer clic */
+.modal-overlay .modal-content button:focus:not(:focus-visible),
+.modal-overlay .modal-content [role="tab"]:focus:not(:focus-visible) { outline: none; }
+
+.modal-overlay .modal-content button:focus-visible,
+.modal-overlay .modal-content [role="tab"]:focus-visible {
+  outline: 2px solid #0F172A;
+  outline-offset: 2px;
+}
+
+/* Contadores: rectángulo redondeado (la píldora es solo para botones, §9) */
+.modal-overlay .modal-content .tab-count,
+#promptsManagementModal .modal-header .badge,
+#promptsManagementModal .modal-header .plan-limit-badge { border-radius: 6px; }

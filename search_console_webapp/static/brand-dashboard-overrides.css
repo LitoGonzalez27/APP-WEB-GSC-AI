@@ -898,3 +898,26 @@ svg.lucide-spin {
 .create-project-modal .form-group .form-help {
   margin-top: 6px;
 }
+
+/* ── Botón Accent para la acción principal de cada listado ───────────────────
+   Brandbook §9: fondo Bio-Lime y texto #0F172A. «Create New Project» en AI
+   Overview, AI Mode y LLM (y «New analysis» en Agent Readiness), como ya
+   hacía «Link new brand» en AI Visibility Summary. El resto de botones
+   principales siguen en negro: una sola acción lima por pantalla.
+   ─────────────────────────────────────────────────────────────────────────── */
+.projects-header .btn-primary,
+.projects-header .btn-primary:not(:disabled) {
+  border: none;
+  background: #D9F9B8;
+  color: #0F172A;
+}
+
+.projects-header .btn-primary:hover:not(:disabled) {
+  background: #C9F09F;
+  color: #0F172A;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.projects-header .btn-primary i,
+.projects-header .btn-primary svg { color: #0F172A; }
