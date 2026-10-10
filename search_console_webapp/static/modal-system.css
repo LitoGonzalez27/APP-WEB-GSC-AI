@@ -842,3 +842,115 @@
   background: #FCECEC;
   color: #A52727;
 }
+
+/* ── LLM: alta/edición y «Add prompts» (revisión en el navegador) ───────── */
+/* chips de palabras clave: en una fila, compactos y con la «×» visible
+   (salían como cajas altas con la × blanca sobre gris) */
+.modal-overlay .modal-content .chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.modal-overlay .modal-content .chip {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin: 0;
+  padding: 0 6px 0 10px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  background: #F1F5F9;
+  color: #0F172A;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.modal-overlay .modal-content .chip:hover { background: #E8EEF5; transform: none; box-shadow: none; }
+
+.modal-overlay .modal-content .chip .chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748B;
+  opacity: 1;
+}
+
+.modal-overlay .modal-content .chip .chip-remove:hover { background: #E2E8F0; color: #0F172A; }
+
+/* títulos de sección como en AI Overview: icono suelto y la descripción
+   alineada con los campos (antes icono en caja oscura y texto sangrado) */
+.modal-overlay .create-project-modal .form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.modal-overlay .create-project-modal .form-section-title i,
+.modal-overlay .create-project-modal .form-section-title svg {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: #0F172A;
+  font-size: 0.95rem;
+}
+
+.modal-overlay .create-project-modal .form-section-desc {
+  margin-left: 0;
+  padding-left: 0;
+  font-size: 0.85rem;
+  color: #64748B;
+}
+
+/* competidores: separados por una línea, sin tarjeta gris dentro de la tarjeta */
+.modal-overlay .create-project-modal .competitor-section {
+  margin: 0;
+  padding: 16px 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.modal-overlay .create-project-modal .competitor-section + .competitor-section {
+  margin-top: 16px;
+  border-top: 1px solid #EEF2F7;
+}
+
+.modal-overlay .create-project-modal .competitor-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+/* «Add prompts»: la ayuda pegada al campo y el contador sin forma de píldora */
+.modal-overlay .add-prompts-modal .input-hint { margin: 6px 0 0; }
+.modal-overlay .add-prompts-modal .prompts-counter { border-radius: 6px; }
