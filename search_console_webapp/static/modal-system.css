@@ -542,13 +542,14 @@
    ════════════════════════════════════════════════════════════════════════ */
 
 /* Botón Accent (brandbook §9: fondo Bio-Lime, texto #0F172A) para la acción
-   que CIERRA el flujo del modal: el botón principal del pie y «Save
-   changes». Las acciones dentro de una sección (añadir keyword, competidor,
+   que CIERRA el flujo del modal o GUARDA: el botón principal del pie,
+   «Save changes» y «Save Clusters Configuration». Las acciones dentro de una sección (añadir keyword, competidor,
    invitar) siguen en negro, y el destructivo en rojo. Una sola acción lima
    por pantalla marca qué es lo importante. */
 .modal-overlay .modal-content .modal-footer .btn-primary,
 .modal-overlay .modal-content .modal-footer .btn-submit,
-.modal-overlay .modal-content .save-section-inline .btn-primary {
+.modal-overlay .modal-content .save-section-inline .btn-primary,
+.modal-overlay .modal-content button[onclick*="saveClustersConfiguration"] {
   border-color: #D9F9B8;
   background: #D9F9B8;
   color: #0F172A;
@@ -556,7 +557,8 @@
 
 .modal-overlay .modal-content .modal-footer .btn-primary:hover:not(:disabled),
 .modal-overlay .modal-content .modal-footer .btn-submit:hover:not(:disabled),
-.modal-overlay .modal-content .save-section-inline .btn-primary:hover:not(:disabled) {
+.modal-overlay .modal-content .save-section-inline .btn-primary:hover:not(:disabled),
+.modal-overlay .modal-content button[onclick*="saveClustersConfiguration"]:hover:not(:disabled) {
   border-color: #C9F09F;
   background: #C9F09F;
   color: #0F172A;
@@ -669,3 +671,11 @@
 .modal-overlay .modal-content .tab-count,
 #promptsManagementModal .modal-header .badge,
 #promptsManagementModal .modal-header .plan-limit-badge { border-radius: 6px; }
+
+/* clusters: sin la caja gris alrededor de las filas */
+.modal-overlay .modal-large .tab-section .clusters-container {
+  margin: 12px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
