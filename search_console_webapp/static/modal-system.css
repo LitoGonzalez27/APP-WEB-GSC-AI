@@ -956,3 +956,61 @@
 .modal-overlay .add-prompts-modal .prompts-counter { border-radius: 6px; }
 /* el campo traía 8/24px de margen de base-y-componentes.css:293 */
 .modal-overlay .add-prompts-modal textarea#promptsInput { margin: 0; }
+
+/* Sugerencias de «Add prompts»: texto completo en dos columnas (antes
+   píldoras cortadas a 47 caracteres que no se podían leer) */
+.modal-overlay .add-prompts-modal #quickSuggestionsList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.modal-overlay .add-prompts-modal .suggestion-chip {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #0F172A;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.modal-overlay .add-prompts-modal .suggestion-chip:hover {
+  border-color: #0F172A;
+  background: #F8FAFC;
+}
+
+.modal-overlay .add-prompts-modal .suggestion-chip .chip-text {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  max-width: none;
+}
+
+.modal-overlay .add-prompts-modal .suggestion-chip .chip-add-icon,
+.modal-overlay .add-prompts-modal .suggestion-chip svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  width: 14px;
+  height: 14px;
+  color: #64748B;
+}
+
+.modal-overlay .add-prompts-modal .quick-suggestions-empty,
+.modal-overlay .add-prompts-modal .suggestions-loading-inline { grid-column: 1 / -1; }
+
+@media (max-width: 720px) {
+  .modal-overlay .add-prompts-modal #quickSuggestionsList { grid-template-columns: minmax(0, 1fr); }
+}
