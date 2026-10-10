@@ -954,3 +954,5 @@
 /* «Add prompts»: la ayuda pegada al campo y el contador sin forma de píldora */
 .modal-overlay .add-prompts-modal .input-hint { margin: 6px 0 0; }
 .modal-overlay .add-prompts-modal .prompts-counter { border-radius: 6px; }
+/* el campo traía 8/24px de margen de base-y-componentes.css:293 */
+.modal-overlay .add-prompts-modal textarea#promptsInput { margin: 0; }
