@@ -626,14 +626,17 @@ export async function updateProjectFromModal() {
         return;
     }
 
+    // Primero los campos visibles de Settings: projectNameEdit es de un bloque
+    // antiguo oculto que conserva el nombre viejo (se guardaba ese y el
+    // cambio de nombre «tenía éxito» sin cambiar nada)
     const newName = (
-        document.getElementById('projectNameEdit')?.value ??
         document.getElementById('modalProjectName')?.value ??
+        document.getElementById('projectNameEdit')?.value ??
         ''
     ).trim();
     const newDescription = (
-        document.getElementById('projectDescriptionEdit')?.value ??
         document.getElementById('modalProjectDescription')?.value ??
+        document.getElementById('projectDescriptionEdit')?.value ??
         ''
     ).trim();
     
